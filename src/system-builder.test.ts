@@ -1,5 +1,5 @@
 import { expect, describe, test } from 'bun:test';
-import SimpleECS from './simple-ecs';
+import ECSpresso from './ecspresso';
 import Bundle from './bundle';
 
 // Define some test component types for the ECS
@@ -15,7 +15,7 @@ interface TestComponents {
 
 describe('SystemBuilder', () => {
 	test('should create a system that can query entities', () => {
-		const world = new SimpleECS<TestComponents>();
+		const world = new ECSpresso<TestComponents>();
 
 		// Create an entity with all necessary components
 		const entity1 = world.entityManager.createEntity();
@@ -50,7 +50,7 @@ describe('SystemBuilder', () => {
 	});
 
 	test('should handle multiple query definitions', () => {
-		const world = new SimpleECS<TestComponents>();
+		const world = new ECSpresso<TestComponents>();
 
 		// Create an entity with position and velocity
 		const entity1 = world.entityManager.createEntity();
@@ -100,7 +100,7 @@ describe('SystemBuilder', () => {
 	});
 
 	test('should support lifecycle hooks', () => {
-		const world = new SimpleECS<TestComponents>();
+		const world = new ECSpresso<TestComponents>();
 
 		let onAttachCalled = false;
 		let onDetachCalled = false;
@@ -126,7 +126,7 @@ describe('SystemBuilder', () => {
 	});
 
 	test('should support statically typed queries with correct component access', () => {
-		const world = new SimpleECS<TestComponents>();
+		const world = new ECSpresso<TestComponents>();
 
 		// Create an entity with position and velocity
 		const entity1 = world.entityManager.createEntity();

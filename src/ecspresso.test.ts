@@ -1,5 +1,5 @@
 import { expect, describe, test } from 'bun:test';
-import SimpleECS from './simple-ecs';
+import ECSpresso from './ecspresso';
 import Bundle from './bundle';
 
 interface TestComponents {
@@ -18,10 +18,10 @@ interface TestResources {
 	physics: { gravity: number };
 }
 
-describe('SimpleECS', () => {
+describe('ECSpresso', () => {
 
 	test('should run systems with queries', () => {
-		const world = new SimpleECS();
+		const world = new ECSpresso();
 
 		const entity1 = world.entityManager.createEntity();
 		world.entityManager.addComponent(entity1.id, 'position', { x: 0, y: 0 });
@@ -59,7 +59,7 @@ describe('SimpleECS', () => {
 	});
 
 	test('should manage resources', () => {
-		const world = new SimpleECS<TestComponents, {}, TestResources>();
+		const world = new ECSpresso<TestComponents, {}, TestResources>();
 
 		// Adding resources using a bundle
 		const bundle = new Bundle<TestComponents, {}, TestResources>()
@@ -76,7 +76,7 @@ describe('SimpleECS', () => {
 		expect(world.hasResource('config')).toBe(true);
 		expect(world.hasResource('gameState' as keyof TestResources)).toBe(false); // Use a valid key with a type assertion
 
-		// Since SimpleECS doesn't have a removeResource method anymore, we'll test the ResourceManager directly
+		// Since ECSpresso doesn't have a removeResource method anymore, we'll test the ResourceManager directly
 		world.resourceManager.remove('config');
 
 		// Verify resource is gone by checking with resourceManager
@@ -84,7 +84,7 @@ describe('SimpleECS', () => {
 	});
 
 	test('should remove systems by label', () => {
-		const world = new SimpleECS<TestComponents>();
+		const world = new ECSpresso<TestComponents>();
 
 		// Add a system
 		let processRan = false;
@@ -116,7 +116,7 @@ describe('SimpleECS', () => {
 	});
 
 	test('should handle attaching and detaching systems', () => {
-		const world = new SimpleECS<TestComponents>();
+		const world = new ECSpresso<TestComponents>();
 
 		let attachCalled = false;
 		let detachCalled = false;
@@ -152,7 +152,7 @@ describe('SimpleECS', () => {
 	});
 
 	test('should handle state transitions in systems', () => {
-		const world = new SimpleECS<TestComponents>();
+		const world = new ECSpresso<TestComponents>();
 
 		const entity = world.entityManager.createEntity();
 		world.entityManager.addComponent(entity.id, 'state', { current: 'idle', previous: '' });
@@ -185,7 +185,7 @@ describe('SimpleECS', () => {
 	});
 
 	test('should track entity lifetimes', () => {
-		const world = new SimpleECS<TestComponents>();
+		const world = new ECSpresso<TestComponents>();
 
 		// Create an entity with a lifetime component
 		const entity1 = world.entityManager.createEntity();
@@ -248,7 +248,7 @@ describe('SimpleECS', () => {
 	});
 
 	test('should handle component additions and removals during update', () => {
-		const world = new SimpleECS<TestComponents>();
+		const world = new ECSpresso<TestComponents>();
 
 		// Create entity without components yet
 		const entity = world.entityManager.createEntity();

@@ -9,7 +9,7 @@ function generateBundleId(): string {
 
 /**
  * Bundle class that encapsulates a set of components, resources, events, and systems
- * that can be merged into a SimpleECS instance
+ * that can be merged into a ECSpresso instance
  */
 export default class Bundle<
 	ComponentTypes extends Record<string, any> = Record<string, any>,
@@ -19,7 +19,7 @@ export default class Bundle<
 	private _systems: SystemBuilder<ComponentTypes, EventTypes, ResourceTypes, any>[] = [];
 	private _resources: Map<keyof ResourceTypes, ResourceTypes[keyof ResourceTypes]> = new Map();
 	private _id: string;
-	
+
 	constructor(id?: string) {
 		this._id = id || generateBundleId();
 	}
@@ -139,17 +139,17 @@ export function mergeBundles<
 	}
 
 	const combined = new Bundle(id);
-	
+
 	for (const bundle of bundles) {
 		for (const system of bundle.getSystemBuilders()) {
 			combined.addSystem(system as any);
 		}
-		
+
 		// Add resources from this bundle
 		for (const [label, resource] of bundle.getResources().entries()) {
 			combined.addResource(label as any, resource);
 		}
 	}
-	
+
 	return combined as any;
 }

@@ -1,4 +1,4 @@
-import SimpleECS from './simple-ecs';
+import ECSpresso from './ecspresso';
 import { SystemBuilder } from './system-builder';
 import Bundle, { mergeBundles } from './bundle';
 
@@ -8,4 +8,4 @@ export { default as EventBus } from './event-bus';
 export { default as ResourceManager } from './resource-manager';
 export { SystemBuilder };
 export { Bundle, mergeBundles };
-export default SimpleECS;
+export default ECSpresso;

@@ -1,5 +1,5 @@
 import { expect, describe, test } from 'bun:test';
-import SimpleECS from './simple-ecs';
+import ECSpresso from './ecspresso';
 import Bundle from './bundle';
 
 interface TestComponents {
@@ -26,7 +26,7 @@ interface TestResources {
 
 describe('ResourceManager', () => {
 	test('should add and get resources', () => {
-		const resourceManager = new SimpleECS<TestComponents, TestEvents, TestResources>().resourceManager;
+		const resourceManager = new ECSpresso<TestComponents, TestEvents, TestResources>().resourceManager;
 
 		// Add a resource
 		resourceManager.add('config', { debug: true, timeStep: 1/60 });
@@ -39,7 +39,7 @@ describe('ResourceManager', () => {
 	});
 
 	test('should check if a resource exists', () => {
-		const resourceManager = new SimpleECS<TestComponents, TestEvents, TestResources>().resourceManager;
+		const resourceManager = new ECSpresso<TestComponents, TestEvents, TestResources>().resourceManager;
 
 		// Add a resource
 		resourceManager.add('config', { debug: true, timeStep: 1/60 });
@@ -50,7 +50,7 @@ describe('ResourceManager', () => {
 	});
 
 	test('should remove resources', () => {
-		const resourceManager = new SimpleECS<TestComponents, TestEvents, TestResources>().resourceManager;
+		const resourceManager = new ECSpresso<TestComponents, TestEvents, TestResources>().resourceManager;
 
 		// Add a resource
 		resourceManager.add('config', { debug: true, timeStep: 1/60 });
@@ -64,7 +64,7 @@ describe('ResourceManager', () => {
 	});
 
 	test('should gracefully handle removing non-existent resources', () => {
-		const resourceManager = new SimpleECS<TestComponents, TestEvents, TestResources>().resourceManager;
+		const resourceManager = new ECSpresso<TestComponents, TestEvents, TestResources>().resourceManager;
 
 		// Try to remove a non-existent resource
 		const removed = resourceManager.remove('nonExistent' as keyof TestResources);
@@ -74,7 +74,7 @@ describe('ResourceManager', () => {
 	});
 
 	test('should handle resources in ECS systems', () => {
-		const world = new SimpleECS<TestComponents, TestEvents, TestResources>();
+		const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
 
 		// Create an entity to work with
 		const entity = world.entityManager.createEntity();
@@ -122,7 +122,7 @@ describe('ResourceManager', () => {
 	});
 
 	test('should support object and function resources', () => {
-		const world = new SimpleECS<TestComponents, TestEvents, TestResources>();
+		const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
 
 		// Add a logger resource with a function
 		let logMessage = '';
@@ -153,7 +153,7 @@ describe('ResourceManager', () => {
 	});
 
 	test('should support resources in event handlers', () => {
-		const world = new SimpleECS<TestComponents, TestEvents, TestResources>();
+		const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
 
 		// Add resources to test with
 		let resourceUsed = false;

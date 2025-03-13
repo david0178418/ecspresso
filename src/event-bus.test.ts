@@ -1,5 +1,5 @@
 import { expect, describe, test } from 'bun:test';
-import SimpleECS from './simple-ecs';
+import ECSpresso from './ecspresso';
 import Bundle from './bundle';
 
 interface TestComponents {
@@ -19,7 +19,7 @@ interface TestEvents {
 
 describe('EventSystem', () => {
 	test('should allow subscribing to and publishing events', () => {
-		const { eventBus } = new SimpleECS<TestComponents, TestEvents>();
+		const { eventBus } = new ECSpresso<TestComponents, TestEvents>();
 		let receivedData: any = null;
 
 		const unsubscribe = eventBus.subscribe('entityCreated', (data) => {
@@ -36,7 +36,7 @@ describe('EventSystem', () => {
 	});
 
 	test('should handle one-time event subscriptions', () => {
-		const { eventBus } = new SimpleECS<TestComponents, TestEvents>();
+		const { eventBus } = new ECSpresso<TestComponents, TestEvents>();
 		let normalEventCount = 0;
 		let onceEventCount = 0;
 
@@ -57,7 +57,7 @@ describe('EventSystem', () => {
 	});
 
 	test('should handle unsubscribing from events', () => {
-		const { eventBus } = new SimpleECS<TestComponents, TestEvents>();
+		const { eventBus } = new ECSpresso<TestComponents, TestEvents>();
 		let eventCount = 0;
 
 		const unsubscribe = eventBus.subscribe('entityCreated', () => {
@@ -74,7 +74,7 @@ describe('EventSystem', () => {
 	});
 
 	test('should handle clearing all events', () => {
-		const { eventBus } = new SimpleECS<TestComponents, TestEvents>();
+		const { eventBus } = new ECSpresso<TestComponents, TestEvents>();
 		let count1 = 0;
 		let count2 = 0;
 
@@ -95,7 +95,7 @@ describe('EventSystem', () => {
 	});
 
 	test('should handle clearing specific events', () => {
-		const { eventBus } = new SimpleECS<TestComponents, TestEvents>();
+		const { eventBus } = new ECSpresso<TestComponents, TestEvents>();
 		let count1 = 0;
 		let count2 = 0;
 
@@ -111,7 +111,7 @@ describe('EventSystem', () => {
 	});
 
 	test('should auto-register event handlers from systems', () => {
-		const world = new SimpleECS<TestComponents, TestEvents>();
+		const world = new ECSpresso<TestComponents, TestEvents>();
 		const entity = world.entityManager.createEntity();
 
 		world.entityManager.addComponent(entity.id, 'health', { value: 100 });
@@ -160,7 +160,7 @@ describe('EventSystem', () => {
 	});
 
 	test('should provide eventBus and entityManager parameters to event handlers', () => {
-		const world = new SimpleECS<TestComponents, TestEvents>();
+		const world = new ECSpresso<TestComponents, TestEvents>();
 		const entity = world.entityManager.createEntity();
 
 		// Add some components to test with
@@ -206,7 +206,7 @@ describe('EventSystem', () => {
 	});
 
 	test('should handle event handlers during system lifecycle', () => {
-		const world = new SimpleECS<TestComponents, TestEvents>();
+		const world = new ECSpresso<TestComponents, TestEvents>();
 		const entity = world.entityManager.createEntity();
 
 		// Add components to work with
@@ -249,7 +249,7 @@ describe('EventSystem', () => {
 	});
 
 	test('should integrate event system with ECS for event-driven behavior', () => {
-		const world = new SimpleECS<TestComponents, TestEvents>();
+		const world = new ECSpresso<TestComponents, TestEvents>();
 
 		// Create entities to test with
 		const entity = world.entityManager.createEntity();

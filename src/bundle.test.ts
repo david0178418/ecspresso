@@ -1,5 +1,5 @@
 import { expect, describe, test } from 'bun:test';
-import SimpleECS from './simple-ecs';
+import ECSpresso from './ecspresso';
 import Bundle, { mergeBundles } from './bundle';
 
 // Define test component and resource types
@@ -34,7 +34,7 @@ describe('Bundle', () => {
 	test('should add systems to the bundle', () => {
 		const bundle = new Bundle<PositionComponents, {}, PositionResources>();
 		bundle.addSystem('test');
-		
+
 		// Verify systems were added by checking the built systems
 		const systems = bundle.getSystems();
 		expect(systems.length).toBe(1);
@@ -44,7 +44,7 @@ describe('Bundle', () => {
 	test('should add resources to the bundle', () => {
 		const bundle = new Bundle<PositionComponents, {}, PositionResources>();
 		bundle.addResource('gravity', { value: 9.8 });
-		
+
 		// Verify resources were added
 		const resources = bundle.getResources();
 		expect(resources.size).toBe(1);
@@ -54,11 +54,11 @@ describe('Bundle', () => {
 	test('should handle a world installing a bundle with the install method', () => {
 		const bundle = new Bundle<PositionComponents, {}, PositionResources>('test-bundle')
 			.addResource('gravity', { value: 9.8 });
-			
-		const world = new SimpleECS<PositionComponents, {}, PositionResources>();
-		
+
+		const world = new ECSpresso<PositionComponents, {}, PositionResources>();
+
 		world.install(bundle);
-		
+
 		// Verify the bundle was installed by checking the installed bundles
 		expect(world.installedBundles).toContain('test-bundle');
 		expect(world.hasResource('gravity')).toBe(true);
@@ -68,48 +68,48 @@ describe('Bundle', () => {
 		// Create bundles to get properly typed system builders
 		const physicsBundle = new Bundle<PositionComponents, {}, PositionResources>();
 		const playerBundle = new Bundle<PlayerComponents, {}, PlayerResources>();
-		
+
 		// Add resources to each bundle
 		physicsBundle.addResource('gravity', { value: 9.8 });
 		playerBundle.addResource('playerControls', { up: false, down: false, left: false, right: false });
-		
+
 		// Create system builders using the bundles
 		physicsBundle.addSystem('physics')
-			.addQuery('movingEntities', { 
+			.addQuery('movingEntities', {
 				with: ['position', 'velocity']
 			})
 			.setProcess(() => {
 				// Dummy process function
 			});
-			
+
 		playerBundle.addSystem('player')
-			.addQuery('players', { 
+			.addQuery('players', {
 				with: ['player', 'health']
 			})
 			.setProcess(() => {
 				// Dummy process function
 			});
-			
+
 		// Combine the bundles
 		const gameBundle = mergeBundles(
 			'game',
 			physicsBundle,
 			playerBundle,
 		);
-		
+
 		// Check that the combined bundle has the systems and resources from both bundles
 		expect(gameBundle.getSystems().length).toBe(2);
 		expect(gameBundle.getResources().size).toBe(2);
 		expect(gameBundle.getResources().has('gravity')).toBe(true);
 		expect(gameBundle.getResources().has('playerControls')).toBe(true);
-		
+
 		// Install the combined bundle into a world
-		const world = new SimpleECS<GameComponents, {}, GameResources>();
-		
+		const world = new ECSpresso<GameComponents, {}, GameResources>();
+
 		// Install and verify bundle was successfully installed
 		world.install(gameBundle);
 		expect(world.installedBundles).toContain('game');
 		expect(world.hasResource('gravity')).toBe(true);
 		expect(world.hasResource('playerControls')).toBe(true);
 	});
-}); 
+});

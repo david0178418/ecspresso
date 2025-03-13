@@ -13,13 +13,13 @@ bun test
 ```
 
 
-# SimpleECS
+# ECSpresso
 
 A lightweight, type-safe Entity Component System (ECS) library for TypeScript applications and games.
 
 ## Overview
 
-SimpleECS is a flexible and efficient Entity Component System implementation that provides:
+ECSpresso is a flexible and efficient Entity Component System implementation that provides:
 
 - **Type-safe API**: Fully leverages TypeScript's type system for component, event, and resource definitions
 - **Event System**: Built-in pub/sub event system for communication between systems
@@ -50,7 +50,7 @@ The ECS pattern separates data (Components) from behavior (Systems) through Enti
 
 ```bash
 # Add the library to your project
-npm install simple-ecs
+npm install ecspresso
 ```
 
 ## Usage
@@ -58,7 +58,7 @@ npm install simple-ecs
 ### Basic Setup
 
 ```typescript
-import SimpleECS, { Bundle } from 'simple-ecs';
+import ECSpresso, { Bundle } from 'ecspresso';
 
 // Define your component types
 interface Position {
@@ -84,7 +84,7 @@ interface GameState {
 }
 
 // Create an ECS instance with your types
-const ecs = new SimpleECS<
+const ecs = new ECSpresso<
   { position: Position; velocity: Velocity },
   { collision: CollisionEvent },
   { gameState: GameState }
@@ -180,7 +180,7 @@ ecs.addSystem(scoreSystem);
 ### Merging Bundles
 
 ```typescript
-import { mergeBundles } from 'simple-ecs';
+import { mergeBundles } from 'ecspresso';
 
 // Merge multiple bundles into one
 const gameBundle = mergeBundles(
