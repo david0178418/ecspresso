@@ -3,22 +3,31 @@
 	"version": "0.0.0",
 	"main": "src/index.ts",
 	"module": "src/index.ts",
+	"description": "A minimal Entity-Component-System library for typescript and javascript.",
+	"keywords": [
+		"game",
+		"gamedev",
+		"game development",
+		"game engine",
+		"game development",
+		"entity component system",
+		"web games",
+		"ecs"
+	],
 	"devDependencies": {
 		"@types/bun": "latest"
 	},
 	"peerDependencies": {
 		"typescript": "^5"
 	},
-	"description": "A simple ECS library for Bun",
 	"files": [
 		"dist"
 	],
 	"scripts": {
 		"build:clean": "rm -rf dist",
-		"build:ts": "bun run build.ts",
-		"build:types": "bun tsc -p tsconfig.build.json",
-		"build": "bun build:ts && bun build:types",
-		"prepublishOnly": "bun build:clean && bun build"
+		"build:ts": "bun build --target=browser --sourcemap=linked --minify --outdir=dist src/index.ts",
+		"build": "bun build:clean && bun build:ts",
+		"prepublishOnly": "bun run build"
 	},
 	"type": "module"
 }

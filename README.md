@@ -1,4 +1,8 @@
-# ecspresso
+# ECSpresso
+
+*(pronounced "ex-presso")*
+
+__Note: This is a VERY early work in progress.__
 
 To install dependencies:
 
