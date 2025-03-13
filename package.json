@@ -1,6 +1,6 @@
 {
 	"name": "ecspresso",
-	"version": "0.0.0",
+	"version": "0.0.1",
 	"main": "src/index.ts",
 	"module": "src/index.ts",
 	"description": "A minimal Entity-Component-System library for typescript and javascript.",
