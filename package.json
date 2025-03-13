@@ -4,6 +4,10 @@
 	"main": "src/index.ts",
 	"module": "src/index.ts",
 	"description": "A minimal Entity-Component-System library for typescript and javascript.",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/david0178418/ecspresso"
+	},
 	"keywords": [
 		"game",
 		"gamedev",
@@ -25,8 +29,9 @@
 	],
 	"scripts": {
 		"build:clean": "rm -rf dist",
+		"build:types": "bun tsc -p tsconfig.build.json",
 		"build:ts": "bun build --target=browser --sourcemap=linked --minify --outdir=dist src/index.ts",
-		"build": "bun build:clean && bun build:ts",
+		"build": "bun build:clean && bun build:ts && bun build:types",
 		"prepublishOnly": "bun run build"
 	},
 	"type": "module"
