@@ -59,7 +59,12 @@ All system methods (process, onAttach, onDetach, and event handlers) receive the
 - Access to resources via `ecs.resourceManager`
 - Access to events via `ecs.eventBus`
 
-This design simplifies the API and allows systems access to all ECS functionality through a single reference.
+This design simplifies the API and allows systems access to all ECS functionality through a single reference. Benefits of this approach include:
+
+- **Simpler method signatures**: Systems only need to deal with one additional parameter (the ECS instance) rather than multiple managers
+- **Future extensibility**: New functionality added to the ECSpresso class is automatically available to all systems without changing method signatures
+- **Consistency**: All system methods (process, lifecycle hooks, event handlers) use the same parameter pattern
+- **Reduced verbosity**: Systems can be written more concisely while still having access to all ECS functionality
 
 ## Installation
 
@@ -109,11 +114,11 @@ const ecs = new ECSpresso<
 ecs.addResource('gameState', { score: 0, level: 1 });
 
 // Create an entity
-const entityId = ecs.createEntity();
+const entity = ecs.entityManager.createEntity();
 
 // Add components to the entity
-ecs.addComponent(entityId, 'position', { x: 0, y: 0 });
-ecs.addComponent(entityId, 'velocity', { dx: 1, dy: 2 });
+ecs.entityManager.addComponent(entity.id, 'position', { x: 0, y: 0 });
+ecs.entityManager.addComponent(entity.id, 'velocity', { dx: 1, dy: 2 });
 
 // Run the simulation
 ecs.update(16.67); // Pass delta time in ms
@@ -161,7 +166,7 @@ physicsBundle
     // Check for collisions
     // ...
     // Emit collision events
-    ecs.eventBus.emit('collision', { entityA: 1, entityB: 2 });
+    ecs.eventBus.publish('collision', { entityA: 1, entityB: 2 });
   });
 
 // Install the bundle
@@ -224,5 +229,64 @@ const renderSystem = ecs.entityManager
     console.log('Render system detached');
   });
 ```
+
+### Complex System Example
+
+The following example demonstrates a system that uses multiple aspects of the ECS (queries, resources, and events) with the simplified API:
+
+```typescript
+// Create a complex AI system that needs access to multiple ECS features
+const aiSystem = ecs.entityManager
+  .createSystem('enemyAI')
+  .addQuery('enemies', {
+    with: ['position', 'ai', 'health'],
+    without: ['stunned']
+  })
+  .addQuery('players', {
+    with: ['position', 'player']
+  })
+  .setProcess((queries, deltaTime, ecs) => {
+    // Access game configuration from resources
+    const config = ecs.resourceManager.get('gameConfig');
+    const difficultyMultiplier = config?.difficulty || 1.0;
+    
+    // Process each enemy
+    for (const enemy of queries.enemies) {
+      // Find the nearest player
+      let nearestPlayer = null;
+      let shortestDistance = Infinity;
+      
+      for (const player of queries.players) {
+        const distance = calculateDistance(
+          enemy.components.position,
+          player.components.position
+        );
+        
+        if (distance < shortestDistance) {
+          nearestPlayer = player;
+          shortestDistance = distance;
+        }
+      }
+      
+      if (nearestPlayer && shortestDistance < enemy.components.ai.detectionRange * difficultyMultiplier) {
+        // Enemy detected player, update AI state
+        if (enemy.components.ai.state !== 'chasing') {
+          enemy.components.ai.state = 'chasing';
+          
+          // Emit event that enemy spotted player
+          ecs.eventBus.publish('enemySpottedPlayer', {
+            enemyId: enemy.id,
+            playerId: nearestPlayer.id
+          });
+        }
+        
+        // Move enemy toward player
+        moveToward(enemy, nearestPlayer, deltaTime);
+      }
+    }
+  });
+```
+
+This example shows how having access to the entire ECS through a single parameter simplifies the code, as the system can easily work with entity queries, access resources, and publish events without needing separate parameters for each manager.
 
 This project was created using `bun init` in bun v1.2.4. [Bun](https://bun.sh) is a fast all-in-one JavaScript runtime.
