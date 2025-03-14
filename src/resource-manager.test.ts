@@ -164,9 +164,9 @@ describe('ResourceManager', () => {
 			.addSystem('ResourceUsingEventSystem')
 			.setEventHandlers({
 				collision: {
-					handler: (_data, _entityManager, resourceManager, _eventBus) => {
+					handler: (_data, ecs) => {
 						// Access and use resources in event handler
-						const config = resourceManager.get('config');
+						const config = ecs.resourceManager.get('config');
 						if (config?.debug) {
 							resourceUsed = true;
 						}

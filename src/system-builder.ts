@@ -21,9 +21,11 @@ export class SystemBuilder<
 		[EventName in keyof EventTypes]?: {
 			handler(
 				data: EventTypes[EventName],
-				entityManager: EntityManager<ComponentTypes>,
-				resourceManager: ResourceManager<ResourceTypes>,
-				eventBus: EventBus<EventTypes>,
+				ecs: import("./ecspresso").default<
+					ComponentTypes & Record<string, any>,
+					EventTypes,
+					ResourceTypes
+				>
 			): void;
 		};
 	};
@@ -108,9 +110,11 @@ export class SystemBuilder<
 			[EventName in keyof EventTypes]?: {
 				handler(
 					data: EventTypes[EventName],
-					entityManager: EntityManager<ComponentTypes>,
-					resourceManager: ResourceManager<ResourceTypes>,
-					eventBus: EventBus<EventTypes>,
+					ecs: import("./ecspresso").default<
+						ComponentTypes & Record<string, any>,
+						EventTypes,
+						ResourceTypes
+					>
 				): void;
 			};
 		}

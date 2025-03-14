@@ -124,12 +124,12 @@ describe('EventSystem', () => {
 			.addSystem('HealthEventSystem')
 			.setEventHandlers({
 				healthChanged: {
-							handler: (data) => {
+							handler: (data, _ecs) => {
 								receivedEvents.push(data);
 							}
 						},
 				entityDestroyed: {
-					handler: (data) => {
+					handler: (data, _ecs) => {
 						receivedEvents.push(data);
 					}
 				}
@@ -175,9 +175,9 @@ describe('EventSystem', () => {
 			.addSystem('ParameterTestSystem')
 			.setEventHandlers({
 				healthChanged: {
-					handler: (data, entityManager) => {
+					handler: (data, ecs) => {
 						receivedData = data;
-						receivedEntityManager = entityManager;
+						receivedEntityManager = ecs.entityManager;
 					}
 				}
 			});
@@ -272,18 +272,18 @@ describe('EventSystem', () => {
 			.addSystem('EventDrivenDamageSystem')
 			.setEventHandlers({
 				collision: {
-					handler: (data, entityManager, _resourceManager, eventBus) => {
+					handler: (data, ecs) => {
 						// Collision should reduce health of both entities
-						const entity1 = entityManager.getEntity(data.entity1Id);
-						const entity2 = entityManager.getEntity(data.entity2Id);
+						const entity1 = ecs.entityManager.getEntity(data.entity1Id);
+						const entity2 = ecs.entityManager.getEntity(data.entity2Id);
 
 						if (entity1 && entity2) {
-							if (entityManager.getComponent(entity1.id, 'health') &&
-								entityManager.getComponent(entity2.id, 'health')) {
+							if (ecs.entityManager.getComponent(entity1.id, 'health') &&
+								ecs.entityManager.getComponent(entity2.id, 'health')) {
 
 								// Get current health values
-								const health1 = entityManager.getComponent(entity1.id, 'health');
-								const health2 = entityManager.getComponent(entity2.id, 'health');
+								const health1 = ecs.entityManager.getComponent(entity1.id, 'health');
+								const health2 = ecs.entityManager.getComponent(entity2.id, 'health');
 
 								if (health1 && health2) {
 									// Log the damage
@@ -294,17 +294,17 @@ describe('EventSystem', () => {
 									const newHealth1 = { value: Math.max(0, health1.value - 10) };
 									const newHealth2 = { value: Math.max(0, health2.value - 10) };
 
-									entityManager.addComponent(entity1.id, 'health', newHealth1);
-									entityManager.addComponent(entity2.id, 'health', newHealth2);
+									ecs.entityManager.addComponent(entity1.id, 'health', newHealth1);
+									ecs.entityManager.addComponent(entity2.id, 'health', newHealth2);
 
 									// Emit health changed events
-									eventBus.publish('healthChanged', {
+									ecs.eventBus.publish('healthChanged', {
 										entityId: entity1.id,
 										oldValue: health1.value,
 										newValue: newHealth1.value
 									});
 
-									eventBus.publish('healthChanged', {
+									ecs.eventBus.publish('healthChanged', {
 										entityId: entity2.id,
 										oldValue: health2.value,
 										newValue: newHealth2.value

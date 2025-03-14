@@ -36,7 +36,7 @@ interface QueryConfig<
 	without?: ReadonlyArray<WithoutComponents>;
 }
 
-export 
+export
 interface System<
 	ComponentTypes,
 	WithComponents extends keyof ComponentTypes = never,
@@ -51,13 +51,13 @@ interface System<
 	process?(
 		queries: {
 			[queryName: string]: Array<FilteredEntity<ComponentTypes, WithComponents, WithoutComponents>>;
-		} | Array<FilteredEntity<ComponentTypes, WithComponents, WithoutComponents>>, 
-		deltaTime: number, 
+		} | Array<FilteredEntity<ComponentTypes, WithComponents, WithoutComponents>>,
+		deltaTime: number,
 		entityManager: EntityManager<ComponentTypes>,
 		resourceManager: ResourceManager<ResourceTypes>,
 		eventBus: EventBus<EventTypes>,
 	): void;
-	
+
 	// Optional lifecycle hooks for event handling
 	onAttach?(
 		entityManager: EntityManager<ComponentTypes>,
@@ -69,15 +69,17 @@ interface System<
 		resourceManager: ResourceManager<ResourceTypes>,
 		eventBus: EventBus<EventTypes>,
 	): void;
-	
+
 	// Structured container for event handlers
 	eventHandlers?: {
 		[EventName in keyof EventTypes]?: {
 			handler(
 				data: EventTypes[EventName],
-				entityManager: EntityManager<ComponentTypes>,
-				resourceManager: ResourceManager<ResourceTypes>,
-				eventBus: EventBus<EventTypes>,
+				ecs: import("./ecspresso").default<
+					ComponentTypes & Record<string, any>,
+					EventTypes,
+					ResourceTypes
+				>
 			): void;
 		};
 	};

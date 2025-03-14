@@ -69,9 +69,7 @@ class ECSpresso<
 							const wrappedHandler = (data: any) => {
 								handler.handler(
 									data,
-									this._entityManager,
-									this._resourceManager,
-									this._eventBus
+									this
 								);
 							};
 
