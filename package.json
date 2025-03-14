@@ -1,8 +1,9 @@
 {
 	"name": "ecspresso",
 	"version": "0.0.1",
-	"main": "src/index.ts",
-	"module": "src/index.ts",
+	"main": "dist/index.js",
+	"module": "dist/index.js",
+	"types": "dist/index.d.ts",
 	"description": "A minimal Entity-Component-System library for typescript and javascript.",
 	"repository": {
 		"type": "git",
@@ -29,9 +30,9 @@
 	],
 	"scripts": {
 		"build:clean": "rm -rf dist",
-		"build:types": "bun tsc -p tsconfig.build.json",
-		"build:ts": "bun build --target=browser --sourcemap=linked --minify --outdir=dist src/index.ts",
-		"build": "bun build:clean && bun build:ts && bun build:types",
+		"build:ts": "bun tsc -p tsconfig.build.json",
+		"build:js": "bun build --target=browser --sourcemap=linked --minify --outdir=dist src/index.ts",
+		"build": "bun build:clean && bun build:ts && bun build:js",
 		"prepublishOnly": "bun run build"
 	},
 	"type": "module"

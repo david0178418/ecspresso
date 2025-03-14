@@ -1,11 +1,17 @@
 {
 	"extends": "./tsconfig.json",
-	"include": ["src/**/*.ts"],
+	"include": ["src/"],
+	"exclude": ["src/**/*.test.ts"],
 	"compilerOptions": {
-		"outFile": "./dist/index.d.ts",
+		"outDir": "./dist",
+		"module": "ESNext",
 		"emitDeclarationOnly": true,
+		"allowImportingTsExtensions": false,
 		"noEmit": false,
 		"declaration": true,
-		"declarationMap": true,
+		"declarationDir": "./dist",
+		"moduleResolution": "node",
+		"resolveJsonModule": true,
+		"rootDir": "src"
 	}
 }
