@@ -88,10 +88,10 @@ describe('ResourceManager', () => {
 			.addQuery('entities', {
 				with: ['position']
 			})
-			.setProcess((queries, _deltaTime, _entityManager, resourceManager) => {
+			.setProcess((queries, _deltaTime, ecs) => {
 				// Get resources
-				const config = resourceManager.get('config');
-				const gameState = resourceManager.get('gameState');
+				const config = ecs.resourceManager.get('config');
+				const gameState = ecs.resourceManager.get('gameState');
 
 				// Use resources to update entities
 				for (const entity of queries.entities) {
@@ -135,9 +135,9 @@ describe('ResourceManager', () => {
 				}
 			})
 			.addSystem('LoggingSystem')
-			.setProcess((_, __, ___, resourceManager) => {
+			.setProcess((_queries, _deltaTime, ecs) => {
 			// Use the logger resource
-				const logger = resourceManager.get('logger');
+				const logger = ecs.resourceManager.get('logger');
 				logger?.log('System executed');
 			})
 			.bundle;

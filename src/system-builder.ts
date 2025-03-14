@@ -1,7 +1,4 @@
 import Bundle from "./bundle";
-import type EntityManager from "./entity-manager";
-import type EventBus from "./event-bus";
-import type ResourceManager from "./resource-manager";
 import type { FilteredEntity, System } from "./types";
 
 /**
@@ -183,9 +180,11 @@ type ProcessFunction<
 > = (
 	queries: QueryResults<ComponentTypes, Queries>,
 	deltaTime: number,
-	entityManager: EntityManager<ComponentTypes>,
-	resourceManager: ResourceManager<ResourceTypes>,
-	eventBus: EventBus<EventTypes>,
+	ecs: import("./ecspresso").default<
+		ComponentTypes & Record<string, any>,
+		EventTypes,
+		ResourceTypes
+	>
 ) => void;
 
 type LifecycleFunction<
@@ -193,9 +192,11 @@ type LifecycleFunction<
 	EventTypes extends Record<string, any>,
 	ResourceTypes extends Record<string, any>,
 > = (
-	entityManager: EntityManager<ComponentTypes>,
-	resourceManager: ResourceManager<ResourceTypes>,
-	eventBus: EventBus<EventTypes>,
+	ecs: import("./ecspresso").default<
+		ComponentTypes & Record<string, any>,
+		EventTypes,
+		ResourceTypes
+	>
 ) => void;
 
 // // Factory function for easier creation

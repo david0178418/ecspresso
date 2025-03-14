@@ -125,13 +125,13 @@ describe('ECSpresso', () => {
 		// Create a system with lifecycle hooks
 		const bundle = new Bundle<TestComponents>()
 			.addSystem('MovementControlSystem')
-			.setOnAttach(() => {
+			.setOnAttach((_ecs) => {
 				attachCalled = true;
 			})
-			.setOnDetach(() => {
+			.setOnDetach((_ecs) => {
 				detachCalled = true;
 			})
-			.setProcess(() => {
+			.setProcess((_queries, _deltaTime, _ecs) => {
 				processCalled = true;
 			})
 			.bundle;
@@ -163,7 +163,7 @@ describe('ECSpresso', () => {
 			.addQuery('statefulEntities', {
 				with: ['state'],
 			})
-			.setProcess((queries) => {
+			.setProcess((queries, _deltaTime, _ecs) => {
 				for (const entity of queries.statefulEntities) {
 					// Update state
 					const state = entity.components.state;
@@ -256,13 +256,13 @@ describe('ECSpresso', () => {
 		// Create a system that adds and removes components
 		const bundle = new Bundle<TestComponents>()
 			.addSystem('DynamicComponentSystem')
-			.setProcess((_, __, entityManager) => {
+			.setProcess((_queries, _deltaTime, ecs) => {
 				// Add a position component if it doesn't exist
 				if (!world.entityManager.getComponent(entity.id, 'position')) {
-					entityManager.addComponent(entity.id, 'position', { x: 0, y: 0 });
+					ecs.entityManager.addComponent(entity.id, 'position', { x: 0, y: 0 });
 				} else {
 					// Remove the position component if it does exist
-					entityManager.removeComponent(entity.id, 'position');
+					ecs.entityManager.removeComponent(entity.id, 'position');
 				}
 			})
 			.bundle;

@@ -54,9 +54,7 @@ class ECSpresso<
 				// Call onAttach lifecycle hook if defined
 				if (typedSystem.onAttach) {
 					typedSystem.onAttach(
-						this._entityManager,
-						this._resourceManager,
-						this._eventBus
+						this
 					);
 				}
 
@@ -105,9 +103,7 @@ class ECSpresso<
 		if (!system) return false;
 
 		system.onDetach?.(
-			this._entityManager,
-			this._resourceManager,
-			this._eventBus
+			this
 		);
 
 		// Remove system
@@ -194,18 +190,14 @@ class ECSpresso<
 				system.process(
 					queryResults,
 					deltaTime,
-					this._entityManager,
-					this._resourceManager,
-					this._eventBus
+					this
 				);
 			} else {
 				// No queries defined, pass an empty array
 				system.process(
 					[],
 					deltaTime,
-					this._entityManager,
-					this._resourceManager,
-					this._eventBus
+					this
 				);
 			}
 		}

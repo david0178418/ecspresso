@@ -35,7 +35,7 @@ describe('SystemBuilder', () => {
 				with: ['position', 'velocity'],
 				without: [],
 			})
-			.setProcess((queries) => {
+			.setProcess((queries, _deltaTime, _ecs) => {
 				for (const entity of queries.entities) {
 					processedEntities.push(entity.id);
 				}
@@ -80,7 +80,7 @@ describe('SystemBuilder', () => {
 			.addQuery('collidingEntities', {
 				with: ['position', 'collision'],
 			})
-			.setProcess((queries) => {
+			.setProcess((queries, _deltaTime, _ecs) => {
 				for (const entity of queries.movingEntities) {
 					processedMovingEntities.push(entity.id);
 				}
@@ -108,10 +108,10 @@ describe('SystemBuilder', () => {
 		// Create a bundle with the system that has lifecycle hooks
 		const bundle = new Bundle<TestComponents>()
 			.addSystem('lifecycle')
-			.setOnAttach(() => {
+			.setOnAttach((_ecs) => {
 				onAttachCalled = true;
 			})
-			.setOnDetach(() => {
+			.setOnDetach((_ecs) => {
 				onDetachCalled = true;
 			})
 			.bundle;
@@ -149,7 +149,7 @@ describe('SystemBuilder', () => {
 				with: ['position', 'velocity'],
 				without: [],
 			})
-			.setProcess((queries) => {
+			.setProcess((queries, _deltaTime, _ecs) => {
 				// TypeScript should know that position and velocity are guaranteed to exist
 				for (const entity of queries.objects) {
 					sumX += entity.components.position.x + entity.components.velocity.x;

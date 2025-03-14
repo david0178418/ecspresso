@@ -1,7 +1,3 @@
-import type ResourceManager from "./resource-manager";
-import type EventBus from "./event-bus";
-import type EntityManager from "./entity-manager";
-
 export
 interface Entity<ComponentTypes> {
 	id: number;
@@ -53,21 +49,27 @@ interface System<
 			[queryName: string]: Array<FilteredEntity<ComponentTypes, WithComponents, WithoutComponents>>;
 		} | Array<FilteredEntity<ComponentTypes, WithComponents, WithoutComponents>>,
 		deltaTime: number,
-		entityManager: EntityManager<ComponentTypes>,
-		resourceManager: ResourceManager<ResourceTypes>,
-		eventBus: EventBus<EventTypes>,
+		ecs: import("./ecspresso").default<
+			ComponentTypes & Record<string, any>,
+			EventTypes,
+			ResourceTypes
+		>
 	): void;
 
 	// Optional lifecycle hooks for event handling
 	onAttach?(
-		entityManager: EntityManager<ComponentTypes>,
-		resourceManager: ResourceManager<ResourceTypes>,
-		eventBus: EventBus<EventTypes>,
+		ecs: import("./ecspresso").default<
+			ComponentTypes & Record<string, any>,
+			EventTypes,
+			ResourceTypes
+		>
 	): void;
 	onDetach?(
-		entityManager: EntityManager<ComponentTypes>,
-		resourceManager: ResourceManager<ResourceTypes>,
-		eventBus: EventBus<EventTypes>,
+		ecs: import("./ecspresso").default<
+			ComponentTypes & Record<string, any>,
+			EventTypes,
+			ResourceTypes
+		>
 	): void;
 
 	// Structured container for event handlers
