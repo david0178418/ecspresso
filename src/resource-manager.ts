@@ -6,11 +6,11 @@ class ResourceManager<ResourceTypes extends Record<string, any> = Record<string,
 	 * Add a resource to the manager
 	 * @param label The resource key
 	 * @param resource The resource value
-	 * @returns The added resource
+	 * @returns The resource manager instance for chaining
 	 */
-	add<K extends keyof ResourceTypes>(label: K, resource: ResourceTypes[K]): ResourceTypes[K] {
+	add<K extends keyof ResourceTypes>(label: K, resource: ResourceTypes[K]) {
 		this.resources.set(label, resource);
-		return resource;
+		return this;
 	}
 
 	/**
@@ -21,10 +21,12 @@ class ResourceManager<ResourceTypes extends Record<string, any> = Record<string,
 	 */
 	get<K extends keyof ResourceTypes>(label: K): ResourceTypes[K] {
 		const resource = this.resources.get(label);
+
 		if (resource === undefined) {
 			throw new Error(`Resource ${String(label)} not found`);
 		}
-		return resource as ResourceTypes[K];
+
+		return resource;
 	}
 
 	/**
