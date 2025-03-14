@@ -6,6 +6,19 @@ import type Bundle from "./bundle";
 import { version } from "../package.json";
 
 
+/**
+ * The main ECS (Entity Component System) container class
+ *
+ * This class manages entities, components, systems, resources, and events.
+ *
+ * Systems interact with the ECS through a single parameter that provides access
+ * to the entire ECSpresso instance. This provides a simplified API for systems
+ * and allows them access to all ECS functionality through a single reference.
+ *
+ * @template ComponentTypes Record of component types used in this ECS instance
+ * @template EventTypes Record of event types used in this ECS instance
+ * @template ResourceTypes Record of resource types used in this ECS instance
+ */
 export default
 class ECSpresso<
 	ComponentTypes extends Record<string, any> = Record<string, any>,
@@ -27,6 +40,9 @@ class ECSpresso<
 
 	/**
 	 * Install one or more bundles into this ECS instance
+	 * Systems in the bundle will have their onAttach method called with this ECSpresso instance
+	 * @param bundles One or more bundles to install
+	 * @returns This ECSpresso instance for method chaining
 	 */
 	install<
 		Bundles extends Array<Bundle<any, any, any>>
@@ -94,6 +110,9 @@ class ECSpresso<
 
 	/**
 	 * Remove a system by its label
+	 * Calls the system's onDetach method with this ECSpresso instance if defined
+	 * @param label The unique label of the system to remove
+	 * @returns true if the system was found and removed, false otherwise
 	 */
 	removeSystem(label: string): boolean {
 		const index = this._systems.findIndex(system => system.label === label);
@@ -166,6 +185,8 @@ class ECSpresso<
 
 	/**
 	 * Update all systems
+	 * Calls each system's process method with this ECSpresso instance
+	 * @param deltaTime Time elapsed since the last update in seconds
 	 */
 	update(deltaTime: number) {
 		for (const system of this._systems) {

@@ -71,6 +71,8 @@ export class SystemBuilder<
 
 	/**
 	 * Set the system's process function that runs each update
+	 * @param process Function to process entities matching the system's queries each update
+	 * @returns This SystemBuilder instance for method chaining
 	 */
 	setProcess(
 		process: ProcessFunction<ComponentTypes, EventTypes, ResourceTypes, Queries>
@@ -81,6 +83,9 @@ export class SystemBuilder<
 
 	/**
 	 * Set the onAttach lifecycle hook
+	 * Called when the system is attached to the ECS
+	 * @param onAttach Function to run when this system is attached to the ECS
+	 * @returns This SystemBuilder instance for method chaining
 	 */
 	setOnAttach(
 		onAttach: LifecycleFunction<ComponentTypes, EventTypes, ResourceTypes>
@@ -91,6 +96,9 @@ export class SystemBuilder<
 
 	/**
 	 * Set the onDetach lifecycle hook
+	 * Called when the system is removed from the ECS
+	 * @param onDetach Function to run when this system is detached from the ECS
+	 * @returns This SystemBuilder instance for method chaining
 	 */
 	setOnDetach(
 		onDetach: LifecycleFunction<ComponentTypes, EventTypes, ResourceTypes>
@@ -101,6 +109,9 @@ export class SystemBuilder<
 
 	/**
 	 * Set event handlers for the system
+	 * These handlers will be automatically subscribed when the system is attached
+	 * @param handlers Object mapping event names to handler functions
+	 * @returns This SystemBuilder instance for method chaining
 	 */
 	setEventHandlers(
 		handlers: {
@@ -172,6 +183,12 @@ type QueryResults<
 		: never;
 };
 
+/**
+ * Function signature for system process methods
+ * @param queries Results of entity queries defined by the system
+ * @param deltaTime Time elapsed since last update in seconds
+ * @param ecs The ECSpresso instance providing access to all ECS functionality
+ */
 type ProcessFunction<
 	ComponentTypes,
 	EventTypes extends Record<string, any>,
@@ -187,6 +204,10 @@ type ProcessFunction<
 	>
 ) => void;
 
+/**
+ * Function signature for system lifecycle hooks (onAttach and onDetach)
+ * @param ecs The ECSpresso instance providing access to all ECS functionality
+ */
 type LifecycleFunction<
 	ComponentTypes,
 	EventTypes extends Record<string, any>,

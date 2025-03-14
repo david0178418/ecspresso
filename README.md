@@ -49,6 +49,17 @@ The ECS pattern separates data (Components) from behavior (Systems) through Enti
 - Fluent builder API for creating systems and bundles
 - Event handling with lifecycle hooks for systems
 - Resource management for global state
+- Simplified system API - all system methods receive the ECSpresso instance
+
+### System API Design
+
+All system methods (process, onAttach, onDetach, and event handlers) receive the ECSpresso instance as a parameter, which provides:
+
+- Access to entity management via `ecs.entityManager`
+- Access to resources via `ecs.resourceManager`
+- Access to events via `ecs.eventBus`
+
+This design simplifies the API and allows systems access to all ECS functionality through a single reference.
 
 ## Installation
 
@@ -117,7 +128,7 @@ const movementSystem = ecs.entityManager
   .addQuery('movable', {
     with: ['position', 'velocity']
   })
-  .setProcess((queries, deltaTime) => {
+  .setProcess((queries, deltaTime, ecs) => {
     // Process entities with both position and velocity
     for (const entity of queries.movable) {
       const { position, velocity } = entity.components;
@@ -146,11 +157,11 @@ physicsBundle
   .addQuery('collidable', {
     with: ['position']
   })
-  .setProcess((queries, deltaTime, entityManager, resourceManager, eventBus) => {
+  .setProcess((queries, deltaTime, ecs) => {
     // Check for collisions
     // ...
     // Emit collision events
-    eventBus.emit('collision', { entityA: 1, entityB: 2 });
+    ecs.eventBus.emit('collision', { entityA: 1, entityB: 2 });
   });
 
 // Install the bundle
@@ -165,9 +176,9 @@ const scoreSystem = ecs.entityManager
   .createSystem('score')
   .setEventHandlers({
     collision: {
-      handler: (event, entityManager, resourceManager) => {
+      handler: (event, ecs) => {
         // Handle collision event
-        const gameState = resourceManager.getResource('gameState');
+        const gameState = ecs.resourceManager.getResource('gameState');
         if (gameState) {
           gameState.score += 10;
         }
@@ -204,11 +215,11 @@ ecs.install(gameBundle);
 // Create a system with lifecycle hooks
 const renderSystem = ecs.entityManager
   .createSystem('render')
-  .setOnAttach((entityManager, resourceManager, eventBus) => {
+  .setOnAttach((ecs) => {
     // Initialize rendering resources
     console.log('Render system attached');
   })
-  .setOnDetach((entityManager, resourceManager, eventBus) => {
+  .setOnDetach((ecs) => {
     // Clean up rendering resources
     console.log('Render system detached');
   });
