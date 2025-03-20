@@ -3,6 +3,7 @@ import EventBus from "./event-bus";
 import ResourceManager from "./resource-manager";
 import type { System } from "./types";
 import type Bundle from "./bundle";
+import { SystemBuilder } from "./system-builder";
 import { version } from "../package.json";
 
 
@@ -45,9 +46,11 @@ class ECSpresso<
 	 * @returns This ECSpresso instance for method chaining
 	 */
 	install<
-		Bundles extends Array<Bundle<any, any, any>>
+		Bundles extends Array<Bundle<any, any, any> | null>
 	>(...bundles: Bundles): this {
 		for (const bundle of bundles) {
+			if (!bundle) return this;
+
 			// Check if this bundle is already installed
 			if (this._installedBundles.has(bundle.id)) {
 				console.warn(`Bundle ${bundle.id} is already installed`);
@@ -242,5 +245,19 @@ class ECSpresso<
 	 */
 	get installedBundles(): string[] {
 		return Array.from(this._installedBundles);
+	}
+
+	/**
+	 * Add a system directly to this ECSpresso instance
+	 * @param label Unique identifier for the system
+	 * @returns A SystemBuilder instance for method chaining
+	 */
+	addSystem(label: string) {
+		const system = new SystemBuilder<ComponentTypes, EventTypes, ResourceTypes>(label, this);
+
+		// When the system builder is finalized (typically from user code),
+		// the build method will automatically register the system with this ECSpresso instance
+
+		return system;
 	}
 }

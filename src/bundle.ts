@@ -43,7 +43,7 @@ export default class Bundle<
 	 * Add a system to this bundle
 	 */
 	addSystem(label: string) {
-		const system = new SystemBuilder(label, this);
+		const system = new SystemBuilder<ComponentTypes, EventTypes, ResourceTypes>(label, null, this);
 
 		this._systems.push(system);
 

@@ -18,6 +18,12 @@ interface TestResources {
 	physics: { gravity: number };
 }
 
+interface TestEvents {
+	playerDamaged: { entityId: number; amount: number };
+	gameStarted: {};
+	gameEnded: { winner: string };
+}
+
 describe('ECSpresso', () => {
 
 	test('should run systems with queries', () => {
@@ -277,5 +283,191 @@ describe('ECSpresso', () => {
 		// Second update removes the position component
 		world.update(1/60);
 		expect(world.entityManager.getComponent(entity.id, 'position')).toBeNull();
+	});
+
+	test('should add systems directly to ECSpresso', () => {
+		const world = new ECSpresso<TestComponents>();
+
+		const entity1 = world.entityManager.createEntity();
+		world.entityManager.addComponent(entity1.id, 'position', { x: 0, y: 0 });
+		world.entityManager.addComponent(entity1.id, 'velocity', { x: 5, y: 10 });
+
+		const entity2 = world.entityManager.createEntity();
+		world.entityManager.addComponent(entity2.id, 'position', { x: 100, y: 100 });
+		world.entityManager.addComponent(entity2.id, 'health', { value: 100 });
+
+		const processedEntities: number[] = [];
+
+		// Add system directly to ECSpresso
+		world
+			.addSystem('DirectMovementSystem')
+			.addQuery('entities', {
+				with: ['position', 'velocity'],
+				without: ['health'],
+			})
+			.setProcess((queries) => {
+				for (const entity of queries.entities) {
+					processedEntities.push(entity.id);
+					// In a real system, we'd update position based on velocity and deltaTime
+				}
+			})
+			.build(); // Call build to finalize the system
+
+		world.update(1/60);
+
+		// Only entity1 should match the query
+		expect(processedEntities).toEqual([entity1.id]);
+	});
+
+	test('should handle lifecycle hooks for systems added directly', () => {
+		const world = new ECSpresso<TestComponents>();
+
+		let attachCalled = false;
+		let detachCalled = false;
+		let processCalled = false;
+
+		// Create a system with lifecycle hooks directly on ECSpresso
+		world
+			.addSystem('DirectLifecycleSystem')
+			.setOnAttach((_ecs) => {
+				attachCalled = true;
+			})
+			.setOnDetach((_ecs) => {
+				detachCalled = true;
+			})
+			.setProcess((_queries, _deltaTime, _ecs) => {
+				processCalled = true;
+			})
+			.build(); // Call build to finalize the system
+
+		// Attach should have been called immediately when the system is built
+		expect(attachCalled).toBe(true);
+
+		// Process should run during update
+		world.update(1/60);
+		expect(processCalled).toBe(true);
+
+		// Remove the system, which should call onDetach
+		world.removeSystem('DirectLifecycleSystem');
+		expect(detachCalled).toBe(true);
+	});
+
+	test('should handle event handlers for systems added directly', () => {
+		const world = new ECSpresso<TestComponents, TestEvents>();
+
+		let eventHandled = false;
+
+		// Create a system with event handlers directly on ECSpresso
+		world
+			.addSystem('DirectEventSystem')
+			.setEventHandlers({
+				playerDamaged: {
+					handler: (data) => {
+						eventHandled = true;
+						expect(data.entityId).toBe(123);
+						expect(data.amount).toBe(10);
+					}
+				}
+			})
+			.build(); // Call build to finalize the system
+
+		// Trigger the event
+		world.eventBus.publish('playerDamaged', { entityId: 123, amount: 10 });
+
+		// Event handler should have been called
+		expect(eventHandled).toBe(true);
+	});
+
+	test('should properly handle query typing with directly added systems', () => {
+		const world = new ECSpresso<TestComponents>();
+
+		// Create an entity with position and velocity
+		const entity1 = world.entityManager.createEntity();
+		world.entityManager.addComponent(entity1.id, 'position', { x: 10, y: 20 });
+		world.entityManager.addComponent(entity1.id, 'velocity', { x: 5, y: 0 });
+
+		// Create an entity with position, velocity, and collision
+		const entity2 = world.entityManager.createEntity();
+		world.entityManager.addComponent(entity2.id, 'position', { x: 0, y: 0 });
+		world.entityManager.addComponent(entity2.id, 'velocity', { x: 0, y: 0 });
+		world.entityManager.addComponent(entity2.id, 'collision', { radius: 5, isColliding: false });
+
+		let sumX = 0;
+		let sumY = 0;
+
+		// Add a system directly with typed queries
+		world
+			.addSystem('DirectTypeSystem')
+			.addQuery('objects', {
+				with: ['position', 'velocity'],
+				without: [],
+			})
+			.setProcess((queries, _deltaTime, _ecs) => {
+				// TypeScript should know that position and velocity are guaranteed to exist
+				for (const entity of queries.objects) {
+					sumX += entity.components.position.x + entity.components.velocity.x;
+					sumY += entity.components.position.y + entity.components.velocity.y;
+
+					// This shows that TypeScript prevents access to components not in the query
+					// TypeScript would error on: entity.components.health.value
+				}
+			})
+			.build(); // Call build to finalize the system
+
+		world.update(1/60);
+
+		expect(sumX).toBe(15); // 10+5 from entity1, 0+0 from entity2
+		expect(sumY).toBe(20); // 20+0 from entity1, 0+0 from entity2
+	});
+
+	test('should provide equivalent functionality for systems added via bundle or directly', () => {
+		// Create two worlds - one using a bundle, one using direct system addition
+		const bundleWorld = new ECSpresso<TestComponents>();
+		const directWorld = new ECSpresso<TestComponents>();
+
+		// Setup entities identically in both worlds
+		for (const world of [bundleWorld, directWorld]) {
+			const entity = world.entityManager.createEntity();
+			world.entityManager.addComponent(entity.id, 'position', { x: 0, y: 0 });
+			world.entityManager.addComponent(entity.id, 'velocity', { x: 5, y: 10 });
+		}
+
+		let bundleProcessed = false;
+		let directProcessed = false;
+
+		// Create a bundle with a system
+		const bundle = new Bundle<TestComponents>()
+			.addSystem('BundleSystem')
+			.addQuery('entities', {
+				with: ['position', 'velocity'],
+			})
+			.setProcess((queries) => {
+				expect(queries.entities.length).toBe(1);
+				bundleProcessed = true;
+			})
+			.bundle;
+
+		// Install the bundle
+		bundleWorld.install(bundle);
+
+		// Add a system directly
+		directWorld
+			.addSystem('DirectSystem')
+			.addQuery('entities', {
+				with: ['position', 'velocity'],
+			})
+			.setProcess((queries) => {
+				expect(queries.entities.length).toBe(1);
+				directProcessed = true;
+			})
+			.build(); // Call build to finalize the system
+
+		// Update both worlds
+		bundleWorld.update(1/60);
+		directWorld.update(1/60);
+
+		// Both systems should have processed
+		expect(bundleProcessed).toBe(true);
+		expect(directProcessed).toBe(true);
 	});
 });

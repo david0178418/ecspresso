@@ -1,4 +1,5 @@
 import Bundle from "./bundle";
+import ECSpresso from "./ecspresso";
 import type { FilteredEntity, System } from "./types";
 
 /**
@@ -29,7 +30,8 @@ export class SystemBuilder<
 
 	constructor(
 		private _label: string,
-		private _bundle = new Bundle<ComponentTypes, EventTypes, ResourceTypes>()
+		private _ecspresso: ECSpresso<ComponentTypes, EventTypes, ResourceTypes> | null = null,
+		private _bundle: Bundle<ComponentTypes, EventTypes, ResourceTypes> | null = null,
 	) {}
 
 	get label() {
@@ -38,6 +40,10 @@ export class SystemBuilder<
 
 	get bundle() {
 		return this._bundle;
+	}
+
+	get ecspresso() {
+		return this._ecspresso;
 	}
 
 	/**
@@ -154,6 +160,33 @@ export class SystemBuilder<
 
 		if (this.eventHandlers) {
 			system.eventHandlers = this.eventHandlers;
+		}
+
+		// If this system is being built directly from an ECSpresso instance (not via a bundle),
+		// then register it with the ECSpresso instance
+		if (this._ecspresso && !this._bundle) {
+			const typedSystem = system as System<ComponentTypes, any, any, EventTypes, ResourceTypes>;
+			this._ecspresso["_systems"].push(typedSystem);
+
+			// Call onAttach lifecycle hook if defined
+			if (typedSystem.onAttach) {
+				typedSystem.onAttach(this._ecspresso);
+			}
+
+			// Auto-subscribe to events if eventHandlers are defined
+			if (typedSystem.eventHandlers) {
+				for (const eventName in typedSystem.eventHandlers) {
+					const handler = typedSystem.eventHandlers[eventName];
+					if (handler?.handler) {
+						// Create a wrapper that passes the additional parameters to the handler
+						const wrappedHandler = (data: any) => {
+							handler.handler(data, this._ecspresso!);
+						};
+
+						this._ecspresso.eventBus.subscribe(eventName, wrappedHandler);
+					}
+				}
+			}
 		}
 
 		return system;
