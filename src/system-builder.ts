@@ -59,18 +59,19 @@ export class SystemBuilder<
 		QueryName extends string,
 		WithComponents extends keyof ComponentTypes,
 		WithoutComponents extends keyof ComponentTypes = never,
+		NewQueries extends Queries & Record<QueryName, QueryDefinition<ComponentTypes, WithComponents, WithoutComponents>> =
+			Queries & Record<QueryName, QueryDefinition<ComponentTypes, WithComponents, WithoutComponents>>
 	>(
 		name: QueryName,
 		definition: {
 			with: ReadonlyArray<WithComponents>;
 			without?: ReadonlyArray<WithoutComponents>;
 		}
-	): SystemBuilder<
-		ComponentTypes,
-		EventTypes,
-		ResourceTypes,
-		Queries & Record<QueryName, QueryDefinition<ComponentTypes, WithComponents, WithoutComponents>>
-	> {
+	): this extends SystemBuilderWithEcspresso<ComponentTypes, EventTypes, ResourceTypes, Queries>
+		? SystemBuilderWithEcspresso<ComponentTypes, EventTypes, ResourceTypes, NewQueries>
+		: this extends SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, Queries>
+			? SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, NewQueries>
+			: SystemBuilder<ComponentTypes, EventTypes, ResourceTypes, NewQueries> {
 		// Cast is needed because TypeScript can't preserve the type information
 		// when modifying an object property
 		const newBuilder = this as any;
@@ -88,7 +89,7 @@ export class SystemBuilder<
 	 */
 	setProcess(
 		process: ProcessFunction<ComponentTypes, EventTypes, ResourceTypes, Queries>
-	): SystemBuilder<ComponentTypes, EventTypes, ResourceTypes, Queries> {
+	): this {
 		this.processFunction = process;
 		return this;
 	}
@@ -101,7 +102,7 @@ export class SystemBuilder<
 	 */
 	setOnAttach(
 		onAttach: LifecycleFunction<ComponentTypes, EventTypes, ResourceTypes>
-	): SystemBuilder<ComponentTypes, EventTypes, ResourceTypes, Queries> {
+	): this {
 		this.attachFunction = onAttach;
 		return this;
 	}
@@ -114,7 +115,7 @@ export class SystemBuilder<
 	 */
 	setOnDetach(
 		onDetach: LifecycleFunction<ComponentTypes, EventTypes, ResourceTypes>
-	): SystemBuilder<ComponentTypes, EventTypes, ResourceTypes, Queries> {
+	): this {
 		this.detachFunction = onDetach;
 		return this;
 	}
@@ -138,7 +139,7 @@ export class SystemBuilder<
 				): void;
 			};
 		}
-	): SystemBuilder<ComponentTypes, EventTypes, ResourceTypes, Queries> {
+	): this {
 		this.eventHandlers = handlers;
 		return this;
 	}
@@ -270,11 +271,11 @@ export function createEcspressoSystemBuilder<
 >(
 	label: string,
 	ecspresso: ECSpresso<ComponentTypes, EventTypes, ResourceTypes>
-): SystemBuilder<ComponentTypes, EventTypes, ResourceTypes> {
+): SystemBuilderWithEcspresso<ComponentTypes, EventTypes, ResourceTypes> {
 	return new SystemBuilder<ComponentTypes, EventTypes, ResourceTypes>(
 		label,
 		ecspresso
-	);
+	) as SystemBuilderWithEcspresso<ComponentTypes, EventTypes, ResourceTypes>;
 }
 
 /**
@@ -288,10 +289,36 @@ export function createBundleSystemBuilder<
 >(
 	label: string,
 	bundle: Bundle<ComponentTypes, EventTypes, ResourceTypes>
-): SystemBuilder<ComponentTypes, EventTypes, ResourceTypes> {
+): SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes> {
 	return new SystemBuilder<ComponentTypes, EventTypes, ResourceTypes>(
 		label,
 		null,
 		bundle
-	);
+	) as SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes>;
+}
+
+// Type interfaces for specialized SystemBuilders
+
+/**
+ * SystemBuilder with a guaranteed non-null reference to an ECSpresso instance
+ */
+export interface SystemBuilderWithEcspresso<
+	ComponentTypes extends Record<string, any>,
+	EventTypes extends Record<string, any>,
+	ResourceTypes extends Record<string, any>,
+	Queries extends Record<string, QueryDefinition<ComponentTypes>> = {}
+> extends SystemBuilder<ComponentTypes, EventTypes, ResourceTypes, Queries> {
+	readonly ecspresso: ECSpresso<ComponentTypes, EventTypes, ResourceTypes>;
+}
+
+/**
+ * SystemBuilder with a guaranteed non-null reference to a Bundle
+ */
+export interface SystemBuilderWithBundle<
+	ComponentTypes extends Record<string, any>,
+	EventTypes extends Record<string, any>,
+	ResourceTypes extends Record<string, any>,
+	Queries extends Record<string, QueryDefinition<ComponentTypes>> = {}
+> extends SystemBuilder<ComponentTypes, EventTypes, ResourceTypes, Queries> {
+	readonly bundle: Bundle<ComponentTypes, EventTypes, ResourceTypes>;
 }
