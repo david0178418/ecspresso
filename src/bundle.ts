@@ -1,4 +1,4 @@
-import { SystemBuilder } from './system-builder';
+import { createBundleSystemBuilder, SystemBuilder } from './system-builder';
 
 /**
  * Generates a unique ID for a bundle
@@ -43,7 +43,7 @@ export default class Bundle<
 	 * Add a system to this bundle
 	 */
 	addSystem(label: string) {
-		const system = new SystemBuilder<ComponentTypes, EventTypes, ResourceTypes>(label, null, this);
+		const system = createBundleSystemBuilder<ComponentTypes, EventTypes, ResourceTypes>(label, this);
 
 		this._systems.push(system);
 

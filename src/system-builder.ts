@@ -38,10 +38,16 @@ export class SystemBuilder<
 		return this._label;
 	}
 
+	/**
+	 * Returns the associated bundle if one was provided in the constructor
+	 */
 	get bundle() {
 		return this._bundle;
 	}
 
+	/**
+	 * Returns the associated ECSpresso instance if one was provided in the constructor
+	 */
 	get ecspresso() {
 		return this._ecspresso;
 	}
@@ -189,7 +195,7 @@ export class SystemBuilder<
 			}
 		}
 
-		return this;
+		return system;
 	}
 }
 
@@ -253,13 +259,39 @@ type LifecycleFunction<
 	>,
 ) => void;
 
-// // Factory function for easier creation
-// function createSystem<
-// 	ComponentTypes,
-// 	EventTypes = any,
-// 	ResourceTypes = any
-// >(
-// 	label: string
-// ): SystemBuilder<ComponentTypes, EventTypes, ResourceTypes> {
-// 	return new SystemBuilder<ComponentTypes, EventTypes, ResourceTypes>(label);
-// }
+/**
+ * Create a SystemBuilder attached to an ECSpresso instance
+ * Helper function used by ECSpresso.addSystem
+ */
+export function createEcspressoSystemBuilder<
+	ComponentTypes extends Record<string, any>,
+	EventTypes extends Record<string, any>,
+	ResourceTypes extends Record<string, any>
+>(
+	label: string,
+	ecspresso: ECSpresso<ComponentTypes, EventTypes, ResourceTypes>
+): SystemBuilder<ComponentTypes, EventTypes, ResourceTypes> {
+	return new SystemBuilder<ComponentTypes, EventTypes, ResourceTypes>(
+		label,
+		ecspresso
+	);
+}
+
+/**
+ * Create a SystemBuilder attached to a Bundle
+ * Helper function used by Bundle.addSystem
+ */
+export function createBundleSystemBuilder<
+	ComponentTypes extends Record<string, any>,
+	EventTypes extends Record<string, any>,
+	ResourceTypes extends Record<string, any>
+>(
+	label: string,
+	bundle: Bundle<ComponentTypes, EventTypes, ResourceTypes>
+): SystemBuilder<ComponentTypes, EventTypes, ResourceTypes> {
+	return new SystemBuilder<ComponentTypes, EventTypes, ResourceTypes>(
+		label,
+		null,
+		bundle
+	);
+}

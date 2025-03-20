@@ -3,7 +3,7 @@ import EventBus from "./event-bus";
 import ResourceManager from "./resource-manager";
 import type { System } from "./types";
 import type Bundle from "./bundle";
-import { SystemBuilder } from "./system-builder";
+import { createEcspressoSystemBuilder } from "./system-builder";
 import { version } from "../package.json";
 
 
@@ -253,10 +253,7 @@ class ECSpresso<
 	 * @returns A SystemBuilder instance for method chaining
 	 */
 	addSystem(label: string) {
-		const system = new SystemBuilder<ComponentTypes, EventTypes, ResourceTypes>(label, this);
-
-		// When the system builder is finalized (typically from user code),
-		// the build method will automatically register the system with this ECSpresso instance
+		const system = createEcspressoSystemBuilder<ComponentTypes, EventTypes, ResourceTypes>(label, this);
 
 		return system;
 	}
