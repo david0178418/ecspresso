@@ -19,11 +19,11 @@ export class SystemBuilder<
 		[EventName in keyof EventTypes]?: {
 			handler(
 				data: EventTypes[EventName],
-				ecs: import("./ecspresso").default<
+				ecs: ECSpresso<
 					ComponentTypes & Record<string, any>,
 					EventTypes,
 					ResourceTypes
-				>
+				>,
 			): void;
 		};
 	};
@@ -124,7 +124,7 @@ export class SystemBuilder<
 			[EventName in keyof EventTypes]?: {
 				handler(
 					data: EventTypes[EventName],
-					ecs: import("./ecspresso").default<
+					ecs: ECSpresso<
 						ComponentTypes & Record<string, any>,
 						EventTypes,
 						ResourceTypes
@@ -140,7 +140,7 @@ export class SystemBuilder<
 	/**
 	 * Build the final system object
 	 */
-	build(): System<ComponentTypes, any, any, EventTypes, ResourceTypes> {
+	build() {
 		const system: System<ComponentTypes, any, any, EventTypes, ResourceTypes> = {
 			label: this._label,
 			entityQueries: this.queries as any,
@@ -189,7 +189,7 @@ export class SystemBuilder<
 			}
 		}
 
-		return system;
+		return this;
 	}
 }
 
@@ -230,7 +230,7 @@ type ProcessFunction<
 > = (
 	queries: QueryResults<ComponentTypes, Queries>,
 	deltaTime: number,
-	ecs: import("./ecspresso").default<
+	ecs: ECSpresso<
 		ComponentTypes & Record<string, any>,
 		EventTypes,
 		ResourceTypes
@@ -246,11 +246,11 @@ type LifecycleFunction<
 	EventTypes extends Record<string, any>,
 	ResourceTypes extends Record<string, any>,
 > = (
-	ecs: import("./ecspresso").default<
+	ecs: ECSpresso<
 		ComponentTypes & Record<string, any>,
 		EventTypes,
 		ResourceTypes
-	>
+	>,
 ) => void;
 
 // // Factory function for easier creation

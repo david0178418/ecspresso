@@ -15,6 +15,7 @@ ECSpresso is a flexible and efficient Entity Component System implementation tha
 - **Resource Management**: Global state management through a dedicated resource manager
 - **Bundle System**: Modular and reusable collections of components, resources, and systems
 - **Query System**: Efficient entity filtering based on component presence/absence
+- **Flexible System Creation**: Create systems directly or through bundles
 
 ## Core Concepts
 
@@ -31,7 +32,7 @@ The ECS pattern separates data (Components) from behavior (Systems) through Enti
 ### Key Features
 
 - Type-safe queries to filter entities based on component combinations
-- Fluent builder API for creating systems and bundles
+- Fluent builder API for creating systems directly or through bundles
 - Event handling with lifecycle hooks for systems
 - Resource management for global state
 - Simplified system API - all system methods receive the ECSpresso instance
@@ -66,63 +67,49 @@ npm install ecspresso
 import ECSpresso, { Bundle } from 'ecspresso';
 
 // Define your component types
-interface Position {
-  x: number;
-  y: number;
-}
-
-interface Velocity {
-  dx: number;
-  dy: number;
+interface MyComponents {
+  position: { x: number; y: number };
+  velocity: { dx: number; dy: number };
+  sprite: { url: string; width: number; height: number };
 }
 
 // Define your event types
-interface CollisionEvent {
-  entityA: number;
-  entityB: number;
+interface MyEvents {
+  collision: { entityA: number; entityB: number };
+  playerSpawn: { id: number; position: { x: number; y: number } };
 }
 
 // Define your resource types
-interface GameState {
-  score: number;
-  level: number;
+interface MyResources {
+  gameState: { score: number; level: number };
+  config: { debug: boolean; maxEntities: number };
 }
 
 // Create an ECS instance with your types
-const ecspresso = new ECSpresso<
-  { position: Position; velocity: Velocity },
-  { collision: CollisionEvent },
-  { gameState: GameState }
->();
+const world = new ECSpresso<MyComponents, MyEvents, MyResources>();
 
 // Add resources
-ecspresso.addResource('gameState', { score: 0, level: 1 });
+world.addResource('gameState', { score: 0, level: 1 });
+world.addResource('config', { debug: true, maxEntities: 1000 });
 
 // Create an entity
-const entity = ecspresso.entityManager.createEntity();
+const entity = world.entityManager.createEntity();
 
 // Add components to the entity
-ecspresso.entityManager.addComponent(entity.id, 'position', { x: 0, y: 0 });
-ecspresso.entityManager.addComponent(entity.id, 'velocity', { dx: 1, dy: 2 });
+world.entityManager.addComponent(entity.id, 'position', { x: 0, y: 0 });
+world.entityManager.addComponent(entity.id, 'velocity', { dx: 1, dy: 2 });
 
 // Run the simulation
-ecspresso.update(16.67); // Pass delta time in ms
+world.update(16.67); // Pass delta time in ms
 ```
 
-### Creating Systems
+### Creating Systems Directly
 
-Systems should be created through a bundle. You can create a bundle and then add systems to it:
+ECSpresso allows you to create systems directly on the ECSpresso instance:
 
 ```typescript
-// Create a bundle
-const gameBundle = new Bundle<
-  { position: Position; velocity: Velocity },
-  { collision: CollisionEvent },
-  { gameState: GameState }
->('gameBundle');
-
-// Create a movement system within the bundle
-const movementSystem = gameBundle
+// Create a movement system directly on the ECSpresso instance
+world
   .addSystem('movement')
   .addQuery('movable', {
     with: ['position', 'velocity']
@@ -134,194 +121,240 @@ const movementSystem = gameBundle
       position.x += velocity.dx * (deltaTime / 1000);
       position.y += velocity.dy * (deltaTime / 1000);
     }
-  });
-
-// Install the bundle to add the system to the ECS
-ecspresso.install(gameBundle);
+  })
+  .build(); // Important: Call build() to finalize the system
 ```
 
-### Using Bundles
+The `build()` method finalizes the system and registers it with the ECSpresso instance. Any lifecycle hooks like `onAttach` will be called immediately when the system is built.
+
+### System Lifecycle Hooks
+
+You can add lifecycle hooks to systems that will be called when the system is attached or detached:
 
 ```typescript
-// Create a physics bundle
-const physicsBundle = new Bundle<
-  { position: Position; velocity: Velocity },
-  { collision: CollisionEvent },
-  {}
->('physics');
-
-// Add a collision system to the bundle
-physicsBundle
-  .addSystem('collision')
-  .addQuery('collidable', {
-    with: ['position']
+// Create a rendering system with lifecycle hooks
+world
+  .addSystem('renderer')
+  .addQuery('sprites', {
+    with: ['position', 'sprite']
+  })
+  .setOnAttach((ecs) => {
+    console.log('Render system attached');
+    // Initialize rendering resources
+  })
+  .setOnDetach((ecs) => {
+    console.log('Render system detached');
+    // Clean up rendering resources
   })
   .setProcess((queries, deltaTime, ecs) => {
-    // Check for collisions
-    // ...
-    // Emit collision events
-    ecspresso.eventBus.publish('collision', { entityA: 1, entityB: 2 });
-  });
-
-// Install the bundle
-ecspresso.install(physicsBundle);
+    // Render all sprites at their positions
+    for (const entity of queries.sprites) {
+      const { position, sprite } = entity.components;
+      // Render sprite at position
+    }
+  })
+  .build();
 ```
 
 ### Event Handling
 
-```typescript
-// Create a bundle for the score system
-const gameUIBundle = new Bundle<
-  { position: Position; velocity: Velocity },
-  { collision: CollisionEvent },
-  { gameState: GameState }
->('gameUI');
+Systems can handle events emitted by other systems:
 
+```typescript
 // Create a system that handles collision events
-gameUIBundle
+world
   .addSystem('score')
   .setEventHandlers({
     collision: {
       handler: (event, ecs) => {
         // Handle collision event
-        const gameState = ecspresso.resourceManager.getResource('gameState');
-        if (gameState) {
-          gameState.score += 10;
-        }
+        const gameState = ecs.getResourceOrThrow('gameState');
+        gameState.score += 10;
+        
+        console.log(`Score: ${gameState.score}`);
       }
+    }
+  })
+  .build();
+
+// Emit an event from another system
+world.eventBus.publish('collision', { entityA: entity.id, entityB: 2 });
+```
+
+### Using Bundles for System Organization
+
+Bundles allow you to group related systems, resources, and components:
+
+```typescript
+// Create a physics bundle
+const physicsBundle = new Bundle<MyComponents, MyEvents, MyResources>('physics');
+
+// Add a system to the bundle
+const collisionSystem = physicsBundle
+  .addSystem('collision')
+  .addQuery('collidable', {
+    with: ['position']
+  })
+  .setProcess((queries, deltaTime, ecs) => {
+    // Check for collisions between entities
+    for (const entity of queries.collidable) {
+      // Collision detection logic
+      // ...
+      
+      // Emit collision events when detected
+      ecs.eventBus.publish('collision', { 
+        entityA: entity.id, 
+        entityB: otherEntity.id 
+      });
     }
   });
 
-// Add the system to the ECS
-ecspresso.install(gameUIBundle);
+// Access the bundle for chaining
+physicsBundle
+  .addSystem('movement')
+  .addQuery('movable', {
+    with: ['position', 'velocity']
+  })
+  .setProcess((queries, deltaTime, ecs) => {
+    for (const entity of queries.movable) {
+      const { position, velocity } = entity.components;
+      position.x += velocity.dx * (deltaTime / 1000);
+      position.y += velocity.dy * (deltaTime / 1000);
+    }
+  })
+  .bundle // Access bundle for chaining to add another system
+  .addSystem('friction')
+  .addQuery('moving', {
+    with: ['velocity']
+  })
+  .setProcess((queries, deltaTime, ecs) => {
+    for (const entity of queries.moving) {
+      const { velocity } = entity.components;
+      // Apply friction
+      velocity.dx *= 0.99;
+      velocity.dy *= 0.99;
+    }
+  });
+
+// Install the bundle to add all systems to the ECSpresso instance
+world.install(physicsBundle);
 ```
 
-## Advanced Features
+With bundles, you don't need to call `build()` on the systems. The systems are built when the bundle is installed.
+
+### System Chaining with ECSpresso
+
+When adding systems directly to ECSpresso, you can access the ECSpresso instance for chaining:
+
+```typescript
+// Create a system and access the ECSpresso instance for chaining
+world
+  .addSystem('playerSystem')
+  .addQuery('players', {
+    with: ['position', 'velocity']
+  })
+  .setProcess((queries, deltaTime, ecs) => {
+    // Process player entities
+  })
+  .build()
+  .ecspresso // Access the ECSpresso instance after building
+  .addSystem('enemySystem')
+  .addQuery('enemies', {
+    with: ['position', 'velocity']
+  })
+  .setProcess((queries, deltaTime, ecs) => {
+    // Process enemy entities
+  })
+  .build();
+```
 
 ### Merging Bundles
+
+For larger applications, you can organize systems into multiple bundles and merge them:
 
 ```typescript
 import { mergeBundles } from 'ecspresso';
 
-// Merge multiple bundles into one
+// Create individual feature bundles
+const physicsBundle = new Bundle<MyComponents, MyEvents, MyResources>('physics');
+const renderBundle = new Bundle<MyComponents, MyEvents, MyResources>('render');
+const aiBundle = new Bundle<MyComponents, MyEvents, MyResources>('ai');
+
+// Add systems to each bundle
+// ...
+
+// Merge bundles into a game bundle
 const gameBundle = mergeBundles(
   'game',
   physicsBundle,
   renderBundle,
-  inputBundle
+  aiBundle
 );
 
 // Install the merged bundle
-ecspresso.install(gameBundle);
+world.install(gameBundle);
 ```
 
-### System Lifecycle Hooks
+## Advanced Features
+
+### Removing Systems
+
+You can remove systems by their label:
 
 ```typescript
-// Create a bundle for the rendering systems
-const renderBundle = new Bundle<
-  { position: Position; sprite: Sprite },
-  {},
-  { renderer: Renderer }
->('render');
-
-// Create a system with lifecycle hooks
-renderBundle
-  .addSystem('render')
-  .setOnAttach((ecs) => {
-    // Initialize rendering resources
-    console.log('Render system attached');
-    // You could initialize renderer resources here
-    ecspresso.addResource('renderer', new Renderer());
-  })
-  .setOnDetach((ecs) => {
-    // Clean up rendering resources
-    console.log('Render system detached');
-    // You could clean up renderer resources here
-    const renderer = ecspresso.getResource('renderer');
-    if (renderer) {
-      renderer.dispose();
-    }
-  });
-
-// Install the bundle
-ecspresso.install(renderBundle);
+// Remove a system
+const removed = world.removeSystem('movement');
+console.log(`System removed: ${removed}`); // true if system was found and removed
 ```
 
-### Complex System Example
+When a system is removed, its `onDetach` lifecycle hook is called if defined.
 
-The following example demonstrates a system that uses multiple aspects of the ECS (queries, resources, and events) with the simplified API:
+### Adding Resources through Bundles
+
+Bundles can also contain resources:
 
 ```typescript
-// Create an AI bundle
-const aiBundle = new Bundle<
-  { 
-    position: Position; 
-    ai: AIComponent; 
-    health: Health;
-    stunned: StunnedEffect;
-    player: PlayerTag;
-  },
-  { enemySpottedPlayer: EnemySpottedEvent },
-  { gameConfig: GameConfig }
->('enemyAI');
+// Create a bundle with resources
+const uiBundle = new Bundle<MyComponents, MyEvents, MyResources>('ui');
 
-// Create a complex AI system that needs access to multiple ECS features
-aiBundle
-  .addSystem('enemyAI')
-  .addQuery('enemies', {
-    with: ['position', 'ai', 'health'],
-    without: ['stunned']
-  })
-  .addQuery('players', {
-    with: ['position', 'player']
+// Add resources to the bundle
+uiBundle.addResource('uiState', { 
+  menuOpen: false, 
+  currentScreen: 'main' 
+});
+
+// Add systems to the bundle
+uiBundle
+  .addSystem('uiRenderer')
+  // ...
+
+// Install the bundle to add both resources and systems
+world.install(uiBundle);
+```
+
+## TypeScript Integration
+
+ECSpresso is designed to provide strong type safety. The type parameters for components, events, and resources flow through the entire API, ensuring type correctness at compile time.
+
+```typescript
+// Properly typed queries and component access
+world
+  .addSystem('typeSafeSystem')
+  .addQuery('entities', {
+    with: ['position', 'velocity']
   })
   .setProcess((queries, deltaTime, ecs) => {
-    // Access game configuration from resources
-    const config = ecspresso.resourceManager.get('gameConfig');
-    const difficultyMultiplier = config?.difficulty || 1.0;
-    
-    // Process each enemy
-    for (const enemy of queries.enemies) {
-      // Find the nearest player
-      let nearestPlayer = null;
-      let shortestDistance = Infinity;
+    for (const entity of queries.entities) {
+      // TypeScript knows these components exist and their types
+      const position = entity.components.position; // { x: number, y: number }
+      const velocity = entity.components.velocity; // { dx: number, dy: number }
       
-      for (const player of queries.players) {
-        const distance = calculateDistance(
-          enemy.components.position,
-          player.components.position
-        );
-        
-        if (distance < shortestDistance) {
-          nearestPlayer = player;
-          shortestDistance = distance;
-        }
-      }
-      
-      if (nearestPlayer && shortestDistance < enemy.components.ai.detectionRange * difficultyMultiplier) {
-        // Enemy detected player, update AI state
-        if (enemy.components.ai.state !== 'chasing') {
-          enemy.components.ai.state = 'chasing';
-          
-          // Emit event that enemy spotted player
-          ecspresso.eventBus.publish('enemySpottedPlayer', {
-            enemyId: enemy.id,
-            playerId: nearestPlayer.id
-          });
-        }
-        
-        // Move enemy toward player
-        moveToward(enemy, nearestPlayer, deltaTime);
-      }
+      // This would cause a TypeScript error - sprite not guaranteed to exist
+      // const sprite = entity.components.sprite;
     }
-  });
-
-// Install the AI bundle
-ecspresso.install(aiBundle);
+  })
+  .build();
 ```
-
-This example shows how having access to the entire ECS through a single parameter simplifies the code, as the system can easily work with entity queries, access resources, and publish events without needing separate parameters for each manager.
 
 ## Development
 
