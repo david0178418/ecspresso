@@ -47,7 +47,21 @@ describe('ECSpresso', () => {
 			// @ts-expect-error // TypeScript should complain if we try to add a resource that doesn't exist
 			world.addResource('doesNotExist', { value: 100 });
 
-			world
+			// @ts-expect-error // TypeScript should complain about non-existent resource
+			world.getResource('nonExistentResource');
+
+			// Event publishing type safety
+			world.eventBus.publish('playerDamaged', { entityId: 1, amount: 10 });
+			// @ts-expect-error // TypeScript should complain about missing required fields
+			world.eventBus.publish('playerDamaged', {});
+			// @ts-expect-error // TypeScript should complain about extra fields
+			world.eventBus.publish('playerDamaged', { entityId: 1, amount: 10, extra: true });
+			// @ts-expect-error // TypeScript should complain about non-existent event
+			world.eventBus.publish('nonExistentEvent', {});
+
+
+
+			const systemFromEcs = world
 				.addSystem('some-system')
 				.addQuery('someQuery', {
 					with: ['position'],
@@ -85,18 +99,18 @@ describe('ECSpresso', () => {
 					}
 				});
 
+			systemFromEcs.ecspresso.entityManager;
+			// @ts-expect-error // TypeScript should because bundle is not defined on systems created from ecspresso instance
+			systemFromEcs.bundle.id;
 
-			// @ts-expect-error // TypeScript should complain about non-existent resource
-			world.getResource('nonExistentResource');
+			const systemFromBundle = new Bundle<TestComponents, TestEvents, TestResources>()
+				.addSystem('some-system');
 
-			// Event publishing type safety
-			world.eventBus.publish('playerDamaged', { entityId: 1, amount: 10 });
-			// @ts-expect-error // TypeScript should complain about missing required fields
-			world.eventBus.publish('playerDamaged', {});
-			// @ts-expect-error // TypeScript should complain about extra fields
-			world.eventBus.publish('playerDamaged', { entityId: 1, amount: 10, extra: true });
-			// @ts-expect-error // TypeScript should complain about non-existent event
-			world.eventBus.publish('nonExistentEvent', {});
+			systemFromBundle.bundle.id;
+
+			// @ts-expect-error // TypeScript should because ecspresso is not defined on systems created from bundle instance
+			systemFromBundle.ecspresso.entityManager
+
 
 			expect(true).toBe(true); // Just to ensure the test runs without errors
 		});
