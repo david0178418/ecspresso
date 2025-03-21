@@ -8,7 +8,9 @@ import bundles from './04-bundles/bundles.html';
 
 const server = serve({
 	port: 3000,
-	development: true,
+	development: {
+		hmr: true,
+	},
 	routes: {
 		'/': home,
 		'/movement/': basiceMovement,

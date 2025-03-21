@@ -72,15 +72,15 @@ function setupGameLogic() {
 		// position, velocity, and radius components
 		with: ['position', 'velocity', 'radius'],
 	})
-	.setProcess((queries, deltaTimeMs, ecs) => {
+	.setProcess((queries, deltaTime, ecs) => {
 		const pixi = ecs.resourceManager.get('pixi');
 
 		for(const entity of queries.movingEntities) {
 			const { position, velocity, radius } = entity.components;
 
 			// Update position
-			position.x += velocity.x * deltaTimeMs;
-			position.y += velocity.y * deltaTimeMs;
+			position.x += velocity.x * deltaTime;
+			position.y += velocity.y * deltaTime;
 
 			// Bounce off screen edges
 			const maxX = pixi.screen.width - radius;
