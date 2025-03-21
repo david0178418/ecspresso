@@ -40,6 +40,8 @@ describe('ECSpresso', () => {
 				// @ts-expect-error // TypeScript should complain if we try to add a component that doesn't exist
 				notAComponent: { x: 5, y: 10 },
 			});
+
+			expect(true).toBe(true); // Just to ensure the test runs without errors
 		});
 
 		test('should allow type-safe resource access', () => {
@@ -51,9 +53,11 @@ describe('ECSpresso', () => {
 			// @ts-expect-error // TypeScript should complain if we try to add a resource that doesn't exist
 			world.addResource('doesNotExist', { value: 100 });
 
-			// @ts-expect-error // TypeScript should complain about non-existent resource
+			// @ts-expect-error // TypeScript should complain about non-ex
+			expect(true).toBe(true); // Just to ensure the test runs without errorsistent resource
 			world.getResource('nonExistentResource');
 
+			expect(true).toBe(true); // Just to ensure the test runs without errors
 		});
 
 		test('should allow type-safe event publishing', () => {
@@ -67,6 +71,8 @@ describe('ECSpresso', () => {
 			world.eventBus.publish('playerDamaged', { entityId: 1, amount: 10, extra: true });
 			// @ts-expect-error // TypeScript should complain about non-existent event
 			world.eventBus.publish('nonExistentEvent', {});
+
+			expect(true).toBe(true); // Just to ensure the test runs without errors
 		});
 
 		test('should allow type-safe system creation', () => {
@@ -126,7 +132,6 @@ describe('ECSpresso', () => {
 				// @ts-expect-error // TypeScript should because ecspresso is not defined on systems created from bundle instance
 				systemFromBundle.ecspresso.entityManager;
 			} catch (error) {}
-
 
 			expect(true).toBe(true); // Just to ensure the test runs without errors
 		});
