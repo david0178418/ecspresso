@@ -25,6 +25,78 @@ interface TestEvents {
 }
 
 describe('ECSpresso', () => {
+	describe('type checks', () => {
+		test('should allow type-safe component access', () => {
+			const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
+
+			const entity = world.entityManager.createEntity();
+			world.entityManager.addComponent(entity.id, 'position', { x: 0, y: 0 });
+			// @ts-expect-error // TypeScript should complain if we try to add a component that doesn't exist
+			world.entityManager.addComponent(entity.id, 'position', { x: 0, y: 0, z: 0 });
+			// @ts-expect-error // TypeScript should complain if we try to add a component that doesn't exist
+			world.entityManager.addComponent(entity.id, 'does-not-exist', { value: 100 });
+
+			world.addResource('config', { debug: true, maxEntities: 1000 });
+			// @ts-expect-error // TypeScript should complain if we try to add a resource that doesn't exist
+			world.addResource('config', { debug: true, maxEntities: 1000, extraField: 'not allowed' });
+			// @ts-expect-error // TypeScript should complain if we try to add a resource that doesn't exist
+			world.addResource('does-not-exist', { value: 100 });
+
+			world
+				.addSystem('some-system')
+				.addQuery('someQuery', {
+					with: ['position'],
+					without: ['health'],
+				})
+				.addQuery('someOtherQuery', {
+					// @ts-expect-error // TypeScript should complain if we try to add a query with a non-existent component
+					with: ['non-existent-component'],
+					// @ts-expect-error // TypeScript should complain if we try to add a query with a non-existent component
+					without: ['other-non-existent-component'],
+				})
+				.setProcess((queries) => {
+					queries.someQuery.length;
+
+					for(const entity of queries.someQuery) {
+						// TypeScript should know that entity has a position component
+						entity.components.position.x
+						// @ts-expect-error // TypeScript should complain if we try to access a non-existent component
+						entity.components.shouldFail;
+					}
+
+					// @ts-expect-error // TypeScript should complain if we try to access a non-existent query
+					queries.notAQuery;
+				})
+				.setEventHandlers({
+					// @ts-expect-error // TypeScript should complain if we try to add an event handler for a non-existent event
+					nonExistentEvent: {},
+					playerDamaged: {
+						handler(data) {
+							data.amount.toFixed(); // TypeScript should know that data has an amount property
+
+							// @ts-expect-error // TypeScript should complain if we try to access a non-existent property
+							data.nonExistentProperty;
+						}
+					}
+				});
+
+
+			// @ts-expect-error // TypeScript should complain about non-existent resource
+			world.getResource('nonExistentResource');
+
+			// Event publishing type safety
+			world.eventBus.publish('playerDamaged', { entityId: 1, amount: 10 });
+			// @ts-expect-error // TypeScript should complain about missing required fields
+			world.eventBus.publish('playerDamaged', {});
+			// @ts-expect-error // TypeScript should complain about extra fields
+			world.eventBus.publish('playerDamaged', { entityId: 1, amount: 10, extra: true });
+			// @ts-expect-error // TypeScript should complain about non-existent event
+			world.eventBus.publish('nonExistentEvent', {});
+
+			expect(true).toBe(true); // Just to ensure the test runs without errors
+		});
+	});
+
 	// Core ECS functionality tests
 	describe('Core ECS', () => {
 		test('should run systems with queries', () => {
@@ -344,7 +416,7 @@ describe('ECSpresso', () => {
 			expect(attachCalled).toBe(false);
 
 			// Build and add the system
-			systemBuilder.build();
+			systemBuilder.install();
 
 			// After building, attach should be called
 			expect(attachCalled).toBe(true);
@@ -405,7 +477,7 @@ describe('ECSpresso', () => {
 			expect(directSystemBuilder.ecspresso).toBe(directWorld);
 
 			// Build the direct system
-			directSystemBuilder.build();
+			directSystemBuilder.install();
 
 			// Update both worlds
 			bundleWorld.update(1/60);
