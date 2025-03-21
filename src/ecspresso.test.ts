@@ -54,7 +54,6 @@ describe('ECSpresso', () => {
 			world.addResource('doesNotExist', { value: 100 });
 
 			// @ts-expect-error // TypeScript should complain about non-ex
-			expect(true).toBe(true); // Just to ensure the test runs without errorsistent resource
 			world.getResource('nonExistentResource');
 
 			expect(true).toBe(true); // Just to ensure the test runs without errors
