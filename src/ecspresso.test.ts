@@ -416,7 +416,7 @@ describe('ECSpresso', () => {
 			expect(attachCalled).toBe(false);
 
 			// Build and add the system
-			systemBuilder.install();
+			systemBuilder.build();
 
 			// After building, attach should be called
 			expect(attachCalled).toBe(true);
@@ -477,7 +477,7 @@ describe('ECSpresso', () => {
 			expect(directSystemBuilder.ecspresso).toBe(directWorld);
 
 			// Build the direct system
-			directSystemBuilder.install();
+			directSystemBuilder.build();
 
 			// Update both worlds
 			bundleWorld.update(1/60);

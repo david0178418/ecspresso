@@ -143,15 +143,15 @@ class ECSpresso<
 	/**
 	 * Get a resource if it exists, or undefined if not
 	 */
-	getResource<K extends keyof ResourceTypes>(key: K): ResourceTypes[K] | undefined {
-		return this._resourceManager.getOptional(key);
+	getResource<K extends keyof ResourceTypes>(key: K): ResourceTypes[K] {
+		return this._resourceManager.getOptional(key) as ResourceTypes[K];
 	}
 
 	/**
 	 * Get a resource, throws error if not found
 	 */
 	getResourceOrThrow<K extends keyof ResourceTypes>(key: K): ResourceTypes[K] {
-		return this._resourceManager.get(key);
+		return this._resourceManager.get(key) as ResourceTypes[K];
 	}
 
 	/**
