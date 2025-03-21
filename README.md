@@ -99,6 +99,12 @@ const entity = world.entityManager.createEntity();
 world.entityManager.addComponent(entity.id, 'position', { x: 0, y: 0 });
 world.entityManager.addComponent(entity.id, 'velocity', { dx: 1, dy: 2 });
 
+// Or add multiple components at once
+world.entityManager.addComponents(entity.id, {
+  position: { x: 0, y: 0 },
+  velocity: { dx: 1, dy: 2 }
+});
+
 // Run the simulation
 world.update(16.67); // Pass delta time in ms
 ```
@@ -238,6 +244,19 @@ physicsBundle
 
 // Install the bundle to add all systems to the ECSpresso instance
 world.install(physicsBundle);
+
+// The install method merges the bundle's type information with the ECSpresso instance
+// TypeScript now knows about components, events, and resources from the bundle
+world
+  .addSystem('newSystem')
+  .addQuery('withBundleComponents', {
+    // Component types from the bundle are now recognized
+    with: ['position', 'velocity']
+  })
+  .setProcess((queries, deltaTime, ecs) => {
+    // Process entities using components from the bundle
+  })
+  .build();
 ```
 
 With bundles, you don't need to call `build()` on the systems. The systems are built when the bundle is installed.
@@ -275,15 +294,16 @@ For larger applications, you can organize systems into multiple bundles and merg
 ```typescript
 import { mergeBundles } from 'ecspresso';
 
-// Create individual feature bundles
-const physicsBundle = new Bundle<MyComponents, MyEvents, MyResources>('physics');
-const renderBundle = new Bundle<MyComponents, MyEvents, MyResources>('render');
-const aiBundle = new Bundle<MyComponents, MyEvents, MyResources>('ai');
+// Create individual feature bundles with their own type definitions
+const physicsBundle = new Bundle<{ position: {x: number, y: number}, velocity: {dx: number, dy: number} }, {}, {}>('physics');
+const renderBundle = new Bundle<{ sprite: {url: string, width: number, height: number} }, {}, {}>('render');
+const aiBundle = new Bundle<{}, { enemySpotted: {entityId: number} }, {}>('ai');
 
 // Add systems to each bundle
 // ...
 
 // Merge bundles into a game bundle
+// Type information is automatically combined!
 const gameBundle = mergeBundles(
   'game',
   physicsBundle,
@@ -292,7 +312,26 @@ const gameBundle = mergeBundles(
 );
 
 // Install the merged bundle
-world.install(gameBundle);
+// The ECSpresso instance now knows about all components, events, and resources
+// from all the merged bundles
+const typedWorld = world.install(gameBundle);
+
+// TypeScript fully recognizes all the component types from all bundles
+typedWorld
+  .addSystem('combinedSystem')
+  .addQuery('renderableMovingEntities', {
+    // Can use components from both physics and render bundles
+    with: ['position', 'velocity', 'sprite'],
+  })
+  .setEventHandlers({
+    // Can use events from the AI bundle
+    enemySpotted: {
+      handler: (event, ecs) => {
+        // Handle enemy spotted event
+      }
+    }
+  })
+  .build();
 ```
 
 ## Advanced Features
@@ -355,6 +394,49 @@ world
   })
   .build();
 ```
+
+### Type Inference with Bundles
+
+When installing bundles, ECSpresso intelligently merges type information:
+
+```typescript
+// Initial ECSpresso with base types
+interface BaseComponents {
+  health: { current: number, max: number };
+}
+const world = new ECSpresso<BaseComponents, {}, {}>();
+
+// Bundle with additional component types
+interface WeaponComponents {
+  weapon: { damage: number, range: number };
+}
+const weaponsBundle = new Bundle<WeaponComponents, {}, {}>('weapons');
+
+// When installed, the returned ECSpresso instance has combined types
+const enhancedWorld = world.install(weaponsBundle);
+// Type is now: ECSpresso<BaseComponents & WeaponComponents, {}, {}>
+
+// Full type safety with components from both the base and bundle
+enhancedWorld
+  .addSystem('combatSystem')
+  .addQuery('fighters', {
+    // TypeScript recognizes both component types
+    with: ['health', 'weapon']
+  })
+  .setProcess((queries, deltaTime, ecs) => {
+    for (const entity of queries.fighters) {
+      // Type-safe access to components from both sources
+      const health = entity.components.health;   // From BaseComponents
+      const weapon = entity.components.weapon;   // From WeaponComponents
+      
+      // TypeScript provides full intellisense for these combined types
+      console.log(`Entity with ${health.current}/${health.max} HP and ${weapon.damage} damage`);
+    }
+  })
+  .build();
+```
+
+This deep type integration ensures that the TypeScript compiler can verify the correctness of your code at compile time, minimizing runtime errors.
 
 ## Development
 
