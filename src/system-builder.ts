@@ -150,11 +150,11 @@ export class SystemBuilder<
 	build(ecspresso?: ECSpresso<ComponentTypes, EventTypes, ResourceTypes>) {
 		const system: System<ComponentTypes, any, any, EventTypes, ResourceTypes> = {
 			label: this._label,
-			entityQueries: this.queries as any,
+			entityQueries: this.queries,
 		};
 
 		if (this.processFunction) {
-			system.process = this.processFunction as any;
+			system.process = this.processFunction;
 		}
 
 		if (this.attachFunction) {

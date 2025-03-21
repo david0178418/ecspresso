@@ -84,8 +84,8 @@ class EntityManager<ComponentTypes> {
 		WithComponents extends keyof ComponentTypes = never,
 		WithoutComponents extends keyof ComponentTypes = never
 	>(
-		required: ReadonlyArray<WithComponents> = [] as any,
-		excluded: ReadonlyArray<WithoutComponents> = [] as any,
+		required: ReadonlyArray<WithComponents> = [],
+		excluded: ReadonlyArray<WithoutComponents> = [],
 	): Array<FilteredEntity<ComponentTypes, WithComponents extends never ? never : WithComponents, WithoutComponents extends never ? never : WithoutComponents>> {
 		// Use the smallest component set as base for better performance
 		if (required.length === 0) {

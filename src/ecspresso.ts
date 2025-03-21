@@ -62,14 +62,14 @@ class ECSpresso<
 			}
 
 			// Register all systems from the bundle
-			bundle.registerSystemsWithEcspresso(this as any);
+			bundle.registerSystemsWithEcspresso(this);
 
 			// Register all resources from the bundle
 			const resources = bundle.getResources();
 			for (const [key, value] of resources.entries()) {
 				// We need to cast here because TypeScript can't verify the type compatibility
 				// between bundles, but we trust that the bundle's resource types are compatible
-				this._resourceManager.add(key as unknown as keyof ResourceTypes, value as any);
+				this._resourceManager.add(key as unknown as keyof ResourceTypes, value);
 			}
 
 			// Mark this bundle as installed
