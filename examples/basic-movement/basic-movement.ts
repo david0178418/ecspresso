@@ -4,8 +4,6 @@ import ECSpresso, { Entity } from "../../src";
 interface Components {
 	sprite: Sprite;
 	player: true;
-	enemy: true;
-	frozen: true;
 	speed: number;
 	position: {
 		x: number;
@@ -74,6 +72,7 @@ new ECSpresso<Components, Events, Resources>()
 				const sprite = createCircleSprite(0x0000FF, pixi);
 				worldContainer.addChild(sprite);
 				ecs.entityManager.addComponents(playerEntity, {
+					player: true,
 					sprite,
 					speed: 500,
 					position: {
@@ -109,7 +108,6 @@ new ECSpresso<Components, Events, Resources>()
 	.addSystem('apply-velocity')
 	.addQuery('movingEntities', {
 		with: ['position', 'velocity'],
-		without: ['frozen']
 	})
 	.setProcess((queries, deltaTimeMs, ecs) => {
 		for(const entity of queries.movingEntities) {
@@ -232,6 +230,35 @@ new ECSpresso<Components, Events, Resources>()
 			player.components.velocity.x = player.components.speed;
 		} else {
 			player.components.velocity.x = 0;
+		}
+	})
+	.build()
+	.ecspresso
+	.addSystem('colision-detection')
+	.addQuery('players', {
+		with: ['position', 'sprite', 'player'],
+	})
+	.addQuery('enemies', {
+		with: ['position', 'sprite'],
+		without: ['player'],
+	})
+	.setProcess((queries, _deltaTimeMs, ecs) => {
+		const [player] = queries.players;
+		if (!player) return;
+
+		for(const enemy of queries.enemies) {
+			const playerBounds = player.components.sprite.getBounds();
+			const enemyBounds = enemy.components.sprite.getBounds();
+			// console.log('checking collision between player and enemy', enemyBounds);
+			if (playerBounds.x < enemyBounds.x + enemyBounds.width &&
+				playerBounds.x + playerBounds.width > enemyBounds.x &&
+				playerBounds.y < enemyBounds.y + enemyBounds.height &&
+				playerBounds.y + playerBounds.height > enemyBounds.y) {
+				console.log('collision detected');
+				// handle collision (e.g., remove enemy, reduce player health, etc.)
+				ecs.entityManager.removeEntity(enemy.id);
+				enemy.components.sprite.destroy();
+			}
 		}
 	})
 	.build()

@@ -125,17 +125,20 @@ class EntityManager<ComponentTypes> {
 			.map(id => this.entities.get(id)!) as Array<FilteredEntity<ComponentTypes, WithComponents extends never ? never : WithComponents, WithoutComponents extends never ? never : WithoutComponents>>;
 	}
 
-	removeEntity(entityId: number): boolean {
-		const entity = this.entities.get(entityId);
+	removeEntity(entityOrId: number | Entity<ComponentTypes>): boolean {
+		const entity = typeof entityOrId === 'number' ?
+			this.entities.get(entityOrId) :
+			entityOrId;
+
 		if (!entity) return false;
 
 		// Remove entity from all component indices
 		for (const componentName of Object.keys(entity.components) as Array<keyof ComponentTypes>) {
-			this.componentIndices.get(componentName)?.delete(entityId);
+			this.componentIndices.get(componentName)?.delete(entity.id);
 		}
 
 		// Remove the entity itself
-		return this.entities.delete(entityId);
+		return this.entities.delete(entity.id);
 	}
 
 	getEntity(entityId: number): Entity<ComponentTypes> | undefined {
