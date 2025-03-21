@@ -5,7 +5,7 @@ class EntityManager<ComponentTypes> {
 	private nextId: number = 1;
 	private entities: Map<number, Entity<ComponentTypes>> = new Map();
 	private componentIndices: Map<keyof ComponentTypes, Set<number>> = new Map();
-	
+
 	createEntity(): Entity<ComponentTypes> {
 		const id = this.nextId++;
 		const entity: Entity<ComponentTypes> = { id, components: {} };
@@ -26,7 +26,7 @@ class EntityManager<ComponentTypes> {
 		if (!entity) throw new Error(`Entity ${entityOrId} does not exist`);
 
 		entity.components[componentName] = data;
-		
+
 		// Update component index
 		if (!this.componentIndices.has(componentName)) {
 			this.componentIndices.set(componentName, new Set());
@@ -35,12 +35,39 @@ class EntityManager<ComponentTypes> {
 		return this;
 	}
 
+	/**
+	 * Add multiple components to an entity at once
+	 * @param entityOrId Entity or entity ID to add components to
+	 * @param components Object with component names as keys and component data as values
+	 */
+	addComponents(
+		entityOrId: number | Entity<ComponentTypes>,
+		components: Partial<{
+			[ComponentName in keyof ComponentTypes]: ComponentTypes[ComponentName]
+		}>
+	) {
+		const entity = typeof entityOrId === 'number' ?
+			this.entities.get(entityOrId) :
+			entityOrId;
+
+		if (!entity) throw new Error(`Entity ${entityOrId} does not exist`);
+
+		for (const componentName in components) {
+			const typedName = componentName as keyof ComponentTypes;
+			const data = components[typedName] as ComponentTypes[typeof typedName];
+
+			this.addComponent(entity, typedName, data);
+		}
+
+		return this;
+	}
+
 	removeComponent<ComponentName extends keyof ComponentTypes>(entityId: number, componentName: ComponentName) {
 		const entity = this.entities.get(entityId);
 		if (!entity) throw new Error(`Entity ${entityId} does not exist`);
 
 		delete entity.components[componentName];
-		
+
 		// Update component index
 		this.componentIndices.get(componentName)?.delete(entityId);
 	}
@@ -57,7 +84,7 @@ class EntityManager<ComponentTypes> {
 		WithComponents extends keyof ComponentTypes = never,
 		WithoutComponents extends keyof ComponentTypes = never
 	>(
-		required: ReadonlyArray<WithComponents> = [] as any, 
+		required: ReadonlyArray<WithComponents> = [] as any,
 		excluded: ReadonlyArray<WithoutComponents> = [] as any,
 	): Array<FilteredEntity<ComponentTypes, WithComponents extends never ? never : WithComponents, WithoutComponents extends never ? never : WithoutComponents>> {
 		// Use the smallest component set as base for better performance
@@ -72,13 +99,13 @@ class EntityManager<ComponentTypes> {
 					return excluded.every(comp => !(comp in entity.components));
 				}) as any;
 		}
-		
+
 		// Find the component with the smallest entity set to start with
 		const smallestComponent = required.reduce((smallest, comp) => {
 			const set = this.componentIndices.get(comp);
 			const currentSize = set ? set.size : 0;
 			const smallestSize = this.componentIndices.get(smallest!)?.size ?? Infinity;
-			
+
 			return currentSize < smallestSize ? comp : smallest;
 		}, required[0])!;
 
@@ -91,7 +118,7 @@ class EntityManager<ComponentTypes> {
 				const entity = this.entities.get(id);
 				return (
 					entity &&
-					required.every(comp => comp in entity.components) && 
+					required.every(comp => comp in entity.components) &&
 					excluded.every(comp => !(comp in entity.components))
 				);
 			})
@@ -101,12 +128,12 @@ class EntityManager<ComponentTypes> {
 	removeEntity(entityId: number): boolean {
 		const entity = this.entities.get(entityId);
 		if (!entity) return false;
-		
+
 		// Remove entity from all component indices
 		for (const componentName of Object.keys(entity.components) as Array<keyof ComponentTypes>) {
 			this.componentIndices.get(componentName)?.delete(entityId);
 		}
-		
+
 		// Remove the entity itself
 		return this.entities.delete(entityId);
 	}

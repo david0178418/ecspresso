@@ -34,13 +34,18 @@ describe('ECSpresso', () => {
 			// @ts-expect-error // TypeScript should complain if we try to add a component that doesn't exist
 			world.entityManager.addComponent(entity.id, 'position', { x: 0, y: 0, z: 0 });
 			// @ts-expect-error // TypeScript should complain if we try to add a component that doesn't exist
-			world.entityManager.addComponent(entity.id, 'does-not-exist', { value: 100 });
+			world.entityManager.addComponent(entity.id, 'doesNotExist', { value: 100 });
+			world.entityManager.addComponents(entity, {
+				position: { x: 10, y: 20 },
+				// @ts-expect-error // TypeScript should complain if we try to add a component that doesn't exist
+				notAComponent: { x: 5, y: 10 },
+			});
 
 			world.addResource('config', { debug: true, maxEntities: 1000 });
 			// @ts-expect-error // TypeScript should complain if we try to add a resource that doesn't exist
 			world.addResource('config', { debug: true, maxEntities: 1000, extraField: 'not allowed' });
 			// @ts-expect-error // TypeScript should complain if we try to add a resource that doesn't exist
-			world.addResource('does-not-exist', { value: 100 });
+			world.addResource('doesNotExist', { value: 100 });
 
 			world
 				.addSystem('some-system')
