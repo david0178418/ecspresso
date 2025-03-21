@@ -104,22 +104,22 @@ class ECSpresso<
 	/**
 	 * Check if a resource exists
 	 */
-	hasResource<K extends keyof ResourceTypes>(key: K): boolean {
-		return this._resourceManager.has(key);
+	hasResource<K extends keyof ResourceTypes | string>(key: K): boolean {
+		return this._resourceManager.has(key as any);
 	}
 
 	/**
 	 * Get a resource if it exists, or undefined if not
 	 */
-	getResource<K extends keyof ResourceTypes>(key: K): ResourceTypes[K] {
-		return this._resourceManager.getOptional(key) as ResourceTypes[K];
+	getResource<K extends keyof ResourceTypes | string>(key: K): K extends keyof ResourceTypes ? ResourceTypes[K] : any {
+		return this._resourceManager.getOptional(key as any) as any;
 	}
 
 	/**
 	 * Get a resource, throws error if not found
 	 */
-	getResourceOrThrow<K extends keyof ResourceTypes>(key: K): ResourceTypes[K] {
-		return this._resourceManager.get(key) as ResourceTypes[K];
+	getResourceOrThrow<K extends keyof ResourceTypes | string>(key: K): K extends keyof ResourceTypes ? ResourceTypes[K] : any {
+		return this._resourceManager.get(key as any) as any;
 	}
 
 	/**

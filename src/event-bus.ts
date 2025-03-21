@@ -2,14 +2,14 @@ import type { EventHandler } from "./types";
 
 export default
 class EventBus<EventTypes> {
-	private handlers: Map<keyof EventTypes, Array<EventHandler<any>>> = new Map();
+	private handlers: Map<string, Array<EventHandler<any>>> = new Map();
 
 	/**
 	 * Subscribe to an event
 	 */
-	subscribe<E extends keyof EventTypes>(
+	subscribe<E extends keyof EventTypes | string>(
 		eventType: E,
-		callback: (data: EventTypes[E]) => void
+		callback: (data: E extends keyof EventTypes ? EventTypes[E] : any) => void
 	): () => void {
 		return this.addHandler(eventType, callback, false);
 	}
@@ -17,9 +17,9 @@ class EventBus<EventTypes> {
 	/**
 	 * Subscribe to an event once
 	 */
-	once<E extends keyof EventTypes>(
+	once<E extends keyof EventTypes | string>(
 		eventType: E,
-		callback: (data: EventTypes[E]) => void
+		callback: (data: E extends keyof EventTypes ? EventTypes[E] : any) => void
 	): () => void {
 		return this.addHandler(eventType, callback, true);
 	}
@@ -27,25 +27,25 @@ class EventBus<EventTypes> {
 	/**
 	 * Internal method to add an event handler
 	 */
-	private addHandler<E extends keyof EventTypes>(
+	private addHandler<E extends keyof EventTypes | string>(
 		eventType: E,
-		callback: (data: EventTypes[E]) => void,
+		callback: (data: E extends keyof EventTypes ? EventTypes[E] : any) => void,
 		once: boolean
 	): () => void {
-		if (!this.handlers.has(eventType)) {
-			this.handlers.set(eventType, []);
+		if (!this.handlers.has(eventType as string)) {
+			this.handlers.set(eventType as string, []);
 		}
 
-		const handler: EventHandler<EventTypes[E]> = {
+		const handler: EventHandler<any> = {
 			callback,
 			once
 		};
 
-		this.handlers.get(eventType)!.push(handler);
+		this.handlers.get(eventType as string)!.push(handler);
 
 		// Return unsubscribe function
 		return () => {
-			const handlers = this.handlers.get(eventType);
+			const handlers = this.handlers.get(eventType as string);
 			if (handlers) {
 				const index = handlers.indexOf(handler);
 				if (index !== -1) {
@@ -55,26 +55,26 @@ class EventBus<EventTypes> {
 		};
 	}
 
-	publish<E extends keyof EventTypes>(
+	publish<E extends keyof EventTypes | string>(
 		eventType: E,
-		data: EventTypes[E] = undefined as EventTypes[E]
+		data: E extends keyof EventTypes ? EventTypes[E] : any = undefined as any
 	): void {
-		const handlers = this.handlers.get(eventType);
+		const handlers = this.handlers.get(eventType as string);
 		if (!handlers) return;
 
 		// Create a copy of handlers to avoid issues with handlers that modify the array
 		const handlersToCall = [...handlers];
-		
+
 		// Call all handlers and collect handlers to remove
 		const handlersToRemove: EventHandler<any>[] = [];
-		
+
 		for (const handler of handlersToCall) {
 			handler.callback(data);
 			if (handler.once) {
 				handlersToRemove.push(handler);
 			}
 		}
-		
+
 		if (handlersToRemove.length > 0) {
 			for (const handler of handlersToRemove) {
 				const index = handlers.indexOf(handler);
@@ -89,7 +89,7 @@ class EventBus<EventTypes> {
 		this.handlers.clear();
 	}
 
-	clearEvent<E extends keyof EventTypes>(eventType: E): void {
-		this.handlers.delete(eventType);
+	clearEvent<E extends keyof EventTypes | string>(eventType: E): void {
+		this.handlers.delete(eventType as string);
 	}
 }

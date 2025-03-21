@@ -92,8 +92,8 @@ export default class Bundle<
 	 * @param key The resource key
 	 * @returns The resource value or undefined if not found
 	 */
-	getResource<K extends keyof ResourceTypes>(key: K): ResourceTypes[K] | undefined {
-		return this._resources.get(key) as ResourceTypes[K] | undefined;
+	getResource<K extends keyof ResourceTypes | string>(key: K): K extends keyof ResourceTypes ? ResourceTypes[K] : any | undefined {
+		return this._resources.get(key as keyof ResourceTypes) as any;
 	}
 
 	/**
@@ -108,8 +108,8 @@ export default class Bundle<
 	 * @param key The resource key to check
 	 * @returns True if the resource exists
 	 */
-	hasResource<K extends keyof ResourceTypes>(key: K): boolean {
-		return this._resources.has(key);
+	hasResource<K extends keyof ResourceTypes | string>(key: K): boolean {
+		return this._resources.has(key as keyof ResourceTypes);
 	}
 }
 

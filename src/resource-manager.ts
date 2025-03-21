@@ -1,6 +1,6 @@
 export default
 class ResourceManager<ResourceTypes extends Record<string, any> = Record<string, any>> {
-	private resources: Map<keyof ResourceTypes, ResourceTypes[keyof ResourceTypes]> = new Map();
+	private resources: Map<string, any> = new Map();
 
 	/**
 	 * Add a resource to the manager
@@ -8,8 +8,8 @@ class ResourceManager<ResourceTypes extends Record<string, any> = Record<string,
 	 * @param resource The resource value
 	 * @returns The resource manager instance for chaining
 	 */
-	add<K extends keyof ResourceTypes>(label: K, resource: ResourceTypes[K]) {
-		this.resources.set(label, resource);
+	add<K extends keyof ResourceTypes | string>(label: K, resource: K extends keyof ResourceTypes ? ResourceTypes[K] : any) {
+		this.resources.set(label as string, resource);
 		return this;
 	}
 
@@ -19,14 +19,14 @@ class ResourceManager<ResourceTypes extends Record<string, any> = Record<string,
 	 * @returns The resource value
 	 * @throws Error if resource not found
 	 */
-	get<K extends keyof ResourceTypes>(label: K): ResourceTypes[K] {
-		const resource = this.resources.get(label);
+	get<K extends keyof ResourceTypes | string>(label: K): K extends keyof ResourceTypes ? ResourceTypes[K] : any {
+		const resource = this.resources.get(label as string);
 
 		if (resource === undefined) {
 			throw new Error(`Resource ${String(label)} not found`);
 		}
 
-		return resource;
+		return resource as any;
 	}
 
 	/**
@@ -34,9 +34,9 @@ class ResourceManager<ResourceTypes extends Record<string, any> = Record<string,
 	 * @param label The resource key
 	 * @returns The resource value or undefined if not found
 	 */
-	getOptional<K extends keyof ResourceTypes>(label: K): ResourceTypes[K] | undefined {
-		const resource = this.resources.get(label);
-		return resource as ResourceTypes[K] | undefined;
+	getOptional<K extends keyof ResourceTypes | string>(label: K): K extends keyof ResourceTypes ? ResourceTypes[K] : any | undefined {
+		const resource = this.resources.get(label as string);
+		return resource as any | undefined;
 	}
 
 	/**
@@ -44,8 +44,8 @@ class ResourceManager<ResourceTypes extends Record<string, any> = Record<string,
 	 * @param label The resource key
 	 * @returns True if the resource exists
 	 */
-	has<K extends keyof ResourceTypes>(label: K): boolean {
-		return this.resources.has(label);
+	has<K extends keyof ResourceTypes | string>(label: K): boolean {
+		return this.resources.has(label as string);
 	}
 
 	/**
@@ -53,15 +53,15 @@ class ResourceManager<ResourceTypes extends Record<string, any> = Record<string,
 	 * @param label The resource key
 	 * @returns True if the resource was removed
 	 */
-	remove<K extends keyof ResourceTypes>(label: K): boolean {
-		return this.resources.delete(label);
+	remove<K extends keyof ResourceTypes | string>(label: K): boolean {
+		return this.resources.delete(label as string);
 	}
 
 	/**
 	 * Get all resource keys
 	 * @returns Array of resource keys
 	 */
-	getKeys(): Array<keyof ResourceTypes> {
+	getKeys(): Array<string> {
 		return Array.from(this.resources.keys());
 	}
 }

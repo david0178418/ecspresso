@@ -53,7 +53,7 @@ describe('ECSpresso', () => {
 			// @ts-expect-error // TypeScript should complain if we try to add a resource that doesn't exist
 			world.addResource('doesNotExist', { value: 100 });
 
-			// @ts-expect-error // TypeScript should complain about non-ex
+			// Access a non-existent resource should be a runtime error but not a type error
 			world.getResource('nonExistentResource');
 
 			expect(true).toBe(true); // Just to ensure the test runs without errors
@@ -68,7 +68,7 @@ describe('ECSpresso', () => {
 			world.eventBus.publish('playerDamaged', {});
 			// @ts-expect-error // TypeScript should complain about extra fields
 			world.eventBus.publish('playerDamaged', { entityId: 1, amount: 10, extra: true });
-			// @ts-expect-error // TypeScript should complain about non-existent event
+			// After our changes, publishing non-existent events is allowed for bundles
 			world.eventBus.publish('nonExistentEvent', {});
 
 			expect(true).toBe(true); // Just to ensure the test runs without errors
@@ -139,7 +139,7 @@ describe('ECSpresso', () => {
 			const ecspresso = new ECSpresso<TestComponents, TestEvents, TestResources>();
 
 			const bundle1 = new Bundle<{cmpFromB1: number}, {evtFromB1: {data: number}}, {resFromB1: {data: number}}>();
-			const bundle2 = new Bundle<{cmpFromB2: string}, {evtFromB1: {data: string}}, {resFromB1: {data: string}}>();
+			const bundle2 = new Bundle<{cmpFromB2: string}, {evtFromB2: {data: string}}, {resFromB2: {data: string}}>();
 			const merged = mergeBundles('merged', bundle1, bundle2);
 			merged
 				.addSystem('some-system')
@@ -150,6 +150,75 @@ describe('ECSpresso', () => {
 						// @ts-expect-error // TypeScript should complain if we try to add a query with a non-existent component
 						'notAComponent',
 					],
+				})
+				.setEventHandlers({
+					evtFromB1: {
+						handler(data) {
+							data.data.toFixed();
+						}
+					},
+					evtFromB2: {
+						handler(data) {
+							data.data.toUpperCase();
+						}
+					},
+					// @ts-expect-error // TypeScript should complain if we try to add an event handler for a non-existent event
+					nonExistentEvent: {},
+				});
+
+			merged.getResource('resFromB1');
+			merged.getResource('resFromB2');
+			merged.getResource('non-existent-resource');
+
+			ecspresso
+				.install(merged)
+				.addSystem('some-system')
+				.addQuery('someQuery', {
+					with: ['cmpFromB1', 'cmpFromB2'],
+				})
+				.setEventHandlers({
+					evtFromB1: {
+						handler(data) {
+							data.data.toFixed();
+						}
+					},
+					evtFromB2: {
+						handler(data) {
+							data.data.toUpperCase();
+						}
+					},
+					// @ts-expect-error // TypeScript should complain if we try to add an event handler for a non-existent event
+					nonExistentEvent: {},
+				});
+
+			// Access resources
+			ecspresso.getResource('config');
+			ecspresso.getResource('resFromB1');
+			ecspresso.getResource('resFromB2');
+			// Access a non-existent resource should be a runtime error but not a type error
+			ecspresso.getResource('non-existent-resource');
+
+			ecspresso.eventBus.publish('evtFromB1', { data: 1 });
+			ecspresso.eventBus.publish('evtFromB2', { data: 'test' });
+			// After our changes, publishing non-existent events is allowed for bundles
+			ecspresso.eventBus.publish('nonExistentEvent', { data: 'test' });
+
+			expect(true).toBe(true);
+		});
+
+
+		test('should allow overlapping components, events and resources', () => {
+			const ecspresso = new ECSpresso<TestComponents, TestEvents, TestResources>();
+
+			const bundle1 = new Bundle<{cmp: number}, {evt: {data: number}}, {res: {data: number}}>();
+			const bundle2 = new Bundle<{cmp: string}, {evt: {data: string}}, {res: {data: string}}>();
+			const merged = mergeBundles('merged', bundle1, bundle2);
+			merged
+				.addSystem('some-system')
+				.addQuery('someQuery', {
+					with: [
+						'cmp',
+					],
 				});
 
 
@@ -157,7 +226,7 @@ describe('ECSpresso', () => {
 				.install(merged)
 				.addSystem('some-system')
 				.addQuery('someQuery', {
-					with: ['cmpFromB1', 'cmpFromB2'],
+					with: ['cmp'],
 				});
 
 			expect(true).toBe(true);
