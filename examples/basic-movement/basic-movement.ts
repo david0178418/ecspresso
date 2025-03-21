@@ -6,15 +6,12 @@ interface Components {
 	player: true;
 	enemy: true;
 	frozen: true;
+	speed: number;
 	position: {
 		x: number;
 		y: number;
 	};
 	velocity: {
-		x: number;
-		y: number;
-	};
-	acceleration: {
 		x: number;
 		y: number;
 	};
@@ -78,6 +75,7 @@ new ECSpresso<Components, Events, Resources>()
 				worldContainer.addChild(sprite);
 				ecs.entityManager.addComponents(playerEntity, {
 					sprite,
+					speed: 500,
 					position: {
 						x: 100,
 						y: 100
@@ -91,6 +89,8 @@ new ECSpresso<Components, Events, Resources>()
 						y: 0
 					},
 				});
+
+				ecs.eventBus.publish('startGame');
 			},
 		},
 		startGame: {
@@ -99,7 +99,7 @@ new ECSpresso<Components, Events, Resources>()
 				const pixi = ecs.getResource('pixi');
 
 				pixi.ticker.add(ticker => {
-					ecs.update(ticker.deltaMS);
+					ecs.update(ticker.deltaMS / 1_000);
 				});
 			}
 		},
@@ -111,26 +111,26 @@ new ECSpresso<Components, Events, Resources>()
 		with: ['position', 'velocity'],
 		without: ['frozen']
 	})
-	.setProcess((queries, deltaTimeMs) => {
+	.setProcess((queries, deltaTimeMs, ecs) => {
 		for(const entity of queries.movingEntities) {
 			entity.components.position.x += entity.components.velocity.x * deltaTimeMs;
 			entity.components.position.y += entity.components.velocity.y * deltaTimeMs;
-		}
 
-	})
-	.build()
-	.ecspresso
-	.addSystem('apply-acceleration')
-	.addQuery('movingEntities', {
-		with: ['acceleration', 'velocity'],
-		without: ['frozen']
-	})
-	.setProcess((queries, deltaTimeMs) => {
-		for(const entity of queries.movingEntities) {
-			entity.components.velocity.x += entity.components.acceleration.x * deltaTimeMs;
-			entity.components.velocity.y += entity.components.acceleration.y * deltaTimeMs;
+			// wrap around the screen
+			const pixi = ecs.resourceManager.get('pixi');
+			if (entity.components.position.x < 0) {
+				entity.components.position.x = pixi.renderer.width;
+			}
+			if (entity.components.position.x > pixi.renderer.width) {
+				entity.components.position.x = 0;
+			}
+			if (entity.components.position.y < 0) {
+				entity.components.position.y = pixi.renderer.height;
+			}
+			if (entity.components.position.y > pixi.renderer.height) {
+				entity.components.position.y = 0;
+			}
 		}
-
 	})
 	.build()
 	.ecspresso
@@ -152,7 +152,7 @@ new ECSpresso<Components, Events, Resources>()
 	.setEventHandlers({
 		startGame: {
 			handler(_eventData, ecs) {
-				console.log('starting game triggered in enemy-movement');
+				ecs.eventBus.publish('spawnEnemy');
 				setInterval(() => {
 					ecs.eventBus.publish('spawnEnemy');
 				}, 5_000);
@@ -167,15 +167,18 @@ new ECSpresso<Components, Events, Resources>()
 					const worldContainer = ecs.resourceManager.get('worldContainer');
 					worldContainer.addChild(sprite);
 
+					const speed = randomInt(300, 550);
+
 					ecs.entityManager.addComponents(entity, {
 						sprite,
+						speed,
 						position: {
-							x: Math.random() * pixi.renderer.width,
-							y: Math.random() * pixi.renderer.height
+							x: randomInt(pixi.renderer.width),
+							y: randomInt(pixi.renderer.height),
 						},
 						velocity: {
-							x: randomInt(-100, 100),
-							y: randomInt(-100, 100),
+							x: randomInt(-speed, speed),
+							y: randomInt(-speed, speed),
 						},
 						acceleration: {
 							x: 0,
@@ -192,10 +195,10 @@ new ECSpresso<Components, Events, Resources>()
 			handler(_eventData) {
 				const { enemy } = _eventData;
 
-				if (!enemy.components.acceleration) return;
+				if (!(enemy.components.velocity && enemy.components.speed)) return;
 
-				enemy.components.acceleration.x = randomInt(-100, 100);
-				enemy.components.acceleration.y = randomInt(-100, 100);
+				enemy.components.velocity.x = randomInt(-enemy.components.speed, enemy.components.speed);
+				enemy.components.velocity.y = randomInt(-enemy.components.speed, enemy.components.speed);
 			}
 		}
 	})
@@ -203,7 +206,11 @@ new ECSpresso<Components, Events, Resources>()
 	.ecspresso
 	.addSystem('player-control')
 	.addQuery('players', {
-		with: ['sprite', 'position', 'velocity', 'acceleration']
+		with: [
+			'speed',
+			'position',
+			'velocity'
+		],
 	})
 	.setProcess((queries, _deltaTimeMs, ecs) => {
 		const controlMap = ecs.getResource('controlMap');
@@ -211,17 +218,20 @@ new ECSpresso<Components, Events, Resources>()
 
 		if (!player) return;
 
-		if (controlMap.up) {
-			player.components.velocity.y -= 100;
+		if (controlMap.up) {500
+			player.components.velocity.y = -player.components.speed;
+		} else if (controlMap.down) {
+			player.components.velocity.y = player.components.speed;
+		} else {
+			player.components.velocity.y = 0;
 		}
-		if (controlMap.down) {
-			player.components.velocity.y += 100;
-		}
+
 		if (controlMap.left) {
-			player.components.velocity.x -= 100;
-		}
-		if (controlMap.right) {
-			player.components.velocity.x += 100;
+			player.components.velocity.x = -player.components.speed;
+		} else if (controlMap.right) {
+			player.components.velocity.x = player.components.speed;
+		} else {
+			player.components.velocity.x = 0;
 		}
 	})
 	.build()
@@ -311,7 +321,6 @@ function activeKeyMap() {
 
 	return controlMap;
 }
-
 
 function randomInt(min: number, max?: number) {
 	if (max === undefined) {
