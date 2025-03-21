@@ -216,7 +216,7 @@ new ECSpresso<Components, Events, Resources>()
 
 		if (!player) return;
 
-		if (controlMap.up) {500
+		if (controlMap.up) {
 			player.components.velocity.y = -player.components.speed;
 		} else if (controlMap.down) {
 			player.components.velocity.y = player.components.speed;
