@@ -1,4 +1,6 @@
 import { createBundleSystemBuilder, SystemBuilder } from './system-builder';
+import type ECSpresso from './ecspresso';
+import { MergeAll } from './types';
 
 /**
  * Generates a unique ID for a bundle
@@ -69,6 +71,16 @@ export default class Bundle<
 	}
 
 	/**
+	 * Register all systems in this bundle with an ECSpresso instance
+	 * @internal Used by ECSpresso when adding a bundle
+	 */
+	registerSystemsWithEcspresso(ecspresso: ECSpresso<ComponentTypes, EventTypes, ResourceTypes>) {
+		for (const systemBuilder of this._systems) {
+			systemBuilder.build(ecspresso);
+		}
+	}
+
+	/**
 	 * Get all resources defined in this bundle
 	 */
 	getResources(): Map<keyof ResourceTypes, ResourceTypes[keyof ResourceTypes]> {
@@ -100,29 +112,6 @@ export default class Bundle<
 		return this._resources.has(key);
 	}
 }
-
-/**
- * Utility type for merging two types
- */
-// This sets props with the same name but different type to "never". Maybe we want this?
-export type Merge<T1, T2> = T1 & T2;
-// This makes the later prop types override the earlier ones. Maybe we want this instead?
-// export type Merge<T1, T2> = Omit<T1, keyof T2> & T2;
-// Or maybe this, which sets props with the same name to a union of the two types
-// export type Merge<T1, T2> = {
-// 	[K in keyof T1 | keyof T2]: K extends keyof T1 & keyof T2
-// 		? T1[K] | T2[K]
-// 		: K extends keyof T1
-// 			? T1[K]
-// 			: K extends keyof T2
-// 				? T2[K]
-// 				: never;
-// };
-
-export type MergeAll<T extends any[]> = T extends [infer First, ...infer Rest] ?
-	Rest extends [] ?
-		First: Merge<First, MergeAll<Rest>>:
-	{};
 
 export function mergeBundles<
 	Bundles extends Array<Bundle<any, any, any>>

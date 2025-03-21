@@ -1,6 +1,6 @@
 import { expect, describe, test } from 'bun:test';
 import ECSpresso from './ecspresso';
-import Bundle from './bundle';
+import Bundle, { mergeBundles } from './bundle';
 
 interface TestComponents {
 	position: { x: number; y: number };
@@ -133,6 +133,34 @@ describe('ECSpresso', () => {
 			} catch (error) {}
 
 			expect(true).toBe(true); // Just to ensure the test runs without errors
+		});
+
+		test('should handle bundle augmentation', () => {
+			const ecspresso = new ECSpresso<TestComponents, TestEvents, TestResources>();
+
+			const bundle1 = new Bundle<{cmpFromB1: number}, {evtFromB1: {data: number}}, {resFromB1: {data: number}}>();
+			const bundle2 = new Bundle<{cmpFromB2: string}, {evtFromB1: {data: string}}, {resFromB1: {data: string}}>();
+			const merged = mergeBundles('merged', bundle1, bundle2);
+			merged
+				.addSystem('some-system')
+				.addQuery('someQuery', {
+					with: [
+						'cmpFromB1',
+						'cmpFromB2',
+						// @ts-expect-error // TypeScript should complain if we try to add a query with a non-existent component
+						'notAComponent',
+					],
+				});
+
+
+			ecspresso
+				.install(merged)
+				.addSystem('some-system')
+				.addQuery('someQuery', {
+					with: ['cmpFromB1', 'cmpFromB2'],
+				});
+
+			expect(true).toBe(true);
 		});
 	});
 

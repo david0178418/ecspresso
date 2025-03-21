@@ -20,7 +20,8 @@
 		"ecs"
 	],
 	"devDependencies": {
-		"@types/bun": "latest"
+		"@types/bun": "latest",
+		"pixi.js": "^8.9.0"
 	},
 	"peerDependencies": {
 		"typescript": "^5"

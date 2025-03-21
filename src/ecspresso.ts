@@ -1,7 +1,7 @@
 import EntityManager from "./entity-manager";
 import EventBus from "./event-bus";
 import ResourceManager from "./resource-manager";
-import type { System } from "./types";
+import type { System, MergeAll } from "./types";
 import type Bundle from "./bundle";
 import { createEcspressoSystemBuilder } from "./system-builder";
 import { version } from "../package.json";
@@ -43,13 +43,17 @@ class ECSpresso<
 	 * Install one or more bundles into this ECS instance
 	 * Systems in the bundle will have their onAttach method called with this ECSpresso instance
 	 * @param bundles One or more bundles to install
-	 * @returns This ECSpresso instance for method chaining
+	 * @returns A new ECSpresso instance with merged types from all bundles
 	 */
 	install<
 		Bundles extends Array<Bundle<any, any, any> | null>
-	>(...bundles: Bundles): this {
+	>(...bundles: Bundles): ECSpresso<
+		ComponentTypes & MergeAll<{ [K in keyof Bundles]: Bundles[K] extends Bundle<infer C, any, any> ? C : {} }>,
+		EventTypes & MergeAll<{ [K in keyof Bundles]: Bundles[K] extends Bundle<any, infer E, any> ? E : {} }>,
+		ResourceTypes & MergeAll<{ [K in keyof Bundles]: Bundles[K] extends Bundle<any, any, infer R> ? R : {} }>
+	> {
 		for (const bundle of bundles) {
-			if (!bundle) return this;
+			if (!bundle) continue;
 
 			// Check if this bundle is already installed
 			if (this._installedBundles.has(bundle.id)) {
@@ -57,44 +61,8 @@ class ECSpresso<
 				continue;
 			}
 
-			const systems = bundle.getSystems();
-
-			// Check if bundle has systems
-			if (!systems.length) {
-				console.warn(`Bundle ${bundle.id} has no systems`);
-			}
-
 			// Register all systems from the bundle
-			for (const system of systems) {
-				// Need to cast here because we can't fully type the system generics
-				const typedSystem = system as unknown as System<ComponentTypes, any, any, EventTypes, ResourceTypes>;
-				this._systems.push(typedSystem);
-
-				// Call onAttach lifecycle hook if defined
-				if (typedSystem.onAttach) {
-					typedSystem.onAttach(
-						this
-					);
-				}
-
-				// Auto-subscribe to events if eventHandlers are defined
-				if (typedSystem.eventHandlers) {
-					for (const eventName in typedSystem.eventHandlers) {
-						const handler = typedSystem.eventHandlers[eventName];
-						if (handler?.handler) {
-							// Create a wrapper that passes the additional parameters to the handler
-							const wrappedHandler = (data: any) => {
-								handler.handler(
-									data,
-									this
-								);
-							};
-
-							this._eventBus.subscribe(eventName, wrappedHandler);
-						}
-					}
-				}
-			}
+			bundle.registerSystemsWithEcspresso(this as any);
 
 			// Register all resources from the bundle
 			const resources = bundle.getResources();
@@ -108,7 +76,7 @@ class ECSpresso<
 			this._installedBundles.add(bundle.id);
 		}
 
-		return this;
+		return this as any;
 	}
 
 	/**

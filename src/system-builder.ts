@@ -147,7 +147,7 @@ export class SystemBuilder<
 	/**
 	 * Build the final system object
 	 */
-	build() {
+	build(ecspresso?: ECSpresso<ComponentTypes, EventTypes, ResourceTypes>) {
 		const system: System<ComponentTypes, any, any, EventTypes, ResourceTypes> = {
 			label: this._label,
 			entityQueries: this.queries as any,
@@ -169,34 +169,52 @@ export class SystemBuilder<
 			system.eventHandlers = this.eventHandlers;
 		}
 
-		// If this system is being built directly from an ECSpresso instance (not via a bundle),
-		// then register it with the ECSpresso instance
-		if (this._ecspresso && !this._bundle) {
-			const typedSystem = system as System<ComponentTypes, any, any, EventTypes, ResourceTypes>;
-			this._ecspresso["_systems"].push(typedSystem);
-
-			// Call onAttach lifecycle hook if defined
-			if (typedSystem.onAttach) {
-				typedSystem.onAttach(this._ecspresso);
-			}
-
-			// Auto-subscribe to events if eventHandlers are defined
-			if (typedSystem.eventHandlers) {
-				for (const eventName in typedSystem.eventHandlers) {
-					const handler = typedSystem.eventHandlers[eventName];
-					if (handler?.handler) {
-						// Create a wrapper that passes the additional parameters to the handler
-						const wrappedHandler = (data: any) => {
-							handler.handler(data, this._ecspresso!);
-						};
-
-						this._ecspresso.eventBus.subscribe(eventName, wrappedHandler);
-					}
-				}
-			}
+		if (this._ecspresso) {
+			registerSystemWithEcspresso(system, this._ecspresso);
 		}
 
-		return system;
+		if(ecspresso) {
+			registerSystemWithEcspresso(system, ecspresso);
+		}
+
+		return this;
+	}
+}
+
+/**
+ * Helper function to register a system with an ECSpresso instance
+ * This handles attaching the system and setting up event handlers
+ * @internal Used by SystemBuilder and Bundle
+ */
+export function registerSystemWithEcspresso<
+	ComponentTypes extends Record<string, any>,
+	EventTypes extends Record<string, any>,
+	ResourceTypes extends Record<string, any>
+>(
+	system: System<ComponentTypes, any, any, EventTypes, ResourceTypes>,
+	ecspresso: ECSpresso<ComponentTypes, EventTypes, ResourceTypes>
+) {
+	// Add system to ECSpresso's system list
+	ecspresso["_systems"].push(system);
+
+	// Call onAttach lifecycle hook if defined
+	if (system.onAttach) {
+		system.onAttach(ecspresso);
+	}
+
+	// Auto-subscribe to events if eventHandlers are defined
+	if (system.eventHandlers) {
+		for (const eventName in system.eventHandlers) {
+			const handler = system.eventHandlers[eventName];
+			if (handler?.handler) {
+				// Create a wrapper that passes the additional parameters to the handler
+				const wrappedHandler = (data: any) => {
+					handler.handler(data, ecspresso);
+				};
+
+				ecspresso.eventBus.subscribe(eventName, wrappedHandler);
+			}
+		}
 	}
 }
 
