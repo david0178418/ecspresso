@@ -7,9 +7,9 @@ class EventBus<EventTypes> {
 	/**
 	 * Subscribe to an event
 	 */
-	subscribe<E extends keyof EventTypes | string>(
+	subscribe<E extends keyof EventTypes>(
 		eventType: E,
-		callback: (data: E extends keyof EventTypes ? EventTypes[E] : any) => void
+		callback: (data: EventTypes[E]) => void
 	): () => void {
 		return this.addHandler(eventType, callback, false);
 	}
@@ -17,9 +17,9 @@ class EventBus<EventTypes> {
 	/**
 	 * Subscribe to an event once
 	 */
-	once<E extends keyof EventTypes | string>(
+	once<E extends keyof EventTypes>(
 		eventType: E,
-		callback: (data: E extends keyof EventTypes ? EventTypes[E] : any) => void
+		callback: (data: EventTypes[E]) => void
 	): () => void {
 		return this.addHandler(eventType, callback, true);
 	}
@@ -27,9 +27,9 @@ class EventBus<EventTypes> {
 	/**
 	 * Internal method to add an event handler
 	 */
-	private addHandler<E extends keyof EventTypes | string>(
+	private addHandler<E extends keyof EventTypes>(
 		eventType: E,
-		callback: (data: E extends keyof EventTypes ? EventTypes[E] : any) => void,
+		callback: (data: EventTypes[E]) => void,
 		once: boolean
 	): () => void {
 		if (!this.handlers.has(eventType as string)) {
@@ -55,9 +55,9 @@ class EventBus<EventTypes> {
 		};
 	}
 
-	publish<E extends keyof EventTypes | string>(
+	publish<E extends keyof EventTypes>(
 		eventType: E,
-		data: E extends keyof EventTypes ? EventTypes[E] : any = undefined as any
+		data?: EventTypes[E]
 	): void {
 		const handlers = this.handlers.get(eventType as string);
 		if (!handlers) return;
@@ -69,7 +69,7 @@ class EventBus<EventTypes> {
 		const handlersToRemove: EventHandler<any>[] = [];
 
 		for (const handler of handlersToCall) {
-			handler.callback(data);
+			handler.callback(data as EventTypes[E]);
 			if (handler.once) {
 				handlersToRemove.push(handler);
 			}
@@ -89,7 +89,7 @@ class EventBus<EventTypes> {
 		this.handlers.clear();
 	}
 
-	clearEvent<E extends keyof EventTypes | string>(eventType: E): void {
+	clearEvent<E extends keyof EventTypes>(eventType: E): void {
 		this.handlers.delete(eventType as string);
 	}
 }

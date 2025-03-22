@@ -92,8 +92,8 @@ describe('ECSpresso', () => {
 				// @ts-expect-error // TypeScript should complain about extra fields
 				extraField: true
 			});
-			// @ ts-expect-error // TypeScript should complain if we try to publish a non-existent event
-			// world.eventBus.publish('nonExistentEvent', {});
+			// @ts-expect-error // TypeScript should complain if we try to publish a non-existent event
+			world.eventBus.publish('nonExistentEvent', {});
 
 			expect(true).toBe(true); // Just to ensure the test runs without errors
 		});
@@ -246,8 +246,8 @@ describe('ECSpresso', () => {
 
 			ecspressoWithBundles.eventBus.publish('evtFromB1', { data: 1 });
 			ecspressoWithBundles.eventBus.publish('evtFromB2', { data: 'test' });
-			// @ ts-expect-error // TypeScript should complain if we try to publish a non-existent event
-			// ecspresso.eventBus.publish('nonExistentEvent', { data: 'test' });
+			// @ts-expect-error // TypeScript should complain if we try to publish a non-existent event
+			ecspresso.eventBus.publish('nonExistentEvent', { data: 'test' });
 
 			expect(true).toBe(true);
 		});
