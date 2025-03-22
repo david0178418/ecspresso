@@ -40,11 +40,11 @@ class EntityManager<ComponentTypes> {
 	 * @param entityOrId Entity or entity ID to add components to
 	 * @param components Object with component names as keys and component data as values
 	 */
-	addComponents(
+	addComponents<
+		T extends { [K in keyof ComponentTypes]?: ComponentTypes[K] }
+	>(
 		entityOrId: number | Entity<ComponentTypes>,
-		components: Partial<{
-			[ComponentName in keyof ComponentTypes]: ComponentTypes[ComponentName]
-		}>
+		components: T & Record<Exclude<keyof T, keyof ComponentTypes>, never>
 	) {
 		const entity = typeof entityOrId === 'number' ?
 			this.entities.get(entityOrId) :
@@ -53,10 +53,11 @@ class EntityManager<ComponentTypes> {
 		if (!entity) throw new Error(`Entity ${entityOrId} does not exist`);
 
 		for (const componentName in components) {
-			const typedName = componentName as keyof ComponentTypes;
-			const data = components[typedName] as ComponentTypes[typeof typedName];
-
-			this.addComponent(entity, typedName, data);
+			this.addComponent(
+				entity,
+				componentName as keyof ComponentTypes,
+				components[componentName as keyof T] as ComponentTypes[keyof ComponentTypes]
+			);
 		}
 
 		return this;
