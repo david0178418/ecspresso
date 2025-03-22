@@ -46,11 +46,14 @@ class ECSpresso<
 	 * @returns A new ECSpresso instance with merged types from all bundles
 	 */
 	install<
-		Bundles extends Array<Bundle<any, any, any> | null>
+		Bundles extends Array<Bundle<any, any, any> | null>,
+		MergedComponents extends Record<string, any> = MergeAll<{ [K in keyof Bundles]: Bundles[K] extends Bundle<infer C, any, any> ? C : {} }>,
+		MergedEvents extends Record<string, any> = MergeAll<{ [K in keyof Bundles]: Bundles[K] extends Bundle<any, infer E, any> ? E : {} }>,
+		MergedResources extends Record<string, any> = MergeAll<{ [K in keyof Bundles]: Bundles[K] extends Bundle<any, any, infer R> ? R : {} }>,
 	>(...bundles: Bundles): ECSpresso<
-		ComponentTypes & MergeAll<{ [K in keyof Bundles]: Bundles[K] extends Bundle<infer C, any, any> ? C : {} }>,
-		EventTypes & MergeAll<{ [K in keyof Bundles]: Bundles[K] extends Bundle<any, infer E, any> ? E : {} }>,
-		ResourceTypes & MergeAll<{ [K in keyof Bundles]: Bundles[K] extends Bundle<any, any, infer R> ? R : {} }>
+		ComponentTypes & MergedComponents,
+		EventTypes & MergedEvents,
+		ResourceTypes & MergedResources
 	> {
 		for (const bundle of bundles) {
 			if (!bundle) continue;
@@ -76,7 +79,11 @@ class ECSpresso<
 			this._installedBundles.add(bundle.id);
 		}
 
-		return this as any;
+		return this as any as ECSpresso<
+			ComponentTypes & MergedComponents,
+			EventTypes & MergedEvents,
+			ResourceTypes & MergedResources
+		>;
 	}
 
 	/**
@@ -104,22 +111,22 @@ class ECSpresso<
 	/**
 	 * Check if a resource exists
 	 */
-	hasResource<K extends keyof ResourceTypes | string>(key: K): boolean {
-		return this._resourceManager.has(key as any);
+	hasResource<K extends keyof ResourceTypes>(key: K): boolean {
+		return this._resourceManager.has(key);
 	}
 
 	/**
 	 * Get a resource if it exists, or undefined if not
 	 */
-	getResource<K extends keyof ResourceTypes | string>(key: K): K extends keyof ResourceTypes ? ResourceTypes[K] : any {
-		return this._resourceManager.getOptional(key as any) as any;
+	getResource<K extends keyof ResourceTypes>(key: K): ResourceTypes[K] {
+		return this._resourceManager.getOptional(key) as ResourceTypes[K];
 	}
 
 	/**
 	 * Get a resource, throws error if not found
 	 */
-	getResourceOrThrow<K extends keyof ResourceTypes | string>(key: K): K extends keyof ResourceTypes ? ResourceTypes[K] : any {
-		return this._resourceManager.get(key as any) as any;
+	getResourceOrThrow<K extends keyof ResourceTypes>(key: K): ResourceTypes[K] {
+		return this._resourceManager.get(key) as ResourceTypes[K];
 	}
 
 	/**

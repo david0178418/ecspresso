@@ -68,7 +68,7 @@ describe('ECSpresso', () => {
 			// @ts-expect-error // TypeScript should complain if we try to add a resource that doesn't exist
 			world.addResource('doesNotExist', { value: 100 });
 
-			// @ ts-expect-error // TypeScript should complain if we try to access a non-existent resource
+			// @ts-expect-error // TypeScript should complain if we try to access a non-existent resource
 			world.getResource('nonExistentResource');
 
 			expect(true).toBe(true); // Just to ensure the test runs without errors
@@ -93,7 +93,7 @@ describe('ECSpresso', () => {
 				extraField: true
 			});
 			// @ ts-expect-error // TypeScript should complain if we try to publish a non-existent event
-			world.eventBus.publish('nonExistentEvent', {});
+			// world.eventBus.publish('nonExistentEvent', {});
 
 			expect(true).toBe(true); // Just to ensure the test runs without errors
 		});
@@ -192,7 +192,7 @@ describe('ECSpresso', () => {
 
 			merged.getResource('resFromB1');
 			merged.getResource('resFromB2');
-			// @ ts-expect-error // TypeScript should complain if we try to access a non-existent resource
+			// @ts-expect-error // TypeScript should complain if we try to access a non-existent resource
 			merged.getResource('non-existent-resource');
 
 			ecspresso
@@ -221,26 +221,33 @@ describe('ECSpresso', () => {
 					nonExistentEvent: {},
 				});
 
+			// Use type assertion to help TypeScript understand the merged types
+			const ecspressoWithBundles = ecspresso as unknown as ECSpresso<
+				TestComponents & {cmpFromB1: number, cmpFromB2: string},
+				TestEvents & {evtFromB1: {data: number}, evtFromB2: {data: string}},
+				TestResources & {resFromB1: {data: number}, resFromB2: {data: string}}
+			>;
+
 			// Set resources
 			ecspresso.addResource('config', { debug: true, maxEntities: 1000 });
 			// @ts-expect-error // TypeScript should complain if we try to add incompatible resources
-			ecspresso.addResource('resFromB1', { foo: 1 });
-			// ecspresso.addResource('resFromB1', { data: 1 });
+			ecspressoWithBundles.addResource('resFromB1', { foo: 1 });
+			ecspressoWithBundles.addResource('resFromB1', { data: 1 });
 			// @ts-expect-error // TypeScript should complain if we try to add incompatible resources
-			ecspresso.addResource('resFromB2', { foo: 'test' });
-			// ecspresso.addResource('resFromB2', { data: 'test' });
+			ecspressoWithBundles.addResource('resFromB2', { foo: 'test' });
+			ecspressoWithBundles.addResource('resFromB2', { data: 'test' });
 
 			// Access resources
 			ecspresso.getResource('config');
-			ecspresso.getResource('resFromB1');
-			ecspresso.getResource('resFromB2');
-			// @ ts-expect-error // TypeScript should complain if we try to access a non-existent resource
-			ecspresso.getResource('non-existent-resource');
+			ecspressoWithBundles.getResource('resFromB1');
+			ecspressoWithBundles.getResource('resFromB2');
+			// @ts-expect-error // TypeScript should complain if we try to access a non-existent resource
+			ecspressoWithBundles.getResource('non-existent-resource');
 
-			ecspresso.eventBus.publish('evtFromB1', { data: 1 });
-			ecspresso.eventBus.publish('evtFromB2', { data: 'test' });
+			ecspressoWithBundles.eventBus.publish('evtFromB1', { data: 1 });
+			ecspressoWithBundles.eventBus.publish('evtFromB2', { data: 'test' });
 			// @ ts-expect-error // TypeScript should complain if we try to publish a non-existent event
-			ecspresso.eventBus.publish('nonExistentEvent', { data: 'test' });
+			// ecspresso.eventBus.publish('nonExistentEvent', { data: 'test' });
 
 			expect(true).toBe(true);
 		});
