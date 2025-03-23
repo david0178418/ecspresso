@@ -1,6 +1,5 @@
 import { createBundleSystemBuilder, SystemBuilder } from './system-builder';
 import type ECSpresso from './ecspresso';
-import { MergeAll } from './types';
 
 /**
  * Generates a unique ID for a bundle
@@ -113,35 +112,75 @@ export default class Bundle<
 	}
 }
 
+// Check if object has exactly the same type
+type Exactly<T, U> =
+  T extends U
+    ? U extends T
+      ? true
+      : false
+    : false;
+
+// Create a type error for incompatible types
+type IncompatibleBundles<
+  C1 extends Record<string, any>,
+  C2 extends Record<string, any>,
+  E1 extends Record<string, any>,
+  E2 extends Record<string, any>,
+  R1 extends Record<string, any>,
+  R2 extends Record<string, any>
+> = {
+  [K in keyof C1 & keyof C2]: Exactly<C1[K], C2[K]> extends false ? never : unknown;
+} & {
+  [K in keyof E1 & keyof E2]: Exactly<E1[K], E2[K]> extends false ? never : unknown;
+} & {
+  [K in keyof R1 & keyof R2]: Exactly<R1[K], R2[K]> extends false ? never : unknown;
+};
+
+/**
+ * Function that merges multiple bundles into a single bundle
+ */
 export function mergeBundles<
-	Bundles extends Array<Bundle<any, any, any>>,
-	MergedComponents extends Record<string, any> = MergeAll<{ [K in keyof Bundles]: Bundles[K] extends Bundle<infer C, any, any> ? C : {} }>,
-	MergedEvents extends Record<string, any> = MergeAll<{ [K in keyof Bundles]: Bundles[K] extends Bundle<any, infer E, any> ? E : {} }>,
-	MergedResources extends Record<string, any> = MergeAll<{ [K in keyof Bundles]: Bundles[K] extends Bundle<any, any, infer R> ? R : {} }>
+  C1 extends Record<string, any>,
+  E1 extends Record<string, any>,
+  R1 extends Record<string, any>,
+  C2 extends Record<string, any>,
+  E2 extends Record<string, any>,
+  R2 extends Record<string, any>
 >(
-	id: string,
-	...bundles: Bundles
-): Bundle<
-	MergedComponents,
-	MergedEvents,
-	MergedResources
-> {
-	if (bundles.length === 0) {
-		return new Bundle(id) as any;
-	}
+  id: string,
+  bundle1: Bundle<C1, E1, R1>,
+  bundle2: Bundle<C2, E2, R2> & IncompatibleBundles<C1, C2, E1, E2, R1, R2>
+): Bundle<C1 & C2, E1 & E2, R1 & R2>;
 
-	const combined = new Bundle(id);
+export function mergeBundles<
+  ComponentTypes extends Record<string, any>,
+  EventTypes extends Record<string, any>,
+  ResourceTypes extends Record<string, any>
+>(
+  id: string,
+  ...bundles: Array<Bundle<ComponentTypes, EventTypes, ResourceTypes>>
+): Bundle<ComponentTypes, EventTypes, ResourceTypes>;
 
-	for (const bundle of bundles) {
-		for (const system of bundle.getSystemBuilders()) {
-			combined.addSystem(system as any);
-		}
+export function mergeBundles(
+  id: string,
+  ...bundles: Array<Bundle<any, any, any>>
+): Bundle<any, any, any> {
+  if (bundles.length === 0) {
+    return new Bundle(id);
+  }
 
-		// Add resources from this bundle
-		for (const [label, resource] of bundle.getResources().entries()) {
-			combined.addResource(label as any, resource);
-		}
-	}
+  const combined = new Bundle(id);
 
-	return combined as any;
+  for (const bundle of bundles) {
+    for (const system of bundle.getSystemBuilders()) {
+      combined.addSystem(system as any);
+    }
+
+    // Add resources from this bundle
+    for (const [label, resource] of bundle.getResources().entries()) {
+      combined.addResource(label as any, resource);
+    }
+  }
+
+  return combined as any;
 }

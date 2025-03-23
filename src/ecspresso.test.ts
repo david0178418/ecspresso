@@ -256,7 +256,7 @@ describe('ECSpresso', () => {
 			const ecspresso = new ECSpresso<TestComponents, TestEvents, TestResources>();
 
 			const bundle1 = new Bundle<{cmp: number}, {evt: {data: number}}, {res: {data: number}}>();
-			const bundle2 = new Bundle<{cmp: string}, {evt: {data: string}}, {res: {data: string}}>();
+			const bundle2 = new Bundle<{cmp: number}, {evt: {data: number}}, {res: {data: number}}>();
 			const merged = mergeBundles('merged', bundle1, bundle2);
 			merged
 				.addSystem('some-system')
@@ -285,11 +285,11 @@ describe('ECSpresso', () => {
 
 		test('should not allow conflicting components, events and resources of different types', () => {
 
-			// const bundle1 = new Bundle<{cmp: number}, {evt: {data: number}}, {res: {data: number}}>();
-			// const bundle2 = new Bundle<{cmp: string}, {evt: {data: string}}, {res: {data: string}}>();
+			const bundle1 = new Bundle<{cmp: number}, {evt: {data: number}}, {res: {data: number}}>();
+			const bundle2 = new Bundle<{cmp: string}, {evt: {data: string}}, {res: {data: string}}>();
 
-			// @ ts-expect-error // TypeScript should complain if we try to merge bundles with conflicting components
-			// mergeBundles('merged', bundle1, bundle2);
+			// @ts-expect-error // TypeScript should complain if we try to merge bundles with conflicting components
+			mergeBundles('merged', bundle1, bundle2);
 
 			// const bundle3 = new Bundle<{cmp: number}, {evt: {data: number}}, {res: {data: number}}>();
 			// const bundle4 = new Bundle<{cmp: string}, {evt: {data: string}}, {res: {data: string}}>();
