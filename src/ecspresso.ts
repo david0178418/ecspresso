@@ -14,21 +14,27 @@ type Exactly<T, U> =
       : false
     : false;
 
+// Type to detect conflicting types between two record types
+type GetConflictingKeys<T, U> = {
+  [K in keyof T & keyof U]: Exactly<T[K], U[K]> extends false ? K : never;
+}[keyof T & keyof U];
+
 // Create a type error for incompatible bundles
-type IncompatibleBundles<
+type CheckConflicts<
   C1 extends Record<string, any>,
   C2 extends Record<string, any>,
   E1 extends Record<string, any>,
   E2 extends Record<string, any>,
   R1 extends Record<string, any>,
   R2 extends Record<string, any>
-> = {
-  [K in keyof C1 & keyof C2]: Exactly<C1[K], C2[K]> extends false ? never : unknown;
-} & {
-  [K in keyof E1 & keyof E2]: Exactly<E1[K], E2[K]> extends false ? never : unknown;
-} & {
-  [K in keyof R1 & keyof R2]: Exactly<R1[K], R2[K]> extends false ? never : unknown;
-};
+> =
+  GetConflictingKeys<C1, C2> extends never
+    ? GetConflictingKeys<E1, E2> extends never
+      ? GetConflictingKeys<R1, R2> extends never
+        ? Bundle<C2, E2, R2>
+        : never
+      : never
+    : never;
 
 /**
  * The main ECS (Entity Component System) container class
@@ -63,14 +69,14 @@ class ECSpresso<
 	}
 
 	/**
-	 * Install a bundle with type checking for incompatible types
+	 * Install a bundle with type checking for incompatible types with ECSpresso
 	 */
 	install<
 		C1 extends Record<string, any>,
 		E1 extends Record<string, any>,
 		R1 extends Record<string, any>
 	>(
-		bundle: Bundle<C1, E1, R1>
+		bundle: CheckConflicts<ComponentTypes, C1, EventTypes, E1, ResourceTypes, R1>
 	): ECSpresso<
 		ComponentTypes & C1,
 		EventTypes & E1,
@@ -78,33 +84,14 @@ class ECSpresso<
 	>;
 
 	/**
-	 * Install two bundles with type checking for incompatible types
-	 */
-	install<
-		C1 extends Record<string, any>,
-		E1 extends Record<string, any>,
-		R1 extends Record<string, any>,
-		C2 extends Record<string, any>,
-		E2 extends Record<string, any>,
-		R2 extends Record<string, any>
-	>(
-		bundle1: Bundle<C1, E1, R1>,
-		bundle2: Bundle<C2, E2, R2> & IncompatibleBundles<C1, C2, E1, E2, R1, R2>
-	): ECSpresso<
-		ComponentTypes & C1 & C2,
-		EventTypes & E1 & E2,
-		ResourceTypes & R1 & R2
-	>;
-
-	/**
-	 * Install one or more bundles with the same types
+	 * Install multiple bundles with type checking for incompatible types
 	 */
 	install<
 		BundleComponentTypes extends Record<string, any>,
 		BundleEventTypes extends Record<string, any>,
 		BundleResourceTypes extends Record<string, any>
 	>(
-		...bundles: Array<Bundle<BundleComponentTypes, BundleEventTypes, BundleResourceTypes> | null>
+		...bundles: Array<CheckConflicts<ComponentTypes, BundleComponentTypes, EventTypes, BundleEventTypes, ResourceTypes, BundleResourceTypes> | null>
 	): ECSpresso<
 		ComponentTypes & BundleComponentTypes,
 		EventTypes & BundleEventTypes,

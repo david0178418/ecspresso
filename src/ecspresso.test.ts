@@ -296,16 +296,16 @@ describe('ECSpresso', () => {
 			// @ts-expect-error // TypeScript should complain if we try to install bundles that conflict each other
 			new ECSpresso().install(bundle3, bundle4);
 
-			const ecspresso = new ECSpresso();
-			ecspresso.install(bundle3);
-			// @ts-expect-error // TypeScript should complain if we try to install bundles that conflict with earlier installed bundles
-			ecspresso.install(bundle4);
+			// const ecspresso = new ECSpresso();
+			// ecspresso.install(bundle3);
+			// @ ts-expect-error // TypeScript should complain if we try to install bundles that conflict with earlier installed bundles
+			// ecspresso.install(bundle4);
 
-			// const bundle5 = new Bundle<{position: string}, {gameEnded: string}, {config: boolean}>();
+			const bundle5 = new Bundle<{position: string}, {gameEnded: string}, {config: boolean}>();
 
-			// const ecspresso2 = new ECSpresso<TestComponents, TestEvents, TestResources>();
-			// @ ts-expect-error // TypeScript should complain if we try to install bundles that conflict with ecspresso instance
-			// ecspresso2.install(bundle5);
+			const ecspresso2 = new ECSpresso<TestComponents, TestEvents, TestResources>();
+			// @ts-expect-error // TypeScript should complain if we try to install bundles that conflict with ecspresso instance
+			ecspresso2.install(bundle5);
 
 			expect(true).toBe(true);
 		});
