@@ -6,6 +6,29 @@ import type Bundle from "./bundle";
 import { createEcspressoSystemBuilder } from "./system-builder";
 import { version } from "../package.json";
 
+// Re-use the same type utility for checking exact type compatibility
+type Exactly<T, U> =
+  T extends U
+    ? U extends T
+      ? true
+      : false
+    : false;
+
+// Create a type error for incompatible bundles
+type IncompatibleBundles<
+  C1 extends Record<string, any>,
+  C2 extends Record<string, any>,
+  E1 extends Record<string, any>,
+  E2 extends Record<string, any>,
+  R1 extends Record<string, any>,
+  R2 extends Record<string, any>
+> = {
+  [K in keyof C1 & keyof C2]: Exactly<C1[K], C2[K]> extends false ? never : unknown;
+} & {
+  [K in keyof E1 & keyof E2]: Exactly<E1[K], E2[K]> extends false ? never : unknown;
+} & {
+  [K in keyof R1 & keyof R2]: Exactly<R1[K], R2[K]> extends false ? never : unknown;
+};
 
 /**
  * The main ECS (Entity Component System) container class
@@ -40,10 +63,56 @@ class ECSpresso<
 	}
 
 	/**
-	 * Install one or more bundles into this ECS instance
-	 * Systems in the bundle will have their onAttach method called with this ECSpresso instance
-	 * @param bundles One or more bundles to install
-	 * @returns A new ECSpresso instance with merged types from all bundles
+	 * Install a bundle with type checking for incompatible types
+	 */
+	install<
+		C1 extends Record<string, any>,
+		E1 extends Record<string, any>,
+		R1 extends Record<string, any>
+	>(
+		bundle: Bundle<C1, E1, R1>
+	): ECSpresso<
+		ComponentTypes & C1,
+		EventTypes & E1,
+		ResourceTypes & R1
+	>;
+
+	/**
+	 * Install two bundles with type checking for incompatible types
+	 */
+	install<
+		C1 extends Record<string, any>,
+		E1 extends Record<string, any>,
+		R1 extends Record<string, any>,
+		C2 extends Record<string, any>,
+		E2 extends Record<string, any>,
+		R2 extends Record<string, any>
+	>(
+		bundle1: Bundle<C1, E1, R1>,
+		bundle2: Bundle<C2, E2, R2> & IncompatibleBundles<C1, C2, E1, E2, R1, R2>
+	): ECSpresso<
+		ComponentTypes & C1 & C2,
+		EventTypes & E1 & E2,
+		ResourceTypes & R1 & R2
+	>;
+
+	/**
+	 * Install one or more bundles with the same types
+	 */
+	install<
+		BundleComponentTypes extends Record<string, any>,
+		BundleEventTypes extends Record<string, any>,
+		BundleResourceTypes extends Record<string, any>
+	>(
+		...bundles: Array<Bundle<BundleComponentTypes, BundleEventTypes, BundleResourceTypes> | null>
+	): ECSpresso<
+		ComponentTypes & BundleComponentTypes,
+		EventTypes & BundleEventTypes,
+		ResourceTypes & BundleResourceTypes
+	>;
+
+	/**
+	 * Implementation of install method
 	 */
 	install<
 		Bundles extends Array<Bundle<any, any, any> | null>,

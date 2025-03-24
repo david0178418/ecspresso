@@ -284,23 +284,22 @@ describe('ECSpresso', () => {
 		});
 
 		test('should not allow conflicting components, events and resources of different types', () => {
-
 			const bundle1 = new Bundle<{cmp: number}, {evt: {data: number}}, {res: {data: number}}>();
 			const bundle2 = new Bundle<{cmp: string}, {evt: {data: string}}, {res: {data: string}}>();
 
 			// @ts-expect-error // TypeScript should complain if we try to merge bundles with conflicting components
 			mergeBundles('merged', bundle1, bundle2);
 
-			// const bundle3 = new Bundle<{cmp: number}, {evt: {data: number}}, {res: {data: number}}>();
-			// const bundle4 = new Bundle<{cmp: string}, {evt: {data: string}}, {res: {data: string}}>();
+			const bundle3 = new Bundle<{cmp: number}, {evt: {data: number}}, {res: {data: number}}>();
+			const bundle4 = new Bundle<{cmp: string}, {evt: {data: string}}, {res: {data: string}}>();
 
-			// @ ts-expect-error // TypeScript should complain if we try to install bundles that conflict each other
-			// new ECSpresso().install(bundle3, bundle4);
+			// @ts-expect-error // TypeScript should complain if we try to install bundles that conflict each other
+			new ECSpresso().install(bundle3, bundle4);
 
-			// const ecspresso = new ECSpresso();
-			// ecspresso.install(bundle3);
-			// @ ts-expect-error // TypeScript should complain if we try to install bundles that conflict with earlier installed bundles
-			// ecspresso.install(bundle4);
+			const ecspresso = new ECSpresso();
+			ecspresso.install(bundle3);
+			// @ts-expect-error // TypeScript should complain if we try to install bundles that conflict with earlier installed bundles
+			ecspresso.install(bundle4);
 
 			// const bundle5 = new Bundle<{position: string}, {gameEnded: string}, {config: boolean}>();
 
