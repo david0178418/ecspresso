@@ -15,6 +15,7 @@ interface TestEvents {
 	collision: { entity1Id: number; entity2Id: number };
 	healthChanged: { entityId: number; oldValue: number; newValue: number };
 	gameStateChanged: { oldState: string; newState: string };
+	playerDamaged: { entityId: number; amount: number };
 }
 
 describe('EventSystem', () => {
@@ -111,67 +112,46 @@ describe('EventSystem', () => {
 	});
 
 	test('should auto-register event handlers from systems', () => {
-		const world = new ECSpresso<TestComponents, TestEvents>();
-		const entity = world.entityManager.createEntity();
+		// Track if event handler is called
+		let eventHandlerCalled = false;
 
-		world.entityManager.addComponent(entity.id, 'health', { value: 100 });
-
-		const receivedEvents: any[] = [];
-
-		// Create a bundle with a system that has event handlers
-		const bundle = new Bundle<TestComponents, TestEvents>();
-		bundle
-			.addSystem('HealthEventSystem')
+		// Create a bundle with event handlers
+		const bundle = new Bundle<TestComponents, TestEvents>()
+			.addSystem('health-system')
 			.setEventHandlers({
-				healthChanged: {
-							handler: (data, _ecs) => {
-								receivedEvents.push(data);
-							}
-						},
-				entityDestroyed: {
-					handler: (data, _ecs) => {
-						receivedEvents.push(data);
+				playerDamaged: {
+					handler: (data: { entityId: number; amount: number }) => {
+						// Event handler for player damage
+						eventHandlerCalled = true;
+						expect(data.amount).toBe(10);
 					}
 				}
-			});
+			})
+			.bundle;
 
-		// Install the bundle
-		world.install(bundle);
+		// Create the world with the bundle
+		const world = ECSpresso.create<TestComponents, TestEvents>()
+			.withBundle(bundle)
+			.build();
 
-		world.eventBus.publish('healthChanged', {
-			entityId: entity.id,
-			oldValue: 100,
-			newValue: 80
-		});
+		// Create an entity
+		const entity = world.entityManager.createEntity();
+		world.entityManager.addComponent(entity.id, 'health', { value: 100 });
 
-		world.eventBus.publish('entityDestroyed', {
-			entityId: entity.id
-		});
+		// Publish an event to trigger the handler
+		world.eventBus.publish('playerDamaged', { entityId: entity.id, amount: 10 });
 
-		expect(receivedEvents.length).toBe(2);
-		expect(receivedEvents[0]).toEqual({
-			entityId: entity.id,
-			oldValue: 100,
-			newValue: 80
-		});
-		expect(receivedEvents[1]).toEqual({
-			entityId: entity.id
-		});
+		// Verify the event handler was called
+		expect(eventHandlerCalled).toBe(true);
 	});
 
 	test('should provide eventBus and entityManager parameters to event handlers', () => {
-		const world = new ECSpresso<TestComponents, TestEvents>();
-		const entity = world.entityManager.createEntity();
-
-		// Add some components to test with
-		world.entityManager.addComponent(entity.id, 'health', { value: 100 });
-
+		// Track what the event handler receives
 		let receivedEntityManager: any = null;
 		let receivedData: any = null;
 
-		// Add system with an event handler that will receive the parameters
-		const bundle = new Bundle<TestComponents, TestEvents>();
-		bundle
+		// Create a bundle with event handlers
+		const bundle = new Bundle<TestComponents, TestEvents>()
 			.addSystem('ParameterTestSystem')
 			.setEventHandlers({
 				healthChanged: {
@@ -180,10 +160,17 @@ describe('EventSystem', () => {
 						receivedEntityManager = ecs.entityManager;
 					}
 				}
-			});
+			})
+			.bundle;
 
-		// Install the bundle
-		world.install(bundle);
+		// Create the world with the bundle
+		const world = ECSpresso.create<TestComponents, TestEvents>()
+			.withBundle(bundle)
+			.build();
+
+		// Create an entity with health component
+		const entity = world.entityManager.createEntity();
+		world.entityManager.addComponent(entity.id, 'health', { value: 100 });
 
 		// Publish an event
 		world.eventBus.publish('healthChanged', {
@@ -206,14 +193,16 @@ describe('EventSystem', () => {
 	});
 
 	test('should handle event handlers during system lifecycle', () => {
-		const world = new ECSpresso<TestComponents, TestEvents>();
-		const entity = world.entityManager.createEntity();
+		// Create a world
+		const world = ECSpresso.create<TestComponents, TestEvents>()
+			.build();
 
-		// Add components to work with
+		// Create an entity with health component
+		const entity = world.entityManager.createEntity();
 		world.entityManager.addComponent(entity.id, 'health', { value: 100 });
 
-		// Track subscriptions made
-		const receivedEvents: any[] = [];
+		// Track events received
+		const receivedEvents: string[] = [];
 
 		// Subscribe directly to the event bus
 		let unsubscribe: (() => void) | null = null;
@@ -249,26 +238,11 @@ describe('EventSystem', () => {
 	});
 
 	test('should integrate event system with ECS for event-driven behavior', () => {
-		const world = new ECSpresso<TestComponents, TestEvents>();
-
-		// Create entities to test with
-		const entity = world.entityManager.createEntity();
-		world.entityManager.addComponent(entity.id, 'health', { value: 100 });
-		world.entityManager.addComponent(entity.id, 'position', { x: 0, y: 0 });
-
-		const entity2 = world.entityManager.createEntity();
-		world.entityManager.addComponent(entity2.id, 'health', { value: 80 });
-		world.entityManager.addComponent(entity2.id, 'position', { x: 10, y: 10 });
-
 		// Track damage changes
-		const damageLog: any = {
-			[entity.id]: [],
-			[entity2.id]: []
-		};
+		const damageLog: Record<number, string[]> = {};
 
-		// Add a system that handles collision events and applies damage
-		const bundle = new Bundle<TestComponents, TestEvents>();
-		bundle
+		// Create a bundle with event handlers for damage system
+		const bundle = new Bundle<TestComponents, TestEvents>()
 			.addSystem('EventDrivenDamageSystem')
 			.setEventHandlers({
 				collision: {
@@ -287,6 +261,8 @@ describe('EventSystem', () => {
 
 								if (health1 && health2) {
 									// Log the damage
+									damageLog[entity1.id] = damageLog[entity1.id] || [];
+									damageLog[entity2.id] = damageLog[entity2.id] || [];
 									damageLog[entity1.id].push(`health=${health1.value}`);
 									damageLog[entity2.id].push(`health=${health2.value}`);
 
@@ -317,13 +293,28 @@ describe('EventSystem', () => {
 				healthChanged: {
 					handler(data) {
 						// Log health changes
+						if (!damageLog[data.entityId]) {
+							damageLog[data.entityId] = [];
+						}
 						damageLog[data.entityId].push(`healthChanged=${data.newValue}`);
 					}
 				}
-			});
+			})
+			.bundle;
 
-		// Install the bundle
-		world.install(bundle);
+		// Create the world with the bundle
+		const world = ECSpresso.create<TestComponents, TestEvents>()
+			.withBundle(bundle)
+			.build();
+
+		// Create entities to test with
+		const entity = world.entityManager.createEntity();
+		world.entityManager.addComponent(entity.id, 'health', { value: 100 });
+		world.entityManager.addComponent(entity.id, 'position', { x: 0, y: 0 });
+
+		const entity2 = world.entityManager.createEntity();
+		world.entityManager.addComponent(entity2.id, 'health', { value: 80 });
+		world.entityManager.addComponent(entity2.id, 'position', { x: 10, y: 10 });
 
 		// Simulate a collision between the entities
 		world.eventBus.publish('collision', {

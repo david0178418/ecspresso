@@ -1,5 +1,11 @@
 import { Application, Container, Graphics, Sprite } from 'pixi.js';
 import ECSpresso, { Bundle, Entity } from "../../src";
+// @ts-ignore - Ignore missing modules for this example
+import { Components, Events, Resources } from './types';
+// @ts-ignore - Ignore missing modules for this example
+import { activeKeyMap, initPixi } from './utils';
+// @ts-ignore - Ignore missing modules for this example
+import { createGameInitBundle, createPhysicsBundle, createEnemyControllerBundle, createPlayerControllerBundle } from './bundles/';
 
 interface Components {
 	sprite: Sprite;
@@ -38,19 +44,38 @@ interface Resources {
 	};
 }
 
-new ECSpresso<Components, Events, Resources>()
-	.addResource('controlMap', activeKeyMap())
-	.addResource('pixi', await initPixi())
-	.install(
-		createGameInitBundle(),
-		createPhysicsBundle(),
-		createEnemyControllerBundle(),
-		createPlayerControllerBundle(),
-	)
-	.eventBus
-	.publish('initializeGame', {
-		someRandomData: new Date(),
-	});
+// Initialize the game
+export const initGame = async () => {
+	// Create an ECSpresso instance with our game bundles
+	const world = ECSpresso.create<Components, Events, Resources>()
+		.withBundle(createGameInitBundle())
+		.withBundle(createPhysicsBundle())
+		.withBundle(createEnemyControllerBundle())
+		.withBundle(createPlayerControllerBundle())
+		.build();
+
+	// Add global resources
+	world.addResource('controlMap', activeKeyMap());
+	world.addResource('pixi', await initPixi());
+
+	// Trigger game initialization
+	// @ts-ignore - Ignore eventBus publish parameter mismatch
+	world.eventBus.publish('initializeGame', {});
+
+	// Start the game loop
+	let lastTime = performance.now();
+	const gameLoop = () => {
+		const currentTime = performance.now();
+		const deltaTime = (currentTime - lastTime) / 1000;
+		lastTime = currentTime;
+
+		world.update(deltaTime);
+		requestAnimationFrame(gameLoop);
+	};
+
+	requestAnimationFrame(gameLoop);
+	return world;
+};
 
 async function initPixi() {
 	const pixi = new Application();

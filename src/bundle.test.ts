@@ -21,10 +21,6 @@ interface PlayerResources {
 	playerControls: { up: boolean; down: boolean; left: boolean; right: boolean };
 }
 
-// Combined types
-type GameComponents = PositionComponents & PlayerComponents;
-type GameResources = PositionResources & PlayerResources;
-
 describe('Bundle', () => {
 	test('should create a bundle with correct type parameters', () => {
 		const bundle = new Bundle<PositionComponents, {}, PositionResources>();
@@ -55,9 +51,9 @@ describe('Bundle', () => {
 		const bundle = new Bundle<PositionComponents, {}, PositionResources>('test-bundle')
 			.addResource('gravity', { value: 9.8 });
 
-		const world = new ECSpresso<PositionComponents, {}, PositionResources>();
-
-		world.install(bundle);
+		const world = ECSpresso.create()
+			.withBundle(bundle)
+			.build();
 
 		// Verify the bundle was installed by checking the installed bundles
 		expect(world.installedBundles).toContain('test-bundle');
@@ -104,10 +100,11 @@ describe('Bundle', () => {
 		expect(gameBundle.getResources().has('playerControls')).toBe(true);
 
 		// Install the combined bundle into a world
-		const world = new ECSpresso<GameComponents, {}, GameResources>();
+		const world = ECSpresso.create()
+			.withBundle(gameBundle)
+			.build();
 
 		// Install and verify bundle was successfully installed
-		world.install(gameBundle);
 		expect(world.installedBundles).toContain('game');
 		expect(world.hasResource('gravity')).toBe(true);
 		expect(world.hasResource('playerControls')).toBe(true);

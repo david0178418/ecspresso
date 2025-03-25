@@ -42,23 +42,6 @@ type BundlesAreCompatible<
         : false
       : false;
 
-// Create a type error for incompatible bundles
-type CheckConflicts<
-  C1 extends Record<string, any>,
-  C2 extends Record<string, any>,
-  E1 extends Record<string, any>,
-  E2 extends Record<string, any>,
-  R1 extends Record<string, any>,
-  R2 extends Record<string, any>
-> =
-  GetConflictingKeys<C1, C2> extends never
-    ? GetConflictingKeys<E1, E2> extends never
-      ? GetConflictingKeys<R1, R2> extends never
-        ? Bundle<C2, E2, R2>
-        : never
-      : never
-    : never;
-
 /**
  * This is a special declaration that types the ECSpresso constructor to work properly with test files
  * that expect type augmentation directly from the constructor.
@@ -153,55 +136,6 @@ export default class ECSpresso<
 		R extends Record<string, any> = {}
 	>(): ECSpressoBuilder<C, E, R> {
 		return new ECSpressoBuilder<C, E, R>();
-	}
-
-	/**
-	 * @deprecated Use ECSpresso.create() builder pattern instead:
-	 * ```typescript
-	 * const ecs = ECSpresso.create<Types>()
-	 *   .withBundle(bundle1)
-	 *   .withBundle(bundle2)
-	 *   .build();
-	 * ```
-	 */
-	install<
-		C1 extends Record<string, any>,
-		E1 extends Record<string, any>,
-		R1 extends Record<string, any>
-	>(
-		bundle: CheckConflicts<ComponentTypes, C1, EventTypes, E1, ResourceTypes, R1>
-	): ECSpresso<
-		ComponentTypes & C1,
-		EventTypes & E1,
-		ResourceTypes & R1
-	>;
-
-	/**
-	 * @deprecated Use ECSpresso.create() builder pattern instead
-	 */
-	install(
-		...bundles: (Bundle<any, any, any> | null)[]
-	): ECSpresso<ComponentTypes, EventTypes, ResourceTypes>;
-
-	/**
-	 * Install a bundle into this ECSpresso instance
-	 * This method is kept for backward compatibility
-	 *
-	 * @deprecated Use ECSpresso.create() builder pattern instead:
-	 * ```typescript
-	 * const ecs = ECSpresso.create<Types>()
-	 *   .withBundle(bundle1)
-	 *   .withBundle(bundle2)
-	 *   .build();
-	 * ```
-	 */
-	install(
-		...bundles: (Bundle<any, any, any> | null)[]
-	): ECSpresso<ComponentTypes, EventTypes, ResourceTypes> {
-		for (const bundle of bundles) {
-			if (bundle) this._installBundle(bundle);
-		}
-		return this as unknown as ECSpresso<ComponentTypes, EventTypes, ResourceTypes>;
 	}
 
 	/**

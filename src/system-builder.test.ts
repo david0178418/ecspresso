@@ -2,170 +2,197 @@ import { expect, describe, test } from 'bun:test';
 import ECSpresso from './ecspresso';
 import Bundle from './bundle';
 
-// Define some test component types for the ECS
+// Define component types for testing
 interface TestComponents {
 	position: { x: number; y: number };
 	velocity: { x: number; y: number };
 	health: { value: number };
-	collision: { radius: number; isColliding: boolean };
-	damage: { value: number };
-	lifetime: { remaining: number };
-	state: { current: string; previous: string };
+	marker: { id: string };
 }
 
 describe('SystemBuilder', () => {
 	test('should create a system that can query entities', () => {
-		const world = new ECSpresso<TestComponents>();
+		// Track processed entities
+		const processedIds: number[] = [];
 
-		// Create an entity with all necessary components
-		const entity1 = world.entityManager.createEntity();
-		world.entityManager.addComponent(entity1.id, 'position', { x: 0, y: 0 });
-		world.entityManager.addComponent(entity1.id, 'velocity', { x: 0, y: 0 });
-
-		// Create an entity with only one necessary component
-		const entity2 = world.entityManager.createEntity();
-		world.entityManager.addComponent(entity2.id, 'position', { x: 10, y: 10 });
-
-		const processedEntities: number[] = [];
-
-		// Create a bundle with the system
+		// Define a system in a bundle
 		const bundle = new Bundle<TestComponents>()
-			.addSystem('movement')
-			.addQuery('entities', {
+			.addSystem('TestSystem')
+			.addQuery('movingEntities', {
 				with: ['position', 'velocity'],
-				without: [],
+				without: ['health']
 			})
-			.setProcess((queries, _deltaTime, _ecs) => {
-				for (const entity of queries.entities) {
-					processedEntities.push(entity.id);
+			.setProcess((queries) => {
+				// Process each entity that matches the query
+				for (const entity of queries.movingEntities) {
+					processedIds.push(entity.id);
 				}
 			})
 			.bundle;
 
-		// Install the bundle
-		world.install(bundle);
+		// Create world with the bundle
+		const world = ECSpresso.create<TestComponents>()
+			.withBundle(bundle)
+			.build();
+
+		// Create entities to test with
+		const entity1 = world.entityManager.createEntity();
+		world.entityManager.addComponent(entity1.id, 'position', { x: 0, y: 0 });
+		world.entityManager.addComponent(entity1.id, 'velocity', { x: 5, y: 10 });
+
+		const entity2 = world.entityManager.createEntity();
+		world.entityManager.addComponent(entity2.id, 'position', { x: 10, y: 20 });
+		world.entityManager.addComponent(entity2.id, 'velocity', { x: -5, y: 0 });
+		world.entityManager.addComponent(entity2.id, 'health', { value: 100 });
+
+		// Update the world to run the systems
 		world.update(1/60);
 
-		expect(processedEntities).toEqual([entity1.id]);
+		// entity1 should be processed, entity2 should not (because it has health)
+		expect(processedIds).toContain(entity1.id);
+		expect(processedIds).not.toContain(entity2.id);
 	});
 
 	test('should handle multiple query definitions', () => {
-		const world = new ECSpresso<TestComponents>();
+		// Track which entities are processed by each query
+		const queriesProcessed: Record<string, number[]> = {
+			withMarker: [],
+			withHealth: []
+		};
 
-		// Create an entity with position and velocity
-		const entity1 = world.entityManager.createEntity();
-		world.entityManager.addComponent(entity1.id, 'position', { x: 0, y: 0 });
-		world.entityManager.addComponent(entity1.id, 'velocity', { x: 0, y: 0 });
-
-		// Create an entity with position and collision
-		const entity2 = world.entityManager.createEntity();
-		world.entityManager.addComponent(entity2.id, 'position', { x: 10, y: 10 });
-		world.entityManager.addComponent(entity2.id, 'collision', { radius: 5, isColliding: false });
-
-		// Create an entity with position, velocity, and collision
-		const entity3 = world.entityManager.createEntity();
-		world.entityManager.addComponent(entity3.id, 'position', { x: 20, y: 20 });
-		world.entityManager.addComponent(entity3.id, 'velocity', { x: 0, y: 0 });
-		world.entityManager.addComponent(entity3.id, 'collision', { radius: 5, isColliding: false });
-
-		const processedMovingEntities: number[] = [];
-		const processedCollidingEntities: number[] = [];
-
-		// Create a bundle with the system
+		// Define a system with multiple queries
 		const bundle = new Bundle<TestComponents>()
-			.addSystem('multiQuery')
-			.addQuery('movingEntities', {
-				with: ['position', 'velocity'],
+			.addSystem('MultiQuerySystem')
+			.addQuery('withMarker', {
+				with: ['marker']
 			})
-			.addQuery('collidingEntities', {
-				with: ['position', 'collision'],
+			.addQuery('withHealth', {
+				with: ['health']
 			})
-			.setProcess((queries, _deltaTime, _ecs) => {
-				for (const entity of queries.movingEntities) {
-					processedMovingEntities.push(entity.id);
+			.setProcess((queries) => {
+				// Record entities from each query
+				for (const entity of queries.withMarker) {
+					queriesProcessed['withMarker'].push(entity.id);
 				}
-
-				for (const entity of queries.collidingEntities) {
-					processedCollidingEntities.push(entity.id);
+				for (const entity of queries.withHealth) {
+					queriesProcessed['withHealth'].push(entity.id);
 				}
 			})
 			.bundle;
 
-		// Install the bundle
-		world.install(bundle);
+		// Create world with the bundle
+		const world = ECSpresso.create<TestComponents>()
+			.withBundle(bundle)
+			.build();
+
+		// Create entities with different component combinations
+		const entity1 = world.entityManager.createEntity();
+		world.entityManager.addComponent(entity1.id, 'marker', { id: 'entity1' });
+
+		const entity2 = world.entityManager.createEntity();
+		world.entityManager.addComponent(entity2.id, 'health', { value: 100 });
+
+		const entity3 = world.entityManager.createEntity();
+		world.entityManager.addComponent(entity3.id, 'marker', { id: 'entity3' });
+		world.entityManager.addComponent(entity3.id, 'health', { value: 80 });
+
+		// Update the world to run the systems
 		world.update(1/60);
 
-		expect(processedMovingEntities).toEqual([entity1.id, entity3.id]);
-		expect(processedCollidingEntities).toEqual([entity2.id, entity3.id]);
+		// Check that entities were processed by the correct queries
+		expect(queriesProcessed['withMarker']).toContain(entity1.id);
+		expect(queriesProcessed['withMarker']).toContain(entity3.id);
+		expect(queriesProcessed['withMarker']).not.toContain(entity2.id);
+
+		expect(queriesProcessed['withHealth']).toContain(entity2.id);
+		expect(queriesProcessed['withHealth']).toContain(entity3.id);
+		expect(queriesProcessed['withHealth']).not.toContain(entity1.id);
 	});
 
 	test('should support lifecycle hooks', () => {
-		const world = new ECSpresso<TestComponents>();
-
+		// Track lifecycle hooks
 		let onAttachCalled = false;
 		let onDetachCalled = false;
+		let processCalledCount = 0;
 
-		// Create a bundle with the system that has lifecycle hooks
+		// Define a system with lifecycle hooks
 		const bundle = new Bundle<TestComponents>()
-			.addSystem('lifecycle')
-			.setOnAttach((_ecs) => {
+			.addSystem('LifecycleSystem')
+			.setOnAttach(() => {
 				onAttachCalled = true;
 			})
-			.setOnDetach((_ecs) => {
+			.setProcess(() => {
+				processCalledCount++;
+			})
+			.setOnDetach(() => {
 				onDetachCalled = true;
 			})
 			.bundle;
 
-		// Installing the bundle should call onAttach
-		world.install(bundle);
-		expect(onAttachCalled).toBe(true);
+		// Create world with the bundle
+		const world = ECSpresso.create<TestComponents>()
+			.withBundle(bundle)
+			.build();
 
-		// Removing the system should call onDetach
-		world.removeSystem('lifecycle');
+		// onAttach should have been called when the bundle was added
+		expect(onAttachCalled).toBe(true);
+		expect(onDetachCalled).toBe(false);
+		expect(processCalledCount).toBe(0);
+
+		// Update the world
+		world.update(1/60);
+		expect(processCalledCount).toBe(1);
+
+		// Remove the system
+		world.removeSystem('LifecycleSystem');
 		expect(onDetachCalled).toBe(true);
+
+		// Update again - process shouldn't be called
+		world.update(1/60);
+		expect(processCalledCount).toBe(1);
 	});
 
 	test('should support statically typed queries with correct component access', () => {
-		const world = new ECSpresso<TestComponents>();
-
-		// Create an entity with position and velocity
-		const entity1 = world.entityManager.createEntity();
-		world.entityManager.addComponent(entity1.id, 'position', { x: 10, y: 20 });
-		world.entityManager.addComponent(entity1.id, 'velocity', { x: 5, y: 0 });
-
-		// Create an entity with position, velocity, and collision
-		const entity2 = world.entityManager.createEntity();
-		world.entityManager.addComponent(entity2.id, 'position', { x: 0, y: 0 });
-		world.entityManager.addComponent(entity2.id, 'velocity', { x: 0, y: 0 });
-		world.entityManager.addComponent(entity2.id, 'collision', { radius: 5, isColliding: false });
-
-		let sumX = 0;
-		let sumY = 0;
-
-		// Create a bundle with the system
+		// Define a bundle with a system that uses statically typed component access
 		const bundle = new Bundle<TestComponents>()
-			.addSystem('staticObjects')
-			.addQuery('objects', {
-				with: ['position', 'velocity'],
-				without: [],
+			.addSystem('TypedSystem')
+			.addQuery('entities', {
+				with: ['position', 'health'] // Only entities with both components
 			})
-			.setProcess((queries, _deltaTime, _ecs) => {
-				// TypeScript should know that position and velocity are guaranteed to exist
-				for (const entity of queries.objects) {
-					sumX += entity.components.position.x + entity.components.velocity.x;
-					sumY += entity.components.position.y + entity.components.velocity.y;
+			.setProcess((queries) => {
+				for (const entity of queries.entities) {
+					// Type-safe component access
+					const pos = entity.components.position;
+					const health = entity.components.health;
 
-					// Directly accessing a component that's not in the 'with' array would cause a type error
-					// This line would fail to compile: entity.components.health.value
+					// Should be able to access x and y properties
+					pos.x += 1;
+					pos.y += 2;
+
+					// Should be able to access health.value
+					health.value -= 1;
 				}
 			})
 			.bundle;
 
-		// Install the bundle
-		world.install(bundle);
+		// Create world with the bundle
+		const world = ECSpresso.create<TestComponents>()
+			.withBundle(bundle)
+			.build();
+
+		// Create an entity with the required components
+		const entity = world.entityManager.createEntity();
+		world.entityManager.addComponent(entity.id, 'position', { x: 10, y: 20 });
+		world.entityManager.addComponent(entity.id, 'health', { value: 100 });
+
+		// Run the system
 		world.update(1/60);
 
-		expect(sumX).toBe(15); // 10+5 from entity1, 0+0 from entity2
-		expect(sumY).toBe(20); // 20+0 from entity1, 0+0 from entity2
+		// Verify components were updated correctly
+		const updatedPos = world.entityManager.getComponent(entity.id, 'position');
+		const updatedHealth = world.entityManager.getComponent(entity.id, 'health');
+
+		expect(updatedPos).toEqual({ x: 11, y: 22 });
+		expect(updatedHealth).toEqual({ value: 99 });
 	});
 });

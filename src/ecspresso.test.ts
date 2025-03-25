@@ -251,7 +251,9 @@ describe('ECSpresso', () => {
 				});
 
 			// Test with traditional method-based installation
-			const ecspresso = new ECSpresso<TestComponents, TestEvents, TestResources>();
+			const ecspresso = ECSpresso.create<TestComponents, TestEvents, TestResources>()
+				.withBundle(merged)
+				.build();
 
 			// Set resources
 			ecspresso.addResource('config', { debug: true, maxEntities: 1000 });
@@ -259,7 +261,6 @@ describe('ECSpresso', () => {
 			ecspresso.addResource('config', {foo: 1});
 
 			ecspresso
-				.install(merged)
 				.addSystem('some-system')
 				.addQuery('someQuery', {
 					with: ['cmp'],
@@ -298,18 +299,6 @@ describe('ECSpresso', () => {
 	// Core ECS functionality tests
 	describe('Core ECS', () => {
 		test('should run systems with queries', () => {
-			const world = new ECSpresso();
-
-			const entity1 = world.entityManager.createEntity();
-			world.entityManager.addComponent(entity1.id, 'position', { x: 0, y: 0 });
-			world.entityManager.addComponent(entity1.id, 'velocity', { x: 5, y: 10 });
-
-			const entity2 = world.entityManager.createEntity();
-			world.entityManager.addComponent(entity2.id, 'position', { x: 100, y: 100 });
-			world.entityManager.addComponent(entity2.id, 'health', { value: 100 });
-
-			const processedEntities: number[] = [];
-
 			const bundle = new Bundle<TestComponents>()
 				.addSystem('MovementSystem')
 				.addQuery('entities', {
@@ -323,8 +312,20 @@ describe('ECSpresso', () => {
 				})
 				.bundle;
 
-			// Traditional method-based installation
-			world.install(bundle);
+			const world = ECSpresso.create()
+				.withBundle(bundle)
+				.build();
+
+			const entity1 = world.entityManager.createEntity();
+			world.entityManager.addComponent(entity1.id, 'position', { x: 0, y: 0 });
+			world.entityManager.addComponent(entity1.id, 'velocity', { x: 5, y: 10 });
+
+			const entity2 = world.entityManager.createEntity();
+			world.entityManager.addComponent(entity2.id, 'position', { x: 100, y: 100 });
+			world.entityManager.addComponent(entity2.id, 'health', { value: 100 });
+
+			const processedEntities: number[] = [];
+
 			world.update(1/60);
 
 			// Only entity1 should match the query
@@ -339,11 +340,6 @@ describe('ECSpresso', () => {
 			const world = ECSpresso.create<TestComponents, {}, TestResources>()
 				.withBundle(bundle)
 				.build();
-
-			// Traditional method-based installation
-			// const world = new ECSpresso<TestComponents, {}, TestResources>({
-			// 	bundles: [bundle]
-			// });
 
 			// Getting resources
 			const config = world.resourceManager.get('config');
@@ -376,8 +372,9 @@ describe('ECSpresso', () => {
 				.bundle;
 
 			// Traditional method-based installation
-			const world = new ECSpresso<TestComponents>();
-			world.install(bundle);
+			const world = ECSpresso.create<TestComponents>()
+				.withBundle(bundle)
+				.build();
 
 			// Future constructor-based installation
 			// const worldWithConstructor = new ECSpresso<TestComponents>({
@@ -419,8 +416,9 @@ describe('ECSpresso', () => {
 				.bundle;
 
 			// Traditional method-based installation
-			const world = new ECSpresso<TestComponents>();
-			world.install(bundle);
+			const world = ECSpresso.create<TestComponents>()
+				.withBundle(bundle)
+				.build();
 
 			// Attach should have been called
 			expect(attachCalled).toBe(true);
@@ -647,19 +645,14 @@ describe('ECSpresso', () => {
 
 		test('should provide equivalent functionality for systems added via bundle in constructor, via bundle.install, or directly', () => {
 			// Create three worlds with different ways of adding systems
-			const bundleWorld = new ECSpresso<TestComponents>();
-			const constructorWorld = new ECSpresso<TestComponents>();
 			const directWorld = new ECSpresso<TestComponents>();
 
 			// Setup entities identically in all worlds
-			for (const world of [bundleWorld, constructorWorld, directWorld]) {
-				const entity = world.entityManager.createEntity();
-				world.entityManager.addComponent(entity.id, 'position', { x: 0, y: 0 });
-				world.entityManager.addComponent(entity.id, 'velocity', { x: 5, y: 10 });
-			}
+			const entity = directWorld.entityManager.createEntity();
+			directWorld.entityManager.addComponent(entity.id, 'position', { x: 0, y: 0 });
+			directWorld.entityManager.addComponent(entity.id, 'velocity', { x: 5, y: 10 });
 
 			let bundleProcessed = false;
-			let constructorProcessed = false;
 			let directProcessed = false;
 
 			// Create a bundle with a system
@@ -674,25 +667,15 @@ describe('ECSpresso', () => {
 				})
 				.bundle;
 
-			// Install the bundle using the traditional method
-			bundleWorld.install(bundle);
-
+			// Create a world using the bundle
 			const worldWithBundle = ECSpresso.create<TestComponents>()
 				.withBundle(bundle)
 				.build();
 
-			// Install the bundle using the constructor
-			// const worldWithBundle = new ECSpresso<TestComponents>({
-			// 	bundles: [bundle]
-			// });
 			// We need one more entity for this world
 			const entityInNew = worldWithBundle.entityManager.createEntity();
 			worldWithBundle.entityManager.addComponent(entityInNew.id, 'position', { x: 0, y: 0 });
 			worldWithBundle.entityManager.addComponent(entityInNew.id, 'velocity', { x: 5, y: 10 });
-
-			worldWithBundle.update(1/60);
-			constructorProcessed = bundleProcessed;
-			bundleProcessed = false;
 
 			// Add a system directly
 			const directSystemBuilder = directWorld
@@ -712,12 +695,11 @@ describe('ECSpresso', () => {
 			directSystemBuilder.build();
 
 			// Update all worlds
-			bundleWorld.update(1/60);
+			worldWithBundle.update(1/60);
 			directWorld.update(1/60);
 
 			// All systems should have processed
 			expect(bundleProcessed).toBe(true);
-			expect(constructorProcessed).toBe(true);
 			expect(directProcessed).toBe(true);
 		});
 	});
