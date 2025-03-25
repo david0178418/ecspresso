@@ -160,8 +160,6 @@ describe('ECSpresso', () => {
 		});
 
 		test('should handle bundle augmentation', () => {
-			const ecspresso = new ECSpresso<TestComponents, TestEvents, TestResources>();
-
 			const bundle1 = new Bundle<{cmpFromB1: number}, {evtFromB1: {data: number}}, {resFromB1: {data: number}}>();
 			const bundle2 = new Bundle<{cmpFromB2: string}, {evtFromB2: {data: string}}, {resFromB2: {data: string}}>();
 			const merged = mergeBundles('merged', bundle1, bundle2);
@@ -195,11 +193,25 @@ describe('ECSpresso', () => {
 			// @ts-expect-error // TypeScript should complain if we try to access a non-existent resource
 			merged.getResource('non-existent-resource');
 
+			const ecspresso = ECSpresso.create<TestComponents, TestEvents, TestResources>()
+				.withBundle(bundle1)
+				.withBundle(bundle2)
+				// .withBundle(merged)
+				.build();
+
+			// const ecspresso = ECSpresso.create<TestComponents, TestEvents, TestResources>({
+			// 	bundles: [
+			// 		bundle1,
+			// 		bundle2,
+			// 		// mergeBundles('merged-2', bundle1, bundle2),
+			// 	]
+			// });
+
 			ecspresso
-				.install(merged)
 				.addSystem('some-system')
 				.addQuery('someQuery', {
 					with: [
+						'position',
 						'cmpFromB1',
 						'cmpFromB2',
 						// @ts-expect-error // TypeScript should complain if we try to add a query with a non-existent component
@@ -221,40 +233,18 @@ describe('ECSpresso', () => {
 					nonExistentEvent: {},
 				});
 
-			// Use type assertion to help TypeScript understand the merged types
-			const ecspressoWithBundles = ecspresso as unknown as ECSpresso<
-				TestComponents & {cmpFromB1: number, cmpFromB2: string},
-				TestEvents & {evtFromB1: {data: number}, evtFromB2: {data: string}},
-				TestResources & {resFromB1: {data: number}, resFromB2: {data: string}}
-			>;
-
-			// Set resources
-			ecspresso.addResource('config', { debug: true, maxEntities: 1000 });
-			// @ts-expect-error // TypeScript should complain if we try to add incompatible resources
-			ecspressoWithBundles.addResource('resFromB1', { foo: 1 });
-			ecspressoWithBundles.addResource('resFromB1', { data: 1 });
-			// @ts-expect-error // TypeScript should complain if we try to add incompatible resources
-			ecspressoWithBundles.addResource('resFromB2', { foo: 'test' });
-			ecspressoWithBundles.addResource('resFromB2', { data: 'test' });
-
-			// Access resources
-			ecspresso.getResource('config');
-			ecspressoWithBundles.getResource('resFromB1');
-			ecspressoWithBundles.getResource('resFromB2');
-			// @ts-expect-error // TypeScript should complain if we try to access a non-existent resource
-			ecspressoWithBundles.getResource('non-existent-resource');
-
-			ecspressoWithBundles.eventBus.publish('evtFromB1', { data: 1 });
-			ecspressoWithBundles.eventBus.publish('evtFromB2', { data: 'test' });
 			// @ts-expect-error // TypeScript should complain if we try to publish a non-existent event
 			ecspresso.eventBus.publish('nonExistentEvent', { data: 'test' });
+
+			ecspresso.getResource('resFromB1');
+			ecspresso.getResource('resFromB2');
+			// @ts-expect-error // TypeScript should complain if we try to access a non-existent resource
+			ecspresso.getResource('non-existent-resource');
 
 			expect(true).toBe(true);
 		});
 
 		test('should allow overlapping components, events and resources of the same type', () => {
-			const ecspresso = new ECSpresso<TestComponents, TestEvents, TestResources>();
-
 			const bundle1 = new Bundle<{cmp: number}, {evt: {data: number}}, {res: {data: number}}>();
 			const bundle2 = new Bundle<{cmp: number}, {evt: {data: number}}, {res: {data: number}}>();
 			const merged = mergeBundles('merged', bundle1, bundle2);
@@ -267,6 +257,9 @@ describe('ECSpresso', () => {
 						'doesNotExist',
 					],
 				});
+
+			// Test with traditional method-based installation
+			const ecspresso = new ECSpresso<TestComponents, TestEvents, TestResources>();
 
 			// Set resources
 			ecspresso.addResource('config', { debug: true, maxEntities: 1000 });
@@ -293,19 +286,33 @@ describe('ECSpresso', () => {
 			const bundle3 = new Bundle<{cmp: number}, {evt: {data: number}}, {res: {data: number}}>();
 			const bundle4 = new Bundle<{cmp: string}, {evt: {data: string}}, {res: {data: string}}>();
 
-			// @ts-expect-error // TypeScript should complain if we try to install bundles that conflict each other
-			new ECSpresso().install(bundle3, bundle4);
+			ECSpresso.create()
+				.withBundle(bundle3)
+				// @ts-expect-error // TypeScript should complain if we try to install bundles that conflict with each other
+				.withBundle(bundle4)
+				.build();
 
-			// const ecspresso = new ECSpresso();
-			// ecspresso.install(bundle3);
-			// @ ts-expect-error // TypeScript should complain if we try to install bundles that conflict with earlier installed bundles
-			// ecspresso.install(bundle4);
+			// ECSpresso.create({
+			// 	bundles: [
+			// 		bundle3,
+			// 		// @ ts-expect-error // TypeScript should complain if we try to install bundles that conflict with each other
+			// 		bundle4,
+			// 	],
+			// });
 
 			const bundle5 = new Bundle<{position: string}, {gameEnded: string}, {config: boolean}>();
 
-			const ecspresso2 = new ECSpresso<TestComponents, TestEvents, TestResources>();
-			// @ts-expect-error // TypeScript should complain if we try to install bundles that conflict with ecspresso instance
-			ecspresso2.install(bundle5);
+			ECSpresso.create<TestComponents, TestEvents, TestResources>()
+				// @ts-expect-error // TypeScript should complain if we try to install bundles that conflict with the type parameters passed to ecspresso
+				.withBundle(bundle5)
+				.build();
+
+			// ECSpresso.create<TestComponents, TestEvents, TestResources>({
+			// 	bundles: [
+			// 		// @ ts-expect-error // TypeScript should complain if we try to install bundles that conflict with the type parameters passed to ecspresso
+			// 		bundle5,
+			// 	],
+			// });
 
 			expect(true).toBe(true);
 		});
@@ -327,23 +334,19 @@ describe('ECSpresso', () => {
 			const processedEntities: number[] = [];
 
 			const bundle = new Bundle<TestComponents>()
-
-			// Create a bundle with the system
-			bundle
 				.addSystem('MovementSystem')
 				.addQuery('entities', {
 					with: ['position', 'velocity'],
-						without: ['health'],
-					})
-					.setProcess((queries) => {
-						for (const entity of queries.entities) {
-							processedEntities.push(entity.id);
-
-						// In a real system, we'd update position based on velocity and deltaTime
+					without: ['health'],
+				})
+				.setProcess((queries) => {
+					for (const entity of queries.entities) {
+						processedEntities.push(entity.id);
 					}
-				});
+				})
+				.bundle;
 
-			// Install the bundle
+			// Traditional method-based installation
 			world.install(bundle);
 			world.update(1/60);
 
@@ -352,14 +355,18 @@ describe('ECSpresso', () => {
 		});
 
 		test('should manage resources', () => {
-			const world = new ECSpresso<TestComponents, {}, TestResources>();
-
-			// Adding resources using a bundle
+			// First create the bundle
 			const bundle = new Bundle<TestComponents, {}, TestResources>()
 				.addResource('config', { debug: true, maxEntities: 1000 });
 
-			// Install the bundle
-			world.install(bundle);
+			const world = ECSpresso.create<TestComponents, {}, TestResources>()
+				.withBundle(bundle)
+				.build();
+
+			// Traditional method-based installation
+			// const world = new ECSpresso<TestComponents, {}, TestResources>({
+			// 	bundles: [bundle]
+			// });
 
 			// Getting resources
 			const config = world.resourceManager.get('config');
@@ -380,8 +387,6 @@ describe('ECSpresso', () => {
 	// System lifecycle tests
 	describe('System Lifecycle', () => {
 		test('should remove systems by label', () => {
-			const world = new ECSpresso<TestComponents>();
-
 			// Add a system
 			let processRan = false;
 
@@ -393,8 +398,14 @@ describe('ECSpresso', () => {
 				})
 				.bundle;
 
-			// Install the bundle
+			// Traditional method-based installation
+			const world = new ECSpresso<TestComponents>();
 			world.install(bundle);
+
+			// Future constructor-based installation
+			// const worldWithConstructor = new ECSpresso<TestComponents>({
+			//   bundles: [bundle]
+			// });
 
 			// System should run during update
 			world.update(1/60);
@@ -412,8 +423,6 @@ describe('ECSpresso', () => {
 		});
 
 		test('should handle attaching and detaching systems', () => {
-			const world = new ECSpresso<TestComponents>();
-
 			let attachCalled = false;
 			let detachCalled = false;
 			let processCalled = false;
@@ -432,7 +441,8 @@ describe('ECSpresso', () => {
 				})
 				.bundle;
 
-			// Add the system
+			// Traditional method-based installation
+			const world = new ECSpresso<TestComponents>();
 			world.install(bundle);
 
 			// Attach should have been called
@@ -451,11 +461,6 @@ describe('ECSpresso', () => {
 	// Entity and component management tests
 	describe('Entity & Component Management', () => {
 		test('should handle state transitions in systems', () => {
-			const world = new ECSpresso<TestComponents>();
-
-			const entity = world.entityManager.createEntity();
-			world.entityManager.addComponent(entity.id, 'state', { current: 'idle', previous: '' });
-
 			// Create a system that updates state
 			const bundle = new Bundle<TestComponents>()
 				.addSystem('StateSystem')
@@ -472,8 +477,17 @@ describe('ECSpresso', () => {
 				})
 				.bundle;
 
-			// Install the bundle
-			world.install(bundle);
+			const world = ECSpresso.create<TestComponents>()
+				.withBundle(bundle)
+				.build();
+
+			// Install the bundle using constructor
+			// const world = new ECSpresso<TestComponents>({
+			// 	bundles: [bundle]
+			// });
+
+			const entity = world.entityManager.createEntity();
+			world.entityManager.addComponent(entity.id, 'state', { current: 'idle', previous: '' });
 
 			// Run the system
 			world.update(1/60);
@@ -484,18 +498,6 @@ describe('ECSpresso', () => {
 		});
 
 		test('should track entity lifetimes', () => {
-			const world = new ECSpresso<TestComponents>();
-
-			// Create an entity with a lifetime component
-			const entity1 = world.entityManager.createEntity();
-			world.entityManager.addComponent(entity1.id, 'lifetime', { remaining: 2 });
-
-			// Create an entity without a lifetime
-			const entity2 = world.entityManager.createEntity();
-
-			// Track which entities were removed
-			const removedEntities: number[] = [];
-
 			// Create a lifetime system
 			const bundle = new Bundle<TestComponents>()
 				.addSystem('LifetimeSystem')
@@ -515,8 +517,24 @@ describe('ECSpresso', () => {
 				})
 				.bundle;
 
-			// Install the bundle
-			world.install(bundle);
+			const world = ECSpresso.create<TestComponents>()
+				.withBundle(bundle)
+				.build();
+
+			// Install the bundle using constructor
+			// const world = new ECSpresso<TestComponents>({
+			// 	bundles: [bundle]
+			// });
+
+			// Create an entity with a lifetime component
+			const entity1 = world.entityManager.createEntity();
+			world.entityManager.addComponent(entity1.id, 'lifetime', { remaining: 2 });
+
+			// Create an entity without a lifetime
+			const entity2 = world.entityManager.createEntity();
+
+			// Track which entities were removed
+			const removedEntities: number[] = [];
 
 			// First update reduces lifetime to 1
 			world.update(1/60);
@@ -547,17 +565,12 @@ describe('ECSpresso', () => {
 		});
 
 		test('should handle component additions and removals during update', () => {
-			const world = new ECSpresso<TestComponents>();
-
-			// Create entity without components yet
-			const entity = world.entityManager.createEntity();
-
 			// Create a system that adds and removes components
 			const bundle = new Bundle<TestComponents>()
 				.addSystem('DynamicComponentSystem')
 				.setProcess((_queries, _deltaTime, ecs) => {
 					// Add a position component if it doesn't exist
-					if (!world.entityManager.getComponent(entity.id, 'position')) {
+					if (!ecs.entityManager.getComponent(entity.id, 'position')) {
 						ecs.entityManager.addComponent(entity.id, 'position', { x: 0, y: 0 });
 					} else {
 						// Remove the position component if it does exist
@@ -566,8 +579,17 @@ describe('ECSpresso', () => {
 				})
 				.bundle;
 
-			// Install the bundle
-			world.install(bundle);
+			const world = ECSpresso.create<TestComponents>()
+				.withBundle(bundle)
+				.build();
+
+			// Install the bundle using constructor
+			// const world = new ECSpresso<TestComponents>({
+			// 	bundles: [bundle]
+			// });
+
+			// Create entity without components yet
+			const entity = world.entityManager.createEntity();
 
 			// First update adds the position component
 			world.update(1/60);
@@ -646,19 +668,21 @@ describe('ECSpresso', () => {
 			expect(eventHandled).toBe(true);
 		});
 
-		test('should provide equivalent functionality for systems added via bundle or directly', () => {
-			// Create two worlds - one using a bundle, one using direct system addition
+		test('should provide equivalent functionality for systems added via bundle in constructor, via bundle.install, or directly', () => {
+			// Create three worlds with different ways of adding systems
 			const bundleWorld = new ECSpresso<TestComponents>();
+			const constructorWorld = new ECSpresso<TestComponents>();
 			const directWorld = new ECSpresso<TestComponents>();
 
-			// Setup entities identically in both worlds
-			for (const world of [bundleWorld, directWorld]) {
+			// Setup entities identically in all worlds
+			for (const world of [bundleWorld, constructorWorld, directWorld]) {
 				const entity = world.entityManager.createEntity();
 				world.entityManager.addComponent(entity.id, 'position', { x: 0, y: 0 });
 				world.entityManager.addComponent(entity.id, 'velocity', { x: 5, y: 10 });
 			}
 
 			let bundleProcessed = false;
+			let constructorProcessed = false;
 			let directProcessed = false;
 
 			// Create a bundle with a system
@@ -673,8 +697,25 @@ describe('ECSpresso', () => {
 				})
 				.bundle;
 
-			// Install the bundle
+			// Install the bundle using the traditional method
 			bundleWorld.install(bundle);
+
+			const worldWithBundle = ECSpresso.create<TestComponents>()
+				.withBundle(bundle)
+				.build();
+
+			// Install the bundle using the constructor
+			// const worldWithBundle = new ECSpresso<TestComponents>({
+			// 	bundles: [bundle]
+			// });
+			// We need one more entity for this world
+			const entityInNew = worldWithBundle.entityManager.createEntity();
+			worldWithBundle.entityManager.addComponent(entityInNew.id, 'position', { x: 0, y: 0 });
+			worldWithBundle.entityManager.addComponent(entityInNew.id, 'velocity', { x: 5, y: 10 });
+
+			worldWithBundle.update(1/60);
+			constructorProcessed = bundleProcessed;
+			bundleProcessed = false;
 
 			// Add a system directly
 			const directSystemBuilder = directWorld
@@ -693,12 +734,13 @@ describe('ECSpresso', () => {
 			// Build the direct system
 			directSystemBuilder.build();
 
-			// Update both worlds
+			// Update all worlds
 			bundleWorld.update(1/60);
 			directWorld.update(1/60);
 
-			// Both systems should have processed
+			// All systems should have processed
 			expect(bundleProcessed).toBe(true);
+			expect(constructorProcessed).toBe(true);
 			expect(directProcessed).toBe(true);
 		});
 	});
