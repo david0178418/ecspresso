@@ -63,16 +63,6 @@ type CheckConflicts<
  * This is a special declaration that types the ECSpresso constructor to work properly with test files
  * that expect type augmentation directly from the constructor.
  *
- * The actual implementation doesn't change - this is purely for type checking to support
- * direct type augmentation through the constructor, allowing code like:
- *
- * ```
- * const ecs = new ECSpresso<BaseComponents, BaseEvents, BaseResources>({
- *   bundles: [someBundle]
- * });
- * // ecs now has types from both the base types and the bundle types
- * ```
- *
  * This interface declaration merges with the class declaration below.
  */
 export default interface ECSpresso<
@@ -81,15 +71,9 @@ export default interface ECSpresso<
 	ResourceTypes extends Record<string, any> = Record<string, any>,
 > {
 	/**
-	 * Default constructor without bundles
+	 * Default constructor
 	 */
 	new(): ECSpresso<ComponentTypes, EventTypes, ResourceTypes>;
-
-	/**
-	 * Constructor with bundles
-	 * @deprecated Use ECSpresso.create() instead for better type inference
-	 */
-	new(options: { bundles: Array<Bundle<any, any, any> | null> }): ECSpresso<ComponentTypes, EventTypes, ResourceTypes>;
 }
 
 // Declare static methods on the ECSpresso class
@@ -116,21 +100,6 @@ export default interface ECSpresso {
         BaseE extends Record<string, any>,
         BaseR extends Record<string, any>
     >(): ECSpressoBuilder<BaseC, BaseE, BaseR>;
-
-    /**
-     * Create an ECSpresso instance with bundles (legacy method for backward compatibility)
-     * @deprecated Use the builder pattern instead:
-     * ```
-     * ECSpresso.create<Types>().withBundle(bundle1).withBundle(bundle2).build();
-     * ```
-     */
-    create<
-        BaseC extends Record<string, any>,
-        BaseE extends Record<string, any>,
-        BaseR extends Record<string, any>
-    >(options: {
-        bundles: Array<Bundle<any, any, any> | null>
-    }): ECSpresso<BaseC, BaseE, BaseR>;
 }
 
 /**
@@ -157,22 +126,11 @@ export default class ECSpresso<
 
 	/**
 	 * Creates a new ECSpresso instance.
-	 *
-	 * @param options Optional configuration options
-	 * @param options.bundles Optional array of bundles to install
-	 * @deprecated For better type inference, use ECSpresso.create() builder instead of direct constructor
 	 */
-	constructor(options?: { bundles?: Array<Bundle<any, any, any> | null> }) {
+	constructor() {
 		this._entityManager = new EntityManager<ComponentTypes>();
 		this._eventBus = new EventBus<EventTypes>();
 		this._resourceManager = new ResourceManager<ResourceTypes>();
-
-		// Keep this for backwards compatibility with tests
-		if (options?.bundles) {
-			options.bundles.forEach(bundle => {
-				if (bundle) this._installBundle(bundle);
-			});
-		}
 	}
 
 	/**
@@ -193,51 +151,18 @@ export default class ECSpresso<
 		C extends Record<string, any> = {},
 		E extends Record<string, any> = {},
 		R extends Record<string, any> = {}
-	>(): ECSpressoBuilder<C, E, R>;
-
-	/**
-	 * Creates a new ECSpresso instance with the given bundles (legacy method)
-	 *
-	 * @deprecated Use the builder pattern instead:
-	 * ```
-	 * ECSpresso.create<Types>().withBundle(bundle1).withBundle(bundle2).build();
-	 * ```
-	 */
-	static create<
-		C extends Record<string, any> = {},
-		E extends Record<string, any> = {},
-		R extends Record<string, any> = {}
-	>(options: {
-		bundles: Array<Bundle<any, any, any> | null>
-	}): ECSpresso<C, E, R>;
-
-	/**
-	 * Implementation of both overloads
-	 */
-	static create<
-		C extends Record<string, any> = {},
-		E extends Record<string, any> = {},
-		R extends Record<string, any> = {}
-	>(options?: {
-		bundles: Array<Bundle<any, any, any> | null>
-	}): ECSpressoBuilder<C, E, R> | ECSpresso<C, E, R> {
-		// If no options are provided, return a builder
-		if (!options) {
-			return new ECSpressoBuilder<C, E, R>();
-		}
-
-		// Otherwise, create an ECSpresso instance with bundles
-		const ecspresso = new ECSpresso<C, E, R>();
-
-		for (const bundle of options.bundles) {
-			if (bundle) ecspresso._installBundle(bundle);
-		}
-
-		return ecspresso;
+	>(): ECSpressoBuilder<C, E, R> {
+		return new ECSpressoBuilder<C, E, R>();
 	}
 
 	/**
-	 * Install a bundle with type checking for incompatible types with ECSpresso
+	 * @deprecated Use ECSpresso.create() builder pattern instead:
+	 * ```typescript
+	 * const ecs = ECSpresso.create<Types>()
+	 *   .withBundle(bundle1)
+	 *   .withBundle(bundle2)
+	 *   .build();
+	 * ```
 	 */
 	install<
 		C1 extends Record<string, any>,
@@ -252,7 +177,7 @@ export default class ECSpresso<
 	>;
 
 	/**
-	 * Install an array of bundles
+	 * @deprecated Use ECSpresso.create() builder pattern instead
 	 */
 	install(
 		...bundles: (Bundle<any, any, any> | null)[]
@@ -262,9 +187,9 @@ export default class ECSpresso<
 	 * Install a bundle into this ECSpresso instance
 	 * This method is kept for backward compatibility
 	 *
-	 * @deprecated Use ECSpresso.create() builder instead:
+	 * @deprecated Use ECSpresso.create() builder pattern instead:
 	 * ```typescript
-	 * const ecs = ECSpresso.create<MyTypes>()
+	 * const ecs = ECSpresso.create<Types>()
 	 *   .withBundle(bundle1)
 	 *   .withBundle(bundle2)
 	 *   .build();
