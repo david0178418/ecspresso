@@ -6,7 +6,10 @@ import type Bundle from "./bundle";
 import { createEcspressoSystemBuilder } from "./system-builder";
 import { version } from "../package.json";
 
-// Type to detect conflicting types between two record types
+/**
+ * Type helper to detect conflicting types between two record types.
+ * Returns a union of keys that exist in both T and U but have incompatible types.
+ */
 type GetConflictingKeys<T, U> = {
   [K in keyof T & keyof U]: T[K] extends U[K]
     ? U[K] extends T[K]
@@ -16,8 +19,8 @@ type GetConflictingKeys<T, U> = {
 }[keyof T & keyof U];
 
 /**
- * This type helps identify bundles that would have conflicting types.
- * It allows the first bundle to be added without conflicts when the base types are empty.
+ * Simplified type helper to check bundle type compatibility.
+ * Returns true if bundles can be merged without type conflicts.
  */
 type BundlesAreCompatible<
   C1 extends Record<string, any>,
@@ -26,13 +29,15 @@ type BundlesAreCompatible<
   E2 extends Record<string, any>,
   R1 extends Record<string, any>,
   R2 extends Record<string, any>
-> = keyof C1 extends never // If C1 is empty
-    ? keyof E1 extends never // If E1 is empty
-      ? keyof R1 extends never // If R1 is empty
-        ? true // Allow any first bundle
+> =
+  // If all base types are empty, any bundle is compatible
+  [keyof C1] extends [never]
+    ? [keyof E1] extends [never]
+      ? [keyof R1] extends [never]
+        ? true
         : GetConflictingKeys<R1, R2> extends never ? true : false
       : GetConflictingKeys<E1, E2> extends never
-        ? (keyof R1 extends never ? true : GetConflictingKeys<R1, R2> extends never ? true : false)
+        ? GetConflictingKeys<R1, R2> extends never ? true : false
         : false
     : GetConflictingKeys<C1, C2> extends never
       ? GetConflictingKeys<E1, E2> extends never
@@ -43,10 +48,8 @@ type BundlesAreCompatible<
       : false;
 
 /**
- * This is a special declaration that types the ECSpresso constructor to work properly with test files
- * that expect type augmentation directly from the constructor.
- *
- * This interface declaration merges with the class declaration below.
+ * Interface declaration for ECSpresso constructor to ensure type augmentation works properly.
+ * This merges with the class declaration below.
  */
 export default interface ECSpresso<
 	ComponentTypes extends Record<string, any> = Record<string, any>,
@@ -59,7 +62,9 @@ export default interface ECSpresso<
 	new(): ECSpresso<ComponentTypes, EventTypes, ResourceTypes>;
 }
 
-// Declare static methods on the ECSpresso class
+/**
+ * Static methods on the ECSpresso class
+ */
 export default interface ECSpresso {
     /**
      * Create a new ECSpresso builder with type-safe bundle installation.
@@ -94,6 +99,7 @@ export default class ECSpresso<
 	EventTypes extends Record<string, any> = Record<string, any>,
 	ResourceTypes extends Record<string, any> = Record<string, any>,
 > {
+	/** Library version */
 	public static readonly VERSION = version;
 
 	/** Access/modify stored components and entities */
@@ -105,6 +111,7 @@ export default class ECSpresso<
 
 	/** Registered systems that will be updated in order */
 	private _systems: Array<System<ComponentTypes, any, any, EventTypes, ResourceTypes>> = [];
+	/** Track installed bundles to prevent duplicates */
 	private _installedBundles: Set<string> = new Set();
 
 	/**
@@ -160,7 +167,7 @@ export default class ECSpresso<
 			if (!system.process) continue;
 
 			// Prepare query results for each defined query in the system
-			const queryResults: any = {};
+			const queryResults: Record<string, any> = {};
 
 			if (system.entityQueries) {
 				for (const queryName in system.entityQueries) {
@@ -180,28 +187,31 @@ export default class ECSpresso<
 	}
 
 	/**
-	 * Internal method to install a bundle into this ECSpresso instance
-	 * Handles registering systems and resources from the bundle
+	 * Internal method to install a bundle into this ECSpresso instance.
+	 * Called by the ECSpressoBuilder during the build process.
+	 * The type safety is guaranteed by the builder's type system.
 	 */
 	_installBundle<
 		C extends Record<string, any>,
 		E extends Record<string, any>,
 		R extends Record<string, any>
-	>(bundle: Bundle<C, E, R>) {
+	>(bundle: Bundle<C, E, R>): this {
+		// Prevent duplicate installation of the same bundle
 		if (this._installedBundles.has(bundle.id)) {
 			return this;
 		}
 
+		// Mark this bundle as installed
 		this._installedBundles.add(bundle.id);
 
-		// Register systems
+		// Register systems from the bundle
+		// Type casting is necessary because the generic parameters don't match
 		bundle.registerSystemsWithEcspresso(this as any);
 
-		// Register resources - we need to cast here since TS can't verify compatibility
+		// Register resources from the bundle
 		const resources = bundle.getResources();
 		for (const [key, value] of resources.entries()) {
-			// We need to cast here because TypeScript can't verify the type compatibility
-			// between bundles, but we trust that the bundle's resource types are compatible
+			// Type compatibility is guaranteed by the builder's type system
 			this._resourceManager.add(key as unknown as keyof ResourceTypes, value as any);
 		}
 
@@ -219,11 +229,13 @@ export default class ECSpresso<
 		if (index === -1) return false;
 
 		const system = this._systems[index];
+		// This should never happen since we just found the system by index
 		if (!system) return false;
 
-		system.onDetach?.(
-			this
-		);
+		// Call the onDetach lifecycle hook if defined
+		if (system.onDetach) {
+			system.onDetach(this);
+		}
 
 		// Remove system
 		this._systems.splice(index, 1);
@@ -305,13 +317,15 @@ export default class ECSpresso<
 }
 
 /**
- * Builder class for ECSpresso that provides fluent type-safe bundle installation
+ * Builder class for ECSpresso that provides fluent type-safe bundle installation.
+ * Handles type checking during build process to ensure type safety.
  */
 export class ECSpressoBuilder<
   C extends Record<string, any> = {},
   E extends Record<string, any> = {},
   R extends Record<string, any> = {}
 > {
+  /** The ECSpresso instance being built */
   private ecspresso: ECSpresso<C, E, R>;
 
   constructor() {
@@ -319,7 +333,8 @@ export class ECSpressoBuilder<
   }
 
   /**
-   * Add the first bundle when starting with empty types
+   * Add the first bundle when starting with empty types.
+   * This overload allows any bundle to be added to an empty ECSpresso instance.
    */
   withBundle<
     BC extends Record<string, any>,
@@ -331,7 +346,8 @@ export class ECSpressoBuilder<
   ): ECSpressoBuilder<BC, BE, BR>;
 
   /**
-   * Add a subsequent bundle with type checking
+   * Add a subsequent bundle with type checking.
+   * This overload enforces bundle type compatibility.
    */
   withBundle<
     BC extends Record<string, any>,
@@ -344,7 +360,9 @@ export class ECSpressoBuilder<
   ): ECSpressoBuilder<C & BC, E & BE, R & BR>;
 
   /**
-   * Implementation of both overloads
+   * Implementation of both overloads.
+   * Since the type compatibility is checked in the method signature,
+   * we can safely assume the bundle is compatible here.
    */
   withBundle<
     BC extends Record<string, any>,
@@ -353,10 +371,11 @@ export class ECSpressoBuilder<
   >(
     bundle: Bundle<BC, BE, BR>
   ): ECSpressoBuilder<C & BC, E & BE, R & BR> {
-    // Install the bundle using type assertion to bypass the conflicting constraint systems
+    // Install the bundle
+    // Type compatibility is guaranteed by method overloads
     this.ecspresso._installBundle(bundle as any);
 
-    // Return a new builder with the updated types
+    // Return a builder with the updated type parameters
     return this as unknown as ECSpressoBuilder<C & BC, E & BE, R & BR>;
   }
 
