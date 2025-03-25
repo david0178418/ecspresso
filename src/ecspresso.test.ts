@@ -194,18 +194,10 @@ describe('ECSpresso', () => {
 			merged.getResource('non-existent-resource');
 
 			const ecspresso = ECSpresso.create<TestComponents, TestEvents, TestResources>()
-				.withBundle(bundle1)
-				.withBundle(bundle2)
-				// .withBundle(merged)
+				// .withBundle(bundle1)
+				// .withBundle(bundle2)
+				.withBundle(merged)
 				.build();
-
-			// const ecspresso = ECSpresso.create<TestComponents, TestEvents, TestResources>({
-			// 	bundles: [
-			// 		bundle1,
-			// 		bundle2,
-			// 		// mergeBundles('merged-2', bundle1, bundle2),
-			// 	]
-			// });
 
 			ecspresso
 				.addSystem('some-system')
@@ -292,27 +284,12 @@ describe('ECSpresso', () => {
 				.withBundle(bundle4)
 				.build();
 
-			// ECSpresso.create({
-			// 	bundles: [
-			// 		bundle3,
-			// 		// @ ts-expect-error // TypeScript should complain if we try to install bundles that conflict with each other
-			// 		bundle4,
-			// 	],
-			// });
-
 			const bundle5 = new Bundle<{position: string}, {gameEnded: string}, {config: boolean}>();
 
 			ECSpresso.create<TestComponents, TestEvents, TestResources>()
 				// @ts-expect-error // TypeScript should complain if we try to install bundles that conflict with the type parameters passed to ecspresso
 				.withBundle(bundle5)
 				.build();
-
-			// ECSpresso.create<TestComponents, TestEvents, TestResources>({
-			// 	bundles: [
-			// 		// @ ts-expect-error // TypeScript should complain if we try to install bundles that conflict with the type parameters passed to ecspresso
-			// 		bundle5,
-			// 	],
-			// });
 
 			expect(true).toBe(true);
 		});
