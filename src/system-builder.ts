@@ -200,7 +200,7 @@ export function registerSystemWithEcspresso<
 	for (const eventName in system.eventHandlers) {
 		const handler = system.eventHandlers[eventName]?.handler;
 
-		handler && ecspresso.eventBus.subscribe(eventName, (data: any) => {
+		handler && ecspresso.eventBus.subscribe(eventName, (data) => {
 			handler(data, ecspresso);
 		});
 	}

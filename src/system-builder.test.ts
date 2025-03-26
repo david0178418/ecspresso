@@ -55,9 +55,9 @@ describe('SystemBuilder', () => {
 
 	test('should handle multiple query definitions', () => {
 		// Track which entities are processed by each query
-		const queriesProcessed: Record<string, number[]> = {
-			withMarker: [],
-			withHealth: []
+		const queriesProcessed = {
+			withMarker: [] as number[],
+			withHealth: [] as number[],
 		};
 
 		// Define a system with multiple queries
@@ -72,10 +72,10 @@ describe('SystemBuilder', () => {
 			.setProcess((queries) => {
 				// Record entities from each query
 				for (const entity of queries.withMarker) {
-					queriesProcessed['withMarker'].push(entity.id);
+					queriesProcessed.withMarker.push(entity.id);
 				}
 				for (const entity of queries.withHealth) {
-					queriesProcessed['withHealth'].push(entity.id);
+					queriesProcessed.withHealth.push(entity.id);
 				}
 			})
 			.bundle;

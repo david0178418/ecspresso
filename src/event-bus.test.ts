@@ -263,8 +263,8 @@ describe('EventSystem', () => {
 									// Log the damage
 									damageLog[entity1.id] = damageLog[entity1.id] || [];
 									damageLog[entity2.id] = damageLog[entity2.id] || [];
-									damageLog[entity1.id].push(`health=${health1.value}`);
-									damageLog[entity2.id].push(`health=${health2.value}`);
+									damageLog[entity1.id]?.push(`health=${health1.value}`);
+									damageLog[entity2.id]?.push(`health=${health2.value}`);
 
 									// Apply damage
 									const newHealth1 = { value: Math.max(0, health1.value - 10) };
@@ -296,7 +296,7 @@ describe('EventSystem', () => {
 						if (!damageLog[data.entityId]) {
 							damageLog[data.entityId] = [];
 						}
-						damageLog[data.entityId].push(`healthChanged=${data.newValue}`);
+						damageLog[data.entityId]?.push(`healthChanged=${data.newValue}`);
 					}
 				}
 			})

@@ -52,9 +52,9 @@ type BundlesAreCompatible<
 	* This merges with the class declaration below.
 */
 export default interface ECSpresso<
-	ComponentTypes extends Record<string, any> = Record<string, any>,
-	EventTypes extends Record<string, any> = Record<string, any>,
-	ResourceTypes extends Record<string, any> = Record<string, any>,
+	ComponentTypes extends Record<string, any> = {},
+	EventTypes extends Record<string, any> = {},
+	ResourceTypes extends Record<string, any> = {},
 > {
 	/**
 		* Default constructor
@@ -78,15 +78,10 @@ export default interface ECSpresso {
 		 *	 .build();
 			* ```
 		*/
-		create(): ECSpressoBuilder<{}, {}, {}>; // No type parameters - returns a builder with empty types
-
-		/**
-			* Create a new ECSpresso builder with type-safe bundle installation and explicit starting types.
-		*/
 		create<
-				BaseC extends Record<string, any>,
-				BaseE extends Record<string, any>,
-				BaseR extends Record<string, any>
+				BaseC extends Record<string, any> = {},
+				BaseE extends Record<string, any> = {},
+				BaseR extends Record<string, any> = {},
 		>(): ECSpressoBuilder<BaseC, BaseE, BaseR>;
 }
 
@@ -95,9 +90,9 @@ export default interface ECSpresso {
 	* It handles creation and management of entities, components, and systems, and provides lifecycle hooks.
 */
 export default class ECSpresso<
-	ComponentTypes extends Record<string, any> = Record<string, any>,
-	EventTypes extends Record<string, any> = Record<string, any>,
-	ResourceTypes extends Record<string, any> = Record<string, any>,
+	ComponentTypes extends Record<string, any> = {},
+	EventTypes extends Record<string, any> = {},
+	ResourceTypes extends Record<string, any> = {},
 > {
 	/** Library version*/
 	public static readonly VERSION = version;
@@ -140,7 +135,7 @@ export default class ECSpresso<
 	static create<
 		C extends Record<string, any> = {},
 		E extends Record<string, any> = {},
-		R extends Record<string, any> = {}
+		R extends Record<string, any> = {},
 	>(): ECSpressoBuilder<C, E, R> {
 		return new ECSpressoBuilder<C, E, R>();
 	}
