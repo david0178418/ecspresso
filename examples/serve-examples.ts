@@ -4,7 +4,7 @@ import basiceMovement from './01-movement/movement.html';
 import playerInput from './02-player-input/player-input.html';
 import events from './03-events/events.html';
 import bundles from './04-bundles/bundles.html';
-// import simpleEnemyBehavior from './03-simple-enemy-behavior/simple-enemy-behavior.html';
+import spaceInvaders from './05-space-invaders/space-invaders.html';
 
 const server = serve({
 	port: 3000,
@@ -17,7 +17,7 @@ const server = serve({
 		'/player-input/': playerInput,
 		'/events/': events,
 		'/bundles/': bundles,
-		// '/simple-enemy-behavior': simpleEnemyBehavior
+		'/space-invaders/': spaceInvaders,
 	},
 });
 
