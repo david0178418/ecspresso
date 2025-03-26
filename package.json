@@ -24,7 +24,7 @@
 		"pixi.js": "^8.9.0"
 	},
 	"peerDependencies": {
-		"typescript": "^5"
+		"typescript": "^5.8.2"
 	},
 	"files": [
 		"dist"
