@@ -36,10 +36,11 @@ describe('ECSpresso', () => {
 			world.entityManager.addComponent(entity.id, 'position', { x: 0, y: 0 });
 
 			const filteredComponent = world.getEntitiesWithComponents(['position']);
+			const entity1 = filteredComponent[0];
 
 			expect(filteredComponent.length).toBe(1);
-			expect(entity.components.position?.x).toBe(0);
-			expect(entity.components.velocity?.y).toBeUndefined();
+			expect(entity1.components.position.x).toBe(0);
+			expect(entity1.components.velocity?.y).toBeUndefined();
 
 			const entity2 = world.entityManager.createEntity();
 			world.entityManager.addComponent(entity2.id, 'velocity', { x: 10, y: 20 });
@@ -59,6 +60,12 @@ describe('ECSpresso', () => {
 			expect(entity2.components.velocity?.x).toBe(10);
 			expect(entity2.components.position?.y).toBeUndefined();
 
+			// @ts-expect-error // TypeScript should complain if we try to add a query with a non-existent component
+			world.getEntitiesWithComponents(['doesNotExist']);
+
+			// @ts-expect-error // TypeScript should complain if we try to add a query with a non-existent component
+			world.getEntitiesWithComponents([], ['doesNotExist']);
+
 			const filteredComponent3 = world.getEntitiesWithComponents(['velocity'], ['position']);
 
 			const entity3 = filteredComponent3[0];
@@ -66,14 +73,14 @@ describe('ECSpresso', () => {
 			entity3.components.velocity.y;
 
 			try {
-				// @ts-expect-error // TypeScript should complain if we try to access a non-existent component
+				// @ts-expect-error // TypeScript should complain if we try to access a component that is excluded
 				entity3.components.position;
 			} catch {
 				// expect error...
 			}
 
 			expect(filteredComponent3.length).toBe(1);
-			expect(entity3.components.velocity?.x).toBe(10);
+			expect(entity3.components.velocity.x).toBe(10);
 			expect(Object.keys(entity3.components)).not.toInclude('position');
 		});
 
