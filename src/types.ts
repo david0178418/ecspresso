@@ -12,14 +12,14 @@ interface EventHandler<T> {
 
 export
 interface FilteredEntity<
-    ComponentTypes,
-    WithComponents extends keyof ComponentTypes = never,
-    WithoutComponents extends keyof ComponentTypes = never,
+	ComponentTypes,
+	WithComponents extends keyof ComponentTypes = never,
+	WithoutComponents extends keyof ComponentTypes = never,
 > {
-    id: number;
-    components: Omit<Partial<ComponentTypes>, WithoutComponents> & {
-        [ComponentName in WithComponents]: ComponentTypes[ComponentName]
-    };
+	id: number;
+	components: Omit<Partial<ComponentTypes>, WithoutComponents> & {
+		[ComponentName in WithComponents]: ComponentTypes[ComponentName]
+	};
 }
 
 export
