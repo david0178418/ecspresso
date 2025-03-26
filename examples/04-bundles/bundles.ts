@@ -189,10 +189,6 @@ function createGameInitBundle() {
 							x: 0,
 							y: 0
 						},
-						acceleration: {
-							x: 0,
-							y: 0
-						},
 					});
 
 					ecs.eventBus.publish('startGame');
@@ -321,10 +317,6 @@ function createEnemyControllerBundle() {
 							velocity: {
 								x: randomInt(-speed, speed),
 								y: randomInt(-speed, speed),
-							},
-							acceleration: {
-								x: 0,
-								y: 0
 							},
 						});
 

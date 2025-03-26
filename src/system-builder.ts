@@ -131,11 +131,7 @@ export class SystemBuilder<
 			[EventName in keyof EventTypes]?: {
 				handler(
 					data: EventTypes[EventName],
-					ecs: ECSpresso<
-						ComponentTypes & Record<string, any>,
-						EventTypes,
-						ResourceTypes
-					>
+					ecs: ECSpresso<ComponentTypes, EventTypes, ResourceTypes>
 				): void;
 			};
 		}

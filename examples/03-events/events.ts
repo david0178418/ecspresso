@@ -83,10 +83,6 @@ new ECSpresso<Components, Events, Resources>()
 						x: 0,
 						y: 0
 					},
-					acceleration: {
-						x: 0,
-						y: 0
-					},
 				});
 
 				ecs.eventBus.publish('startGame');
@@ -177,10 +173,6 @@ new ECSpresso<Components, Events, Resources>()
 						velocity: {
 							x: randomInt(-speed, speed),
 							y: randomInt(-speed, speed),
-						},
-						acceleration: {
-							x: 0,
-							y: 0
 						},
 					});
 
