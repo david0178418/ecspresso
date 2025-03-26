@@ -1,6 +1,5 @@
 import { Container, Sprite, Text } from 'pixi.js';
 import type { Application } from 'pixi.js';
-import { Entity } from '../../src';
 
 /**
  * All component types used in the Space Invaders game
