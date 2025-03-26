@@ -39,7 +39,8 @@ interface Resources {
 }
 
 // Create an ECSpresso instance with our game bundles
-const world = ECSpresso.create<Components, Events, Resources>()
+ECSpresso
+	.create<Components, Events, Resources>()
 	.withBundle(createGameInitBundle())
 	.withBundle(createPhysicsBundle())
 	.withBundle(createEnemyControllerBundle())
@@ -47,12 +48,11 @@ const world = ECSpresso.create<Components, Events, Resources>()
 	.build()
 	// Add global resources
 	.addResource('controlMap', activeKeyMap())
-	.addResource('pixi', await initPixi());
-
-// Trigger game initialization
-world.eventBus.publish('initializeGame', {
-	someRandomData: new Date(),
-});
+	.addResource('pixi', await initPixi())
+	// Trigger game initialization
+	.eventBus.publish('initializeGame', {
+		someRandomData: new Date(),
+	});
 
 async function initPixi() {
 	const pixi = new Application();
