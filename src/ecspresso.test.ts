@@ -28,6 +28,19 @@ describe('ECSpresso', () => {
 	describe('type checks', () => {
 		test('should allow type-safe component access', () => {
 			const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
+			const entity = world.entityManager.createEntity();
+
+			// @ts-expect-error // TypeScript should complain if we try to access a non-existent component
+			entity.components.doesNotExist;
+
+			world.entityManager.addComponent(entity.id, 'position', { x: 0, y: 0 });
+
+			expect(entity.components.position?.x).toBe(0);
+			expect(entity.components.velocity?.y).toBeUndefined();
+		});
+
+		test('should allow type-safe component assignment', () => {
+			const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
 
 			const entity = world.entityManager.createEntity();
 			world.entityManager.addComponent(entity.id, 'position', { x: 0, y: 0 });
