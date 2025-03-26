@@ -17,9 +17,7 @@ interface FilteredEntity<
 	WithoutComponents extends keyof ComponentTypes = never,
 > {
 	id: number;
-	components: Omit<Partial<ComponentTypes>, WithoutComponents> & {
-		[ComponentName in WithComponents]: ComponentTypes[ComponentName]
-	};
+	components: Pick<ComponentTypes, WithComponents> & Omit<Partial<ComponentTypes>, WithComponents | WithoutComponents>;
 }
 
 export

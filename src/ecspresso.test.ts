@@ -35,8 +35,46 @@ describe('ECSpresso', () => {
 
 			world.entityManager.addComponent(entity.id, 'position', { x: 0, y: 0 });
 
+			const filteredComponent = world.getEntitiesWithComponents(['position']);
+
+			expect(filteredComponent.length).toBe(1);
 			expect(entity.components.position?.x).toBe(0);
 			expect(entity.components.velocity?.y).toBeUndefined();
+
+			const entity2 = world.entityManager.createEntity();
+			world.entityManager.addComponent(entity2.id, 'velocity', { x: 10, y: 20 });
+
+			const filteredComponent2 = world.getEntitiesWithComponents(['velocity']);
+
+			filteredComponent2[0].components.velocity.y;
+
+			try {
+				// @ts-expect-error // TypeScript should complain if we try to access a non-existent component
+				filteredComponent2[0].components.position.y;
+			} catch {
+				// expect error...
+			}
+
+			expect(filteredComponent2.length).toBe(1);
+			expect(entity2.components.velocity?.x).toBe(10);
+			expect(entity2.components.position?.y).toBeUndefined();
+
+			const filteredComponent3 = world.getEntitiesWithComponents(['velocity'], ['position']);
+
+			const entity3 = filteredComponent3[0];
+
+			entity3.components.velocity.y;
+
+			try {
+				// @ts-expect-error // TypeScript should complain if we try to access a non-existent component
+				entity3.components.position;
+			} catch {
+				// expect error...
+			}
+
+			expect(filteredComponent3.length).toBe(1);
+			expect(entity3.components.velocity?.x).toBe(10);
+			expect(Object.keys(entity3.components)).not.toInclude('position');
 		});
 
 		test('should allow type-safe component assignment', () => {

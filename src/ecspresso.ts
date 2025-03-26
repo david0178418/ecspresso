@@ -1,7 +1,7 @@
 import EntityManager from "./entity-manager";
 import EventBus from "./event-bus";
 import ResourceManager from "./resource-manager";
-import type { System } from "./types";
+import type { System, FilteredEntity } from "./types";
 import type Bundle from "./bundle";
 import { createEcspressoSystemBuilder } from "./system-builder";
 import { version } from "../package.json";
@@ -282,10 +282,13 @@ export default class ECSpresso<
 	/**
 		* Get all entities with specific components
 	*/
-	getEntitiesWithComponents(
-		withComponents: (keyof ComponentTypes)[],
-		withoutComponents: (keyof ComponentTypes)[] = []
-	) {
+	getEntitiesWithComponents<
+		WithComponents extends keyof ComponentTypes,
+		WithoutComponents extends keyof ComponentTypes = never
+	>(
+		withComponents: ReadonlyArray<WithComponents>,
+		withoutComponents: ReadonlyArray<WithoutComponents> = []
+	): Array<FilteredEntity<ComponentTypes, WithComponents, WithoutComponents>> {
 		return this._entityManager.getEntitiesWithComponents(
 			withComponents,
 			withoutComponents
