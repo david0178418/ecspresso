@@ -68,8 +68,12 @@ describe('ECSpresso', () => {
 			// @ts-expect-error // TypeScript should complain if we try to add a resource that doesn't exist
 			world.addResource('doesNotExist', { value: 100 });
 
-			// @ts-expect-error // TypeScript should complain if we try to access a non-existent resource
-			world.getResource('nonExistentResource');
+			try {
+				// @ts-expect-error // TypeScript should complain if we try to access a non-existent resource
+				world.getResource('nonExistentResource');
+			} catch {
+				// expect error...
+			}
 
 			expect(true).toBe(true); // Just to ensure the test runs without errors
 		});
@@ -164,6 +168,8 @@ describe('ECSpresso', () => {
 			const bundle2 = new Bundle<{cmpFromB2: string}, {evtFromB2: {data: string}}, {resFromB2: {data: string}}>();
 			const merged = mergeBundles('merged', bundle1, bundle2);
 			merged
+				.addResource('resFromB1', { data: 100 })
+				.addResource('resFromB2', { data: 'test' })
 				.addSystem('some-system')
 				.addQuery('someQuery', {
 					with: [
@@ -190,8 +196,13 @@ describe('ECSpresso', () => {
 
 			merged.getResource('resFromB1');
 			merged.getResource('resFromB2');
-			// @ts-expect-error // TypeScript should complain if we try to access a non-existent resource
-			merged.getResource('non-existent-resource');
+
+			try {
+				// @ts-expect-error // TypeScript should complain if we try to access a non-existent resource
+				merged.getResource('non-existent-resource');
+			} catch {
+				// expect error...
+			}
 
 			const ecspresso = ECSpresso.create<TestComponents, TestEvents, TestResources>()
 				// .withBundle(bundle1)
@@ -230,8 +241,12 @@ describe('ECSpresso', () => {
 
 			ecspresso.getResource('resFromB1');
 			ecspresso.getResource('resFromB2');
-			// @ts-expect-error // TypeScript should complain if we try to access a non-existent resource
-			ecspresso.getResource('non-existent-resource');
+			try {
+				// @ts-expect-error // TypeScript should complain if we try to access a non-existent resource
+				ecspresso.getResource('non-existent-resource');
+			} catch {
+				// expect error...
+			}
 
 			expect(true).toBe(true);
 		});

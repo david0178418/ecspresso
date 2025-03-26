@@ -197,24 +197,16 @@ export function registerSystemWithEcspresso<
 	// Add system to ECSpresso's system list
 	ecspresso["_systems"].push(system);
 
-	// Call onAttach lifecycle hook if defined
-	if (system.onAttach) {
-		system.onAttach(ecspresso);
-	}
+	system.onAttach?.(ecspresso);
 
-	// Auto-subscribe to events if eventHandlers are defined
-	if (system.eventHandlers) {
-		for (const eventName in system.eventHandlers) {
-			const handler = system.eventHandlers[eventName];
-			if (handler?.handler) {
-				// Create a wrapper that passes the additional parameters to the handler
-				const wrappedHandler = (data: any) => {
-					handler.handler(data, ecspresso);
-				};
+	if(!system.eventHandlers) return;
 
-				ecspresso.eventBus.subscribe(eventName, wrappedHandler);
-			}
-		}
+	for (const eventName in system.eventHandlers) {
+		const handler = system.eventHandlers[eventName]?.handler;
+
+		handler && ecspresso.eventBus.subscribe(eventName, (data: any) => {
+			handler(data, ecspresso);
+		});
 	}
 }
 
