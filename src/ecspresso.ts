@@ -7,9 +7,9 @@ import { createEcspressoSystemBuilder } from "./system-builder";
 import { version } from "../package.json";
 
 /**
- * Type helper to detect conflicting types between two record types.
- * Returns a union of keys that exist in both T and U but have incompatible types.
- */
+	* Type helper to detect conflicting types between two record types.
+	* Returns a union of keys that exist in both T and U but have incompatible types.
+*/
 type GetConflictingKeys<T, U> = {
 	[K in keyof T & keyof U]: T[K] extends U[K]
 		? U[K] extends T[K]
@@ -19,9 +19,9 @@ type GetConflictingKeys<T, U> = {
 }[keyof T & keyof U];
 
 /**
- * Simplified type helper to check bundle type compatibility.
- * Returns true if bundles can be merged without type conflicts.
- */
+	* Simplified type helper to check bundle type compatibility.
+	* Returns true if bundles can be merged without type conflicts.
+*/
 type BundlesAreCompatible<
 	C1 extends Record<string, any>,
 	C2 extends Record<string, any>,
@@ -48,41 +48,41 @@ type BundlesAreCompatible<
 			: false;
 
 /**
- * Interface declaration for ECSpresso constructor to ensure type augmentation works properly.
- * This merges with the class declaration below.
- */
+	* Interface declaration for ECSpresso constructor to ensure type augmentation works properly.
+	* This merges with the class declaration below.
+*/
 export default interface ECSpresso<
 	ComponentTypes extends Record<string, any> = Record<string, any>,
 	EventTypes extends Record<string, any> = Record<string, any>,
 	ResourceTypes extends Record<string, any> = Record<string, any>,
 > {
 	/**
-	 * Default constructor
-	 */
+		* Default constructor
+	*/
 	new(): ECSpresso<ComponentTypes, EventTypes, ResourceTypes>;
 }
 
 /**
- * Static methods on the ECSpresso class
- */
+	* Static methods on the ECSpresso class
+*/
 export default interface ECSpresso {
 		/**
-		 * Create a new ECSpresso builder with type-safe bundle installation.
-		 * This is the preferred way to create an ECSpresso instance with bundles.
+			* Create a new ECSpresso builder with type-safe bundle installation.
+			* This is the preferred way to create an ECSpresso instance with bundles.
 		 *
-		 * Example:
-		 * ```typescript
-		 * const ecs = ECSpresso.create<MyComponents, MyEvents, MyResources>()
+			* Example:
+			* ```typescript
+			* const ecs = ECSpresso.create<MyComponents, MyEvents, MyResources>()
 		 *	 .withBundle(bundle1)
 		 *	 .withBundle(bundle2)
 		 *	 .build();
-		 * ```
-		 */
+			* ```
+		*/
 		create(): ECSpressoBuilder<{}, {}, {}>; // No type parameters - returns a builder with empty types
 
 		/**
-		 * Create a new ECSpresso builder with type-safe bundle installation and explicit starting types.
-		 */
+			* Create a new ECSpresso builder with type-safe bundle installation and explicit starting types.
+		*/
 		create<
 				BaseC extends Record<string, any>,
 				BaseE extends Record<string, any>,
@@ -91,32 +91,32 @@ export default interface ECSpresso {
 }
 
 /**
- * ECSpresso is the central ECS framework class that connects all features.
- * It handles creation and management of entities, components, and systems, and provides lifecycle hooks.
- */
+	* ECSpresso is the central ECS framework class that connects all features.
+	* It handles creation and management of entities, components, and systems, and provides lifecycle hooks.
+*/
 export default class ECSpresso<
 	ComponentTypes extends Record<string, any> = Record<string, any>,
 	EventTypes extends Record<string, any> = Record<string, any>,
 	ResourceTypes extends Record<string, any> = Record<string, any>,
 > {
-	/** Library version */
+	/** Library version*/
 	public static readonly VERSION = version;
 
-	/** Access/modify stored components and entities */
+	/** Access/modify stored components and entities*/
 	private _entityManager: EntityManager<ComponentTypes>;
-	/** Publish/subscribe to events */
+	/** Publish/subscribe to events*/
 	private _eventBus: EventBus<EventTypes>;
-	/** Access/modify registered resources */
+	/** Access/modify registered resources*/
 	private _resourceManager: ResourceManager<ResourceTypes>;
 
-	/** Registered systems that will be updated in order */
+	/** Registered systems that will be updated in order*/
 	private _systems: Array<System<ComponentTypes, any, any, EventTypes, ResourceTypes>> = [];
-	/** Track installed bundles to prevent duplicates */
+	/** Track installed bundles to prevent duplicates*/
 	private _installedBundles: Set<string> = new Set();
 
 	/**
-	 * Creates a new ECSpresso instance.
-	 */
+		* Creates a new ECSpresso instance.
+	*/
 	constructor() {
 		this._entityManager = new EntityManager<ComponentTypes>();
 		this._eventBus = new EventBus<EventTypes>();
@@ -124,19 +124,19 @@ export default class ECSpresso<
 	}
 
 	/**
-	 * Creates a new ECSpresso builder for type-safe bundle installation.
-	 * This is the preferred way to create an ECSpresso instance with bundles.
+		* Creates a new ECSpresso builder for type-safe bundle installation.
+		* This is the preferred way to create an ECSpresso instance with bundles.
 	 *
-	 * @returns A builder instance for fluent method chaining
+		* @returns A builder instance for fluent method chaining
 	 *
-	 * @example
-	 * ```typescript
-	 * const ecs = ECSpresso.create<BaseComponents, BaseEvents, BaseResources>()
+		* @example
+		* ```typescript
+		* const ecs = ECSpresso.create<BaseComponents, BaseEvents, BaseResources>()
 	 *	 .withBundle(bundle1)
 	 *	 .withBundle(bundle2)
 	 *	 .build();
-	 * ```
-	 */
+		* ```
+	*/
 	static create<
 		C extends Record<string, any> = {},
 		E extends Record<string, any> = {},
@@ -146,10 +146,10 @@ export default class ECSpresso<
 	}
 
 	/**
-	 * Adds a system directly to this ECSpresso instance
-	 * @param label Unique name to identify the system
-	 * @returns A SystemBuilder instance for method chaining
-	 */
+		* Adds a system directly to this ECSpresso instance
+		* @param label Unique name to identify the system
+		* @returns A SystemBuilder instance for method chaining
+	*/
 	addSystem(label: string) {
 		return createEcspressoSystemBuilder<
 			ComponentTypes,
@@ -159,9 +159,9 @@ export default class ECSpresso<
 	}
 
 	/**
-	 * Update all systems, passing deltaTime and query results to each system's process function
-	 * @param deltaTime Time elapsed since the last update (in seconds)
-	 */
+		* Update all systems, passing deltaTime and query results to each system's process function
+		* @param deltaTime Time elapsed since the last update (in seconds)
+	*/
 	update(deltaTime: number) {
 		for (const system of this._systems) {
 			if (!system.process) continue;
@@ -187,10 +187,10 @@ export default class ECSpresso<
 	}
 
 	/**
-	 * Internal method to install a bundle into this ECSpresso instance.
-	 * Called by the ECSpressoBuilder during the build process.
-	 * The type safety is guaranteed by the builder's type system.
-	 */
+		* Internal method to install a bundle into this ECSpresso instance.
+		* Called by the ECSpressoBuilder during the build process.
+		* The type safety is guaranteed by the builder's type system.
+	*/
 	_installBundle<
 		C extends Record<string, any>,
 		E extends Record<string, any>,
@@ -219,11 +219,11 @@ export default class ECSpresso<
 	}
 
 	/**
-	 * Remove a system by its label
-	 * Calls the system's onDetach method with this ECSpresso instance if defined
-	 * @param label The unique label of the system to remove
-	 * @returns true if the system was found and removed, false otherwise
-	 */
+		* Remove a system by its label
+		* Calls the system's onDetach method with this ECSpresso instance if defined
+		* @param label The unique label of the system to remove
+		* @returns true if the system was found and removed, false otherwise
+	*/
 	removeSystem(label: string): boolean {
 		const index = this._systems.findIndex(system => system.label === label);
 		if (index === -1) return false;
@@ -243,15 +243,15 @@ export default class ECSpresso<
 	}
 
 	/**
-	 * Check if a resource exists
-	 */
+		* Check if a resource exists
+	*/
 	hasResource<K extends keyof ResourceTypes>(key: K): boolean {
 		return this._resourceManager.has(key);
 	}
 
 	/**
-	 * Get a resource if it exists, or undefined if not
-	 */
+		* Get a resource if it exists, or undefined if not
+	*/
 	getResource<K extends keyof ResourceTypes>(key: K): ResourceTypes[K] {
 		const resource = this._resourceManager.getOptional(key);
 
@@ -261,16 +261,16 @@ export default class ECSpresso<
 	}
 
 	/**
-	 * Add a resource to the ECS instance
-	 */
+		* Add a resource to the ECS instance
+	*/
 	addResource<K extends keyof ResourceTypes>(key: K, resource: ResourceTypes[K]): this {
 		this._resourceManager.add(key, resource);
 		return this;
 	}
 
 	/**
-	 * Check if an entity has a component
-	 */
+		* Check if an entity has a component
+	*/
 	hasComponent<K extends keyof ComponentTypes>(
 		entityId: number,
 		componentName: K
@@ -280,8 +280,8 @@ export default class ECSpresso<
 	}
 
 	/**
-	 * Get all entities with specific components
-	 */
+		* Get all entities with specific components
+	*/
 	getEntitiesWithComponents(
 		withComponents: (keyof ComponentTypes)[],
 		withoutComponents: (keyof ComponentTypes)[] = []
@@ -293,8 +293,8 @@ export default class ECSpresso<
 	}
 
 	/**
-	 * Get all installed bundle IDs
-	 */
+		* Get all installed bundle IDs
+	*/
 	get installedBundles(): string[] {
 		return Array.from(this._installedBundles);
 	}
@@ -314,15 +314,15 @@ export default class ECSpresso<
 }
 
 /**
- * Builder class for ECSpresso that provides fluent type-safe bundle installation.
- * Handles type checking during build process to ensure type safety.
- */
+	* Builder class for ECSpresso that provides fluent type-safe bundle installation.
+	* Handles type checking during build process to ensure type safety.
+*/
 export class ECSpressoBuilder<
 	C extends Record<string, any> = {},
 	E extends Record<string, any> = {},
 	R extends Record<string, any> = {}
 > {
-	/** The ECSpresso instance being built */
+	/** The ECSpresso instance being built*/
 	private ecspresso: ECSpresso<C, E, R>;
 
 	constructor() {
@@ -330,9 +330,9 @@ export class ECSpressoBuilder<
 	}
 
 	/**
-	 * Add the first bundle when starting with empty types.
-	 * This overload allows any bundle to be added to an empty ECSpresso instance.
-	 */
+		* Add the first bundle when starting with empty types.
+		* This overload allows any bundle to be added to an empty ECSpresso instance.
+	*/
 	withBundle<
 		BC extends Record<string, any>,
 		BE extends Record<string, any>,
@@ -343,9 +343,9 @@ export class ECSpressoBuilder<
 	): ECSpressoBuilder<BC, BE, BR>;
 
 	/**
-	 * Add a subsequent bundle with type checking.
-	 * This overload enforces bundle type compatibility.
-	 */
+		* Add a subsequent bundle with type checking.
+		* This overload enforces bundle type compatibility.
+	*/
 	withBundle<
 		BC extends Record<string, any>,
 		BE extends Record<string, any>,
@@ -357,10 +357,10 @@ export class ECSpressoBuilder<
 	): ECSpressoBuilder<C & BC, E & BE, R & BR>;
 
 	/**
-	 * Implementation of both overloads.
-	 * Since the type compatibility is checked in the method signature,
-	 * we can safely assume the bundle is compatible here.
-	 */
+		* Implementation of both overloads.
+		* Since the type compatibility is checked in the method signature,
+		* we can safely assume the bundle is compatible here.
+	*/
 	withBundle<
 		BC extends Record<string, any>,
 		BE extends Record<string, any>,
@@ -377,8 +377,8 @@ export class ECSpressoBuilder<
 	}
 
 	/**
-	 * Complete the build process and return the built ECSpresso instance
-	 */
+		* Complete the build process and return the built ECSpresso instance
+	*/
 	build(): ECSpresso<C, E, R> {
 		return this.ecspresso;
 	}
