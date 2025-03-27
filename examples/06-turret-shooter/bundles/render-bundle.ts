@@ -144,6 +144,7 @@ export default function createRenderBundle() {
 
 						// Add radar "sweep" animation - triangle shape with trailing fade
 						const radarSweep = document.createElement('div');
+						radarSweep.id = 'radar-sweep';
 						radarSweep.style.position = 'absolute';
 						radarSweep.style.left = '0';
 						radarSweep.style.top = '0';
@@ -254,7 +255,7 @@ export default function createRenderBundle() {
 					scene.add(projectileGroup);
 
 					// Create a very bright, large sphere
-					const projectileGeometry = new SphereGeometry(3, 16, 16);
+					const projectileGeometry = new SphereGeometry(0.5, 16, 16);
 					const projectileMaterial = new MeshBasicMaterial({ color: 0xff0000 });
 					const projectile = new Mesh(projectileGeometry, projectileMaterial);
 					projectileGroup.add(projectile);
@@ -276,7 +277,7 @@ export default function createRenderBundle() {
 					// SUPER SIMPLE ANIMATION
 					let distance = 0;
 					const maxDistance = 100;
-					const speed = 1;
+					const speed = 3;
 
 					function animate() {
 						// Check if game is paused
@@ -312,7 +313,8 @@ export default function createRenderBundle() {
 							const distanceToEnemy = Math.sqrt(dx*dx + dy*dy + dz*dz);
 
 							// Increase collision radius for better hit detection
-							const collisionRadius = enemy.components.collider.radius + 5;
+							// We're reducing this by 50% to match the smaller projectile
+							const collisionRadius = enemy.components.collider.radius + 2.5;
 
 							if (distanceToEnemy < collisionRadius) {
 								// Hit an enemy

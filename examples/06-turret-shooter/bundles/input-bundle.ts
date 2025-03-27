@@ -249,30 +249,6 @@ function handleShoot(ecs: any) {
 		direction.applyQuaternion(rotationQuaternion);
 		direction.normalize();
 
-		// Show debug message
-		console.log('Firing weapon!', {
-			direction: { x: direction.x, y: direction.y, z: direction.z },
-			rotation: { x: rotation.x, y: rotation.y, z: rotation.z }
-		});
-
-		// Create visual feedback text
-		const messageElement = document.createElement('div');
-		messageElement.innerText = 'FIRE!';
-		messageElement.style.position = 'absolute';
-		messageElement.style.left = '50%';
-		messageElement.style.top = '40%';
-		messageElement.style.transform = 'translate(-50%, -50%)';
-		messageElement.style.color = 'red';
-		messageElement.style.fontFamily = 'Arial, sans-serif';
-		messageElement.style.fontSize = '24px';
-		messageElement.style.fontWeight = 'bold';
-		document.getElementById('game-container')?.appendChild(messageElement);
-
-		// Remove the element after 500ms
-		setTimeout(() => {
-			messageElement.remove();
-		}, 500);
-
 		// Fire projectile
 		ecs.eventBus.publish('playerShoot', {
 			direction

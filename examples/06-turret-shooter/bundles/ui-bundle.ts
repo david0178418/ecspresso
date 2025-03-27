@@ -6,12 +6,26 @@ export default function createUIBundle() {
 		// Radar system
 		.addSystem('radar-system')
 		.setProcess((_queries, _deltaTime, ecs) => {
-			// Check if game is paused
 			const gameState = ecs.getResource('gameState');
+			const radarContainer = document.getElementById('radar-overlay');
+
+			// Handle radar animation based on game state
+			if (radarContainer) {
+				const radarSweep = document.getElementById('radar-sweep') as HTMLDivElement;
+				if (radarSweep) {
+					// Pause animation when game is not playing
+					if (gameState.status !== 'playing') {
+						radarSweep.style.animationPlayState = 'paused';
+					} else {
+						radarSweep.style.animationPlayState = 'running';
+					}
+				}
+			}
+
+			// Skip other radar updates if game is paused
 			if (gameState.status !== 'playing') return;
 
 			// Get radar container element
-			const radarContainer = document.getElementById('radar-overlay');
 			if (!radarContainer) return;
 
 			// Get player entity and rotation

@@ -87,7 +87,7 @@ export default async function createInitBundle() {
 			const scoreElement = createUIElement('score', 'Score: 0', '20px', '20px');
 			const healthElement = createUIElement('health', 'Health: 100/100', '20px', '60px');
 			const waveElement = createUIElement('wave', 'Wave: 1', '20px', '100px');
-			const messageElement = createUIElement('message', 'READY', '50%', '50%');
+			const messageElement = createUIElement('message', 'READY', '50%', '25%');
 			messageElement.style.transform = 'translate(-50%, -50%)';
 			messageElement.style.fontSize = '32px';
 			messageElement.style.opacity = '0';
@@ -157,6 +157,7 @@ export default async function createInitBundle() {
 					// Show ready message
 					const uiElements = ecs.getResource('uiElements');
 					if (uiElements.messageElement) {
+						uiElements.messageElement.style.top = '25%';
 						uiElements.messageElement.style.opacity = '1';
 						setTimeout(() => {
 							if (uiElements.messageElement) {

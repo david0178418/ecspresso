@@ -25,6 +25,7 @@ export default function createGameStateBundle() {
 					if (uiElements.messageElement) {
 						uiElements.messageElement.innerText = `WAVE ${waveManager.currentWave}`;
 						uiElements.messageElement.style.opacity = '1';
+						uiElements.messageElement.style.top = '25%';
 						setTimeout(() => {
 							if (uiElements.messageElement) {
 								uiElements.messageElement.style.opacity = '0';
@@ -42,11 +43,19 @@ export default function createGameStateBundle() {
 					const gameState = ecs.getResource('gameState');
 					gameState.status = 'paused';
 
+					// Explicitly pause radar sweep
+					const radarSweep = document.getElementById('radar-sweep') as HTMLDivElement;
+					if (radarSweep) {
+						radarSweep.style.animationPlayState = 'paused';
+					}
+
 					// Show pause message
 					const uiElements = ecs.getResource('uiElements');
 					if (uiElements.messageElement) {
 						uiElements.messageElement.innerText = 'PAUSED';
 						uiElements.messageElement.style.opacity = '1';
+						// Position the message higher on the screen (between middle and top)
+						uiElements.messageElement.style.top = '25%';
 					}
 				}
 			},
@@ -56,10 +65,17 @@ export default function createGameStateBundle() {
 					const gameState = ecs.getResource('gameState');
 					gameState.status = 'playing';
 
+					// Explicitly resume radar sweep
+					const radarSweep = document.getElementById('radar-sweep') as HTMLDivElement;
+					if (radarSweep) {
+						radarSweep.style.animationPlayState = 'running';
+					}
+
 					// Hide pause message
 					const uiElements = ecs.getResource('uiElements');
 					if (uiElements.messageElement) {
 						uiElements.messageElement.style.opacity = '0';
+						// Don't reset position as all messages should be at 25%
 					}
 				}
 			},
@@ -140,6 +156,7 @@ export default function createGameStateBundle() {
 					if (uiElements.messageElement) {
 						uiElements.messageElement.innerText = `WAVE ${waveManager.currentWave}`;
 						uiElements.messageElement.style.opacity = '1';
+						uiElements.messageElement.style.top = '25%';
 						setTimeout(() => {
 							if (uiElements.messageElement) {
 								uiElements.messageElement.style.opacity = '0';
@@ -157,6 +174,12 @@ export default function createGameStateBundle() {
 					const gameState = ecs.getResource('gameState');
 					gameState.status = 'gameOver';
 
+					// Pause radar sweep
+					const radarSweep = document.getElementById('radar-sweep') as HTMLDivElement;
+					if (radarSweep) {
+						radarSweep.style.animationPlayState = 'paused';
+					}
+
 					// Show game over message
 					const uiElements = ecs.getResource('uiElements');
 					if (uiElements.messageElement) {
@@ -164,6 +187,7 @@ export default function createGameStateBundle() {
 							? `YOU WIN!\nFinal Score: ${data.score}`
 							: `GAME OVER\nFinal Score: ${data.score}`;
 						uiElements.messageElement.style.opacity = '1';
+						uiElements.messageElement.style.top = '25%';
 						uiElements.messageElement.style.whiteSpace = 'pre';
 					}
 				}
