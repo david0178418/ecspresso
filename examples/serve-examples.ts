@@ -5,6 +5,7 @@ import playerInput from './02-player-input/player-input.html';
 import events from './03-events/events.html';
 import bundles from './04-bundles/bundles.html';
 import spaceInvaders from './05-space-invaders/space-invaders.html';
+import turretShooter from './06-turret-shooter/turret-shooter.html';
 
 const server = serve({
 	port: 3000,
@@ -18,6 +19,7 @@ const server = serve({
 		'/events/': events,
 		'/bundles/': bundles,
 		'/space-invaders/': spaceInvaders,
+		'/turret-shooter/': turretShooter,
 	},
 });
 

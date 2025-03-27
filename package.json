@@ -21,7 +21,9 @@
 	],
 	"devDependencies": {
 		"@types/bun": "latest",
-		"pixi.js": "^8.9.0"
+		"@types/three": "^0.174.0",
+		"pixi.js": "^8.9.0",
+		"three": "^0.174.0"
 	},
 	"peerDependencies": {
 		"typescript": "^5.8.2"
