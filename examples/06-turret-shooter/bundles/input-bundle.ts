@@ -268,7 +268,7 @@ function handleShoot(ecs: any) {
 		// Add random spread (1 degree = 0.0174 radians)
 		const spreadAngle = 0.0174;
 		const randomAngle = Math.random() * spreadAngle;
-		const randomRotation = Math.random() * Math.PI * 2; // Random rotation around the cone
+		// const randomRotation = Math.random() * Math.PI * 2; // Random rotation around the cone
 
 		// Create a random vector perpendicular to the direction
 		const perpendicular = new Vector3(
