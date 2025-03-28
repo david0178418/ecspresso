@@ -255,7 +255,7 @@ export default function createRenderBundle() {
 					scene.add(projectileGroup);
 
 					// Create a very bright, large sphere
-					const projectileGeometry = new SphereGeometry(0.5, 16, 16);
+					const projectileGeometry = new SphereGeometry(0.25, 16, 16);
 					const projectileMaterial = new MeshBasicMaterial({ color: 0xff0000 });
 					const projectile = new Mesh(projectileGeometry, projectileMaterial);
 					projectileGroup.add(projectile);

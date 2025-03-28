@@ -92,6 +92,10 @@ export default function createAIBundle() {
 				}
 			}
 		})
+		.setOnAttach((ecs) => {
+			// Add playerInitialRotation resource to track initial player facing direction
+			ecs.addResource('playerInitialRotation', { y: 0 });
+		})
 		.bundle
 		// Spawn system
 		.addSystem('spawn-system')
@@ -103,6 +107,7 @@ export default function createAIBundle() {
 
 			const waveManager = ecs.getResource('waveManager');
 			const config = ecs.getResource('config');
+			const playerInitialRotation = ecs.getResource('playerInitialRotation');
 
 			// Current time in seconds
 			const currentTime = performance.now() / 1000;
@@ -126,8 +131,11 @@ export default function createAIBundle() {
 						const isGroundEnemy = Math.random() < 0.7;
 						const enemyType = isGroundEnemy ? 'ground' : 'air';
 
-						// Random angle for spawn position
-						const angle = Math.random() * Math.PI * 2;
+						// Calculate spawn angle within ±60 degrees of player's initial facing direction
+						const baseAngle = playerInitialRotation.y;
+						const randomOffset = (Math.random() - 0.5) * (Math.PI / 3); // Random angle between -60 and +60 degrees
+						// Add Math.PI to place enemies in front instead of behind
+						const angle = baseAngle + Math.PI + randomOffset;
 						const spawnDistance = 180 + Math.random() * 40; // 180-220 units from center
 
 						// Calculate spawn position

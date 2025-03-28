@@ -106,7 +106,7 @@ export default async function createInitBundle() {
 					keys: {}
 				})
 				.addResource('config', {
-					playerFireRate: 5,
+					playerFireRate: 10,
 					playerProjectileSpeed: 0.03,
 					playerProjectileDamage: 100,
 					maxEnemies: 20,

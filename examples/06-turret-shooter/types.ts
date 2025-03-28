@@ -211,6 +211,11 @@ export interface Resources {
 		lastUpdateTime: number;
 	};
 
+	// Player initial rotation (for enemy spawn direction)
+	playerInitialRotation: {
+		y: number; // Initial horizontal rotation angle
+	};
+
 	// Event listeners (for cleanup)
 	eventListeners: {
 		mousemove: (event: MouseEvent) => void;

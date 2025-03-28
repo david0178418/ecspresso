@@ -13,6 +13,23 @@ export default function createInputBundle() {
 			let targetRotationX = 0; // Vertical rotation (around X axis)
 			const verticalLimit = Math.PI / 2; // 90 degrees limit
 
+			// Add continuous fire check
+			function checkContinuousFire() {
+				const gameState = ecs.getResource('gameState');
+				const input = ecs.getResource('input');
+
+				// Only fire if game is playing and left mouse button is held
+				if (gameState.status === 'playing' && input.mouseButtons.left) {
+					handleShoot(ecs);
+				}
+
+				// Continue checking
+				requestAnimationFrame(checkContinuousFire);
+			}
+
+			// Start continuous fire check
+			checkContinuousFire();
+
 			// Lock pointer for first-person control
 			const lockPointer = () => {
 				const container = document.getElementById('game-container');
@@ -247,6 +264,26 @@ function handleShoot(ecs: any) {
 			.setFromEuler(new Euler(rotation.x, rotation.y, 0, 'YXZ'));
 
 		direction.applyQuaternion(rotationQuaternion);
+
+		// Add random spread (1 degree = 0.0174 radians)
+		const spreadAngle = 0.0174;
+		const randomAngle = Math.random() * spreadAngle;
+		const randomRotation = Math.random() * Math.PI * 2; // Random rotation around the cone
+
+		// Create a random vector perpendicular to the direction
+		const perpendicular = new Vector3(
+			Math.random() - 0.5,
+			Math.random() - 0.5,
+			Math.random() - 0.5
+		).cross(direction).normalize();
+
+		// Rotate the perpendicular vector around the direction
+		const rotationAxis = new Vector3().crossVectors(direction, perpendicular);
+		const spreadQuaternion = new Quaternion().setFromAxisAngle(rotationAxis, randomAngle);
+		perpendicular.applyQuaternion(spreadQuaternion);
+
+		// Apply the spread to the direction
+		direction.add(perpendicular.multiplyScalar(Math.sin(randomAngle)));
 		direction.normalize();
 
 		// Fire projectile

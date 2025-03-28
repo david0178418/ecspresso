@@ -13,6 +13,17 @@ export default function createGameStateBundle() {
 					const gameState = ecs.getResource('gameState');
 					gameState.status = 'playing';
 
+					// Get player's initial rotation
+					const playerEntities = ecs.entityManager.getEntitiesWithComponents(['player', 'rotation']);
+					if (playerEntities.length > 0) {
+						const playerEntity = playerEntities[0];
+						if (playerEntity) {
+							ecs.addResource('playerInitialRotation', {
+								y: playerEntity.components.rotation.y
+							});
+						}
+					}
+
 					// Initialize first wave
 					const waveManager = ecs.getResource('waveManager');
 					const config = ecs.getResource('config');
