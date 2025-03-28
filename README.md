@@ -79,7 +79,7 @@ Bundles are a powerful way to organize game features:
 
 ```typescript
 // Create a player input bundle
-const inputBundle = new Bundle<Components, Events, Resources>()
+const inputBundle = new Bundle<Components, Events, Resources>('input-bundle')
   .addSystem('playerInput')
   .setProcess((_queries, _deltaTime, ecs) => {
     // Handle keyboard input and modify player velocity
@@ -87,7 +87,7 @@ const inputBundle = new Bundle<Components, Events, Resources>()
   });
 
 // Create a rendering bundle
-const renderBundle = new Bundle<Components, Events, Resources>()
+const renderBundle = new Bundle<Components, Events, Resources>('render-bundle')
   .addSystem('renderer')
   .addQuery('sprites', { with: ['position', 'sprite'] })
   .setProcess((queries) => {
@@ -99,7 +99,7 @@ const renderBundle = new Bundle<Components, Events, Resources>()
   });
 
 // Create a scoring bundle that adds a resource and listens for events
-const scoringBundle = new Bundle<Components, Events, Resources>()
+const scoringBundle = new Bundle<Components, Events, Resources>('scoring-bundle')
   .addResource('score', { value: 0 })
   .addSystem('scoreKeeper')
   .setEventHandlers({
@@ -127,8 +127,8 @@ ECSpresso uses a builder pattern to provide strong type checking for bundle comp
 
 ```typescript
 // These bundles have compatible component types
-const bundle1 = new Bundle<{position: {x: number, y: number}}, {}, {}>();
-const bundle2 = new Bundle<{velocity: {x: number, y: number}}, {}, {}>();
+const bundle1 = new Bundle<{position: {x: number, y: number}}>('bundle1');
+const bundle2 = new Bundle<{velocity: {x: number, y: number}}>('bundle2');
 
 // Create a world with both bundles - TypeScript will allow this
 const world = ECSpresso.create()
@@ -137,8 +137,8 @@ const world = ECSpresso.create()
   .build();
 
 // These bundles have conflicting component types
-const bundle3 = new Bundle<{position: {x: number, y: number}}, {}, {}>();
-const bundle4 = new Bundle<{position: string}, {}, {}>();
+const bundle3 = new Bundle<{position: {x: number, y: number}}>('bundle3');
+const bundle4 = new Bundle<{position: string}>('bundle4');
 
 // TypeScript will show an error because bundles have conflicting types
 const world2 = ECSpresso.create()
@@ -181,7 +181,7 @@ world.entityManager.removeComponent(entity.id, 'velocity');
 world.entityManager.removeEntity(entity.id);
 ```
 
-## Working with Systems
+## Working with Systems and Queries
 
 Systems can be added directly to an ECSpresso instance:
 
@@ -190,14 +190,35 @@ const world = ECSpresso.create<Components, Events, Resources>()
   .build();
 
 world.addSystem('physicsSystem')
+  // Query entities that have both position and velocity components
   .addQuery('movingEntities', {
     with: ['position', 'velocity']
   })
+  // Query entities that have position but not player component
+  .addQuery('nonPlayerObjects', {
+    with: ['position'],
+    without: ['player']
+  })
+  // Query entities with different component combinations
+  .addQuery('flyingNonPlayerEntities', {
+    with: ['flying', 'position'],
+    without: ['player', 'grounded']
+  })
   .setProcess((queries, deltaTime) => {
+    // Process moving entities
     for (const entity of queries.movingEntities) {
-      // Update positions based on velocity
       entity.components.position.x += entity.components.velocity.x * deltaTime;
       entity.components.position.y += entity.components.velocity.y * deltaTime;
+    }
+    
+    // Process non-player objects
+    for (const entity of queries.nonPlayerObjects) {
+      // Do something with non-player objects
+    }
+    
+    // Process flying non-player entities
+    for (const entity of queries.flyingNonPlayerEntities) {
+      // Apply flying behavior
     }
   })
   .build(); // Finalizes and adds the system to the world
@@ -209,7 +230,7 @@ The event system allows communication between systems:
 
 ```typescript
 // Define an event handler in a system
-const collisionBundle = new Bundle<Components, Events, Resources>()
+const collisionBundle = new Bundle<Components, Events, Resources>('collision-bundle')
   .addSystem('collisionResponse')
   .setEventHandlers({
     collision: {
