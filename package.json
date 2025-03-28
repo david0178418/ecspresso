@@ -5,6 +5,9 @@
 	"module": "dist/index.js",
 	"types": "dist/index.d.ts",
 	"description": "A minimal Entity-Component-System library for typescript and javascript.",
+	"publishConfig": {
+		"registry": "https://npm.pkg.github.com/"
+	},
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/david0178418/ecspresso"
