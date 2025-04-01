@@ -5,6 +5,7 @@
 	"module": "dist/index.js",
 	"types": "dist/index.d.ts",
 	"description": "A minimal Entity-Component-System library for typescript and javascript.",
+	"sideEffects": false,
 	"publishConfig": {
 		"registry": "https://npm.pkg.github.com/"
 	},
