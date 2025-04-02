@@ -27,6 +27,7 @@ export class SystemBuilder<
 			): void;
 		};
 	};
+	private _priority = 0; // Default priority is 0
 
 	constructor(
 		private _label: string,
@@ -50,6 +51,19 @@ export class SystemBuilder<
 	 */
 	get ecspresso() {
 		return this._ecspresso;
+	}
+
+	// TODO: Should this be a setter?
+	/**
+	 * Set the priority of this system. Systems with higher priority values 
+	 * execute before those with lower values. Systems with the same priority
+	 * execute in the order they were registered.
+	 * @param priority The priority value (default: 0)
+	 * @returns This SystemBuilder instance for method chaining
+	 */
+	setPriority(priority: number): this {
+		this._priority = priority;
+		return this;
 	}
 
 	/**
@@ -147,6 +161,7 @@ export class SystemBuilder<
 		const system: System<ComponentTypes, any, any, EventTypes, ResourceTypes> = {
 			label: this._label,
 			entityQueries: this.queries,
+			priority: this._priority,
 		};
 
 		if (this.processFunction) {
@@ -190,8 +205,12 @@ export function registerSystemWithEcspresso<
 	system: System<ComponentTypes, any, any, EventTypes, ResourceTypes>,
 	ecspresso: ECSpresso<ComponentTypes, EventTypes, ResourceTypes>
 ) {
+	// TODO: Remove the index notation workaround hack for private property access
 	// Add system to ECSpresso's system list
 	ecspresso["_systems"].push(system);
+
+	// Trigger sorting of systems by priority
+	ecspresso["_sortSystems"]();
 
 	system.onAttach?.(ecspresso);
 
