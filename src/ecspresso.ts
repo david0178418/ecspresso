@@ -106,6 +106,8 @@ export default class ECSpresso<
 
 	/** Registered systems that will be updated in order*/
 	private _systems: Array<System<ComponentTypes, any, any, EventTypes, ResourceTypes>> = [];
+	/** Cached sorted systems for efficient updates */
+	private _sortedSystems: Array<System<ComponentTypes, any, any, EventTypes, ResourceTypes>> = [];
 	/** Track installed bundles to prevent duplicates*/
 	private _installedBundles: Set<string> = new Set();
 
@@ -116,6 +118,7 @@ export default class ECSpresso<
 		this._entityManager = new EntityManager<ComponentTypes>();
 		this._eventBus = new EventBus<EventTypes>();
 		this._resourceManager = new ResourceManager<ResourceTypes>();
+		this._sortedSystems = []; // Initialize the sorted systems array
 	}
 
 	/**
@@ -158,7 +161,8 @@ export default class ECSpresso<
 		* @param deltaTime Time elapsed since the last update (in seconds)
 	*/
 	update(deltaTime: number) {
-		for (const system of this._systems) {
+		// Use the cached sorted systems array instead of re-sorting on every update
+		for (const system of this._sortedSystems) {
 			if (!system.process) continue;
 
 			// Prepare query results for each defined query in the system
@@ -182,35 +186,35 @@ export default class ECSpresso<
 	}
 
 	/**
-		* Internal method to install a bundle into this ECSpresso instance.
-		* Called by the ECSpressoBuilder during the build process.
-		* The type safety is guaranteed by the builder's type system.
+		* Sort the systems array by priority (higher priority first)
+		* Called internally when system list changes
+		* @private
 	*/
-	_installBundle<
-		C extends Record<string, any>,
-		E extends Record<string, any>,
-		R extends Record<string, any>
-	>(bundle: Bundle<C, E, R>): this {
-		// Prevent duplicate installation of the same bundle
-		if (this._installedBundles.has(bundle.id)) {
-			return this;
-		}
+	private _sortSystems(): void {
+		this._sortedSystems = [...this._systems].sort((a, b) => {
+			const priorityA = a.priority ?? 0;
+			const priorityB = b.priority ?? 0;
+			return priorityB - priorityA; // Higher priority executes first
+		});
+	}
 
-		// Mark this bundle as installed
-		this._installedBundles.add(bundle.id);
-
-		// Register systems from the bundle
-		// Type casting is necessary because the generic parameters don't match
-		bundle.registerSystemsWithEcspresso(this as any);
-
-		// Register resources from the bundle
-		const resources = bundle.getResources();
-		for (const [key, value] of resources.entries()) {
-			// Type compatibility is guaranteed by the builder's type system
-			this._resourceManager.add(key as unknown as keyof ResourceTypes, value as any);
-		}
-
-		return this;
+	/**
+		* Update the priority of a system
+		* @param label The unique label of the system to update
+		* @param priority The new priority value (higher values execute first)
+		* @returns true if the system was found and updated, false otherwise
+	*/
+	updateSystemPriority(label: string, priority: number): boolean {
+		const system = this._systems.find(system => system.label === label);
+		if (!system) return false;
+		
+		// Set the new priority
+		system.priority = priority;
+		
+		// Re-sort the systems array
+		this._sortSystems();
+		
+		return true;
 	}
 
 	/**
@@ -234,6 +238,10 @@ export default class ECSpresso<
 
 		// Remove system
 		this._systems.splice(index, 1);
+		
+		// Re-sort systems
+		this._sortSystems();
+		
 		return true;
 	}
 
@@ -308,6 +316,38 @@ export default class ECSpresso<
 
 	get resourceManager() {
 		return this._resourceManager;
+	}
+
+	/**
+		* Internal method to install a bundle into this ECSpresso instance.
+		* Called by the ECSpressoBuilder during the build process.
+		* The type safety is guaranteed by the builder's type system.
+	*/
+	_installBundle<
+		C extends Record<string, any>,
+		E extends Record<string, any>,
+		R extends Record<string, any>
+	>(bundle: Bundle<C, E, R>): this {
+		// Prevent duplicate installation of the same bundle
+		if (this._installedBundles.has(bundle.id)) {
+			return this;
+		}
+
+		// Mark this bundle as installed
+		this._installedBundles.add(bundle.id);
+
+		// Register systems from the bundle
+		// Type casting is necessary because the generic parameters don't match
+		bundle.registerSystemsWithEcspresso(this as any);
+
+		// Register resources from the bundle
+		const resources = bundle.getResources();
+		for (const [key, value] of resources.entries()) {
+			// Type compatibility is guaranteed by the builder's type system
+			this._resourceManager.add(key as unknown as keyof ResourceTypes, value as any);
+		}
+
+		return this;
 	}
 }
 

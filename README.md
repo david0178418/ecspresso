@@ -13,6 +13,7 @@ A type-safe, modular, and extensible Entity Component System (ECS) framework for
 - 💡 **Flexible**: Easily create entities, add components, and build systems with a clean, fluent API
 - 🔄 **Event-Driven**: Integrated event bus for communication between systems
 - 🗄️ **Resource Management**: Global resources for sharing state across systems
+- ⏱️ **Priority Control**: Set execution priority for systems to ensure proper processing order
 
 ## Installation
 
@@ -190,6 +191,8 @@ const world = ECSpresso.create<Components, Events, Resources>()
   .build();
 
 world.addSystem('physicsSystem')
+  // Set system execution priority (higher numbers execute first)
+  .setPriority(50)
   // Query entities that have both position and velocity components
   .addQuery('movingEntities', {
     with: ['position', 'velocity']
@@ -223,6 +226,73 @@ world.addSystem('physicsSystem')
   })
   .build(); // Finalizes and adds the system to the world
 ```
+
+## System Priority
+
+ECSpresso allows you to control the execution order of systems using priorities:
+
+```typescript
+// Systems with higher priority values execute before those with lower values
+// Default priority is 0 if not specified
+
+// Rendering system (runs first)
+world.addSystem('renderSystem')
+  .setPriority(100)
+  .setProcess(() => {
+    // Rendering logic
+  })
+  .build();
+
+// Physics system (runs second)
+world.addSystem('physicsSystem')
+  .setPriority(50)
+  .setProcess(() => {
+    // Physics update logic
+  })
+  .build();
+
+// Cleanup system (runs last)
+world.addSystem('cleanupSystem')
+  .setPriority(0) // Default priority if not specified
+  .setProcess(() => {
+    // Cleanup logic
+  })
+  .build();
+```
+
+Systems with the same priority value execute in the order they were registered, maintaining backward compatibility with existing code.
+
+You can also update a system's priority dynamically at runtime:
+
+```typescript
+// Change a system's priority (higher numbers execute first)
+world.updateSystemPriority('physicsSystem', 110); // Now physics will run before rendering
+```
+
+Priority also works with systems added through bundles:
+
+```typescript
+const highPriorityBundle = new Bundle<Components>()
+  .addSystem('importantSystem')
+  .setPriority(100)
+  .setProcess(() => {
+    // This will run first
+  });
+
+const lowPriorityBundle = new Bundle<Components>()
+  .addSystem('lateSystem')
+  .setPriority(0)
+  .setProcess(() => {
+    // This will run last
+  });
+
+const world = ECSpresso.create<Components>()
+  .withBundle(lowPriorityBundle) // Added first but runs last due to priority
+  .withBundle(highPriorityBundle) // Added second but runs first due to priority
+  .build();
+```
+
+The system priority implementation is optimized with a cached sorting mechanism that only re-sorts systems when priorities change or when systems are added or removed, avoiding unnecessary sorting during each update cycle.
 
 ## Event System
 

@@ -43,6 +43,11 @@ interface System<
 	ResourceTypes extends Record<string, any> = Record<string, any>,
 > {
 	label: string;
+	/**
+	 * System priority - higher values execute first (default: 0)
+	 * When systems have the same priority, they execute in registration order
+	 */
+	priority?: number;
 	entityQueries?: {
 		[queryName: string]: QueryConfig<ComponentTypes, WithComponents, WithoutComponents>;
 	};
