@@ -110,6 +110,8 @@ export default class ECSpresso<
 	private _sortedSystems: Array<System<ComponentTypes, any, any, EventTypes, ResourceTypes>> = [];
 	/** Track installed bundles to prevent duplicates*/
 	private _installedBundles: Set<string> = new Set();
+	/** Store references to installed bundles */
+	private _bundleRegistry: Map<string, Bundle<any, any, any>> = new Map();
 
 	/**
 		* Creates a new ECSpresso instance.
@@ -207,13 +209,13 @@ export default class ECSpresso<
 	updateSystemPriority(label: string, priority: number): boolean {
 		const system = this._systems.find(system => system.label === label);
 		if (!system) return false;
-		
+
 		// Set the new priority
 		system.priority = priority;
-		
+
 		// Re-sort the systems array
 		this._sortSystems();
-		
+
 		return true;
 	}
 
@@ -238,10 +240,10 @@ export default class ECSpresso<
 
 		// Remove system
 		this._systems.splice(index, 1);
-		
+
 		// Re-sort systems
 		this._sortSystems();
-		
+
 		return true;
 	}
 
@@ -265,10 +267,85 @@ export default class ECSpresso<
 
 	/**
 		* Add a resource to the ECS instance
+		* @param key The resource key
+		* @param resourceOrFactory The resource value or a factory function that returns a Promise with the resource
+		* @returns The ECSpresso instance for chaining
 	*/
-	addResource<K extends keyof ResourceTypes>(key: K, resource: ResourceTypes[K]): this {
-		this._resourceManager.add(key, resource);
+	addResource<K extends keyof ResourceTypes>(
+		key: K,
+		resourceOrFactory: ResourceTypes[K] | (() => Promise<ResourceTypes[K]>)
+	): this {
+		this._resourceManager.add(key, resourceOrFactory);
 		return this;
+	}
+
+	/**
+		* Asynchronously get a resource, loading it if necessary
+		* @param key The resource key
+		* @returns Promise that resolves to the resource
+	*/
+	async getResourceAsync<K extends keyof ResourceTypes>(key: K): Promise<ResourceTypes[K]> {
+		return this._resourceManager.loadAsync(key);
+	}
+
+	/**
+		* Load all required resources from bundle dependencies
+		* @returns Promise that resolves when all required resources are loaded
+	*/
+	async initializeResources(): Promise<void> {
+		const resourcesNeeded = new Set<keyof ResourceTypes>();
+
+		// Collect all required resources from installed bundles
+		for (const bundleId of this._installedBundles) {
+			const bundle = this._bundleRegistry.get(bundleId);
+			if (bundle) {
+				for (const dependency of bundle.getResourceDependencies()) {
+					// We know the dependency is a valid keyof ResourceTypes because
+					// it was declared by requireResource<K extends keyof ResourceTypes>
+					resourcesNeeded.add(dependency as keyof ResourceTypes);
+				}
+			}
+		}
+
+		// Load all needed resources that don't exist yet
+		const loadPromises: Array<Promise<unknown>> = [];
+		const failedResources: Array<{ key: keyof ResourceTypes; error: Error }> = [];
+
+		for (const resourceKey of resourcesNeeded) {
+			// Skip if resource already exists
+			if (this._resourceManager.has(resourceKey)) {
+				continue;
+			}
+
+			// Check if we have an async factory for this resource
+			if (this._resourceManager.hasFactory(resourceKey)) {
+				// Create a promise that handles errors for this specific resource
+				const loadPromise = this._resourceManager.loadAsync(resourceKey)
+					.catch(error => {
+						// Store the error to report it later
+						failedResources.push({
+							key: resourceKey,
+							error: error instanceof Error ? error : new Error(String(error))
+						});
+					});
+
+				loadPromises.push(loadPromise);
+			} else {
+				console.warn(`No factory found for required resource: ${String(resourceKey)}`);
+			}
+		}
+
+		// Wait for all resources to load
+		await Promise.all(loadPromises);
+
+		// If any resources failed to load, report them
+		if (failedResources.length > 0) {
+			const errorMessages = failedResources.map(
+				({ key, error }) => `Failed to load resource ${String(key)}: ${error.message}`
+			);
+
+			throw new Error(`Failed to initialize resources:\n${errorMessages.join('\n')}`);
+		}
 	}
 
 	/**
@@ -336,15 +413,22 @@ export default class ECSpresso<
 		// Mark this bundle as installed
 		this._installedBundles.add(bundle.id);
 
+		// Store a reference to the bundle
+		this._bundleRegistry.set(bundle.id, bundle);
+
 		// Register systems from the bundle
-		// Type casting is necessary because the generic parameters don't match
-		bundle.registerSystemsWithEcspresso(this as any);
+		// We know that the bundle's systems are compatible with this ECSpresso instance
+		// because the ECSpressoBuilder enforces type compatibility
+		bundle.registerSystemsWithEcspresso(this as unknown as ECSpresso<C, E, R>);
 
 		// Register resources from the bundle
 		const resources = bundle.getResources();
 		for (const [key, value] of resources.entries()) {
 			// Type compatibility is guaranteed by the builder's type system
-			this._resourceManager.add(key as unknown as keyof ResourceTypes, value as any);
+			// when bundle types are merged with ECSpresso's types
+			const typedKey = key as unknown as keyof ResourceTypes;
+			const typedValue = value as unknown as ResourceTypes[typeof typedKey];
+			this._resourceManager.add(typedKey, typedValue);
 		}
 
 		return this;
@@ -408,7 +492,7 @@ export class ECSpressoBuilder<
 	): ECSpressoBuilder<C & BC, E & BE, R & BR> {
 		// Install the bundle
 		// Type compatibility is guaranteed by method overloads
-		this.ecspresso._installBundle(bundle as any);
+		this.ecspresso._installBundle(bundle);
 
 		// Return a builder with the updated type parameters
 		return this as unknown as ECSpressoBuilder<C & BC, E & BE, R & BR>;

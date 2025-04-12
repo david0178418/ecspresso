@@ -193,4 +193,66 @@ describe('ResourceManager', () => {
 		]);
 		expect(gameState).toEqual({ current: 'updated', previous: 'playing' });
 	});
+
+	test('add should handle both direct resources and factories', async () => {
+		const resourceManager = new ResourceManager<{
+			direct: number;
+			factory: string;
+		}>();
+
+		// Add a direct resource
+		resourceManager.add('direct', 42);
+
+		// Add a factory resource
+		let factoryCalled = false;
+		resourceManager.add('factory', async () => {
+			factoryCalled = true;
+			return 'factoryValue';
+		});
+
+		// Direct resource should be immediately available
+		expect(resourceManager.has('direct')).toBe(true);
+		expect(resourceManager.get('direct')).toBe(42);
+
+		// Factory resource should not be available yet
+		expect(resourceManager.has('factory')).toBe(false);
+		expect(resourceManager.hasFactory('factory')).toBe(true);
+
+		// Both keys should be returned by getKeys()
+		const keys = resourceManager.getKeys();
+		expect(keys).toContain('direct');
+		expect(keys).toContain('factory');
+
+		// Loading the factory resource should call the factory
+		const factoryValue = await resourceManager.loadAsync('factory');
+		expect(factoryCalled).toBe(true);
+		expect(factoryValue).toBe('factoryValue');
+
+		// Now the factory resource should also be available as a direct resource
+		expect(resourceManager.has('factory')).toBe(true);
+		expect(resourceManager.get('factory')).toBe('factoryValue');
+	});
+
+	test('remove should remove both direct resources and factories', () => {
+		const resourceManager = new ResourceManager<{
+			direct: number;
+			factory: string;
+		}>();
+
+		// Add resources
+		resourceManager.add('direct', 42);
+		resourceManager.add('factory', async () => 'factoryValue');
+
+		// Verify they exist
+		expect(resourceManager.has('direct')).toBe(true);
+		expect(resourceManager.hasFactory('factory')).toBe(true);
+
+		// Remove them
+		resourceManager.remove('direct');
+		resourceManager.remove('factory');
+
+		// Verify they're gone
+		expect(resourceManager.has('direct')).toBe(false);
+		expect(resourceManager.hasFactory('factory')).toBe(false);
+	});
 });
