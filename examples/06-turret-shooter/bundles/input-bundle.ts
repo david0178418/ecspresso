@@ -63,7 +63,7 @@ export default function createInputBundle() {
 				if (document.pointerLockElement === document.getElementById('game-container')) {
 					// Update based on mouse movement deltas (for pointer lock)
 					mouseX += event.movementX * 0.002; // Adjust sensitivity
-					mouseY += event.movementY * 0.002;
+					mouseY -= event.movementY * 0.002;
 
 					// Limit vertical rotation to prevent flipping
 					mouseY = Math.max(-verticalLimit, Math.min(verticalLimit * 0.8, mouseY));
