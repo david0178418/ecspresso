@@ -91,14 +91,14 @@ class EntityManager<ComponentTypes> {
 		// Use the smallest component set as base for better performance
 		if (required.length === 0) {
 			if (excluded.length === 0) {
-				return Array.from(this.entities.values()) as any;
+				return Array.from(this.entities.values()) as Array<FilteredEntity<ComponentTypes, WithComponents extends never ? never : WithComponents, WithoutComponents extends never ? never : WithoutComponents>>;
 			}
 
 			return Array
 				.from(this.entities.values())
 				.filter((entity) => {
 					return excluded.every(comp => !(comp in entity.components));
-				}) as any;
+				}) as Array<FilteredEntity<ComponentTypes, WithComponents extends never ? never : WithComponents, WithoutComponents extends never ? never : WithoutComponents>>;
 		}
 
 		// Find the component with the smallest entity set to start with

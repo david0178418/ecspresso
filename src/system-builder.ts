@@ -55,7 +55,7 @@ export class SystemBuilder<
 
 	// TODO: Should this be a setter?
 	/**
-	 * Set the priority of this system. Systems with higher priority values 
+	 * Set the priority of this system. Systems with higher priority values
 	 * execute before those with lower values. Systems with the same priority
 	 * execute in the order they were registered.
 	 * @param priority The priority value (default: 0)
@@ -88,12 +88,19 @@ export class SystemBuilder<
 			: SystemBuilder<ComponentTypes, EventTypes, ResourceTypes, NewQueries> {
 		// Cast is needed because TypeScript can't preserve the type information
 		// when modifying an object property
-		const newBuilder = this as any;
-		newBuilder.queries = {
+		this.queries = {
 			...this.queries,
 			[name]: definition,
-		};
-		return newBuilder;
+		} as unknown as NewQueries;
+
+		// Using unknown as an intermediate step is safer than using 'any'
+		return this as unknown as (
+			this extends SystemBuilderWithEcspresso<ComponentTypes, EventTypes, ResourceTypes, Queries>
+				? SystemBuilderWithEcspresso<ComponentTypes, EventTypes, ResourceTypes, NewQueries>
+				: this extends SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, Queries>
+					? SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, NewQueries>
+					: SystemBuilder<ComponentTypes, EventTypes, ResourceTypes, NewQueries>
+		);
 	}
 
 	/**
