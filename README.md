@@ -43,10 +43,21 @@ interface Events {
 interface Resources {
   score: { value: number };
   gameState: 'playing' | 'paused' | 'gameOver';
+  assets: { textures: Record<string, any>; sounds: Record<string, any> };
 }
 
 // Create a world instance directly
 const world = new ECSpresso<Components, Events, Resources>();
+
+// Add resources - can be direct values or factory functions
+world.addResource('score', { value: 0 });
+world.addResource('gameState', 'paused');
+world.addResource('assets', async () => {
+  // Simulate loading game assets
+  const textures = await loadTextures();
+  const sounds = await loadSounds();
+  return { textures, sounds };
+});
 
 // Add a movement system directly to the world
 world.addSystem('movement')
@@ -65,6 +76,9 @@ world.addSystem('movement')
 const entity = world.entityManager.createEntity();
 world.entityManager.addComponent(entity.id, 'position', { x: 0, y: 0 });
 world.entityManager.addComponent(entity.id, 'velocity', { x: 10, y: 5 });
+
+// Initialize async resources (like assets) before using them
+await world.initializeResources();
 
 // Run a single update
 world.update(1/60);
@@ -102,6 +116,12 @@ const renderBundle = new Bundle<Components, Events, Resources>('render-bundle')
 // Create a scoring bundle that adds a resource and listens for events
 const scoringBundle = new Bundle<Components, Events, Resources>('scoring-bundle')
   .addResource('score', { value: 0 })
+  // Resources can also be added using factory functions
+  .addResource('gameStats', () => ({
+    highScore: 0,
+    totalPlayTime: 0,
+    sessionStartTime: Date.now()
+  }))
   .addSystem('scoreKeeper')
   .setEventHandlers({
     scoreChange: {
@@ -113,13 +133,41 @@ const scoringBundle = new Bundle<Components, Events, Resources>('scoring-bundle'
     }
   });
 
+// Create a game initialization bundle with event handlers
+const initBundle = new Bundle<Components, Events, Resources>('init-bundle')
+  .addSystem('initialization')
+  .setEventHandlers({
+    gameStart: {
+      async handler(data, ecs) {
+        console.log('Game starting...');
+        
+        // Initialize any resources that were added as factory functions
+        await ecs.initializeResources();
+        
+        // Resources are now ready to use
+        const assets = ecs.getResource('assets');
+        console.log(`Loaded ${Object.keys(assets.textures).length} textures`);
+        
+        // Continue with game initialization
+        // ...
+      }
+    }
+  });
+
 // Create the game world with all features using the builder pattern
 const game = ECSpresso.create<Components, Events, Resources>()
-  .withBundle(physicsBundle)
+  .withBundle(initBundle)
   .withBundle(inputBundle)
   .withBundle(renderBundle)
   .withBundle(scoringBundle)
-  .build();
+  .build()
+  .addResource('assets', async () => {
+    // This won't execute until initializeResources is called
+    return { textures: await loadTextures(), sounds: await loadSounds() };
+  });
+
+// Start the game
+game.eventBus.publish('gameStart', {});
 ```
 
 ## Type Safety with the Builder Pattern
@@ -335,7 +383,7 @@ unsubscribe();
 Resources provide global state accessible to all systems:
 
 ```typescript
-// Add a resource
+// Add a resource directly
 world.addResource('score', { value: 0 });
 
 // Get a resource
@@ -346,6 +394,47 @@ score.value += 10;
 const hasScore = world.hasResource('score');
 ```
 
-## License
+### Resource Factory Functions
 
-MIT
+Resources can also be created using factory functions, which is useful for lazy initialization or async resources:
+
+```typescript
+// Add a resource using a synchronous factory function
+world.addResource('controlMap', () => {
+  console.log('Creating control map');
+  return {
+    up: false,
+    down: false,
+    left: false,
+    right: false
+  };
+});
+
+// Add a resource using an asynchronous factory function
+world.addResource('gameAssets', async () => {
+  console.log('Loading game assets...');
+  const assets = await loadAssets();
+  return assets;
+});
+
+// Factory functions are executed when the resource is first accessed
+const controlMap = world.getResource('controlMap'); // Factory executes here
+
+// Or when explicitly initialized
+await world.initializeResources(); // Initializes all pending resources
+
+// You can also initialize specific resources
+await world.initializeResources('gameAssets', 'controlMap');
+```
+
+Factory functions are useful for:
+- Lazy loading of expensive resources
+- Async initialization of resources requiring network or file operations
+- Resources that depend on other systems being initialized first
+- Avoiding circular dependencies in your initialization code
+
+When using async factory functions, ensure you either:
+1. Call `initializeResources()` explicitly before accessing the resource, or
+2. Use `await` when getting a resource that might return a Promise
+
+> **Note**: For backward compatibility, `someMethodToReadyResourcesIfRequired()` is also available as an alias for `initializeResources()`, but using the newer method name is recommended.
