@@ -186,6 +186,16 @@ export default class ECSpresso<
 	}
 
 	/**
+	 * Initialize specific resources or all resources that were added as factory functions but haven't been initialized yet.
+	 * This is useful when you need to ensure resources are ready before proceeding.
+	 * @param keys Optional array of resource keys to initialize. If not provided, all pending resources will be initialized.
+	 * @returns Promise that resolves when the specified resources are initialized
+	 */
+	async initializeResources<K extends keyof ResourceTypes>(...keys: K[]): Promise<void> {
+		await this._resourceManager.initializeResources(...keys);
+	}
+
+	/**
 		* Sort the systems array by priority (higher priority first)
 		* Called internally when system list changes
 		* @private
@@ -207,13 +217,13 @@ export default class ECSpresso<
 	updateSystemPriority(label: string, priority: number): boolean {
 		const system = this._systems.find(system => system.label === label);
 		if (!system) return false;
-		
+
 		// Set the new priority
 		system.priority = priority;
-		
+
 		// Re-sort the systems array
 		this._sortSystems();
-		
+
 		return true;
 	}
 
@@ -238,10 +248,10 @@ export default class ECSpresso<
 
 		// Remove system
 		this._systems.splice(index, 1);
-		
+
 		// Re-sort systems
 		this._sortSystems();
-		
+
 		return true;
 	}
 
@@ -256,7 +266,7 @@ export default class ECSpresso<
 		* Get a resource if it exists, or undefined if not
 	*/
 	getResource<K extends keyof ResourceTypes>(key: K): ResourceTypes[K] {
-		const resource = this._resourceManager.getOptional(key);
+		const resource = this._resourceManager.get(key);
 
 		if (!resource) throw new Error(`Resource "${key.toString()}" not found`);
 
@@ -266,7 +276,10 @@ export default class ECSpresso<
 	/**
 		* Add a resource to the ECS instance
 	*/
-	addResource<K extends keyof ResourceTypes>(key: K, resource: ResourceTypes[K]): this {
+	addResource<K extends keyof ResourceTypes>(
+		key: K,
+		resource: ResourceTypes[K] | (() => ResourceTypes[K] | Promise<ResourceTypes[K]>)
+	): this {
 		this._resourceManager.add(key, resource);
 		return this;
 	}
@@ -337,14 +350,16 @@ export default class ECSpresso<
 		this._installedBundles.add(bundle.id);
 
 		// Register systems from the bundle
-		// Type casting is necessary because the generic parameters don't match
-		bundle.registerSystemsWithEcspresso(this as any);
+		// The type compatibility is ensured by the builder's withBundle method
+		// We need this cast due to TypeScript's limitations with generics
+		type BundleEcspresso = ECSpresso<C, E, R>;
+		bundle.registerSystemsWithEcspresso(this as unknown as BundleEcspresso);
 
 		// Register resources from the bundle
 		const resources = bundle.getResources();
 		for (const [key, value] of resources.entries()) {
-			// Type compatibility is guaranteed by the builder's type system
-			this._resourceManager.add(key as unknown as keyof ResourceTypes, value as any);
+			// Instead of casting, use the add method's flexibility
+			this._resourceManager.add(key as string, value);
 		}
 
 		return this;
@@ -408,7 +423,7 @@ export class ECSpressoBuilder<
 	): ECSpressoBuilder<C & BC, E & BE, R & BR> {
 		// Install the bundle
 		// Type compatibility is guaranteed by method overloads
-		this.ecspresso._installBundle(bundle as any);
+		this.ecspresso._installBundle(bundle);
 
 		// Return a builder with the updated type parameters
 		return this as unknown as ECSpressoBuilder<C & BC, E & BE, R & BR>;

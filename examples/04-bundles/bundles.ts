@@ -47,8 +47,8 @@ ECSpresso
 	.withBundle(createPlayerControllerBundle())
 	.build()
 	// Add global resources
-	.addResource('controlMap', activeKeyMap())
-	.addResource('pixi', await initPixi())
+	.addResource('controlMap', activeKeyMap)
+	.addResource('pixi', initPixi)
 	// Trigger game initialization
 	.eventBus.publish('initializeGame', {
 		someRandomData: new Date(),
@@ -83,6 +83,7 @@ function createCircleSprite(color: number, pixi: Application): Sprite {
 }
 
 function activeKeyMap() {
+	console.log('activeKeyMap');
 	const controlMap: ActiveKeyMap = {
 		up: false,
 		down: false,
@@ -144,16 +145,18 @@ function randomInt(min: number, max?: number) {
 	return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-
 function createGameInitBundle() {
 	return new Bundle<Components, Events, Resources>()
 		.addSystem('init')
 		.setEventHandlers({
 			initializeGame: {
-				handler(data, ecs) {
+				async handler(data, ecs) {
 					console.log(`initializing at ${data.someRandomData.toLocaleDateString()}`);
+					await ecs.initializeResources();
 
 					const pixi = ecs.getResource('pixi');
+
+					console.log('pixi', pixi);
 
 					const canvasContainerEl = document
 						.createElement('div')
@@ -196,7 +199,6 @@ function createGameInitBundle() {
 			},
 			startGame: {
 				handler(_eventData, ecs) {
-					console.log('game started triggered');
 					const pixi = ecs.getResource('pixi');
 
 					pixi.ticker.add(ticker => {
@@ -208,7 +210,6 @@ function createGameInitBundle() {
 		.build()
 		.bundle;
 }
-
 
 function createPhysicsBundle() {
 	return new Bundle<Components, Events, Resources>()
