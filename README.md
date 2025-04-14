@@ -285,19 +285,13 @@ world.addSystem('physicsSystem')
   .build(); // Finalizes and adds the system to the world
 ```
 
-## System Lifecycle Hooks
+## System Lifecycle Hook
 
-ECSpresso systems have three lifecycle hooks that you can implement:
+ECSpresso systems have two lifecycle hooks that you can implement:
 
 ```typescript
 // Add a system with all lifecycle hooks
 world.addSystem('gameSystem')
-  // Called when the system is attached to the ECSpresso instance
-  .setOnAttach((ecs) => {
-    console.log('System attached');
-    // Set up event subscriptions or initialize system state
-  })
-  
   // Called during the ECSpresso.initialize() method
   // Good for one-time setup that depends on resources
   .setOnInitialize(async (ecs) => {

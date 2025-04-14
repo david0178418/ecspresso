@@ -26,7 +26,7 @@ export default async function createInitBundle() {
 		.addResource('scene', scene)
 		.addResource('camera', camera)
 		.addSystem('init')
-		.setOnAttach((ecs) => {
+		.setOnInitialize((ecs) => {
 			// Append renderer to DOM
 			document.getElementById('game-container')?.appendChild(renderer.domElement);
 

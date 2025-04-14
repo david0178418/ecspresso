@@ -5,8 +5,7 @@ import type { Components, Events, Resources } from '../types';
 export default function createUIBundle() {
 	return new Bundle<Components, Events, Resources>('ui-bundle')
 		.addSystem('ui-manager')
-		.setOnAttach((ecs) => {
-			console.log('ui-manager onAttach');
+		.setOnInitialize((ecs) => {
 			const uiContainer = ecs.getResource('uiContainer');
 			const pixi = ecs.getResource('pixi');
 

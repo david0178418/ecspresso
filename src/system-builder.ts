@@ -13,9 +13,8 @@ export class SystemBuilder<
 > {
 	private queries: Queries = {} as Queries;
 	private processFunction?: ProcessFunction<ComponentTypes, EventTypes, ResourceTypes, Queries>;
-	private attachFunction?: LifecycleFunction<ComponentTypes, EventTypes, ResourceTypes>;
 	private detachFunction?: LifecycleFunction<ComponentTypes, EventTypes, ResourceTypes>;
-	private initializeFunction?: InitializeFunction<ComponentTypes, EventTypes, ResourceTypes>;
+	private initializeFunction?: LifecycleFunction<ComponentTypes, EventTypes, ResourceTypes>;
 	private eventHandlers?: {
 		[EventName in keyof EventTypes]?: {
 			handler(
@@ -110,19 +109,6 @@ export class SystemBuilder<
 	}
 
 	/**
-	 * Set the onAttach lifecycle hook
-	 * Called when the system is attached to the ECS
-	 * @param onAttach Function to run when this system is attached to the ECS
-	 * @returns This SystemBuilder instance for method chaining
-	 */
-	setOnAttach(
-		onAttach: LifecycleFunction<ComponentTypes, EventTypes, ResourceTypes>
-	): this {
-		this.attachFunction = onAttach;
-		return this;
-	}
-
-	/**
 	 * Set the onDetach lifecycle hook
 	 * Called when the system is removed from the ECS
 	 * @param onDetach Function to run when this system is detached from the ECS
@@ -182,10 +168,6 @@ export class SystemBuilder<
 			system.process = this.processFunction;
 		}
 
-		if (this.attachFunction) {
-			system.onAttach = this.attachFunction;
-		}
-
 		if (this.detachFunction) {
 			system.onDetach = this.detachFunction;
 		}
@@ -229,8 +211,6 @@ export function registerSystemWithEcspresso<
 
 	// Trigger sorting of systems by priority
 	ecspresso["_sortSystems"]();
-
-	system.onAttach?.(ecspresso);
 
 	if(!system.eventHandlers) return;
 
@@ -288,26 +268,10 @@ type ProcessFunction<
 ) => void;
 
 /**
- * Function signature for system lifecycle hooks (onAttach and onDetach)
- * @param ecs The ECSpresso instance providing access to all ECS functionality
- */
-type LifecycleFunction<
-	ComponentTypes,
-	EventTypes extends Record<string, any>,
-	ResourceTypes extends Record<string, any>,
-> = (
-	ecs: ECSpresso<
-		ComponentTypes & Record<string, any>,
-		EventTypes,
-		ResourceTypes
-	>,
-) => void;
-
-/**
  * Type for system initialization functions
  * These can be asynchronous
  */
-type InitializeFunction<
+type LifecycleFunction<
 	ComponentTypes,
 	EventTypes extends Record<string, any>,
 	ResourceTypes extends Record<string, any>,

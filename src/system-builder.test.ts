@@ -109,17 +109,17 @@ describe('SystemBuilder', () => {
 		expect(queriesProcessed['withHealth']).not.toContain(entity1.id);
 	});
 
-	test('should support lifecycle hooks', () => {
+	test('should support lifecycle hooks', async () => {
 		// Track lifecycle hooks
-		let onAttachCalled = false;
+		let onInitializeCalled = false;
 		let onDetachCalled = false;
 		let processCalledCount = 0;
 
 		// Define a system with lifecycle hooks
 		const bundle = new Bundle<TestComponents>()
 			.addSystem('LifecycleSystem')
-			.setOnAttach(() => {
-				onAttachCalled = true;
+			.setOnInitialize(() => {
+				onInitializeCalled = true;
 			})
 			.setProcess(() => {
 				processCalledCount++;
@@ -134,8 +134,10 @@ describe('SystemBuilder', () => {
 			.withBundle(bundle)
 			.build();
 
+		await world.initialize();
+
 		// onAttach should have been called when the bundle was added
-		expect(onAttachCalled).toBe(true);
+		expect(onInitializeCalled).toBe(true);
 		expect(onDetachCalled).toBe(false);
 		expect(processCalledCount).toBe(0);
 

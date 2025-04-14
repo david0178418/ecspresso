@@ -10,7 +10,7 @@ export default function createInputBundle(): Bundle<Components, Events, Resource
 			pause: false,
 		})
 		.addSystem('input-handling')
-		.setOnAttach(({ eventBus }) => {
+		.setOnInitialize(({ eventBus }) => {
 			window.addEventListener('keydown', (e: KeyboardEvent) => {
 				if (e.repeat) return;
 
