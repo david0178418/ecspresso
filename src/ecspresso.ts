@@ -212,7 +212,7 @@ export default class ECSpresso<
 	 * @returns Promise that resolves when the specified resources are initialized
 	 */
 	async initializeResources<K extends keyof ResourceTypes>(...keys: K[]): Promise<void> {
-		await this._resourceManager.initializeResources(...keys);
+		await this._resourceManager.initializeResources(this, ...keys);
 	}
 
 	/**
@@ -286,7 +286,7 @@ export default class ECSpresso<
 		* Get a resource if it exists, or undefined if not
 	*/
 	getResource<K extends keyof ResourceTypes>(key: K): ResourceTypes[K] {
-		const resource = this._resourceManager.get(key);
+		const resource = this._resourceManager.get(key, this);
 
 		if (!resource) throw new Error(`Resource "${key.toString()}" not found`);
 
@@ -298,7 +298,7 @@ export default class ECSpresso<
 	*/
 	addResource<K extends keyof ResourceTypes>(
 		key: K,
-		resource: ResourceTypes[K] | (() => ResourceTypes[K] | Promise<ResourceTypes[K]>)
+		resource: ResourceTypes[K] | ((ecs: ECSpresso<ComponentTypes, EventTypes, ResourceTypes>) => ResourceTypes[K] | Promise<ResourceTypes[K]>)
 	): this {
 		this._resourceManager.add(key, resource);
 		return this;
