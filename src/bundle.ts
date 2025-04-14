@@ -58,7 +58,7 @@ export default class Bundle<
 	 */
 	addResource<K extends keyof ResourceTypes>(
 		label: K,
-		resource: ResourceTypes[K] | (() => ResourceTypes[K] | Promise<ResourceTypes[K]>)
+		resource: ResourceTypes[K] | ((ecs: ECSpresso<ComponentTypes, EventTypes, ResourceTypes>) => ResourceTypes[K] | Promise<ResourceTypes[K]>)
 	) {
 		// We need this cast because TypeScript doesn't recognize that a value of type
 		// ResourceTypes[K] | (() => ResourceTypes[K] | Promise<ResourceTypes[K]>)
