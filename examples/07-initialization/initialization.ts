@@ -62,10 +62,15 @@ async function main() {
 				}
 			};
 		})
-		.addResource('controlSettings', () => {
-			console.log("Initializing control settings...");
+		.addResource('controlSettings', (ecs) => {
+			console.log("Initializing control settings with access to ECSpresso instance:", ecs ? "Yes" : "No");
+
+			// Get game state from the already loaded resource
+			const gameState = ecs.getResource('gameState');
+			console.log("Game state during controlSettings initialization:", gameState?.status);
+
 			return {
-				sensitivity: 1.0,
+				sensitivity: gameState.status === 'loading' ? 1.5 : 1.0, // Different sensitivity based on game state
 				invertY: false
 			};
 		});

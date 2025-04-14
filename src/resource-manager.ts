@@ -1,7 +1,7 @@
 export default
 class ResourceManager<ResourceTypes extends Record<string, any> = Record<string, any>> {
 	private resources: Map<string, any> = new Map();
-	private resourceFactories: Map<string, () => any | Promise<any>> = new Map();
+	private resourceFactories: Map<string, (context?: any) => any | Promise<any>> = new Map();
 	private initializedResourceKeys: Set<string> = new Set();
 
 	/**
@@ -12,11 +12,11 @@ class ResourceManager<ResourceTypes extends Record<string, any> = Record<string,
 	 */
 	add<K extends keyof ResourceTypes | string, R = K extends keyof ResourceTypes ? ResourceTypes[K] : any>(
 		label: K,
-		resource: R | (() => R | Promise<R>)
+		resource: R | ((context?: any) => R | Promise<R>)
 	) {
 		if (typeof resource === 'function' && !resource.toString().startsWith('class')) {
 			// Likely a factory function
-			this.resourceFactories.set(label as string, resource as () => any | Promise<any>);
+			this.resourceFactories.set(label as string, resource as (context?: any) => any | Promise<any>);
 		} else {
 			// Direct resource value
 			this.resources.set(label as string, resource);
@@ -28,11 +28,13 @@ class ResourceManager<ResourceTypes extends Record<string, any> = Record<string,
 	/**
 	 * Get a resource from the manager
 	 * @param label The resource key
+	 * @param context Optional context to pass to factory functions (usually the ECSpresso instance)
 	 * @returns The resource value
 	 * @throws Error if resource not found
 	 */
 	get<K extends keyof ResourceTypes | string>(
-		label: K
+		label: K,
+		context?: any
 	): K extends keyof ResourceTypes ? ResourceTypes[K] : any {
 		// Check if we already have the initialized resource
 		const resource = this.resources.get(label as string);
@@ -46,8 +48,8 @@ class ResourceManager<ResourceTypes extends Record<string, any> = Record<string,
 			throw new Error(`Resource ${String(label)} not found`);
 		}
 
-		// Initialize the resource synchronously (this might throw if the factory returns a Promise)
-		const initializedResource = factory();
+		// Initialize the resource, passing the context
+		const initializedResource = factory(context);
 
 		// If it's not a Promise, store it immediately
 		if (!(initializedResource instanceof Promise)) {
@@ -56,19 +58,6 @@ class ResourceManager<ResourceTypes extends Record<string, any> = Record<string,
 		}
 
 		return initializedResource as any;
-	}
-
-	/**
-	 * Get a resource from the manager, returning undefined if not found
-	 * @param label The resource key
-	 * @returns The resource value or undefined if not found
-	 */
-	getOptional<K extends keyof ResourceTypes | string>(label: K): K extends keyof ResourceTypes ? ResourceTypes[K] | undefined : any {
-		try {
-			return this.get(label);
-		} catch {
-			return undefined as any;
-		}
 	}
 
 	/**
@@ -128,37 +117,43 @@ class ResourceManager<ResourceTypes extends Record<string, any> = Record<string,
 	/**
 	 * Initialize a specific resource if it's a factory function
 	 * @param label The resource key
+	 * @param context Optional context to pass to factory functions
 	 * @returns Promise that resolves when the resource is initialized
 	 */
-	async initializeResource<K extends keyof ResourceTypes | string>(label: K): Promise<void> {
+	async initializeResource<K extends keyof ResourceTypes | string>(
+		label: K,
+		context?: any
+	): Promise<void> {
 		if (!this.resourceFactories.has(label as string) || this.initializedResourceKeys.has(label as string)) {
 			return;
 		}
 
 		const factory = this.resourceFactories.get(label as string)!;
-		const initializedResource = await factory();
+		const initializedResource = await factory(context);
 		this.resources.set(label as string, initializedResource);
 		this.initializedResourceKeys.add(label as string);
+		this.resourceFactories.delete(label as string);
 	}
 
 	/**
 	 * Initialize specific resources or all resources that haven't been initialized yet
-	 * @param keys Optional array of resource keys to initialize. If not provided, all pending resources will be initialized.
+	 * @param keys Optional array of resource keys to initialize or optional context to pass to factory functions
 	 * @returns Promise that resolves when the specified resources are initialized
 	 */
 	async initializeResources<K extends keyof ResourceTypes | string>(
+		context?: any,
 		...keys: K[]
 	): Promise<void> {
 		// If no keys provided, initialize all pending resources
 		if (keys.length === 0) {
 			const pendingKeys = this.getPendingInitializationKeys();
-			await Promise.all(pendingKeys.map(key => this.initializeResource(key)));
+			await Promise.all(pendingKeys.map(key => this.initializeResource(key, context)));
 			return;
 		}
 
 		// Otherwise, initialize only the specified resources
 		await Promise.all(
-			keys.map(key => this.initializeResource(key))
+			keys.map(key => this.initializeResource(key, context))
 		);
 	}
 }

@@ -451,10 +451,22 @@ world.addResource('controlMap', () => {
   };
 });
 
+// Add a resource using a factory function that receives the ECSpresso instance
+world.addResource('playerConfig', (ecs) => {
+  // Access other resources during initialization
+  const gameConfig = ecs.getResource('gameConfig');
+  return {
+    speed: gameConfig.difficulty === 'hard' ? 200 : 100,
+    startingHealth: gameConfig.difficulty === 'hard' ? 50 : 100
+  };
+});
+
 // Add a resource using an asynchronous factory function
-world.addResource('gameAssets', async () => {
+world.addResource('gameAssets', async (ecs) => {
   console.log('Loading game assets...');
-  const assets = await loadAssets();
+  // You can access other resources during async initialization
+  const settings = ecs.getResource('settings');
+  const assets = await loadAssets(settings.assetQuality);
   return assets;
 });
 
