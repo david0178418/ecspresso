@@ -186,6 +186,26 @@ export default class ECSpresso<
 	}
 
 	/**
+	 * Initialize all resources and systems
+	 * This method:
+	 * 1. Initializes all resources that were added as factory functions
+	 * 2. Calls the onInitialize lifecycle hook on all systems
+	 *
+	 * This is useful for game startup to ensure all resources are ready
+	 * and systems are properly initialized before the game loop begins.
+	 *
+	 * @param resourceKeys Optional array of specific resource keys to initialize
+	 * @returns Promise that resolves when everything is initialized
+	 */
+	async initialize(): Promise<void> {
+		await this.initializeResources();
+
+		for (const system of this._systems) {
+			await system.onInitialize?.(this);
+		}
+	}
+
+	/**
 	 * Initialize specific resources or all resources that were added as factory functions but haven't been initialized yet.
 	 * This is useful when you need to ensure resources are ready before proceeding.
 	 * @param keys Optional array of resource keys to initialize. If not provided, all pending resources will be initialized.

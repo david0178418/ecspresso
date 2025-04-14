@@ -15,6 +15,7 @@ export class SystemBuilder<
 	private processFunction?: ProcessFunction<ComponentTypes, EventTypes, ResourceTypes, Queries>;
 	private attachFunction?: LifecycleFunction<ComponentTypes, EventTypes, ResourceTypes>;
 	private detachFunction?: LifecycleFunction<ComponentTypes, EventTypes, ResourceTypes>;
+	private initializeFunction?: InitializeFunction<ComponentTypes, EventTypes, ResourceTypes>;
 	private eventHandlers?: {
 		[EventName in keyof EventTypes]?: {
 			handler(
@@ -55,7 +56,7 @@ export class SystemBuilder<
 
 	// TODO: Should this be a setter?
 	/**
-	 * Set the priority of this system. Systems with higher priority values 
+	 * Set the priority of this system. Systems with higher priority values
 	 * execute before those with lower values. Systems with the same priority
 	 * execute in the order they were registered.
 	 * @param priority The priority value (default: 0)
@@ -135,6 +136,19 @@ export class SystemBuilder<
 	}
 
 	/**
+	 * Set the onInitialize lifecycle hook
+	 * Called when the system is initialized via ECSpresso.initialize() method
+	 * @param onInitialize Function to run when this system is initialized
+	 * @returns This SystemBuilder instance for method chaining
+	 */
+	setOnInitialize(
+		onInitialize: LifecycleFunction<ComponentTypes, EventTypes, ResourceTypes>
+	): this {
+		this.initializeFunction = onInitialize;
+		return this;
+	}
+
+	/**
 	 * Set event handlers for the system
 	 * These handlers will be automatically subscribed when the system is attached
 	 * @param handlers Object mapping event names to handler functions
@@ -174,6 +188,10 @@ export class SystemBuilder<
 
 		if (this.detachFunction) {
 			system.onDetach = this.detachFunction;
+		}
+
+		if (this.initializeFunction) {
+			system.onInitialize = this.initializeFunction;
 		}
 
 		if (this.eventHandlers) {
@@ -284,6 +302,22 @@ type LifecycleFunction<
 		ResourceTypes
 	>,
 ) => void;
+
+/**
+ * Type for system initialization functions
+ * These can be asynchronous
+ */
+type InitializeFunction<
+	ComponentTypes,
+	EventTypes extends Record<string, any>,
+	ResourceTypes extends Record<string, any>,
+> = (
+	ecs: ECSpresso<
+		ComponentTypes & Record<string, any>,
+		EventTypes,
+		ResourceTypes
+	>,
+) => void | Promise<void>;
 
 /**
  * Create a SystemBuilder attached to an ECSpresso instance

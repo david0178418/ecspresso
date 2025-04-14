@@ -82,6 +82,20 @@ interface System<
 	): void;
 
 	/**
+	 * Lifecycle hook called when the system is initialized
+	 * This is called when ECSpresso.initialize() is invoked, after resources are initialized
+	 * Use this for one-time initialization that depends on resources
+	 * @param ecs The ECSpresso instance providing access to all ECS functionality
+	 */
+	onInitialize?(
+		ecs: import("./ecspresso").default<
+			ComponentTypes & Record<string, any>,
+			EventTypes,
+			ResourceTypes
+		>
+	): void | Promise<void>;
+
+	/**
 	 * Lifecycle hook called when the system is detached from the ECS
 	 * @param ecs The ECSpresso instance providing access to all ECS functionality
 	 */
