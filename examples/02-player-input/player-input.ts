@@ -20,54 +20,50 @@ interface Resources {
 }
 
 const ecs = new ECSpresso<Components, {}, Resources>();
-const pixi = new Application();
 
-await initializeGame();
+ecs
+	.addResource('controlMap', activeKeyMap)
+	.addResource('pixi', async () => {
+		const pixi = new Application();
 
-setupGameLogic();
+		await pixi.init({
+			background: '#1099bb',
+			resizeTo: window,
+			});
 
-startGameLoop();
-
-async function initializeGame() {
-	// Setup Stage
-	await pixi.init({
-		background: '#1099bb',
-		resizeTo: window,
-	});
-
-	const canvasContainerEl = document
-		.createElement('div')
-		.appendChild(pixi.canvas);
-
-	document.body.appendChild(canvasContainerEl);
-
-	// Create ball entity
-	const ballEntity = ecs.entityManager.createEntity();
-	const ballRadius = 30;
-	const sprite = createCircleSprite(0x0000FF, pixi, ballRadius)
-	sprite.anchor.set(0.5, 0.5); // "position" will be relative to the center of the sprite
-
-	ecs.entityManager.addComponents(ballEntity, {
-		sprite,
-		speed: 500,
-		position: {
-			x: pixi.screen.width / 2,
-			y: pixi.screen.height / 2
-		},
-		velocity: {
-			x: 0,
-			y: 0
-		}
-	});
-
-	pixi.stage.addChild(sprite);
-}
-
-function setupGameLogic() {
-	ecs
-	.addResource('pixi', pixi)
-	.addResource('controlMap', activeKeyMap())
+		return pixi;
+	})
 	.addSystem('player-input')
+	.setOnInitialize(async (ecs) => {
+		const pixi = ecs.resourceManager.get('pixi');
+
+		const canvasContainerEl = document
+			.createElement('div')
+			.appendChild(pixi.canvas);
+
+		document.body.appendChild(canvasContainerEl);
+
+		// Create ball entity
+		const ballEntity = ecs.entityManager.createEntity();
+		const ballRadius = 30;
+		const sprite = createCircleSprite(0x0000FF, pixi, ballRadius)
+		sprite.anchor.set(0.5, 0.5); // "position" will be relative to the center of the sprite
+
+		ecs.entityManager.addComponents(ballEntity, {
+			sprite,
+			speed: 500,
+			position: {
+				x: pixi.screen.width / 2,
+				y: pixi.screen.height / 2
+			},
+			velocity: {
+				x: 0,
+				y: 0
+			}
+		});
+
+		pixi.stage.addChild(sprite);
+	})
 	.addQuery('playerInputEntities', {
 		with: ['position', 'velocity', 'speed'],
 	})
@@ -128,13 +124,12 @@ function setupGameLogic() {
 		}
 	})
 	.build();
-}
 
-function startGameLoop() {
-	pixi.ticker.add(ticker => {
-		ecs.update(ticker.deltaMS / 1000);
-	});
-}
+await ecs.initialize();
+
+ecs.resourceManager.get('pixi').ticker.add(ticker => {
+	ecs.update(ticker.deltaMS / 1000);
+});
 
 function createCircleSprite(color: number, pixi: Application, radius: number): Sprite {
 	const texture = pixi.renderer.generateTexture(

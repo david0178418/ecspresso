@@ -92,7 +92,7 @@ export default function createAIBundle() {
 				}
 			}
 		})
-		.setOnAttach((ecs) => {
+		.setOnInitialize((ecs) => {
 			// Add playerInitialRotation resource to track initial player facing direction
 			ecs.addResource('playerInitialRotation', { y: 0 });
 		})

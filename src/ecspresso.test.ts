@@ -470,16 +470,16 @@ describe('ECSpresso', () => {
 			expect(processRan).toBe(false);
 		});
 
-		test('should handle attaching and detaching systems', () => {
-			let attachCalled = false;
+		test('should handle initializing and detaching systems', async () => {
+			let initializationCalled = false;
 			let detachCalled = false;
 			let processCalled = false;
 
 			// Create a system with lifecycle hooks
 			const bundle = new Bundle<TestComponents>()
 				.addSystem('MovementControlSystem')
-				.setOnAttach((_ecs) => {
-					attachCalled = true;
+				.setOnInitialize((_ecs) => {
+					initializationCalled = true;
 				})
 				.setOnDetach((_ecs) => {
 					detachCalled = true;
@@ -494,8 +494,10 @@ describe('ECSpresso', () => {
 				.withBundle(bundle)
 				.build();
 
-			// Attach should have been called
-			expect(attachCalled).toBe(true);
+			await world.initialize();
+
+			// Initialization should have been called
+			expect(initializationCalled).toBe(true);
 
 			// Process should run during update
 			world.update(1/60);
@@ -652,7 +654,7 @@ describe('ECSpresso', () => {
 
 	// Direct system addition tests
 	describe('Direct System Creation', () => {
-		test('should handle systems added directly via addSystem with type-safety', () => {
+		test('should handle systems added directly via addSystem with type-safety', async () => {
 			const world = new ECSpresso<TestComponents, TestEvents>();
 
 			// Create entities
@@ -661,7 +663,7 @@ describe('ECSpresso', () => {
 			world.entityManager.addComponent(entity1.id, 'velocity', { x: 5, y: 0 });
 
 			// Track various calls
-			let attachCalled = false;
+			let initialized = false;
 			let processCalled = false;
 			let eventHandled = false;
 			let sumX = 0;
@@ -673,8 +675,8 @@ describe('ECSpresso', () => {
 				.addQuery('objects', {
 					with: ['position', 'velocity'],
 				})
-				.setOnAttach((_ecs) => {
-					attachCalled = true;
+				.setOnInitialize((_ecs) => {
+					initialized = true;
 				})
 				.setProcess((queries, _deltaTime, _ecs) => {
 					processCalled = true;
@@ -698,13 +700,15 @@ describe('ECSpresso', () => {
 			// At this point, the system is not built yet, so ecspresso should be known but nothing should be called
 			expect(systemBuilder.ecspresso).toBe(world);
 			expect(systemBuilder.bundle).toBeNull();
-			expect(attachCalled).toBe(false);
+			expect(initialized).toBe(false);
 
 			// Build and add the system
 			systemBuilder.build();
 
-			// After building, attach should be called
-			expect(attachCalled).toBe(true);
+			await world.initialize();
+
+			// After building, initialization should be called
+			expect(initialized).toBe(true);
 
 			// Check process runs during update
 			world.update(1/60);
@@ -782,10 +786,10 @@ describe('ECSpresso', () => {
 	describe('System Priority', () => {
 		test('should execute systems in priority order (higher priority first)', () => {
 			const world = new ECSpresso<TestComponents>();
-			
+
 			// Track execution order
 			const executionOrder: string[] = [];
-			
+
 			// Create systems with different priorities
 			world.addSystem('LowPrioritySystem')
 				.setPriority(0)
@@ -793,34 +797,34 @@ describe('ECSpresso', () => {
 					executionOrder.push('low');
 				})
 				.build();
-				
+
 			world.addSystem('HighPrioritySystem')
 				.setPriority(100)
 				.setProcess(() => {
 					executionOrder.push('high');
 				})
 				.build();
-				
+
 			world.addSystem('MediumPrioritySystem')
 				.setPriority(50)
 				.setProcess(() => {
 					executionOrder.push('medium');
 				})
 				.build();
-			
+
 			// Update the world to run all systems
 			world.update(1/60);
-			
+
 			// Check that systems executed in priority order (high to low)
 			expect(executionOrder).toEqual(['high', 'medium', 'low']);
 		});
-		
+
 		test('should maintain registration order for systems with the same priority', () => {
 			const world = new ECSpresso<TestComponents>();
-			
+
 			// Track execution order
 			const executionOrder: string[] = [];
-			
+
 			// Create systems with the same priority in a specific order
 			world.addSystem('SystemA')
 				.setPriority(10)
@@ -828,28 +832,28 @@ describe('ECSpresso', () => {
 					executionOrder.push('A');
 				})
 				.build();
-				
+
 			world.addSystem('SystemB')
 				.setPriority(10)
 				.setProcess(() => {
 					executionOrder.push('B');
 				})
 				.build();
-				
+
 			world.addSystem('SystemC')
 				.setPriority(10)
 				.setProcess(() => {
 					executionOrder.push('C');
 				})
 				.build();
-			
+
 			// Update the world to run all systems
 			world.update(1/60);
-			
+
 			// Check that systems with the same priority executed in registration order
 			expect(executionOrder).toEqual(['A', 'B', 'C']);
 		});
-		
+
 		test('should maintain priority when adding systems through bundles', () => {
 			// Create bundles with systems of different priorities
 			const bundle1 = new Bundle<TestComponents>()
@@ -859,7 +863,7 @@ describe('ECSpresso', () => {
 					executionOrder.push('bundleHigh');
 				})
 				.bundle;
-				
+
 			const bundle2 = new Bundle<TestComponents>()
 				.addSystem('BundleSystemLow')
 				.setPriority(0)
@@ -867,13 +871,13 @@ describe('ECSpresso', () => {
 					executionOrder.push('bundleLow');
 				})
 				.bundle;
-				
+
 			// Create world with bundles
 			const world = ECSpresso.create<TestComponents>()
 				.withBundle(bundle1)
 				.withBundle(bundle2)
 				.build();
-			
+
 			// Add a direct system with medium priority
 			world.addSystem('DirectSystemMedium')
 				.setPriority(50)
@@ -881,23 +885,23 @@ describe('ECSpresso', () => {
 					executionOrder.push('directMedium');
 				})
 				.build();
-			
+
 			// Track execution order
 			const executionOrder: string[] = [];
-			
+
 			// Run update to execute all systems
 			world.update(1/60);
-			
+
 			// Check that systems executed in priority order across bundles and direct addition
 			expect(executionOrder).toEqual(['bundleHigh', 'directMedium', 'bundleLow']);
 		});
-		
+
 		test('should allow updating system priorities dynamically', () => {
 			const world = new ECSpresso<TestComponents>();
-			
+
 			// Track execution order
 			const executionOrder: string[] = [];
-			
+
 			// Add systems with initial priorities
 			world.addSystem('SystemA')
 				.setPriority(10)
@@ -905,43 +909,43 @@ describe('ECSpresso', () => {
 					executionOrder.push('A');
 				})
 				.build();
-				
+
 			world.addSystem('SystemB')
 				.setPriority(20)
 				.setProcess(() => {
 					executionOrder.push('B');
 				})
 				.build();
-				
+
 			world.addSystem('SystemC')
 				.setPriority(30)
 				.setProcess(() => {
 					executionOrder.push('C');
 				})
 				.build();
-			
+
 			// Initial update and check
 			world.update(1/60);
 			expect(executionOrder).toEqual(['C', 'B', 'A']);
-			
+
 			// Clear execution order
 			executionOrder.length = 0;
-			
+
 			// Change priorities
 			world.updateSystemPriority('SystemA', 40); // Now highest
 			world.updateSystemPriority('SystemC', 5);  // Now lowest
-			
+
 			// Run update again with new priorities
 			world.update(1/60);
-			
+
 			// Check new execution order
 			expect(executionOrder).toEqual(['A', 'B', 'C']);
 		});
-		
+
 		test('should preserve cached sorting for performance', () => {
 			// This test verifies that the sorting happens only when needed
 			const world = new ECSpresso<TestComponents>();
-			
+
 			// Add a lot of systems to make sorting noticeable
 			for (let i = 0; i < 5; i++) {
 				world.addSystem(`System${i}`)
@@ -949,7 +953,7 @@ describe('ECSpresso', () => {
 					.setProcess(() => {})
 					.build();
 			}
-			
+
 			// Replace the internal _sortSystems method temporarily with a spy
 			let sortCallCount = 0;
 			const originalSortMethod = world['_sortSystems'];
@@ -957,26 +961,26 @@ describe('ECSpresso', () => {
 				sortCallCount++;
 				return originalSortMethod.call(this);
 			};
-			
+
 			// Run multiple updates - sorting should only happen once during setup
 			sortCallCount = 0; // Reset counter after system creation
-			
+
 			world.update(1/60);
 			world.update(1/60);
 			world.update(1/60);
-			
+
 			// Should not have sorted during updates
 			expect(sortCallCount).toBe(0);
-			
+
 			// Now update a priority - should trigger sorting
 			world.updateSystemPriority('System0', 100);
 			expect(sortCallCount).toBe(1);
-			
+
 			// Run more updates - should not trigger sorting
 			world.update(1/60);
 			world.update(1/60);
 			expect(sortCallCount).toBe(1);
-			
+
 			// Restore original method
 			world['_sortSystems'] = originalSortMethod;
 		});

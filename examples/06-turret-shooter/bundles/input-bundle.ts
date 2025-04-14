@@ -5,7 +5,7 @@ import type { Components, Events, Resources } from '../types';
 export default function createInputBundle() {
 	return new Bundle<Components, Events, Resources>('input-bundle')
 		.addSystem('input-handler')
-		.setOnAttach((ecs) => {
+		.setOnInitialize((ecs) => {
 			// Track mouse movement for camera rotation
 			let mouseX = 0;
 			let mouseY = 0;

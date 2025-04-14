@@ -13,7 +13,7 @@ export default async function createInitBundle() {
 	return new Bundle<Components, Events, Resources>('init-bundle')
 		.addResource('pixi', pixi)
 		.addSystem('init')
-		.setOnAttach((ecs) => {
+		.setOnInitialize((ecs) => {
 			// Create containers for entities and UI
 			const gameContainer = new Container();
 			const entityContainer = new Container();

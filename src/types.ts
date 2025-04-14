@@ -1,3 +1,5 @@
+import ECSpresso from "./ecspresso";
+
 export
 interface Entity<ComponentTypes> {
 	id: number;
@@ -62,19 +64,7 @@ interface System<
 			[queryName: string]: Array<FilteredEntity<ComponentTypes, WithComponents, WithoutComponents>>;
 		} | Array<FilteredEntity<ComponentTypes, WithComponents, WithoutComponents>>,
 		deltaTime: number,
-		ecs: import("./ecspresso").default<
-			ComponentTypes & Record<string, any>,
-			EventTypes,
-			ResourceTypes
-		>
-	): void;
-
-	/**
-	 * Lifecycle hook called when the system is attached to the ECS
-	 * @param ecs The ECSpresso instance providing access to all ECS functionality
-	 */
-	onAttach?(
-		ecs: import("./ecspresso").default<
+		ecs: ECSpresso<
 			ComponentTypes & Record<string, any>,
 			EventTypes,
 			ResourceTypes
@@ -88,7 +78,7 @@ interface System<
 	 * @param ecs The ECSpresso instance providing access to all ECS functionality
 	 */
 	onInitialize?(
-		ecs: import("./ecspresso").default<
+		ecs: ECSpresso<
 			ComponentTypes & Record<string, any>,
 			EventTypes,
 			ResourceTypes
@@ -119,7 +109,7 @@ interface System<
 			 */
 			handler(
 				data: EventTypes[EventName],
-				ecs: import("./ecspresso").default<
+				ecs: ECSpresso<
 					ComponentTypes & Record<string, any>,
 					EventTypes,
 					ResourceTypes

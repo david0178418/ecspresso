@@ -130,7 +130,7 @@ export default function createGameLogicBundle() {
 		.addQuery('enemies', {
 			with: ['enemy', 'position']
 		})
-		.setOnAttach((ecs) => {
+		.setOnInitialize((ecs) => {
 			// Add a resource to track movement state
 			ecs.addResource('enemyMovementState', {
 				isMovingDown: false,
