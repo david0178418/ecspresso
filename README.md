@@ -70,6 +70,12 @@ world.addSystem('movement')
       entity.components.position.y += entity.components.velocity.y * deltaTime;
     }
   })
+  .setOnInitialize(async (ecs) => {
+    // One-time initialization of the system
+    console.log('Setting up movement system...');
+    const gameState = ecs.getResource('gameState');
+    gameState.lastMovementUpdate = Date.now();
+  })
   .build(); // Don't forget to call build() to finalize the system
 
 // Create an entity with position and velocity components
@@ -77,8 +83,8 @@ const entity = world.entityManager.createEntity();
 world.entityManager.addComponent(entity.id, 'position', { x: 0, y: 0 });
 world.entityManager.addComponent(entity.id, 'velocity', { x: 10, y: 5 });
 
-// Initialize async resources (like assets) before using them
-await world.initializeResources();
+// Initialize everything (resources and systems) in one call
+await world.initialize();
 
 // Run a single update
 world.update(1/60);
@@ -136,15 +142,19 @@ const scoringBundle = new Bundle<Components, Events, Resources>('scoring-bundle'
 // Create a game initialization bundle with event handlers
 const initBundle = new Bundle<Components, Events, Resources>('init-bundle')
   .addSystem('initialization')
+  .setOnInitialize(async (ecs) => {
+    console.log('Game systems initializing...');
+    // Do one-time system setup here
+  })
   .setEventHandlers({
     gameStart: {
       async handler(data, ecs) {
         console.log('Game starting...');
         
-        // Initialize any resources that were added as factory functions
-        await ecs.initializeResources();
+        // Initialize all resources and systems
+        await ecs.initialize();
         
-        // Resources are now ready to use
+        // Resources and systems are now ready to use
         const assets = ecs.getResource('assets');
         console.log(`Loaded ${Object.keys(assets.textures).length} textures`);
         
@@ -273,6 +283,43 @@ world.addSystem('physicsSystem')
     }
   })
   .build(); // Finalizes and adds the system to the world
+```
+
+## System Lifecycle Hooks
+
+ECSpresso systems have three lifecycle hooks that you can implement:
+
+```typescript
+// Add a system with all lifecycle hooks
+world.addSystem('gameSystem')
+  // Called when the system is attached to the ECSpresso instance
+  .setOnAttach((ecs) => {
+    console.log('System attached');
+    // Set up event subscriptions or initialize system state
+  })
+  
+  // Called during the ECSpresso.initialize() method
+  // Good for one-time setup that depends on resources
+  .setOnInitialize(async (ecs) => {
+    console.log('System initializing');
+    // Load resources, set up game state, etc.
+    
+    // Can be async and await other operations
+    await loadLevelData(ecs);
+  })
+  
+  // Called when the system is removed from the ECSpresso instance
+  .setOnDetach((ecs) => {
+    console.log('System detached');
+    // Clean up resources, cancel subscriptions, etc.
+  })
+  .build();
+```
+
+The `initialize` method on the ECSpresso instance initializes all resources and systems:
+
+```typescript
+await ecs.initialize();
 ```
 
 ## System Priority
@@ -437,4 +484,3 @@ When using async factory functions, ensure you either:
 1. Call `initializeResources()` explicitly before accessing the resource, or
 2. Use `await` when getting a resource that might return a Promise
 
-> **Note**: For backward compatibility, `someMethodToReadyResourcesIfRequired()` is also available as an alias for `initializeResources()`, but using the newer method name is recommended.

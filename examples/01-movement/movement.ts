@@ -18,54 +18,18 @@ interface Resources {
 	pixi: Application;
 }
 
-const ecs = new ECSpresso<Components, {}, Resources>();
-const pixi = new Application();
+const ecs = new ECSpresso<Components, {}, Resources>()
 
-await initializeGame();
+ecs
+	.addResource('pixi', async () => {
+		const pixi = new Application();
 
-setupGameLogic();
-
-startGameLoop();
-
-async function initializeGame() {
-	// Setup Stage
-	await pixi.init({
-		background: '#1099bb',
-		resizeTo: window,
-	});
-
-	const canvasContainerEl = document
-		.createElement('div')
-		.appendChild(pixi.canvas);
-
-	document.body.appendChild(canvasContainerEl);
-
-	// Create ball entity
-	const ballEntity = ecs.entityManager.createEntity();
-	const ballRadius = 30;
-	const sprite = createCircleSprite(0x0000FF, pixi, ballRadius)
-	sprite.anchor.set(0.5, 0.5); // "position" will be relative to the center of the sprite
-
-	ecs.entityManager.addComponents(ballEntity, {
-		sprite,
-		radius: ballRadius,
-		position: {
-			x: pixi.screen.width / 2,
-			y: pixi.screen.height / 2
-		},
-		velocity: {
-			x: 300,
-			y: 250
-		}
-	});
-
-	pixi.stage.addChild(sprite);
-}
-
-function setupGameLogic() {
-
-	ecs
-	.addResource('pixi', pixi)
+		await pixi.init({
+			background: '#1099bb',
+			resizeTo: window,
+		});
+		return pixi;
+	})
 	.addSystem('move-entities')
 	.addQuery('movingEntities', {
 		// Apply this logic only to entities with
@@ -114,6 +78,38 @@ function setupGameLogic() {
 	.addQuery('renderedEntities', {
 		with: ['sprite', 'position'],
 	})
+	.setOnInitialize(async (ecs) => {
+		const pixi = ecs.resourceManager.get('pixi');
+
+		console.log('pixi', pixi);
+
+		const canvasContainerEl = document
+			.createElement('div')
+			.appendChild(pixi.canvas);
+
+		document.body.appendChild(canvasContainerEl);
+
+		// Create ball entity
+		const ballEntity = ecs.entityManager.createEntity();
+		const ballRadius = 30;
+		const sprite = createCircleSprite(0x0000FF, pixi, ballRadius)
+		sprite.anchor.set(0.5, 0.5); // "position" will be relative to the center of the sprite
+
+		ecs.entityManager.addComponents(ballEntity, {
+			sprite,
+			radius: ballRadius,
+			position: {
+				x: pixi.screen.width / 2,
+				y: pixi.screen.height / 2
+			},
+			velocity: {
+				x: 300,
+				y: 250
+			}
+		});
+
+		pixi.stage.addChild(sprite);
+	})
 	.setProcess((queries) => {
 		for(const entity of queries.renderedEntities) {
 			entity.components.sprite.position.set(
@@ -123,14 +119,15 @@ function setupGameLogic() {
 		}
 	})
 	.build();
-}
 
-function startGameLoop() {
-	pixi.ticker.add(ticker => {
+await ecs.initialize();
+
+ecs
+	.resourceManager.get('pixi')
+	.ticker
+	.add(ticker => {
 		ecs.update(ticker.deltaMS / 1000);
 	});
-}
-
 
 function createCircleSprite(color: number, pixi: Application, radius: number): Sprite {
 	const texture = pixi.renderer.generateTexture(
