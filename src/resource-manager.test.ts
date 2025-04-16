@@ -31,6 +31,40 @@ describe('ResourceManager', () => {
 		expect(resourceManager.get('gameState')).toEqual({ current: 'mainMenu', previous: '' });
 	});
 
+	test('should add and get factory function values after initialization', async () => {
+		const resourceManager = new ResourceManager<TestResources>();
+		resourceManager.add('config', () => ({ debug: true, maxEntities: 1000 }));
+
+		await resourceManager.initializeResources();
+
+		const config = resourceManager.get('config');
+		expect(config).toEqual({ debug: true, maxEntities: 1000 });
+	});
+	
+	test('should add and get async factory function values after initialization', async () => {
+		const resourceManager = new ResourceManager<TestResources>();
+		resourceManager.add('config', async () => ({ debug: true, maxEntities: 1000 }));
+
+		await resourceManager.initializeResources();
+
+		const config = resourceManager.get('config');
+		expect(config).toEqual({ debug: true, maxEntities: 1000 });
+	});
+	
+	test('should add and get resources with type safety', () => {
+		const resourceManager = new ResourceManager<TestResources>();
+		// @ts-expect-error Throw an error when accessing a resource that doesn't exist
+		resourceManager.add('not-a-resource', {});
+		// @ts-expect-error Throw an error when setting the incorrect type
+		resourceManager.add('config', true);
+		// @ts-expect-error Throw an error when a factory function returns an incorrect type
+		resourceManager.add('config', () => true);
+		// @ts-expect-error Throw an error when a factory function returns an incorrect type
+		resourceManager.add('config', async () => true);
+		// @ts-expect-error Throw an error when accessing a resource that doesn't exist
+		resourceManager.get('not-a-resource');
+	});
+
 	test('should check if a resource exists', () => {
 		const resourceManager = new ResourceManager<TestResources>();
 		resourceManager.add('config', { debug: true, maxEntities: 1000 });

@@ -10,11 +10,11 @@ class ResourceManager<ResourceTypes extends Record<string, any> = Record<string,
 	 * @param resource The resource value or a factory function that returns the resource
 	 * @returns The resource manager instance for chaining
 	 */
-	add<K extends keyof ResourceTypes | string, R = K extends keyof ResourceTypes ? ResourceTypes[K] : any>(
+	add<K extends keyof ResourceTypes>(
 		label: K,
-		resource: R | ((context?: any) => R | Promise<R>)
+		resource: ResourceTypes[K] | ((context?: any) => ResourceTypes[K] | Promise<ResourceTypes[K]>),
 	) {
-		if (typeof resource === 'function' && !resource.toString().startsWith('class')) {
+		if (typeof resource === 'function' && !/^class\s/.test(Function.prototype.toString.call(resource))) {
 			// Likely a factory function
 			this.resourceFactories.set(label as string, resource as (context?: any) => any | Promise<any>);
 		} else {
@@ -32,10 +32,10 @@ class ResourceManager<ResourceTypes extends Record<string, any> = Record<string,
 	 * @returns The resource value
 	 * @throws Error if resource not found
 	 */
-	get<K extends keyof ResourceTypes | string>(
+	get<K extends keyof ResourceTypes>(
 		label: K,
 		context?: any
-	): K extends keyof ResourceTypes ? ResourceTypes[K] : any {
+	): ResourceTypes[K] {
 		// Check if we already have the initialized resource
 		const resource = this.resources.get(label as string);
 		if (resource !== undefined) {
@@ -65,7 +65,7 @@ class ResourceManager<ResourceTypes extends Record<string, any> = Record<string,
 	 * @param label The resource key
 	 * @returns True if the resource exists
 	 */
-	has<K extends keyof ResourceTypes | string>(label: K): boolean {
+	has<K extends keyof ResourceTypes>(label: K): boolean {
 		return this.resources.has(label as string) || this.resourceFactories.has(label as string);
 	}
 
@@ -74,7 +74,7 @@ class ResourceManager<ResourceTypes extends Record<string, any> = Record<string,
 	 * @param label The resource key
 	 * @returns True if the resource was removed
 	 */
-	remove<K extends keyof ResourceTypes | string>(label: K): boolean {
+	remove<K extends keyof ResourceTypes>(label: K): boolean {
 		const resourceRemoved = this.resources.delete(label as string);
 		const factoryRemoved = this.resourceFactories.delete(label as string);
 		if (this.initializedResourceKeys.has(label as string)) {
@@ -100,7 +100,7 @@ class ResourceManager<ResourceTypes extends Record<string, any> = Record<string,
 	 * @param label The resource key
 	 * @returns True if the resource needs initialization
 	 */
-	needsInitialization<K extends keyof ResourceTypes | string>(label: K): boolean {
+	needsInitialization<K extends keyof ResourceTypes>(label: K): boolean {
 		return this.resourceFactories.has(label as string) && !this.initializedResourceKeys.has(label as string);
 	}
 
@@ -120,7 +120,7 @@ class ResourceManager<ResourceTypes extends Record<string, any> = Record<string,
 	 * @param context Optional context to pass to factory functions
 	 * @returns Promise that resolves when the resource is initialized
 	 */
-	async initializeResource<K extends keyof ResourceTypes | string>(
+	async initializeResource<K extends keyof ResourceTypes>(
 		label: K,
 		context?: any
 	): Promise<void> {
@@ -140,7 +140,7 @@ class ResourceManager<ResourceTypes extends Record<string, any> = Record<string,
 	 * @param keys Optional array of resource keys to initialize or optional context to pass to factory functions
 	 * @returns Promise that resolves when the specified resources are initialized
 	 */
-	async initializeResources<K extends keyof ResourceTypes | string>(
+	async initializeResources<K extends keyof ResourceTypes>(
 		context?: any,
 		...keys: K[]
 	): Promise<void> {
