@@ -32,8 +32,6 @@ ecs
 	})
 	.addSystem('move-entities')
 	.addQuery('movingEntities', {
-		// Apply this logic only to entities with
-		// position, velocity, and radius components
 		with: ['position', 'velocity', 'radius'],
 	})
 	.setProcess((queries, deltaTime, ecs) => {
