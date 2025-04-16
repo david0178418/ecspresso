@@ -30,6 +30,12 @@ interface Events {
 interface Resources {
 	pixi: Application;
 	worldContainer: Container;
+	config: {
+		screen: {
+			width: number;
+			height: number;
+		};
+	};
 	controlMap: {
 		up: boolean;
 		down: boolean;
@@ -218,22 +224,23 @@ function createPhysicsBundle() {
 			with: ['position', 'velocity'],
 		})
 		.setProcess((queries, deltaTimeMs, ecs) => {
+			const config = ecs.resourceManager.get('config');
+
 			for(const entity of queries.movingEntities) {
 				entity.components.position.x += entity.components.velocity.x * deltaTimeMs;
 				entity.components.position.y += entity.components.velocity.y * deltaTimeMs;
 
 				// wrap around the screen
-				const pixi = ecs.resourceManager.get('pixi');
 				if (entity.components.position.x < 0) {
-					entity.components.position.x = pixi.renderer.width;
+					entity.components.position.x = config.screen.width;
 				}
-				if (entity.components.position.x > pixi.renderer.width) {
+				if (entity.components.position.x > config.screen.width) {
 					entity.components.position.x = 0;
 				}
 				if (entity.components.position.y < 0) {
-					entity.components.position.y = pixi.renderer.height;
+					entity.components.position.y = config.screen.height;
 				}
-				if (entity.components.position.y > pixi.renderer.height) {
+				if (entity.components.position.y > config.screen.height) {
 					entity.components.position.y = 0;
 				}
 			}

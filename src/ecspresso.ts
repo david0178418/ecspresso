@@ -63,29 +63,6 @@ export default interface ECSpresso<
 }
 
 /**
-	* Static methods on the ECSpresso class
-*/
-export default interface ECSpresso {
-		/**
-			* Create a new ECSpresso builder with type-safe bundle installation.
-			* This is the preferred way to create an ECSpresso instance with bundles.
-		 *
-			* Example:
-			* ```typescript
-			* const ecs = ECSpresso.create<MyComponents, MyEvents, MyResources>()
-		 *	 .withBundle(bundle1)
-		 *	 .withBundle(bundle2)
-		 *	 .build();
-			* ```
-		*/
-		create<
-				BaseC extends Record<string, any> = {},
-				BaseE extends Record<string, any> = {},
-				BaseR extends Record<string, any> = {},
-		>(): ECSpressoBuilder<BaseC, BaseE, BaseR>;
-}
-
-/**
 	* ECSpresso is the central ECS framework class that connects all features.
 	* It handles creation and management of entities, components, and systems, and provides lifecycle hooks.
 */
