@@ -5,6 +5,14 @@ class EntityManager<ComponentTypes> {
 	private nextId: number = 1;
 	private entities: Map<number, Entity<ComponentTypes>> = new Map();
 	private componentIndices: Map<keyof ComponentTypes, Set<number>> = new Map();
+	/**
+	 * Callbacks registered for component additions
+	 */
+	private addedCallbacks: Map<keyof ComponentTypes, Set<(value: any, entity: Entity<ComponentTypes>) => void>> = new Map();
+	/**
+	 * Callbacks registered for component removals
+	 */
+	private removedCallbacks: Map<keyof ComponentTypes, Set<(oldValue: any, entity: Entity<ComponentTypes>) => void>> = new Map();
 
 	createEntity(): Entity<ComponentTypes> {
 		const id = this.nextId++;
@@ -32,6 +40,13 @@ class EntityManager<ComponentTypes> {
 			this.componentIndices.set(componentName, new Set());
 		}
 		this.componentIndices.get(componentName)?.add(entity.id);
+		// Trigger added callbacks
+		const callbacks = this.addedCallbacks.get(componentName);
+		if (callbacks) {
+			for (const cb of callbacks) {
+				cb(data, entity);
+			}
+		}
 		return this;
 	}
 
@@ -66,8 +81,18 @@ class EntityManager<ComponentTypes> {
 	removeComponent<ComponentName extends keyof ComponentTypes>(entityId: number, componentName: ComponentName) {
 		const entity = this.entities.get(entityId);
 		if (!entity) throw new Error(`Entity ${entityId} does not exist`);
+		// Get old value for callbacks
+		const oldValue = entity.components[componentName] as ComponentTypes[ComponentName] | undefined;
 
 		delete entity.components[componentName];
+
+		// Trigger removed callbacks
+		const removeCbs = this.removedCallbacks.get(componentName);
+		if (removeCbs && oldValue !== undefined) {
+			for (const cb of removeCbs) {
+				cb(oldValue, entity);
+			}
+		}
 
 		// Update component index
 		this.componentIndices.get(componentName)?.delete(entityId);
@@ -144,5 +169,37 @@ class EntityManager<ComponentTypes> {
 
 	getEntity(entityId: number): Entity<ComponentTypes> | undefined {
 		return this.entities.get(entityId);
+	}
+
+	/**
+	 * Register a callback when a specific component is added to any entity
+	 * @param componentName The component key
+	 * @param handler Function receiving the new component value and the entity
+	 */
+	onComponentAdded<ComponentName extends keyof ComponentTypes>(
+		componentName: ComponentName,
+		handler: (value: ComponentTypes[ComponentName], entity: Entity<ComponentTypes>) => void
+	): this {
+		if (!this.addedCallbacks.has(componentName)) {
+			this.addedCallbacks.set(componentName, new Set());
+		}
+		this.addedCallbacks.get(componentName)!.add(handler as any);
+		return this;
+	}
+
+	/**
+	 * Register a callback when a specific component is removed from any entity
+	 * @param componentName The component key
+	 * @param handler Function receiving the old component value and the entity
+	 */
+	onComponentRemoved<ComponentName extends keyof ComponentTypes>(
+		componentName: ComponentName,
+		handler: (oldValue: ComponentTypes[ComponentName], entity: Entity<ComponentTypes>) => void
+	): this {
+		if (!this.removedCallbacks.has(componentName)) {
+			this.removedCallbacks.set(componentName, new Set());
+		}
+		this.removedCallbacks.get(componentName)!.add(handler as any);
+		return this;
 	}
 }

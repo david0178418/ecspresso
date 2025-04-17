@@ -490,3 +490,31 @@ When using async factory functions, ensure you either:
 1. Call `initializeResources()` explicitly before accessing the resource, or
 2. Use `await` when getting a resource that might return a Promise
 
+## Component Callbacks
+
+You can listen for specific component types being added or removed on any entity using the `EntityManager` API:
+
+```typescript
+// Create your entity manager
+const entityManager = new EntityManager<Components>();
+
+// Listen for when a "health" component is added
+entityManager.onComponentAdded('health', (value, entity) => {
+  console.log(`Health added to entity ${entity.id}:`, value);
+});
+
+// Listen for when a "health" component is removed
+entityManager.onComponentRemoved('health', (oldValue, entity) => {
+  console.log(`Health removed from entity ${entity.id}:`, oldValue);
+});
+
+// Create an entity and add/remove components to trigger callbacks
+const e = entityManager.createEntity();
+entityManager.addComponent(e.id, 'health', { value: 100 });
+// => logs: Health added to entity 1: { value: 100 }
+entityManager.removeComponent(e.id, 'health');
+// => logs: Health removed from entity 1: { value: 100 }
+```
+
+This is useful for debugging, UI updates, or systems that need to react immediately to component changes.
+
