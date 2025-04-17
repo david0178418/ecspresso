@@ -83,7 +83,7 @@ const entity = world.entityManager.createEntity();
 world.entityManager.addComponent(entity.id, 'position', { x: 0, y: 0 });
 world.entityManager.addComponent(entity.id, 'velocity', { x: 10, y: 5 });
 
-// Initialize everything (resources and systems) in one call
+// Initialize everything (systems and resources with factory functions) in one call
 await world.initialize();
 
 // Run a single update
@@ -285,32 +285,29 @@ world.addSystem('physicsSystem')
   .build(); // Finalizes and adds the system to the world
 ```
 
-## System Lifecycle Hook
+## System Lifecycle Hooks
 
-ECSpresso systems have two lifecycle hooks that you can implement:
+ECSpresso systems have two lifecycle hooks you can implement:
 
 ```typescript
-// Add a system with all lifecycle hooks
 world.addSystem('gameSystem')
-  // Called during the ECSpresso.initialize() method
+  // Called when `initialize()` is invoked on the ECSpresso instance
   // Good for one-time setup that depends on resources
   .setOnInitialize(async (ecs) => {
     console.log('System initializing');
-    // Load resources, set up game state, etc.
-    
-    // Can be async and await other operations
-    await loadLevelData(ecs);
+    // Load assets, configure resources, etc.
   })
-  
-  // Called when the system is removed from the ECSpresso instance
+
+  // Called when the system is removed or detached from the ECSpresso instance
   .setOnDetach((ecs) => {
     console.log('System detached');
     // Clean up resources, cancel subscriptions, etc.
   })
+
   .build();
 ```
 
-The `initialize` method on the ECSpresso instance initializes all resources and systems:
+The `initialize()` method on the ECSpresso instance initializes pending resources first and then calls `onInitialize` on all systems:
 
 ```typescript
 await ecs.initialize();
