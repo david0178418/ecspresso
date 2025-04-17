@@ -20,7 +20,7 @@ export class SystemBuilder<
 			handler(
 				data: EventTypes[EventName],
 				ecs: ECSpresso<
-					ComponentTypes & Record<string, any>,
+					ComponentTypes,
 					EventTypes,
 					ResourceTypes
 				>,
@@ -253,7 +253,7 @@ type QueryResults<
  * @param ecs The ECSpresso instance providing access to all ECS functionality
  */
 type ProcessFunction<
-	ComponentTypes,
+	ComponentTypes extends Record<string, any>,
 	EventTypes extends Record<string, any>,
 	ResourceTypes extends Record<string, any>,
 	Queries extends Record<string, QueryDefinition<ComponentTypes>>,
@@ -261,7 +261,7 @@ type ProcessFunction<
 	queries: QueryResults<ComponentTypes, Queries>,
 	deltaTime: number,
 	ecs: ECSpresso<
-		ComponentTypes & Record<string, any>,
+		ComponentTypes,
 		EventTypes,
 		ResourceTypes
 	>
@@ -272,12 +272,12 @@ type ProcessFunction<
  * These can be asynchronous
  */
 type LifecycleFunction<
-	ComponentTypes,
+	ComponentTypes extends Record<string, any>,
 	EventTypes extends Record<string, any>,
 	ResourceTypes extends Record<string, any>,
 > = (
 	ecs: ECSpresso<
-		ComponentTypes & Record<string, any>,
+		ComponentTypes,
 		EventTypes,
 		ResourceTypes
 	>,

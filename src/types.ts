@@ -38,11 +38,11 @@ interface QueryConfig<
 
 export
 interface System<
-	ComponentTypes,
+	ComponentTypes extends Record<string, any> = {},
 	WithComponents extends keyof ComponentTypes = never,
 	WithoutComponents extends keyof ComponentTypes = never,
-	EventTypes extends Record<string, any> = Record<string, any>,
-	ResourceTypes extends Record<string, any> = Record<string, any>,
+	EventTypes extends Record<string, any> = {},
+	ResourceTypes extends Record<string, any> = {},
 > {
 	label: string;
 	/**
@@ -65,7 +65,7 @@ interface System<
 		} | Array<FilteredEntity<ComponentTypes, WithComponents, WithoutComponents>>,
 		deltaTime: number,
 		ecs: ECSpresso<
-			ComponentTypes & Record<string, any>,
+			ComponentTypes,
 			EventTypes,
 			ResourceTypes
 		>
@@ -79,7 +79,7 @@ interface System<
 	 */
 	onInitialize?(
 		ecs: ECSpresso<
-			ComponentTypes & Record<string, any>,
+			ComponentTypes,
 			EventTypes,
 			ResourceTypes
 		>
@@ -91,7 +91,7 @@ interface System<
 	 */
 	onDetach?(
 		ecs: import("./ecspresso").default<
-			ComponentTypes & Record<string, any>,
+			ComponentTypes,
 			EventTypes,
 			ResourceTypes
 		>
@@ -110,7 +110,7 @@ interface System<
 			handler(
 				data: EventTypes[EventName],
 				ecs: ECSpresso<
-					ComponentTypes & Record<string, any>,
+					ComponentTypes,
 					EventTypes,
 					ResourceTypes
 				>
