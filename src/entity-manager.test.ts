@@ -69,4 +69,42 @@ describe('Entity Manager', () => {
 			expect(filteredEntity3 && Object.keys(filteredEntity3.components)).not.toInclude('position');
 		});
 	});
+
+	// Callbacks tests
+	describe('callbacks', () => {
+		test('should call onComponentAdded callback when a component is added', () => {
+			const manager = new EntityManager<TestComponents>();
+			let callbackCount = 0;
+			let callbackValue: TestComponents['health'] | undefined;
+			let callbackEntityId = -1;
+			const entity = manager.createEntity();
+			manager.onComponentAdded('health', (value, ent) => {
+				callbackCount++;
+				callbackValue = value;
+				callbackEntityId = ent.id;
+			});
+			manager.addComponent(entity.id, 'health', { value: 75 });
+			expect(callbackCount).toBe(1);
+			expect(callbackValue).toEqual({ value: 75 });
+			expect(callbackEntityId).toBe(entity.id);
+		});
+
+		test('should call onComponentRemoved callback when a component is removed', () => {
+			const manager = new EntityManager<TestComponents>();
+			let callbackCount = 0;
+			let callbackOldValue: TestComponents['state'] | undefined;
+			let callbackEntityId = -1;
+			const entity = manager.createEntity();
+			manager.addComponent(entity.id, 'state', { current: 'start', previous: '' });
+			manager.onComponentRemoved('state', (oldValue, ent) => {
+				callbackCount++;
+				callbackOldValue = oldValue;
+				callbackEntityId = ent.id;
+			});
+			manager.removeComponent(entity.id, 'state');
+			expect(callbackCount).toBe(1);
+			expect(callbackOldValue).toEqual({ current: 'start', previous: '' });
+			expect(callbackEntityId).toBe(entity.id);
+		});
+	});
 });
