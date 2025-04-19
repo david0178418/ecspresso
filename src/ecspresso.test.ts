@@ -35,7 +35,7 @@ describe('ECSpresso', () => {
 
 			world.entityManager.addComponent(entity.id, 'position', { x: 0, y: 0 });
 
-			const filteredComponent = world.getEntitiesWithComponents(['position']);
+			const filteredComponent = world.getEntitiesWithQuery(['position']);
 			const [entity1] = filteredComponent;
 
 			expect(filteredComponent.length).toBe(1);
@@ -45,7 +45,7 @@ describe('ECSpresso', () => {
 			const entity2 = world.entityManager.createEntity();
 			world.entityManager.addComponent(entity2.id, 'velocity', { x: 10, y: 20 });
 
-			const filteredComponent2 = world.getEntitiesWithComponents(['velocity']);
+			const filteredComponent2 = world.getEntitiesWithQuery(['velocity']);
 
 			filteredComponent2[0]?.components.velocity.y;
 
@@ -61,12 +61,12 @@ describe('ECSpresso', () => {
 			expect(entity2.components.position?.y).toBeUndefined();
 
 			// @ts-expect-error // TypeScript should complain if we try to add a query with a non-existent component
-			world.getEntitiesWithComponents(['doesNotExist']);
+			world.getEntitiesWithQuery(['doesNotExist']);
 
 			// @ts-expect-error // TypeScript should complain if we try to add a query with a non-existent component
-			world.getEntitiesWithComponents([], ['doesNotExist']);
+			world.getEntitiesWithQuery([], ['doesNotExist']);
 
-			const filteredComponent3 = world.getEntitiesWithComponents(['velocity'], ['position']);
+			const filteredComponent3 = world.getEntitiesWithQuery(['velocity'], ['position']);
 
 			const entity3 = filteredComponent3[0];
 

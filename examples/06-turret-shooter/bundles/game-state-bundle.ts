@@ -14,7 +14,7 @@ export default function createGameStateBundle() {
 					gameState.status = 'playing';
 
 					// Get player's initial rotation
-					const playerEntities = ecs.entityManager.getEntitiesWithComponents(['player', 'rotation']);
+					const playerEntities = ecs.entityManager.getEntitiesWithQuery(['player', 'rotation']);
 					if (playerEntities.length > 0) {
 						const playerEntity = playerEntities[0];
 						if (playerEntity) {
@@ -93,7 +93,7 @@ export default function createGameStateBundle() {
 			playerHit: {
 				handler(data, ecs) {
 					// Get player
-					const playerEntities = ecs.entityManager.getEntitiesWithComponents(['player']);
+					const playerEntities = ecs.entityManager.getEntitiesWithQuery(['player']);
 					if (playerEntities.length === 0) return;
 
 					const playerEntity = playerEntities[0];

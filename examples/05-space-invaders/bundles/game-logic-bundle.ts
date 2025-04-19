@@ -96,7 +96,7 @@ export default function createGameLogicBundle() {
 						ecs.eventBus.publish('updateScore', { points: score.value });
 
 						// Check if all enemies are destroyed
-						const enemies = ecs.getEntitiesWithComponents(['enemy']);
+						const enemies = ecs.getEntitiesWithQuery(['enemy']);
 						if (enemies.length === 0) {
 							const gameState = ecs.getResource('gameState');
 
@@ -213,7 +213,7 @@ export default function createGameLogicBundle() {
 				handler(data, ecs) {
 					const config = ecs.getResource('config');
 					const gameState = ecs.getResource('gameState');
-					const enemies = ecs.getEntitiesWithComponents(['enemy', 'velocity']);
+					const enemies = ecs.getEntitiesWithQuery(['enemy', 'velocity']);
 
 					// Calculate speed based on level and remaining enemies
 					const speedMultiplier = 1.0 + (gameState.level - 1) * 0.2;

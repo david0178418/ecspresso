@@ -73,7 +73,7 @@ export default function createInputBundle() {
 					targetRotationX = mouseY; // Vertical rotation
 
 					// Get player and camera
-					const playerEntities = ecs.entityManager.getEntitiesWithComponents(['player', 'rotation']);
+					const playerEntities = ecs.entityManager.getEntitiesWithQuery(['player', 'rotation']);
 					const camera = ecs.getResource('camera');
 
 					if (playerEntities.length > 0) {
@@ -239,7 +239,7 @@ export default function createInputBundle() {
 
 // Helper function to handle shooting
 function handleShoot(ecs: any) {
-	const playerEntities = ecs.entityManager.getEntitiesWithComponents(['player']);
+	const playerEntities = ecs.entityManager.getEntitiesWithQuery(['player']);
 	if (playerEntities.length === 0) return;
 
 	const playerEntity = playerEntities[0];

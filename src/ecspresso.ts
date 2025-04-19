@@ -149,7 +149,7 @@ export default class ECSpresso<
 				for (const queryName in system.entityQueries) {
 					const query = system.entityQueries[queryName];
 					if (query) {
-						queryResults[queryName] = this._entityManager.getEntitiesWithComponents(
+						queryResults[queryName] = this._entityManager.getEntitiesWithQuery(
 							query.with,
 							query.without || []
 						);
@@ -295,14 +295,14 @@ export default class ECSpresso<
 	/**
 		* Get all entities with specific components
 	*/
-	getEntitiesWithComponents<
+	getEntitiesWithQuery<
 		WithComponents extends keyof ComponentTypes,
 		WithoutComponents extends keyof ComponentTypes = never
 	>(
 		withComponents: ReadonlyArray<WithComponents>,
 		withoutComponents: ReadonlyArray<WithoutComponents> = []
 	): Array<FilteredEntity<ComponentTypes, WithComponents, WithoutComponents>> {
-		return this._entityManager.getEntitiesWithComponents(
+		return this._entityManager.getEntitiesWithQuery(
 			withComponents,
 			withoutComponents
 		);

@@ -153,7 +153,7 @@ function createPlayerBundle() {
 			playerMove: {
 				handler(data, ecs) {
 					const sensitivity = ecs.getResource('controlSettings').sensitivity;
-					const playerEntities = ecs.getEntitiesWithComponents(['position', 'velocity', 'sprite']);
+					const playerEntities = ecs.getEntitiesWithQuery(['position', 'velocity', 'sprite']);
 
 					if (playerEntities.length === 0) return;
 

@@ -29,7 +29,7 @@ export default function createUIBundle() {
 			if (!radarContainer) return;
 
 			// Get player entity and rotation
-			const playerEntities = ecs.entityManager.getEntitiesWithComponents(['player', 'rotation']);
+			const playerEntities = ecs.entityManager.getEntitiesWithQuery(['player', 'rotation']);
 			if (playerEntities.length === 0) return;
 
 			const player = playerEntities[0];
@@ -39,7 +39,7 @@ export default function createUIBundle() {
 			const playerFacing = playerRotation.y; // Horizontal rotation angle
 
 			// Get all enemies
-			const enemyEntities = ecs.entityManager.getEntitiesWithComponents(['enemy', 'position']);
+			const enemyEntities = ecs.entityManager.getEntitiesWithQuery(['enemy', 'position']);
 
 			// Update or create blips for each enemy
 			for (const enemy of enemyEntities) {

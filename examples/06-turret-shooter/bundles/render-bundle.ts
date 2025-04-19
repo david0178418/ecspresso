@@ -302,7 +302,7 @@ export default function createRenderBundle() {
 						}
 
 						// Check for collisions with enemies
-						const enemyEntities = ecs.entityManager.getEntitiesWithComponents(['enemy', 'position']);
+						const enemyEntities = ecs.entityManager.getEntitiesWithQuery(['enemy', 'position']);
 						for (const enemy of enemyEntities) {
 							if (!enemy.components.collider) continue;
 
