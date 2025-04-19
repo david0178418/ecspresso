@@ -56,7 +56,7 @@ export default function createRenderBundle() {
 			playerShoot: {
 				handler(_data, ecs) {
 					const entityContainer = ecs.getResource('entityContainer');
-					const playerEntities = ecs.entityManager.getEntitiesWithComponents(['player', 'position']);
+					const playerEntities = ecs.entityManager.getEntitiesWithQuery(['player', 'position']);
 
 					const [player] = playerEntities;
 

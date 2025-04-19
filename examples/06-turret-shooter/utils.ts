@@ -363,7 +363,7 @@ export function updateUI(ecs: ECSpresso<Components, Events, Resources>) {
 		uiElements.waveElement.innerText = `Wave: ${gameState.wave}`;
 	}
 
-	const playerEntities = ecs.entityManager.getEntitiesWithComponents(['player']);
+	const playerEntities = ecs.entityManager.getEntitiesWithQuery(['player']);
 	const playerEntity = playerEntities[0];
 	if (playerEntity && uiElements.healthElement) {
 		const player = playerEntity.components.player;

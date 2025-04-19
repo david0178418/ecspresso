@@ -19,7 +19,7 @@ export default function createAIBundle() {
 			const gameState = ecs.getResource('gameState');
 			if (gameState.status !== 'playing') return;
 
-			const playerEntities = ecs.entityManager.getEntitiesWithComponents(['player', 'position']);
+			const playerEntities = ecs.entityManager.getEntitiesWithQuery(['player', 'position']);
 
 			// Skip if no player exists
 			if (playerEntities.length === 0) return;
@@ -123,7 +123,7 @@ export default function createAIBundle() {
 				// Check if we still need to spawn enemies for this wave
 				if (waveManager.enemiesRemaining > 0) {
 					// Count current enemies
-					const enemies = ecs.entityManager.getEntitiesWithComponents(['enemy']);
+					const enemies = ecs.entityManager.getEntitiesWithQuery(['enemy']);
 
 					// Don't spawn more than max enemies at once
 					if (enemies.length < config.maxEnemies) {

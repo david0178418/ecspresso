@@ -23,7 +23,7 @@ describe('Entity Manager', () => {
 
 			entityManager.addComponent(entity.id, 'position', { x: 0, y: 0 });
 
-			const filteredComponents = entityManager.getEntitiesWithComponents(['position']);
+			const filteredComponents = entityManager.getEntitiesWithQuery(['position']);
 
 			expect(filteredComponents.length).toBe(1);
 			expect(entity.components.position?.x).toBe(0);
@@ -32,7 +32,7 @@ describe('Entity Manager', () => {
 			const entity2 = entityManager.createEntity();
 			entityManager.addComponent(entity2.id, 'velocity', { x: 10, y: 20 });
 
-			const filteredComponents2 = entityManager.getEntitiesWithComponents(['velocity']);
+			const filteredComponents2 = entityManager.getEntitiesWithQuery(['velocity']);
 			const [filteredEntity2] = filteredComponents2;
 
 			filteredEntity2?.components.velocity.y;
@@ -50,7 +50,7 @@ describe('Entity Manager', () => {
 			expect(entity2.components.velocity?.x).toBe(10);
 			expect(entity2.components.position?.y).toBeUndefined();
 
-			const filteredComponent3 = entityManager.getEntitiesWithComponents(['velocity'], ['position']);
+			const filteredComponent3 = entityManager.getEntitiesWithQuery(['velocity'], ['position']);
 
 			const [filteredEntity3] = filteredComponent3;
 

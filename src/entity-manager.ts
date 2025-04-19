@@ -106,7 +106,7 @@ class EntityManager<ComponentTypes> {
 		return entity.components[componentName] || null;
 	}
 
-	getEntitiesWithComponents<
+	getEntitiesWithQuery<
 		WithComponents extends keyof ComponentTypes = never,
 		WithoutComponents extends keyof ComponentTypes = never
 	>(
