@@ -144,6 +144,7 @@ export default class ECSpresso<
 
 			// Prepare query results for each defined query in the system
 			const queryResults: Record<string, any> = {};
+			let hasResults = false; 
 
 			if (system.entityQueries) {
 				for (const queryName in system.entityQueries) {
@@ -153,12 +154,18 @@ export default class ECSpresso<
 							query.with,
 							query.without || []
 						);
+
+						if(queryResults[queryName].length) {
+							hasResults = true; // At least one query has results
+						}
 					}
 				}
 			}
 
-			// Call the system's process function
-			system.process(queryResults, deltaTime, this);
+			// Call the system's process function only if there are results
+			if (hasResults) {
+				system.process(queryResults, deltaTime, this);
+			}
 		}
 	}
 
