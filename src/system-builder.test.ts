@@ -121,6 +121,9 @@ describe('SystemBuilder', () => {
 			.setOnInitialize(() => {
 				onInitializeCalled = true;
 			})
+			.addQuery('entities', {
+				with: ['position']
+			})
 			.setProcess(() => {
 				processCalledCount++;
 			})
@@ -140,6 +143,9 @@ describe('SystemBuilder', () => {
 		expect(onInitializeCalled).toBe(true);
 		expect(onDetachCalled).toBe(false);
 		expect(processCalledCount).toBe(0);
+
+		const entity = world.entityManager.createEntity();
+		world.entityManager.addComponent(entity.id, 'position', { x: 0, y: 0 });
 
 		// Update the world
 		world.update(1/60);

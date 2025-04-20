@@ -98,6 +98,9 @@ describe('ResourceManager', () => {
 		const bundle = new Bundle<TestComponents, TestEvents, TestResources>()
 			.addResource('config', { debug: true, maxEntities: 1000 })
 			.addSystem('ConfigAwareSystem')
+			.addQuery('entities', {
+				with: ['position']
+			})
 			.setProcess((_queries, _deltaTime, ecs) => {
 				// System should be able to access resources
 				const config = ecs.getResource('config');
@@ -114,6 +117,9 @@ describe('ResourceManager', () => {
 
 		// Track system execution
 		let systemDebugRan = false;
+
+		const entity = world.entityManager.createEntity();
+		world.entityManager.addComponent(entity.id, 'position', { x: 0, y: 0 });
 
 		// Update the world to run the system
 		world.update(1/60);
@@ -147,6 +153,9 @@ describe('ResourceManager', () => {
 			.addResource('logger', customLogger)
 			.addResource('counter', counter)
 			.addSystem('ResourceSystem')
+			.addQuery('entities', {
+				with: ['position']
+			})
 			.setProcess((_queries, _deltaTime, ecs) => {
 				const logger = ecs.getResource('logger');
 				const counter = ecs.getResource('counter');
@@ -161,6 +170,9 @@ describe('ResourceManager', () => {
 		const world = ECSpresso.create<TestComponents, TestEvents, TestResources>()
 			.withBundle(bundle)
 			.build();
+
+		const entity = world.entityManager.createEntity();
+		world.entityManager.addComponent(entity.id, 'position', { x: 0, y: 0 });
 
 		// Update the world to run the system
 		world.update(1/60);

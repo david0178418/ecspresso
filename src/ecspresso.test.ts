@@ -440,6 +440,9 @@ describe('ECSpresso', () => {
 			// Create a bundle with the system
 			const bundle = new Bundle<TestComponents>()
 				.addSystem('MovementSystem')
+				.addQuery('entities', {
+					with: ['position'],
+				})
 				.setProcess(() => {
 					processRan = true;
 				})
@@ -450,10 +453,9 @@ describe('ECSpresso', () => {
 				.withBundle(bundle)
 				.build();
 
-			// Future constructor-based installation
-			// const worldWithConstructor = new ECSpresso<TestComponents>({
-			//   bundles: [bundle]
-			// });
+			// Add entity to match the query
+			const entity = world.entityManager.createEntity();
+			world.entityManager.addComponent(entity.id, 'position', { x: 0, y: 0 });
 
 			// System should run during update
 			world.update(1/60);
@@ -484,6 +486,9 @@ describe('ECSpresso', () => {
 				.setOnDetach((_ecs) => {
 					detachCalled = true;
 				})
+				.addQuery('entities', {
+					with: ['position'],
+				})
 				.setProcess((_queries, _deltaTime, _ecs) => {
 					processCalled = true;
 				})
@@ -493,6 +498,10 @@ describe('ECSpresso', () => {
 			const world = ECSpresso.create<TestComponents>()
 				.withBundle(bundle)
 				.build();
+
+			// Add an entity to match the query
+			const entity = world.entityManager.createEntity();
+			world.entityManager.addComponent(entity.id, 'position', { x: 0, y: 0 });
 
 			await world.initialize();
 
@@ -619,6 +628,9 @@ describe('ECSpresso', () => {
 			// Create a system that adds and removes components
 			const bundle = new Bundle<TestComponents>()
 				.addSystem('DynamicComponentSystem')
+				.addQuery('entities', {
+					with: ['velocity'],
+				})
 				.setProcess((_queries, _deltaTime, ecs) => {
 					// Add a position component if it doesn't exist
 					if (!ecs.entityManager.getComponent(entity.id, 'position')) {
@@ -634,13 +646,10 @@ describe('ECSpresso', () => {
 				.withBundle(bundle)
 				.build();
 
-			// Install the bundle using constructor
-			// const world = new ECSpresso<TestComponents>({
-			// 	bundles: [bundle]
-			// });
-
 			// Create entity without components yet
 			const entity = world.entityManager.createEntity();
+
+			world.entityManager.addComponent(entity.id, 'velocity', { x: 5, y: 10 });
 
 			// First update adds the position component
 			world.update(1/60);
@@ -793,6 +802,9 @@ describe('ECSpresso', () => {
 			// Create systems with different priorities
 			world.addSystem('LowPrioritySystem')
 				.setPriority(0)
+				.addQuery('entities', {
+					with: ['position'],
+				})
 				.setProcess(() => {
 					executionOrder.push('low');
 				})
@@ -800,6 +812,9 @@ describe('ECSpresso', () => {
 
 			world.addSystem('HighPrioritySystem')
 				.setPriority(100)
+				.addQuery('entities', {
+					with: ['position'],
+				})
 				.setProcess(() => {
 					executionOrder.push('high');
 				})
@@ -807,10 +822,16 @@ describe('ECSpresso', () => {
 
 			world.addSystem('MediumPrioritySystem')
 				.setPriority(50)
+				.addQuery('entities', {
+					with: ['position'],
+				})
 				.setProcess(() => {
 					executionOrder.push('medium');
 				})
 				.build();
+
+			const entity = world.entityManager.createEntity();
+			world.entityManager.addComponent(entity.id, 'position', { x: 0, y: 0 });
 
 			// Update the world to run all systems
 			world.update(1/60);
@@ -828,6 +849,9 @@ describe('ECSpresso', () => {
 			// Create systems with the same priority in a specific order
 			world.addSystem('SystemA')
 				.setPriority(10)
+				.addQuery('entities', {
+					with: ['position'],
+				})
 				.setProcess(() => {
 					executionOrder.push('A');
 				})
@@ -835,6 +859,9 @@ describe('ECSpresso', () => {
 
 			world.addSystem('SystemB')
 				.setPriority(10)
+				.addQuery('entities', {
+					with: ['position'],
+				})
 				.setProcess(() => {
 					executionOrder.push('B');
 				})
@@ -842,10 +869,16 @@ describe('ECSpresso', () => {
 
 			world.addSystem('SystemC')
 				.setPriority(10)
+				.addQuery('entities', {
+					with: ['position'],
+				})
 				.setProcess(() => {
 					executionOrder.push('C');
 				})
 				.build();
+
+			const entity = world.entityManager.createEntity();
+			world.entityManager.addComponent(entity.id, 'position', { x: 0, y: 0 });
 
 			// Update the world to run all systems
 			world.update(1/60);
@@ -859,6 +892,9 @@ describe('ECSpresso', () => {
 			const bundle1 = new Bundle<TestComponents>()
 				.addSystem('BundleSystemHigh')
 				.setPriority(100)
+				.addQuery('entities', {
+					with: ['position'],
+				})
 				.setProcess((_queries, _deltaTime, _ecs) => {
 					executionOrder.push('bundleHigh');
 				})
@@ -867,6 +903,9 @@ describe('ECSpresso', () => {
 			const bundle2 = new Bundle<TestComponents>()
 				.addSystem('BundleSystemLow')
 				.setPriority(0)
+				.addQuery('entities', {
+					with: ['position'],
+				})
 				.setProcess((_queries, _deltaTime, _ecs) => {
 					executionOrder.push('bundleLow');
 				})
@@ -878,9 +917,15 @@ describe('ECSpresso', () => {
 				.withBundle(bundle2)
 				.build();
 
+			const entity = world.entityManager.createEntity();
+			world.entityManager.addComponent(entity.id, 'position', { x: 0, y: 0 });
+
 			// Add a direct system with medium priority
 			world.addSystem('DirectSystemMedium')
 				.setPriority(50)
+				.addQuery('entities', {
+					with: ['position'],
+				})
 				.setProcess(() => {
 					executionOrder.push('directMedium');
 				})
@@ -905,6 +950,9 @@ describe('ECSpresso', () => {
 			// Add systems with initial priorities
 			world.addSystem('SystemA')
 				.setPriority(10)
+				.addQuery('entities', {
+					with: ['position'],
+				})
 				.setProcess(() => {
 					executionOrder.push('A');
 				})
@@ -912,6 +960,9 @@ describe('ECSpresso', () => {
 
 			world.addSystem('SystemB')
 				.setPriority(20)
+				.addQuery('entities', {
+					with: ['position'],
+				})
 				.setProcess(() => {
 					executionOrder.push('B');
 				})
@@ -919,10 +970,16 @@ describe('ECSpresso', () => {
 
 			world.addSystem('SystemC')
 				.setPriority(30)
+				.addQuery('entities', {
+					with: ['position'],
+				})
 				.setProcess(() => {
 					executionOrder.push('C');
 				})
 				.build();
+
+			const entity = world.entityManager.createEntity();
+			world.entityManager.addComponent(entity.id, 'position', { x: 0, y: 0 });
 
 			// Initial update and check
 			world.update(1/60);
