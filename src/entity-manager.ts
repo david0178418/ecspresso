@@ -78,9 +78,15 @@ class EntityManager<ComponentTypes> {
 		return this;
 	}
 
-	removeComponent<ComponentName extends keyof ComponentTypes>(entityId: number, componentName: ComponentName) {
-		const entity = this.entities.get(entityId);
-		if (!entity) throw new Error(`Entity ${entityId} does not exist`);
+	removeComponent<ComponentName extends keyof ComponentTypes>(
+		entityOrId: number | Entity<ComponentTypes>,
+		componentName: ComponentName
+	) {
+		const entity = typeof entityOrId === 'number' ?
+			this.entities.get(entityOrId) :
+			entityOrId;
+
+		if (!entity) throw new Error(`Entity ${entityOrId} does not exist`);
 		// Get old value for callbacks
 		const oldValue = entity.components[componentName] as ComponentTypes[ComponentName] | undefined;
 
@@ -95,7 +101,9 @@ class EntityManager<ComponentTypes> {
 		}
 
 		// Update component index
-		this.componentIndices.get(componentName)?.delete(entityId);
+		this.componentIndices.get(componentName)?.delete(entity.id);
+
+		return this;
 	}
 
 	getComponent<ComponentName extends keyof ComponentTypes>(entityId: number, componentName: ComponentName): ComponentTypes[ComponentName] | null {
