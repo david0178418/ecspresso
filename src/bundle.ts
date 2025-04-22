@@ -1,4 +1,4 @@
-import { createBundleSystemBuilder, SystemBuilder } from './system-builder';
+import { createBundleSystemBuilder, SystemBuilderWithBundle } from './system-builder';
 import type ECSpresso from './ecspresso';
 
 /**
@@ -17,7 +17,7 @@ export default class Bundle<
 	EventTypes extends Record<string, any> = {},
 	ResourceTypes extends Record<string, any> = {},
 > {
-	private _systems: SystemBuilder<ComponentTypes, EventTypes, ResourceTypes, any>[] = [];
+	private _systems: SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, any>[] = [];
 	private _resources: Map<keyof ResourceTypes, ResourceTypes[keyof ResourceTypes]> = new Map();
 	private _id: string;
 
@@ -41,14 +41,19 @@ export default class Bundle<
 	}
 
 	/**
-	 * Add a system to this bundle
+	 * Add a system to this bundle, by label (creating a new builder) or by reusing an existing one
 	 */
-	addSystem(label: string) {
-		const system = createBundleSystemBuilder<ComponentTypes, EventTypes, ResourceTypes>(label, this);
-
-		this._systems.push(system);
-
-		return system;
+	addSystem<Q extends Record<string, any>>(builder: SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, Q>): SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, Q>;
+	addSystem(label: string): SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, {}>;
+	addSystem(builderOrLabel: string | SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, any>) {
+		if (typeof builderOrLabel === 'string') {
+			const system = createBundleSystemBuilder<ComponentTypes, EventTypes, ResourceTypes>(builderOrLabel, this);
+			this._systems.push(system);
+			return system;
+		} else {
+			this._systems.push(builderOrLabel);
+			return builderOrLabel;
+		}
 	}
 
 	/**
@@ -104,7 +109,7 @@ export default class Bundle<
 	/**
 	 * Get all system builders in this bundle
 	 */
-	getSystemBuilders(): SystemBuilder<ComponentTypes, EventTypes, ResourceTypes, any>[] {
+	getSystemBuilders(): SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, any>[] {
 		return [...this._systems];
 	}
 
@@ -179,7 +184,8 @@ export function mergeBundles(
 
 	for (const bundle of bundles) {
 		for (const system of bundle.getSystemBuilders()) {
-			combined.addSystem(system.label);
+			// reuse the full builder so we carry over queries, hooks, and handlers
+			combined.addSystem(system);
 		}
 
 		// Add resources from this bundle
