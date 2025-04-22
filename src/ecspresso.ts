@@ -172,7 +172,6 @@ export default class ECSpresso<
 			if (hasResults) {
 				system.process(queryResults, deltaTime, this);
 			} else if(!hasQueries) {
-				console.log('Calling process function for system', system.label, 'with empty query results');
 				system.process(EmptyQueryResults, deltaTime, this);
 			}
 		}
