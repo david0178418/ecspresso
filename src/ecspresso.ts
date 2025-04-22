@@ -62,6 +62,8 @@ export default interface ECSpresso<
 	new(): ECSpresso<ComponentTypes, EventTypes, ResourceTypes>;
 }
 
+const EmptyQueryResults = {};
+
 /**
 	* ECSpresso is the central ECS framework class that connects all features.
 	* It handles creation and management of entities, components, and systems, and provides lifecycle hooks.
@@ -144,11 +146,15 @@ export default class ECSpresso<
 
 			// Prepare query results for each defined query in the system
 			const queryResults: Record<string, any> = {};
-			let hasResults = false; 
+			let hasResults = false;
+			let hasQueries = false;
 
 			if (system.entityQueries) {
 				for (const queryName in system.entityQueries) {
+					hasQueries = true;
+
 					const query = system.entityQueries[queryName];
+
 					if (query) {
 						queryResults[queryName] = this._entityManager.getEntitiesWithQuery(
 							query.with,
@@ -162,9 +168,12 @@ export default class ECSpresso<
 				}
 			}
 
-			// Call the system's process function only if there are results
+			// Call the system's process function only if there are results or there is no query.
 			if (hasResults) {
 				system.process(queryResults, deltaTime, this);
+			} else if(!hasQueries) {
+				console.log('Calling process function for system', system.label, 'with empty query results');
+				system.process(EmptyQueryResults, deltaTime, this);
 			}
 		}
 	}
