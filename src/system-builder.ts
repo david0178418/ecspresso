@@ -28,6 +28,7 @@ export class SystemBuilder<
 		};
 	};
 	private _priority = 0; // Default priority is 0
+	private _isRegistered = false; // Track if system has been auto-registered
 
 	constructor(
 		private _label: string,
@@ -51,6 +52,48 @@ export class SystemBuilder<
 	 */
 	get ecspresso() {
 		return this._ecspresso;
+	}
+
+	/**
+	 * Auto-register this system with its ECSpresso instance if not already registered
+	 * @private
+	 */
+	private _autoRegister(): void {
+		if (this._isRegistered || !this._ecspresso) return;
+		
+		const system = this._buildSystemObject();
+		registerSystemWithEcspresso(system, this._ecspresso);
+		this._isRegistered = true;
+	}
+
+	/**
+	 * Create the system object without registering it
+	 * @private
+	 */
+	private _buildSystemObject(): System<ComponentTypes, any, any, EventTypes, ResourceTypes> {
+		const system: System<ComponentTypes, any, any, EventTypes, ResourceTypes> = {
+			label: this._label,
+			entityQueries: this.queries,
+			priority: this._priority,
+		};
+
+		if (this.processFunction) {
+			system.process = this.processFunction;
+		}
+
+		if (this.detachFunction) {
+			system.onDetach = this.detachFunction;
+		}
+
+		if (this.initializeFunction) {
+			system.onInitialize = this.initializeFunction;
+		}
+
+		if (this.eventHandlers) {
+			system.eventHandlers = this.eventHandlers;
+		}
+
+		return system;
 	}
 
 	// TODO: Should this be a setter?
@@ -106,6 +149,34 @@ export class SystemBuilder<
 	): this {
 		this.processFunction = process;
 		return this;
+	}
+
+	/**
+	 * Register this system with its ECSpresso instance and return the ECSpresso for chaining
+	 * This enables seamless method chaining: .registerAndContinue().addSystem(...)
+	 * @returns ECSpresso instance if attached to one, otherwise throws an error
+	 */
+	registerAndContinue(): ECSpresso<ComponentTypes, EventTypes, ResourceTypes> {
+		if (!this._ecspresso) {
+			throw new Error('Cannot register system: no ECSpresso instance attached');
+		}
+		
+		this._autoRegister();
+		return this._ecspresso;
+	}
+
+	/**
+	 * Complete this system and return ECSpresso for seamless chaining
+	 * Automatically registers the system when called
+	 * This method is primarily for SystemBuilderWithEcspresso instances
+	 */
+	and(): ECSpresso<ComponentTypes, EventTypes, ResourceTypes> {
+		if (!this._ecspresso) {
+			throw new Error('Cannot use and() method: no ECSpresso instance attached');
+		}
+		
+		this._autoRegister();
+		return this._ecspresso;
 	}
 
 	/**
@@ -332,6 +403,12 @@ export interface SystemBuilderWithEcspresso<
 	Queries extends Record<string, QueryDefinition<ComponentTypes>> = {}
 > extends SystemBuilder<ComponentTypes, EventTypes, ResourceTypes, Queries> {
 	readonly ecspresso: ECSpresso<ComponentTypes, EventTypes, ResourceTypes>;
+	
+	/**
+	 * Complete this system and return ECSpresso for seamless chaining
+	 * Automatically registers the system when called
+	 */
+	and(): ECSpresso<ComponentTypes, EventTypes, ResourceTypes>;
 }
 
 /**

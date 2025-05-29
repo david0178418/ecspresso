@@ -91,8 +91,7 @@ ecs
 			player.components.velocity.x = 0;
 		}
 	})
-	.build()
-	.ecspresso
+	.and()
 	.addSystem('move-entities')
 	.addQuery('movingEntities', {
 		with: ['position', 'velocity'],
@@ -106,11 +105,7 @@ ecs
 			position.y += velocity.y * deltaTime;
 		}
 	})
-	// Build system into the ECSpresso instance when finished defining it
-	.build()
-	// Access the ECSpresso instance for chaining.
-	.ecspresso
-	// Update sprite positions based on entity positions
+	.and()
 	.addSystem('update-sprite-position')
 	.addQuery('renderedEntities', {
 		with: ['sprite', 'position'],

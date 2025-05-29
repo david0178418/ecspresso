@@ -38,7 +38,9 @@ interface Resources {
 	};
 }
 
-new ECSpresso<Components, Events, Resources>()
+const ecs = new ECSpresso<Components, Events, Resources>();
+
+ecs
 	.addResource('controlMap', activeKeyMap())
 	.addResource('pixi', await initPixi())
 	.addSystem('init')
@@ -99,8 +101,7 @@ new ECSpresso<Components, Events, Resources>()
 			}
 		},
 	})
-	.build()
-	.ecspresso
+	.and()
 	.addSystem('apply-velocity')
 	.addQuery('movingEntities', {
 		with: ['position', 'velocity'],
@@ -126,8 +127,7 @@ new ECSpresso<Components, Events, Resources>()
 			}
 		}
 	})
-	.build()
-	.ecspresso
+	.and()
 	.addSystem('update-sprite-position')
 	.addQuery('movingEntities', {
 		with: ['sprite', 'position'],
@@ -140,8 +140,7 @@ new ECSpresso<Components, Events, Resources>()
 			);
 		}
 	})
-	.build()
-	.ecspresso
+	.and()
 	.addSystem('enemy-movement')
 	.setEventHandlers({
 		startGame: {
@@ -192,8 +191,7 @@ new ECSpresso<Components, Events, Resources>()
 			}
 		}
 	})
-	.build()
-	.ecspresso
+	.and()
 	.addSystem('player-control')
 	.addQuery('players', {
 		with: [
@@ -224,8 +222,7 @@ new ECSpresso<Components, Events, Resources>()
 			player.components.velocity.x = 0;
 		}
 	})
-	.build()
-	.ecspresso
+	.and()
 	.addSystem('colision-detection')
 	.addQuery('players', {
 		with: ['position', 'sprite', 'player'],
@@ -253,12 +250,12 @@ new ECSpresso<Components, Events, Resources>()
 			}
 		}
 	})
-	.build()
-	.ecspresso
-	.eventBus
-	.publish('initializeGame', {
-		someRandomData: new Date(),
-	});
+	.build();
+
+// Start the game by publishing the initialization event
+ecs.eventBus.publish('initializeGame', {
+	someRandomData: new Date(),
+});
 
 async function initPixi() {
 	const pixi = new Application();

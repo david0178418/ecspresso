@@ -67,11 +67,7 @@ ecs
 			}
 		}
 	})
-	// Build system into the ECSpresso instance when finished defining it
-	.build()
-	// Access the ECSpresso instance for chaining.
-	.ecspresso
-	// Update sprite positions based on entity positions
+	.and()
 	.addSystem('update-sprite-position')
 	.addQuery('renderedEntities', {
 		with: ['sprite', 'position'],
