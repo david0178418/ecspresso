@@ -76,7 +76,7 @@ world.addSystem('movement')
     const gameState = ecs.getResource('gameState');
     gameState.lastMovementUpdate = Date.now();
   })
-  .build(); // Don't forget to call build() to finalize the system
+  .build(); // Finalize the system
 
 // Create an entity with position and velocity components
 const entity = world.entityManager.createEntity();
@@ -242,7 +242,7 @@ world.entityManager.removeEntity(entity.id);
 
 ## Working with Systems and Queries
 
-Systems can be added directly to an ECSpresso instance:
+Systems can be added directly to an ECSpresso instance with seamless method chaining:
 
 ```typescript
 const world = ECSpresso.create<Components, Events, Resources>()
@@ -282,8 +282,49 @@ world.addSystem('physicsSystem')
       // Apply flying behavior
     }
   })
-  .build(); // Finalizes and adds the system to the world
+  .and() // Auto-register and continue chaining to add more systems
+  .addSystem('renderer')
+  .addQuery('sprites', { with: ['position', 'sprite'] })
+  .setProcess((queries) => {
+    // Render all sprites
+    for (const entity of queries.sprites) {
+      // Draw entities at their positions
+    }
+  })
+  .and()
+  .addSystem('cleanup')
+  .setProcess((queries) => { /* cleanup logic */ })
+  .build(); // Only the final system needs .build()
 ```
+
+### Method Chaining with `.and()`
+
+ECSpresso uses simplified method chaining with the `.and()` method for creating multiple systems. This is the standard approach for building systems:
+
+```typescript
+world.addSystem('movement')
+  .addQuery('entities', { with: ['position', 'velocity'] })
+  .setProcess((queries) => {
+    for (const entity of queries.entities) {
+      entity.components.position.x += entity.components.velocity.x * deltaTime;
+      entity.components.position.y += entity.components.velocity.y * deltaTime;
+    }
+  })
+  .and()  // Auto-register and continue chaining
+  .addSystem('renderer')
+  .addQuery('sprites', { with: ['position', 'sprite'] })
+  .setProcess((queries) => {
+    for (const entity of queries.sprites) {
+      // Render sprites
+    }
+  })
+  .and()
+  .addSystem('cleanup')
+  .setProcess((queries) => { /* cleanup logic */ })
+  .build(); // Only the final system needs .build()
+```
+
+The `.and()` method automatically registers the system with the ECSpresso instance and returns the ECSpresso for seamless chaining. This creates a clean, fluent API for defining multiple systems.
 
 ## System Lifecycle Hooks
 

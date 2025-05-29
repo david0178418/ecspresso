@@ -781,13 +781,66 @@ describe('ECSpresso', () => {
 			// Build the direct system
 			directSystemBuilder.build();
 
-			// Update all worlds
-			worldWithBundle.update(1/60);
+			// Test both worlds
 			directWorld.update(1/60);
+			worldWithBundle.update(1/60);
 
-			// All systems should have processed
-			expect(bundleProcessed).toBe(true);
 			expect(directProcessed).toBe(true);
+			expect(bundleProcessed).toBe(true);
+		});
+
+		test('should support simplified method chaining with and() method', () => {
+			const world = new ECSpresso<TestComponents>();
+
+			let system1Processed = false;
+			let system2Processed = false;
+			let system3Processed = false;
+
+			// Create entities
+			const entity1 = world.entityManager.createEntity();
+			world.entityManager.addComponent(entity1.id, 'position', { x: 0, y: 0 });
+			world.entityManager.addComponent(entity1.id, 'velocity', { x: 5, y: 10 });
+
+			const entity2 = world.entityManager.createEntity();
+			world.entityManager.addComponent(entity2.id, 'position', { x: 100, y: 100 });
+			world.entityManager.addComponent(entity2.id, 'health', { value: 100 });
+
+			// Test the new simplified chaining API
+			world
+				.addSystem('system1')
+				.addQuery('movingEntities', {
+					with: ['position', 'velocity'],
+				})
+				.setProcess((queries) => {
+					system1Processed = true;
+					expect(queries.movingEntities.length).toBe(1);
+				})
+				.and() // Auto-register and return ECSpresso for chaining
+				.addSystem('system2')
+				.addQuery('healthyEntities', {
+					with: ['position', 'health'],
+				})
+				.setProcess((queries) => {
+					system2Processed = true;
+					expect(queries.healthyEntities.length).toBe(1);
+				})
+				.and()
+				.addSystem('system3')
+				.addQuery('allPositioned', {
+					with: ['position'],
+				})
+				.setProcess((queries) => {
+					system3Processed = true;
+					expect(queries.allPositioned.length).toBe(2);
+				})
+				.build(); // Final build for the last system
+
+			// All systems should now be registered and functional
+			world.update(1/60);
+
+			expect(system1Processed).toBe(true);
+			expect(system2Processed).toBe(true);
+			expect(system3Processed).toBe(true);
 		});
 	});
 
