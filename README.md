@@ -329,6 +329,116 @@ world.addSystem('movement')
 
 The `.and()` method automatically registers the system with the ECSpresso instance and returns the ECSpresso for seamless chaining. This creates a clean, fluent API for defining multiple systems.
 
+## Query Type Utilities
+
+ECSpresso provides utilities to extract entity types from query definitions, making it easy to create reusable helper functions that work with specific entity types.
+
+### Creating Reusable Query Definitions
+
+Use `createQueryDefinition()` to create reusable query definitions:
+
+```typescript
+import { createQueryDefinition, QueryResultEntity } from 'ecspresso';
+
+// Create reusable query definitions
+const movingEntitiesQuery = createQueryDefinition({
+  with: ['position', 'velocity'] as const,
+  without: ['dead'] as const
+} as const);
+
+const renderableEntitiesQuery = createQueryDefinition({
+  with: ['sprite', 'position'] as const,
+} as const);
+```
+
+### Extracting Entity Types for Helper Functions
+
+Use `QueryResultEntity` to extract the entity type that results from a query:
+
+```typescript
+// Extract entity types from query definitions
+type MovingEntity = QueryResultEntity<Components, typeof movingEntitiesQuery>;
+type RenderableEntity = QueryResultEntity<Components, typeof renderableEntitiesQuery>;
+
+// Create helper functions with proper typing
+function updatePosition(entity: MovingEntity, deltaTime: number) {
+  // TypeScript knows entity has position and velocity components
+  entity.components.position.x += entity.components.velocity.x * deltaTime;
+  entity.components.position.y += entity.components.velocity.y * deltaTime;
+}
+
+function updateSpritePosition(entity: RenderableEntity) {
+  // TypeScript knows entity has sprite and position components
+  entity.components.sprite.position.set(
+    entity.components.position.x,
+    entity.components.position.y
+  );
+}
+
+function screenWrap(entity: MovingEntity, screenWidth: number, screenHeight: number) {
+  const pos = entity.components.position;
+  
+  if (pos.x < 0) pos.x = screenWidth;
+  if (pos.x > screenWidth) pos.x = 0;
+  if (pos.y < 0) pos.y = screenHeight;
+  if (pos.y > screenHeight) pos.y = 0;
+}
+```
+
+### Using Helper Functions in Systems
+
+Now you can use these helper functions in your systems with full type safety:
+
+```typescript
+world.addSystem('movement')
+  .addQuery('entities', movingEntitiesQuery)  // Use the reusable query definition
+  .setProcess((queries, deltaTime, ecs) => {
+    const pixi = ecs.getResource('pixi');
+    
+    for (const entity of queries.entities) {
+      // Use helper functions with proper typing!
+      updatePosition(entity, deltaTime);
+      screenWrap(entity, pixi.renderer.width, pixi.renderer.height);
+    }
+  })
+  .and()
+  .addSystem('renderer')
+  .addQuery('sprites', renderableEntitiesQuery)  // Use the reusable query definition
+  .setProcess((queries) => {
+    for (const entity of queries.sprites) {
+      // Use helper function with proper typing!
+      updateSpritePosition(entity);
+    }
+  })
+  .build();
+```
+
+### Benefits of Query Type Utilities
+
+- **Code Reuse**: Create helper functions that can be used across multiple systems
+- **Type Safety**: TypeScript knows exactly which components are available on each entity
+- **Testability**: Helper functions can be unit tested independently
+- **Organization**: Separate business logic from system setup code
+- **Maintainability**: Query definitions can be reused and modified in one place
+
+### Inline Query Types
+
+You can also use `QueryResultEntity` with inline query definitions for one-off helper functions:
+
+```typescript
+type PlayerEntity = QueryResultEntity<Components, {
+  with: ['position', 'health', 'player'];
+  without: ['dead'];
+}>;
+
+function healPlayer(entity: PlayerEntity, amount: number) {
+  entity.components.health.value += amount;
+  console.log(`Player at (${entity.components.position.x}, ${entity.components.position.y}) healed for ${amount}`);
+}
+```
+
+This approach gives you the flexibility to extract any query-based logic into well-typed, reusable functions.
+
 ## System Lifecycle Hooks
 
 ECSpresso systems have two lifecycle hooks you can implement:

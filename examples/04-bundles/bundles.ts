@@ -1,5 +1,5 @@
 import { Application, Container, Graphics, Sprite } from 'pixi.js';
-import ECSpresso, { Bundle, Entity } from "../../src";
+import ECSpresso, { Bundle, Entity, QueryResultEntity, createQueryDefinition } from "../../src";
 
 interface Components {
 	sprite: Sprite;
@@ -36,6 +36,41 @@ interface Resources {
 		left: boolean;
 		right: boolean;
 	};
+}
+
+// Create reusable query definitions for better type extraction
+const movingEntitiesQuery = createQueryDefinition({
+	with: ['position', 'velocity'] as const,
+} as const);
+
+const renderableEntitiesQuery = createQueryDefinition({
+	with: ['sprite', 'position'] as const,
+} as const);
+
+// Extract entity types from query definitions for helper functions
+type MovingEntity = QueryResultEntity<Components, typeof movingEntitiesQuery>;
+type RenderableEntity = QueryResultEntity<Components, typeof renderableEntitiesQuery>;
+
+// Helper functions with proper typing - these can be tested independently!
+function updatePosition(entity: MovingEntity, deltaTime: number) {
+	entity.components.position.x += entity.components.velocity.x * deltaTime;
+	entity.components.position.y += entity.components.velocity.y * deltaTime;
+}
+
+function updateSpritePosition(entity: RenderableEntity) {
+	entity.components.sprite.position.set(
+		entity.components.position.x,
+		entity.components.position.y
+	);
+}
+
+function screenWrap(entity: MovingEntity, screenWidth: number, screenHeight: number) {
+	const pos = entity.components.position;
+	
+	if (pos.x < 0) pos.x = screenWidth;
+	if (pos.x > screenWidth) pos.x = 0;
+	if (pos.y < 0) pos.y = screenHeight;
+	if (pos.y > screenHeight) pos.y = 0;
 }
 
 // Create an ECSpresso instance with our game bundles
@@ -213,41 +248,22 @@ function createGameInitBundle() {
 function createPhysicsBundle() {
 	return new Bundle<Components, Events, Resources>()
 		.addSystem('apply-velocity')
-		.addQuery('movingEntities', {
-			with: ['position', 'velocity'],
-		})
+		.addQuery('movingEntities', movingEntitiesQuery)
 		.setProcess((queries, deltaTimeMs, ecs) => {
+			const pixi = ecs.getResource('pixi');
+			
 			for(const entity of queries.movingEntities) {
-				entity.components.position.x += entity.components.velocity.x * deltaTimeMs;
-				entity.components.position.y += entity.components.velocity.y * deltaTimeMs;
-
-				// wrap around the screen
-				const pixi = ecs.getResource('pixi');
-				if (entity.components.position.x < 0) {
-					entity.components.position.x = pixi.renderer.width;
-				} else if (entity.components.position.x > pixi.renderer.width) {
-					entity.components.position.x = 0;
-				}
-
-				if (entity.components.position.y < 0) {
-					entity.components.position.y = pixi.renderer.height;
-				} else if (entity.components.position.y > pixi.renderer.height) {
-					entity.components.position.y = 0;
-				}
+				updatePosition(entity, deltaTimeMs);
+				screenWrap(entity, pixi.renderer.width, pixi.renderer.height);
 			}
 		})
 		.build()
 		.bundle
 		.addSystem('update-sprite-position')
-		.addQuery('movingEntities', {
-			with: ['sprite', 'position'],
-		})
+		.addQuery('movingEntities', renderableEntitiesQuery)
 		.setProcess((queries) => {
 			for(const entity of queries.movingEntities) {
-				entity.components.sprite.position.set(
-					entity.components.position.x,
-					entity.components.position.y
-				);
+				updateSpritePosition(entity);
 			}
 		})
 		.build()
