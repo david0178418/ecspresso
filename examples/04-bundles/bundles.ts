@@ -224,8 +224,6 @@ function createPhysicsBundle() {
 			with: ['position', 'velocity'],
 		})
 		.setProcess((queries, deltaTimeMs, ecs) => {
-			const config = ecs.getResource('config');
-
 			for(const entity of queries.movingEntities) {
 				entity.components.position.x += entity.components.velocity.x * deltaTimeMs;
 				entity.components.position.y += entity.components.velocity.y * deltaTimeMs;
