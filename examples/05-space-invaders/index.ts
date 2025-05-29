@@ -7,7 +7,7 @@ import createGameLogicBundle from './bundles/game-logic-bundle';
 import type { Components, Events, Resources } from './types';
 import createInitBundle from './bundles/init-bundle';
 
-ECSpresso
+const game = ECSpresso
 	.create<Components, Events, Resources>()
 	.withBundle(await createInitBundle())
 	.withBundle(createInputBundle())
@@ -15,6 +15,7 @@ ECSpresso
 	.withBundle(createUIBundle())
 	.withBundle(createGameLogicBundle())
 	.withBundle(createCollisionBundle())
-	.build()
-	.eventBus
-	.publish('gameInit');
+	.build();
+
+await game.initialize();
+game.eventBus.publish('gameInit');

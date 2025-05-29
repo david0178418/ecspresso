@@ -24,6 +24,9 @@ async function initGame() {
 		.withBundle(createGameStateBundle())
 		.build();
 
+	// Initialize all resources and systems
+	await game.initialize();
+
 	// Start the game
 	game.eventBus.publish('gameInit', true);
 }

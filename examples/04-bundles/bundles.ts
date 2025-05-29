@@ -30,12 +30,6 @@ interface Events {
 interface Resources {
 	pixi: Application;
 	worldContainer: Container;
-	config: {
-		screen: {
-			width: number;
-			height: number;
-		};
-	};
 	controlMap: {
 		up: boolean;
 		down: boolean;
