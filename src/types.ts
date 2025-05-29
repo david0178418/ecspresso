@@ -36,6 +36,99 @@ interface QueryConfig<
 	without?: ReadonlyArray<WithoutComponents>;
 }
 
+/**
+ * Utility type to derive the entity type that would result from a query definition.
+ * This is useful for creating helper functions that operate on query results.
+ * 
+ * @example
+ * ```typescript
+ * const queryDef = {
+ *   with: ['position', 'sprite'] as const,
+ *   without: ['dead'] as const
+ * } as const;
+ * 
+ * type EntityType = QueryResultEntity<Components, typeof queryDef>;
+ * 
+ * function updateSpritePosition(entity: EntityType) {
+ *   entity.components.sprite.position.set(
+ *     entity.components.position.x,
+ *     entity.components.position.y
+ *   );
+ * }
+ * ```
+ */
+export type QueryResultEntity<
+	ComponentTypes extends Record<string, any>,
+	QueryDef extends {
+		with: ReadonlyArray<keyof ComponentTypes>;
+		without?: ReadonlyArray<keyof ComponentTypes>;
+	}
+> = FilteredEntity<
+	ComponentTypes,
+	QueryDef['with'][number],
+	QueryDef['without'] extends ReadonlyArray<any> ? QueryDef['without'][number] : never
+>;
+
+/**
+ * Utility type to create a query definition with proper type inference.
+ * This enables you to create reusable query definitions and extract their result types.
+ * 
+ * @example
+ * ```typescript
+ * const movingEntitiesQuery = createQueryDefinition({
+ *   with: ['position', 'velocity'] as const,
+ *   without: ['dead'] as const
+ * } as const);
+ * 
+ * type MovingEntity = QueryResultEntity<Components, typeof movingEntitiesQuery>;
+ * ```
+ */
+export type QueryDefinition<
+	ComponentTypes extends Record<string, any>,
+	WithComponents extends keyof ComponentTypes = any,
+	WithoutComponents extends keyof ComponentTypes = any,
+> = {
+	with: ReadonlyArray<WithComponents>;
+	without?: ReadonlyArray<WithoutComponents>;
+};
+
+/**
+ * Helper function to create a query definition with proper type inference.
+ * This enables better TypeScript inference when creating reusable queries.
+ * 
+ * @example
+ * ```typescript
+ * const movingEntitiesQuery = createQueryDefinition({
+ *   with: ['position', 'velocity'] as const,
+ *   without: ['dead'] as const
+ * } as const);
+ * 
+ * type MovingEntity = QueryResultEntity<Components, typeof movingEntitiesQuery>;
+ * 
+ * function updatePosition(entity: MovingEntity) {
+ *   entity.components.position.x += entity.components.velocity.x;
+ *   entity.components.position.y += entity.components.velocity.y;
+ * }
+ * 
+ * world.addSystem('movement')
+ *   .addQuery('entities', movingEntitiesQuery)
+ *   .setProcess((queries) => {
+ *     for (const entity of queries.entities) {
+ *       updatePosition(entity);
+ *     }
+ *   });
+ * ```
+ */
+export function createQueryDefinition<
+	ComponentTypes extends Record<string, any>,
+	const QueryDef extends {
+		with: ReadonlyArray<keyof ComponentTypes>;
+		without?: ReadonlyArray<keyof ComponentTypes>;
+	}
+>(queryDef: QueryDef): QueryDef {
+	return queryDef;
+}
+
 export
 interface System<
 	ComponentTypes extends Record<string, any> = {},
