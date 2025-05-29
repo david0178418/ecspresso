@@ -459,7 +459,7 @@ unsubscribe();
 
 ## Resources
 
-Resources provide global state accessible to all systems:
+Resources provide global state accessible to all systems. ECSpresso provides a consistent, type-safe API for managing resources:
 
 ```typescript
 // Add a resource directly
@@ -469,8 +469,20 @@ world.addResource('score', { value: 0 });
 const score = world.getResource('score');
 score.value += 10;
 
+// Update a resource using an updater function
+world.updateResource('score', (current) => ({ ...current, value: current.value + 10 }));
+
 // Check if a resource exists
 const hasScore = world.hasResource('score');
+
+// Remove a resource
+const wasRemoved = world.removeResource('score');
+
+// Get all resource keys
+const resourceKeys = world.getResourceKeys();
+
+// Check if a resource needs initialization (was added as a factory function)
+const needsInit = world.resourceNeedsInitialization('assets');
 ```
 
 ### Resource Factory Functions

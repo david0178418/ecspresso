@@ -35,7 +35,7 @@ ecs
 	})
 	.addSystem('player-input')
 	.setOnInitialize(async (ecs) => {
-		const pixi = ecs.resourceManager.get('pixi');
+		const pixi = ecs.getResource('pixi');
 
 		const canvasContainerEl = document
 			.createElement('div')
@@ -68,7 +68,7 @@ ecs
 		with: ['position', 'velocity', 'speed'],
 	})
 	.setProcess((queries, _deltaTime, ecs) => {
-		const controlMap = ecs.resourceManager.get('controlMap');
+		const controlMap = ecs.getResource('controlMap');
 
 		const [player] = queries.playerInputEntities;
 
@@ -122,7 +122,7 @@ ecs
 
 await ecs.initialize();
 
-ecs.resourceManager.get('pixi').ticker.add(ticker => {
+ecs.getResource('pixi').ticker.add(ticker => {
 	ecs.update(ticker.deltaMS / 1000);
 });
 

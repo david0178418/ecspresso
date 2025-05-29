@@ -35,7 +35,7 @@ ecs
 		with: ['position', 'velocity', 'radius'],
 	})
 	.setProcess((queries, deltaTime, ecs) => {
-		const pixi = ecs.resourceManager.get('pixi');
+		const pixi = ecs.getResource('pixi');
 
 		for(const entity of queries.movingEntities) {
 			const { position, velocity, radius } = entity.components;
@@ -73,7 +73,7 @@ ecs
 		with: ['sprite', 'position'],
 	})
 	.setOnInitialize(async (ecs) => {
-		const pixi = ecs.resourceManager.get('pixi');
+		const pixi = ecs.getResource('pixi');
 
 		console.log('pixi', pixi);
 
@@ -117,7 +117,7 @@ ecs
 await ecs.initialize();
 
 ecs
-	.resourceManager.get('pixi')
+	.getResource('pixi')
 	.ticker
 	.add(ticker => {
 		ecs.update(ticker.deltaMS / 1000);

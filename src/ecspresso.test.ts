@@ -416,18 +416,18 @@ describe('ECSpresso', () => {
 				.build();
 
 			// Getting resources
-			const config = world.resourceManager.get('config');
+			const config = world.getResource('config');
 			expect(config).toEqual({ debug: true, maxEntities: 1000 });
 
 			// Has resource
 			expect(world.hasResource('config')).toBe(true);
 			expect(world.hasResource('gameState' as keyof TestResources)).toBe(false);
 
-			// Since ECSpresso doesn't have a removeResource method anymore, we'll test the ResourceManager directly
-			world.resourceManager.remove('config');
+			// Remove resource using the direct method
+			world.removeResource('config');
 
-			// Verify resource is gone by checking with resourceManager
-			expect(world.resourceManager.has('config')).toBe(false);
+			// Verify resource is gone
+			expect(world.hasResource('config')).toBe(false);
 		});
 	});
 

@@ -112,7 +112,7 @@ ecs
 			entity.components.position.y += entity.components.velocity.y * deltaTimeMs;
 
 			// wrap around the screen
-			const pixi = ecs.resourceManager.get('pixi');
+			const pixi = ecs.getResource('pixi');
 			if (entity.components.position.x < 0) {
 				entity.components.position.x = pixi.renderer.width;
 			}
@@ -154,10 +154,10 @@ ecs
 		spawnEnemy: {
 			handler(_eventData, ecs) {
 				console.log('spawning enemy triggered');
-				const pixi = ecs.resourceManager.get('pixi');
+				const pixi = ecs.getResource('pixi');
 					const entity = ecs.entityManager.createEntity();
 					const sprite = createCircleSprite(0xFF0000, pixi);
-					const worldContainer = ecs.resourceManager.get('worldContainer');
+					const worldContainer = ecs.getResource('worldContainer');
 					worldContainer.addChild(sprite);
 
 					const speed = randomInt(300, 550);
