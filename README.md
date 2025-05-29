@@ -8,12 +8,12 @@ A type-safe, modular, and extensible Entity Component System (ECS) framework for
 
 ## Features
 
-- 🔒 **Type-Safe**: Full TypeScript support with type inference for components, events, and resources
-- 🧩 **Modular**: Bundle-based architecture for modular gameplay systems and features
-- 💡 **Flexible**: Easily create entities, add components, and build systems with a clean, fluent API
-- 🔄 **Event-Driven**: Integrated event bus for communication between systems
-- 🗄️ **Resource Management**: Global resources for sharing state across systems
-- ⏱️ **Priority Control**: Set execution priority for systems to ensure proper processing order
+- 🔒 **Type-Safe**: Full TypeScript support with component, event, and resource type inference
+- 🧩 **Modular**: Bundle-based architecture for organizing features
+- 💡 **Developer-Friendly**: Clean, fluent API with method chaining
+- 🔄 **Event-Driven**: Integrated event system for decoupled communication
+- 🗄️ **Resource Management**: Global state management with lazy loading
+- ⚡ **Query System**: Powerful entity filtering with helper type utilities
 
 ## Installation
 
@@ -24,655 +24,347 @@ npm install ecspresso
 ## Quick Start
 
 ```typescript
-import { ECSpresso } from 'ecspresso';
+import ECSpresso from 'ecspresso';
 
 // Define your component types
 interface Components {
   position: { x: number; y: number };
   velocity: { x: number; y: number };
-  sprite: { url: string };
+  health: { value: number };
 }
 
-// Define your event types
-interface Events {
-  collision: { entity1: number; entity2: number };
-  scoreChange: { amount: number };
-}
+// Create a world and add a system
+const world = new ECSpresso<Components>();
 
-// Define your resource types
-interface Resources {
-  score: { value: number };
-  gameState: 'playing' | 'paused' | 'gameOver';
-  assets: { textures: Record<string, any>; sounds: Record<string, any> };
-}
-
-// Create a world instance directly
-const world = new ECSpresso<Components, Events, Resources>();
-
-// Add resources - can be direct values or factory functions
-world.addResource('score', { value: 0 });
-world.addResource('gameState', 'paused');
-world.addResource('assets', async () => {
-  // Simulate loading game assets
-  const textures = await loadTextures();
-  const sounds = await loadSounds();
-  return { textures, sounds };
-});
-
-// Add a movement system directly to the world
 world.addSystem('movement')
-  .addQuery('movingEntities', {
-    with: ['position', 'velocity']
-  })
+  .addQuery('moving', { with: ['position', 'velocity'] })
   .setProcess((queries, deltaTime) => {
-    for (const entity of queries.movingEntities) {
+    for (const entity of queries.moving) {
       entity.components.position.x += entity.components.velocity.x * deltaTime;
       entity.components.position.y += entity.components.velocity.y * deltaTime;
     }
   })
-  .setOnInitialize(async (ecs) => {
-    // One-time initialization of the system
-    console.log('Setting up movement system...');
-    const gameState = ecs.getResource('gameState');
-    gameState.lastMovementUpdate = Date.now();
-  })
-  .build(); // Finalize the system
+  .build();
 
-// Create an entity with position and velocity components
-const entity = world.spawn({
+// Create entities and run
+const player = world.spawn({
   position: { x: 0, y: 0 },
-  velocity: { x: 10, y: 5 }
+  velocity: { x: 10, y: 5 },
+  health: { value: 100 }
 });
 
-// Initialize everything (systems and resources with factory functions) in one call
-await world.initialize();
-
-// Run a single update
-world.update(1/60);
-
-// Check new position
-const position = world.entityManager.getComponent(entity.id, 'position');
-console.log(position); // { x: 0.16666..., y: 0.08333... }
+world.update(1/60); // Run one frame
 ```
 
-## Building Modular Systems with Bundles
+## Core Concepts
 
-Bundles are a powerful way to organize game features:
+### Entities and Components
 
-```typescript
-// Create a player input bundle
-const inputBundle = new Bundle<Components, Events, Resources>('input-bundle')
-  .addSystem('playerInput')
-  .setProcess((_queries, _deltaTime, ecs) => {
-    // Handle keyboard input and modify player velocity
-    // ...
-  });
-
-// Create a rendering bundle
-const renderBundle = new Bundle<Components, Events, Resources>('render-bundle')
-  .addSystem('renderer')
-  .addQuery('sprites', { with: ['position', 'sprite'] })
-  .setProcess((queries) => {
-    // Render all sprites
-    for (const entity of queries.sprites) {
-      // Draw entities at their positions
-      // ...
-    }
-  });
-
-// Create a scoring bundle that adds a resource and listens for events
-const scoringBundle = new Bundle<Components, Events, Resources>('scoring-bundle')
-  .addResource('score', { value: 0 })
-  // Resources can also be added using factory functions
-  .addResource('gameStats', () => ({
-    highScore: 0,
-    totalPlayTime: 0,
-    sessionStartTime: Date.now()
-  }))
-  .addSystem('scoreKeeper')
-  .setEventHandlers({
-    scoreChange: {
-      handler: (data, ecs) => {
-        const score = ecs.getResource('score');
-        score.value += data.amount;
-        console.log(`Score: ${score.value}`);
-      }
-    }
-  });
-
-// Create a game initialization bundle with event handlers
-const initBundle = new Bundle<Components, Events, Resources>('init-bundle')
-  .addSystem('initialization')
-  .setOnInitialize(async (ecs) => {
-    console.log('Game systems initializing...');
-    // Do one-time system setup here
-  })
-  .setEventHandlers({
-    gameStart: {
-      async handler(data, ecs) {
-        console.log('Game starting...');
-        
-        // Initialize all resources and systems
-        await ecs.initialize();
-        
-        // Resources and systems are now ready to use
-        const assets = ecs.getResource('assets');
-        console.log(`Loaded ${Object.keys(assets.textures).length} textures`);
-        
-        // Continue with game initialization
-        // ...
-      }
-    }
-  });
-
-// Create the game world with all features using the builder pattern
-const game = ECSpresso.create<Components, Events, Resources>()
-  .withBundle(initBundle)
-  .withBundle(inputBundle)
-  .withBundle(renderBundle)
-  .withBundle(scoringBundle)
-  .build()
-  .addResource('assets', async () => {
-    // This won't execute until initializeResources is called
-    return { textures: await loadTextures(), sounds: await loadSounds() };
-  });
-
-// Start the game
-game.eventBus.publish('gameStart', {});
-```
-
-## Type Safety with the Builder Pattern
-
-ECSpresso uses a builder pattern to provide strong type checking for bundle compatibility:
+Entities are containers for components. Use `spawn()` to create entities with initial components:
 
 ```typescript
-// These bundles have compatible component types
-const bundle1 = new Bundle<{position: {x: number, y: number}}>('bundle1');
-const bundle2 = new Bundle<{velocity: {x: number, y: number}}>('bundle2');
-
-// Create a world with both bundles - TypeScript will allow this
-const world = ECSpresso.create()
-  .withBundle(bundle1)
-  .withBundle(bundle2)
-  .build();
-
-// These bundles have conflicting component types
-const bundle3 = new Bundle<{position: {x: number, y: number}}>('bundle3');
-const bundle4 = new Bundle<{position: string}>('bundle4');
-
-// TypeScript will show an error because bundles have conflicting types
-const world2 = ECSpresso.create()
-  .withBundle(bundle3)
-  // @ts-expect-error - TypeScript will flag this because the position types conflict
-  .withBundle(bundle4)
-  .build();
-```
-
-## Working with Entities and Components
-
-```typescript
-const world = ECSpresso.create<Components, Events, Resources>()
-  .withBundle(/* your bundle */)
-  .build();
-
-// Create an entity with components in one call
+// Create entity with components
 const entity = world.spawn({
-  position: { x: 0, y: 0 },
-  velocity: { x: 0, y: 0 }
-});
-
-// Add additional components individually if needed
-world.entityManager.addComponent(entity.id, 'sprite', { url: 'player.png' });
-
-// Add multiple components at once to existing entity
-world.entityManager.addComponents(entity, {
   position: { x: 10, y: 20 },
-  velocity: { x: 5, y: -2 }
+  health: { value: 100 }
 });
+
+// Add components later
+world.entityManager.addComponent(entity.id, 'velocity', { x: 5, y: 0 });
 
 // Get component data
 const position = world.entityManager.getComponent(entity.id, 'position');
 
-// Check if an entity has a component
-const hasPosition = world.entityManager.hasComponent(entity.id, 'position');
-
-// Remove a component
+// Remove components or entities
 world.entityManager.removeComponent(entity.id, 'velocity');
-
-// Remove an entity (and all its components)
 world.entityManager.removeEntity(entity.id);
 ```
 
-## Working with Systems and Queries
+### Systems and Queries
 
-Systems can be added directly to an ECSpresso instance with seamless method chaining:
+Systems process entities that match specific component patterns:
 
 ```typescript
-const world = ECSpresso.create<Components, Events, Resources>()
-  .build();
-
-world.addSystem('physicsSystem')
-  // Set system execution priority (higher numbers execute first)
-  .setPriority(50)
-  // Query entities that have both position and velocity components
-  .addQuery('movingEntities', {
-    with: ['position', 'velocity']
+world.addSystem('combat')
+  .addQuery('fighters', { 
+    with: ['position', 'health'], 
+    without: ['dead'] 
   })
-  // Query entities that have position but not player component
-  .addQuery('nonPlayerObjects', {
-    with: ['position'],
-    without: ['player']
-  })
-  // Query entities with different component combinations
-  .addQuery('flyingNonPlayerEntities', {
-    with: ['flying', 'position'],
-    without: ['player', 'grounded']
+  .addQuery('projectiles', { 
+    with: ['position', 'damage'] 
   })
   .setProcess((queries, deltaTime) => {
-    // Process moving entities
-    for (const entity of queries.movingEntities) {
-      entity.components.position.x += entity.components.velocity.x * deltaTime;
-      entity.components.position.y += entity.components.velocity.y * deltaTime;
-    }
-    
-    // Process non-player objects
-    for (const entity of queries.nonPlayerObjects) {
-      // Do something with non-player objects
-    }
-    
-    // Process flying non-player entities
-    for (const entity of queries.flyingNonPlayerEntities) {
-      // Apply flying behavior
+    // Process fighters and projectiles
+    for (const fighter of queries.fighters) {
+      for (const projectile of queries.projectiles) {
+        // Combat logic here
+      }
     }
   })
-  .and() // Auto-register and continue chaining to add more systems
-  .addSystem('renderer')
-  .addQuery('sprites', { with: ['position', 'sprite'] })
-  .setProcess((queries) => {
-    // Render all sprites
-    for (const entity of queries.sprites) {
-      // Draw entities at their positions
-    }
-  })
-  .and()
-  .addSystem('cleanup')
-  .setProcess((queries) => { /* cleanup logic */ })
-  .build(); // Only the final system needs .build()
+  .build();
 ```
 
-### Method Chaining with `.and()`
+### Resources
 
-ECSpresso uses simplified method chaining with the `.and()` method for creating multiple systems. This is the standard approach for building systems:
+Resources provide global state accessible to all systems:
 
 ```typescript
-world.addSystem('movement')
-  .addQuery('entities', { with: ['position', 'velocity'] })
-  .setProcess((queries) => {
-    for (const entity of queries.entities) {
-      entity.components.position.x += entity.components.velocity.x * deltaTime;
-      entity.components.position.y += entity.components.velocity.y * deltaTime;
-    }
+interface Resources {
+  score: { value: number };
+  settings: { difficulty: 'easy' | 'hard' };
+}
+
+const world = new ECSpresso<Components, {}, Resources>();
+
+// Add resources
+world.addResource('score', { value: 0 });
+world.addResource('settings', { difficulty: 'easy' });
+
+// Use in systems
+world.addSystem('scoring')
+  .setProcess((queries, deltaTime, ecs) => {
+    const score = ecs.getResource('score');
+    score.value += 10;
   })
-  .and()  // Auto-register and continue chaining
-  .addSystem('renderer')
-  .addQuery('sprites', { with: ['position', 'sprite'] })
-  .setProcess((queries) => {
-    for (const entity of queries.sprites) {
-      // Render sprites
-    }
+  .build();
+```
+
+## Working with Systems
+
+### Method Chaining
+
+ECSpresso supports fluent method chaining for creating multiple systems:
+
+```typescript
+world.addSystem('physics')
+  .addQuery('moving', { with: ['position', 'velocity'] })
+  .setProcess((queries, deltaTime) => {
+    // Physics logic
   })
-  .and()
-  .addSystem('cleanup')
-  .setProcess((queries) => { /* cleanup logic */ })
+  .and() // Complete this system and continue chaining
+  .addSystem('rendering')
+  .addQuery('visible', { with: ['position', 'sprite'] })
+  .setProcess((queries) => {
+    // Rendering logic
+  })
   .build(); // Only the final system needs .build()
 ```
 
-The `.and()` method automatically registers the system with the ECSpresso instance and returns the ECSpresso for seamless chaining. This creates a clean, fluent API for defining multiple systems.
+### Query Type Utilities
 
-## Query Type Utilities
-
-ECSpresso provides utilities to extract entity types from query definitions, making it easy to create reusable helper functions that work with specific entity types.
-
-### Creating Reusable Query Definitions
-
-Use `createQueryDefinition()` to create reusable query definitions:
+Extract entity types from queries to create reusable helper functions:
 
 ```typescript
 import { createQueryDefinition, QueryResultEntity } from 'ecspresso';
 
 // Create reusable query definitions
-const movingEntitiesQuery = createQueryDefinition({
+const movingQuery = createQueryDefinition({
   with: ['position', 'velocity'] as const,
-  without: ['dead'] as const
+  without: ['frozen'] as const
 } as const);
 
-const renderableEntitiesQuery = createQueryDefinition({
-  with: ['sprite', 'position'] as const,
-} as const);
-```
+// Extract entity type for helper functions
+type MovingEntity = QueryResultEntity<Components, typeof movingQuery>;
 
-### Extracting Entity Types for Helper Functions
-
-Use `QueryResultEntity` to extract the entity type that results from a query:
-
-```typescript
-// Extract entity types from query definitions
-type MovingEntity = QueryResultEntity<Components, typeof movingEntitiesQuery>;
-type RenderableEntity = QueryResultEntity<Components, typeof renderableEntitiesQuery>;
-
-// Create helper functions with proper typing
+// Create type-safe helper functions
 function updatePosition(entity: MovingEntity, deltaTime: number) {
-  // TypeScript knows entity has position and velocity components
   entity.components.position.x += entity.components.velocity.x * deltaTime;
   entity.components.position.y += entity.components.velocity.y * deltaTime;
 }
 
-function updateSpritePosition(entity: RenderableEntity) {
-  // TypeScript knows entity has sprite and position components
-  entity.components.sprite.position.set(
-    entity.components.position.x,
-    entity.components.position.y
-  );
-}
-
-function screenWrap(entity: MovingEntity, screenWidth: number, screenHeight: number) {
-  const pos = entity.components.position;
-  
-  if (pos.x < 0) pos.x = screenWidth;
-  if (pos.x > screenWidth) pos.x = 0;
-  if (pos.y < 0) pos.y = screenHeight;
-  if (pos.y > screenHeight) pos.y = 0;
-}
-```
-
-### Using Helper Functions in Systems
-
-Now you can use these helper functions in your systems with full type safety:
-
-```typescript
+// Use in systems
 world.addSystem('movement')
-  .addQuery('entities', movingEntitiesQuery)  // Use the reusable query definition
-  .setProcess((queries, deltaTime, ecs) => {
-    const pixi = ecs.getResource('pixi');
-    
+  .addQuery('entities', movingQuery)
+  .setProcess((queries, deltaTime) => {
     for (const entity of queries.entities) {
-      // Use helper functions with proper typing!
-      updatePosition(entity, deltaTime);
-      screenWrap(entity, pixi.renderer.width, pixi.renderer.height);
-    }
-  })
-  .and()
-  .addSystem('renderer')
-  .addQuery('sprites', renderableEntitiesQuery)  // Use the reusable query definition
-  .setProcess((queries) => {
-    for (const entity of queries.sprites) {
-      // Use helper function with proper typing!
-      updateSpritePosition(entity);
+      updatePosition(entity, deltaTime); // Perfect type safety!
     }
   })
   .build();
 ```
 
-### Benefits of Query Type Utilities
+### System Priority
 
-- **Code Reuse**: Create helper functions that can be used across multiple systems
-- **Type Safety**: TypeScript knows exactly which components are available on each entity
-- **Testability**: Helper functions can be unit tested independently
-- **Organization**: Separate business logic from system setup code
-- **Maintainability**: Query definitions can be reused and modified in one place
-
-### Inline Query Types
-
-You can also use `QueryResultEntity` with inline query definitions for one-off helper functions:
+Control execution order with priorities (higher numbers execute first):
 
 ```typescript
-type PlayerEntity = QueryResultEntity<Components, {
-  with: ['position', 'health', 'player'];
-  without: ['dead'];
-}>;
-
-function healPlayer(entity: PlayerEntity, amount: number) {
-  entity.components.health.value += amount;
-  console.log(`Player at (${entity.components.position.x}, ${entity.components.position.y}) healed for ${amount}`);
-}
+world.addSystem('physics')
+  .setPriority(100) // Runs first
+  .setProcess(() => { /* physics */ })
+  .and()
+  .addSystem('rendering')
+  .setPriority(50)  // Runs second
+  .setProcess(() => { /* rendering */ })
+  .build();
 ```
 
-This approach gives you the flexibility to extract any query-based logic into well-typed, reusable functions.
+## Advanced Features
 
-## System Lifecycle Hooks
+### Bundles
 
-ECSpresso systems have two lifecycle hooks you can implement:
+Organize related systems and resources into reusable bundles:
+
+```typescript
+import { Bundle } from 'ecspresso';
+
+const inputBundle = new Bundle<Components, Events, Resources>('input')
+  .addSystem('playerInput')
+  .addQuery('players', { with: ['position', 'velocity', 'player'] })
+  .setProcess((queries, deltaTime, ecs) => {
+    // Handle input
+  });
+
+const renderBundle = new Bundle<Components, Events, Resources>('render')
+  .addSystem('renderer')
+  .addQuery('sprites', { with: ['position', 'sprite'] })
+  .setProcess((queries) => {
+    // Render sprites
+  });
+
+// Create world with bundles
+const game = ECSpresso.create<Components, Events, Resources>()
+  .withBundle(inputBundle)
+  .withBundle(renderBundle)
+  .build();
+```
+
+### Events
+
+Use events for decoupled system communication:
+
+```typescript
+interface Events {
+  playerDied: { playerId: number };
+  levelComplete: { score: number };
+}
+
+const world = new ECSpresso<Components, Events, Resources>();
+
+// Handle events in systems
+world.addSystem('gameLogic')
+  .setEventHandlers({
+    playerDied: {
+      handler: (data, ecs) => {
+        console.log(`Player ${data.playerId} died`);
+        // Respawn logic
+      }
+    }
+  })
+  .build();
+
+// Publish events from anywhere
+world.eventBus.publish('playerDied', { playerId: 1 });
+```
+
+### Resource Factories
+
+Create resources lazily with factory functions:
+
+```typescript
+// Sync factory
+world.addResource('config', () => ({
+  difficulty: 'normal',
+  soundEnabled: true
+}));
+
+// Async factory
+world.addResource('assets', async () => {
+  const textures = await loadTextures();
+  return { textures };
+});
+
+// Initialize all resources
+await world.initializeResources();
+```
+
+### System Lifecycle
+
+Systems can have initialization and cleanup hooks:
 
 ```typescript
 world.addSystem('gameSystem')
-  // Called when `initialize()` is invoked on the ECSpresso instance
-  // Good for one-time setup that depends on resources
   .setOnInitialize(async (ecs) => {
-    console.log('System initializing');
-    // Load assets, configure resources, etc.
+    // One-time setup
+    console.log('System starting...');
   })
-
-  // Called when the system is removed or detached from the ECSpresso instance
   .setOnDetach((ecs) => {
-    console.log('System detached');
-    // Clean up resources, cancel subscriptions, etc.
-  })
-
-  .build();
-```
-
-The `initialize()` method on the ECSpresso instance initializes pending resources first and then calls `onInitialize` on all systems:
-
-```typescript
-await ecs.initialize();
-```
-
-## System Priority
-
-ECSpresso allows you to control the execution order of systems using priorities:
-
-```typescript
-// Systems with higher priority values execute before those with lower values
-// Default priority is 0 if not specified
-
-// Rendering system (runs first)
-world.addSystem('renderSystem')
-  .setPriority(100)
-  .setProcess(() => {
-    // Rendering logic
+    // Cleanup when system is removed
+    console.log('System shutting down...');
   })
   .build();
 
-// Physics system (runs second)
-world.addSystem('physicsSystem')
-  .setPriority(50)
-  .setProcess(() => {
-    // Physics update logic
-  })
-  .build();
-
-// Cleanup system (runs last)
-world.addSystem('cleanupSystem')
-  .setPriority(0) // Default priority if not specified
-  .setProcess(() => {
-    // Cleanup logic
-  })
-  .build();
+// Initialize all systems
+await world.initialize();
 ```
 
-Systems with the same priority value execute in the order they were registered, maintaining backward compatibility with existing code.
+## Type Safety
 
-You can also update a system's priority dynamically at runtime:
+ECSpresso provides comprehensive TypeScript support:
 
+### Component Type Safety
 ```typescript
-// Change a system's priority (higher numbers execute first)
-world.updateSystemPriority('physicsSystem', 110); // Now physics will run before rendering
+// ✅ Valid
+world.entityManager.addComponent(entity.id, 'position', { x: 0, y: 0 });
+
+// ❌ TypeScript error - invalid component
+world.entityManager.addComponent(entity.id, 'invalid', { data: 'bad' });
+
+// ❌ TypeScript error - wrong component shape
+world.entityManager.addComponent(entity.id, 'position', { x: 0 }); // missing y
 ```
 
-Priority also works with systems added through bundles:
-
+### Query Type Safety
 ```typescript
-const highPriorityBundle = new Bundle<Components>()
-  .addSystem('importantSystem')
-  .setPriority(100)
-  .setProcess(() => {
-    // This will run first
-  });
-
-const lowPriorityBundle = new Bundle<Components>()
-  .addSystem('lateSystem')
-  .setPriority(0)
-  .setProcess(() => {
-    // This will run last
-  });
-
-const world = ECSpresso.create<Components>()
-  .withBundle(lowPriorityBundle) // Added first but runs last due to priority
-  .withBundle(highPriorityBundle) // Added second but runs first due to priority
-  .build();
-```
-
-The system priority implementation is optimized with a cached sorting mechanism that only re-sorts systems when priorities change or when systems are added or removed, avoiding unnecessary sorting during each update cycle.
-
-## Event System
-
-The event system allows communication between systems:
-
-```typescript
-// Define an event handler in a system
-const collisionBundle = new Bundle<Components, Events, Resources>('collision-bundle')
-  .addSystem('collisionResponse')
-  .setEventHandlers({
-    collision: {
-      handler: (data, ecs) => {
-        // Handle collision event
-        // data contains entity1 and entity2 from the event
-      }
+world.addSystem('example')
+  .addQuery('moving', { with: ['position', 'velocity'] })
+  .setProcess((queries) => {
+    for (const entity of queries.moving) {
+      // ✅ TypeScript knows these exist
+      entity.components.position.x;
+      entity.components.velocity.y;
+      
+      // ❌ TypeScript error - not guaranteed to exist
+      entity.components.health.value;
     }
-  });
+  })
+  .build();
+```
 
-const world = ECSpresso.create<Components, Events, Resources>()
-  .withBundle(collisionBundle)
+### Bundle Type Compatibility
+```typescript
+// ✅ Compatible bundles merge cleanly
+const bundle1 = new Bundle<{position: {x: number, y: number}}>('bundle1');
+const bundle2 = new Bundle<{velocity: {x: number, y: number}}>('bundle2');
+
+const world = ECSpresso.create()
+  .withBundle(bundle1)
+  .withBundle(bundle2) // ✅ Types merge successfully
   .build();
 
-// Publish an event from anywhere
-world.eventBus.publish('collision', {
-  entity1: 1,
-  entity2: 2
-});
-
-// Subscribe to events manually (outside of systems)
-const unsubscribe = world.eventBus.subscribe('collision', (data) => {
-  console.log(`Collision between entities ${data.entity1} and ${data.entity2}`);
-});
-
-// Stop listening
-unsubscribe();
+// ❌ Conflicting types cause TypeScript errors
+const conflictingBundle = new Bundle<{position: string}>('conflict');
+// world.withBundle(conflictingBundle); // TypeScript error!
 ```
-
-## Resources
-
-Resources provide global state accessible to all systems. ECSpresso provides a consistent, type-safe API for managing resources:
-
-```typescript
-// Add a resource directly
-world.addResource('score', { value: 0 });
-
-// Get a resource
-const score = world.getResource('score');
-score.value += 10;
-
-// Update a resource using an updater function
-world.updateResource('score', (current) => ({ ...current, value: current.value + 10 }));
-
-// Check if a resource exists
-const hasScore = world.hasResource('score');
-
-// Remove a resource
-const wasRemoved = world.removeResource('score');
-
-// Get all resource keys
-const resourceKeys = world.getResourceKeys();
-
-// Check if a resource needs initialization (was added as a factory function)
-const needsInit = world.resourceNeedsInitialization('assets');
-```
-
-### Resource Factory Functions
-
-Resources can also be created using factory functions, which is useful for lazy initialization or async resources:
-
-```typescript
-// Add a resource using a synchronous factory function
-world.addResource('controlMap', () => {
-  console.log('Creating control map');
-  return {
-    up: false,
-    down: false,
-    left: false,
-    right: false
-  };
-});
-
-// Add a resource using a factory function that receives the ECSpresso instance
-world.addResource('playerConfig', (ecs) => {
-  // Access other resources during initialization
-  const gameConfig = ecs.getResource('gameConfig');
-  return {
-    speed: gameConfig.difficulty === 'hard' ? 200 : 100,
-    startingHealth: gameConfig.difficulty === 'hard' ? 50 : 100
-  };
-});
-
-// Add a resource using an asynchronous factory function
-world.addResource('gameAssets', async (ecs) => {
-  console.log('Loading game assets...');
-  // You can access other resources during async initialization
-  const settings = ecs.getResource('settings');
-  const assets = await loadAssets(settings.assetQuality);
-  return assets;
-});
-
-// Factory functions are executed when the resource is first accessed
-const controlMap = world.getResource('controlMap'); // Factory executes here
-
-// Or when explicitly initialized
-await world.initializeResources(); // Initializes all pending resources
-
-// You can also initialize specific resources
-await world.initializeResources('gameAssets', 'controlMap');
-```
-
-Factory functions are useful for:
-- Lazy loading of expensive resources
-- Async initialization of resources requiring network or file operations
-- Resources that depend on other systems being initialized first
-- Avoiding circular dependencies in your initialization code
-
-When using async factory functions, ensure you either:
-1. Call `initializeResources()` explicitly before accessing the resource, or
-2. Use `await` when getting a resource that might return a Promise
 
 ## Component Callbacks
 
-You can listen for specific component types being added or removed on any entity using the `EntityManager` API:
+React to component changes with callbacks:
 
 ```typescript
-// Listen for when a "health" component is added
+// Listen for component additions/removals
 world.entityManager.onComponentAdded('health', (value, entity) => {
   console.log(`Health added to entity ${entity.id}:`, value);
 });
 
-// Listen for when a "health" component is removed
 world.entityManager.onComponentRemoved('health', (oldValue, entity) => {
   console.log(`Health removed from entity ${entity.id}:`, oldValue);
 });
-
-// Create an entity and add/remove components to trigger callbacks
-const e = world.spawn({ health: { value: 100 } });
-// => logs: Health added to entity 1: { value: 100 }
-world.entityManager.removeComponent(e.id, 'health');
-// => logs: Health removed from entity 1: { value: 100 }
 ```
 
-This is useful for debugging, UI updates, or systems that need to react immediately to component changes.
+## Performance Tips
+
+- Use query type utilities to extract business logic into testable helper functions
+- Bundle related systems for better organization
+- Use system priorities to ensure correct execution order
+- Leverage resource factories for expensive initialization
+- Consider component callbacks for immediate reactions to state changes
