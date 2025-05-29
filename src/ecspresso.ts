@@ -297,6 +297,49 @@ export default class ECSpresso<
 	}
 
 	/**
+		* Remove a resource from the ECS instance
+		* @param key The resource key to remove
+		* @returns True if the resource was removed, false if it didn't exist
+	*/
+	removeResource<K extends keyof ResourceTypes>(key: K): boolean {
+		return this._resourceManager.remove(key);
+	}
+
+	/**
+		* Update an existing resource using an updater function
+		* @param key The resource key to update
+		* @param updater Function that receives the current resource value and returns the new value
+		* @returns This ECSpresso instance for chaining
+		* @throws Error if the resource doesn't exist
+	*/
+	updateResource<K extends keyof ResourceTypes>(
+		key: K,
+		updater: (current: ResourceTypes[K]) => ResourceTypes[K]
+	): this {
+		const currentResource = this.getResource(key);
+		const updatedResource = updater(currentResource);
+		this._resourceManager.add(key, updatedResource);
+		return this;
+	}
+
+	/**
+		* Get all resource keys that are currently registered
+		* @returns Array of resource keys
+	*/
+	getResourceKeys(): Array<keyof ResourceTypes> {
+		return this._resourceManager.getKeys() as Array<keyof ResourceTypes>;
+	}
+
+	/**
+		* Check if a resource needs initialization (was added as a factory function)
+		* @param key The resource key to check
+		* @returns True if the resource needs initialization
+	*/
+	resourceNeedsInitialization<K extends keyof ResourceTypes>(key: K): boolean {
+		return this._resourceManager.needsInitialization(key);
+	}
+
+	/**
 		* Check if an entity has a component
 	*/
 	hasComponent<K extends keyof ComponentTypes>(
@@ -337,10 +380,6 @@ export default class ECSpresso<
 
 	get eventBus() {
 		return this._eventBus;
-	}
-
-	get resourceManager() {
-		return this._resourceManager;
 	}
 
 	/**
