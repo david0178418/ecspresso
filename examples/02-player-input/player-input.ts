@@ -44,12 +44,11 @@ ecs
 		document.body.appendChild(canvasContainerEl);
 
 		// Create ball entity
-		const ballEntity = ecs.entityManager.createEntity();
 		const ballRadius = 30;
 		const sprite = createCircleSprite(0x0000FF, pixi, ballRadius)
 		sprite.anchor.set(0.5, 0.5); // "position" will be relative to the center of the sprite
 
-		ecs.entityManager.addComponents(ballEntity, {
+		ecs.spawn({
 			sprite,
 			speed: 500,
 			position: {

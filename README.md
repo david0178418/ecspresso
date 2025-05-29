@@ -79,9 +79,10 @@ world.addSystem('movement')
   .build(); // Finalize the system
 
 // Create an entity with position and velocity components
-const entity = world.entityManager.createEntity();
-world.entityManager.addComponent(entity.id, 'position', { x: 0, y: 0 });
-world.entityManager.addComponent(entity.id, 'velocity', { x: 10, y: 5 });
+const entity = world.spawn({
+  position: { x: 0, y: 0 },
+  velocity: { x: 10, y: 5 }
+});
 
 // Initialize everything (systems and resources with factory functions) in one call
 await world.initialize();
@@ -214,14 +215,16 @@ const world = ECSpresso.create<Components, Events, Resources>()
   .withBundle(/* your bundle */)
   .build();
 
-// Create an entity
-const entity = world.entityManager.createEntity();
+// Create an entity with components in one call
+const entity = world.spawn({
+  position: { x: 0, y: 0 },
+  velocity: { x: 0, y: 0 }
+});
 
-// Add components individually
-world.entityManager.addComponent(entity.id, 'position', { x: 0, y: 0 });
-world.entityManager.addComponent(entity.id, 'velocity', { x: 0, y: 0 });
+// Add additional components individually if needed
+world.entityManager.addComponent(entity.id, 'sprite', { url: 'player.png' });
 
-// Add multiple components at once
+// Add multiple components at once to existing entity
 world.entityManager.addComponents(entity, {
   position: { x: 10, y: 20 },
   velocity: { x: 5, y: -2 }
@@ -545,26 +548,21 @@ When using async factory functions, ensure you either:
 You can listen for specific component types being added or removed on any entity using the `EntityManager` API:
 
 ```typescript
-// Create your entity manager
-const entityManager = new EntityManager<Components>();
-
 // Listen for when a "health" component is added
-entityManager.onComponentAdded('health', (value, entity) => {
+world.entityManager.onComponentAdded('health', (value, entity) => {
   console.log(`Health added to entity ${entity.id}:`, value);
 });
 
 // Listen for when a "health" component is removed
-entityManager.onComponentRemoved('health', (oldValue, entity) => {
+world.entityManager.onComponentRemoved('health', (oldValue, entity) => {
   console.log(`Health removed from entity ${entity.id}:`, oldValue);
 });
 
 // Create an entity and add/remove components to trigger callbacks
-const e = entityManager.createEntity();
-entityManager.addComponent(e.id, 'health', { value: 100 });
+const e = world.spawn({ health: { value: 100 } });
 // => logs: Health added to entity 1: { value: 100 }
-entityManager.removeComponent(e.id, 'health');
+world.entityManager.removeComponent(e.id, 'health');
 // => logs: Health removed from entity 1: { value: 100 }
 ```
 
 This is useful for debugging, UI updates, or systems that need to react immediately to component changes.
-

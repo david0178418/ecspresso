@@ -36,14 +36,16 @@ describe('SystemBuilder', () => {
 			.build();
 
 		// Create entities to test with
-		const entity1 = world.entityManager.createEntity();
-		world.entityManager.addComponent(entity1.id, 'position', { x: 0, y: 0 });
-		world.entityManager.addComponent(entity1.id, 'velocity', { x: 5, y: 10 });
+		const entity1 = world.spawn({
+			position: { x: 0, y: 0 },
+			velocity: { x: 5, y: 10 }
+		});
 
-		const entity2 = world.entityManager.createEntity();
-		world.entityManager.addComponent(entity2.id, 'position', { x: 10, y: 20 });
-		world.entityManager.addComponent(entity2.id, 'velocity', { x: -5, y: 0 });
-		world.entityManager.addComponent(entity2.id, 'health', { value: 100 });
+		const entity2 = world.spawn({
+			position: { x: 10, y: 20 },
+			velocity: { x: -5, y: 0 },
+			health: { value: 100 }
+		});
 
 		// Update the world to run the systems
 		world.update(1/60);
@@ -86,15 +88,18 @@ describe('SystemBuilder', () => {
 			.build();
 
 		// Create entities with different component combinations
-		const entity1 = world.entityManager.createEntity();
-		world.entityManager.addComponent(entity1.id, 'marker', { id: 'entity1' });
+		const entity1 = world.spawn({
+			marker: { id: 'entity1' }
+		});
 
-		const entity2 = world.entityManager.createEntity();
-		world.entityManager.addComponent(entity2.id, 'health', { value: 100 });
+		const entity2 = world.spawn({
+			health: { value: 100 }
+		});
 
-		const entity3 = world.entityManager.createEntity();
-		world.entityManager.addComponent(entity3.id, 'marker', { id: 'entity3' });
-		world.entityManager.addComponent(entity3.id, 'health', { value: 80 });
+		const entity3 = world.spawn({
+			marker: { id: 'entity3' },
+			health: { value: 80 }
+		});
 
 		// Update the world to run the systems
 		world.update(1/60);
@@ -144,8 +149,9 @@ describe('SystemBuilder', () => {
 		expect(onDetachCalled).toBe(false);
 		expect(processCalledCount).toBe(0);
 
-		const entity = world.entityManager.createEntity();
-		world.entityManager.addComponent(entity.id, 'position', { x: 0, y: 0 });
+		world.spawn({
+			position: { x: 0, y: 0 }
+		});
 
 		// Update the world
 		world.update(1/60);
@@ -189,9 +195,10 @@ describe('SystemBuilder', () => {
 			.build();
 
 		// Create an entity with the required components
-		const entity = world.entityManager.createEntity();
-		world.entityManager.addComponent(entity.id, 'position', { x: 10, y: 20 });
-		world.entityManager.addComponent(entity.id, 'health', { value: 100 });
+		const entity = world.spawn({
+			position: { x: 10, y: 20 },
+			health: { value: 100 }
+		});
 
 		// Run the system
 		world.update(1/60);

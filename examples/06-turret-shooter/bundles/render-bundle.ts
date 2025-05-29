@@ -73,18 +73,14 @@ export default function createRenderBundle() {
 					const scene = ecs.getResource('scene');
 					// const camera = ecs.getResource('camera');
 
-					// Create player turret
-					const playerEntity = ecs.entityManager.createEntity();
 					const turretModel = createTurret();
-
 					// Make turret parts invisible in first-person view
 					// In a first-person game, we typically don't see our own model
 					turretModel.visible = false;
-
 					scene.add(turretModel);
 
-					// Create turret entity with components
-					ecs.entityManager.addComponents(playerEntity, {
+					// Create player turret entity
+					ecs.spawn({
 						model: turretModel,
 						player: {
 							health: 100,
@@ -372,9 +368,6 @@ export default function createRenderBundle() {
 				handler(data, ecs) {
 					const scene = ecs.getResource('scene');
 
-					// Create enemy entity
-					const enemyEntity = ecs.entityManager.createEntity();
-
 					// Create enemy model based on type
 					const enemyModel = data.type === 'ground'
 						? createGroundEnemy()
@@ -392,48 +385,8 @@ export default function createRenderBundle() {
 					// Calculate rotation to face the player (center)
 					const angle = Math.atan2(-position.x, -position.z);
 
-					// Add radar blip for this enemy
-					const blipEntity = ecs.entityManager.createEntity();
-					const blipModel = createRadarBlip(data.type);
-
-					// Handle radar blip for first-person view
-					const camera = ecs.getResource('camera');
-					// Find radar in children of camera
-					const radarObject = camera.children.find(child => child.name === 'radar');
-
-					if (radarObject) {
-						radarObject.add(blipModel);
-					} else {
-						// Fallback to scene if radar not found
-						scene.add(blipModel);
-					}
-
-					ecs.entityManager.addComponents(blipEntity, {
-						model: blipModel,
-						position: {
-							x: 0,
-							y: 0.1,
-							z: 0
-						},
-						rotation: {
-							x: 0,
-							y: 0,
-							z: 0
-						},
-						scale: {
-							x: 1,
-							y: 1,
-							z: 1
-						},
-						radarBlip: {
-							type: data.type,
-							distance: Math.sqrt(position.x * position.x + position.z * position.z),
-							angle: angle
-						}
-					});
-
-					// Add all components to the enemy entity
-					ecs.entityManager.addComponents(enemyEntity, {
+					// Create enemy entity
+					const enemyEntity = ecs.spawn({
 						model: enemyModel,
 						position,
 						rotation: {
@@ -461,6 +414,45 @@ export default function createRenderBundle() {
 						},
 						collider: {
 							radius: data.type === 'ground' ? 3 : 2
+						}
+					});
+
+					// Add radar blip for this enemy
+					const blipModel = createRadarBlip(data.type);
+
+					// Handle radar blip for first-person view
+					const camera = ecs.getResource('camera');
+					// Find radar in children of camera
+					const radarObject = camera.children.find(child => child.name === 'radar');
+
+					if (radarObject) {
+						radarObject.add(blipModel);
+					} else {
+						// Fallback to scene if radar not found
+						scene.add(blipModel);
+					}
+
+					ecs.spawn({
+						model: blipModel,
+						position: {
+							x: 0,
+							y: 0.1,
+							z: 0
+						},
+						rotation: {
+							x: 0,
+							y: 0,
+							z: 0
+						},
+						scale: {
+							x: 1,
+							y: 1,
+							z: 1
+						},
+						radarBlip: {
+							type: data.type,
+							distance: Math.sqrt(position.x * position.x + position.z * position.z),
+							angle: angle
 						}
 					});
 

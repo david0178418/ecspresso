@@ -4,6 +4,7 @@ interface Components {
 	position: { x: number; y: number };
 	velocity: { x: number; y: number };
 	sprite: { id: string; scale: number };
+	health: number;
 }
 
 interface Events {
@@ -139,12 +140,12 @@ function createPlayerBundle() {
 		.setOnInitialize((ecs) => {
 			console.log("Initializing player controller system...");
 
-			// Create player entity during initialization
-			const playerEntity = ecs.entityManager.createEntity();
-			ecs.entityManager.addComponents(playerEntity, {
-				position: { x: 100, y: 100 },
+			// Create a player entity
+			const playerEntity = ecs.spawn({
+				position: { x: 50, y: 50 },
 				velocity: { x: 0, y: 0 },
-				sprite: { id: 'player', scale: 1.0 }
+				sprite: { id: 'player', scale: 1.0 },
+				health: 100
 			});
 
 			console.log("Player entity created with ID:", playerEntity.id);

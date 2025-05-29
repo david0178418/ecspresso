@@ -118,8 +118,9 @@ describe('ResourceManager', () => {
 		// Track system execution
 		let systemDebugRan = false;
 
-		const entity = world.entityManager.createEntity();
-		world.entityManager.addComponent(entity.id, 'position', { x: 0, y: 0 });
+		world.spawn({
+			position: { x: 0, y: 0 }
+		});
 
 		// Update the world to run the system
 		world.update(1/60);
@@ -171,8 +172,9 @@ describe('ResourceManager', () => {
 			.withBundle(bundle)
 			.build();
 
-		const entity = world.entityManager.createEntity();
-		world.entityManager.addComponent(entity.id, 'position', { x: 0, y: 0 });
+		world.spawn({
+			position: { x: 0, y: 0 }
+		});
 
 		// Update the world to run the system
 		world.update(1/60);
