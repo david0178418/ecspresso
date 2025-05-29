@@ -25,17 +25,14 @@ export default function createRenderBundle() {
 			gameInit: {
 				handler(_data, ecs) {
 					const entityContainer = ecs.getResource('entityContainer');
-
-					const playerEntity = ecs.entityManager.createEntity();
 					const playerSprite = createPlayerSprite(ecs);
-
 					entityContainer.addChild(playerSprite);
 
 					const pixi = ecs.getResource('pixi');
 					const initialX = pixi.screen.width / 2;
 					const initialY = pixi.screen.height - 80;
 
-					ecs.entityManager.addComponents(playerEntity, {
+					ecs.spawn({
 						sprite: playerSprite,
 						player: true,
 						position: {
@@ -63,13 +60,10 @@ export default function createRenderBundle() {
 					if (!player) return;
 
 					const playerPosition = player.components.position;
-
-					const projectileEntity = ecs.entityManager.createEntity();
 					const projectileSprite = createProjectileSprite(ecs, 'player');
-
 					entityContainer.addChild(projectileSprite);
 
-					ecs.entityManager.addComponents(projectileEntity, {
+					ecs.spawn({
 						position: {
 							x: playerPosition.x,
 							y: playerPosition.y - 20
@@ -105,14 +99,11 @@ export default function createRenderBundle() {
 
 					if (!enemyPosition) return;
 
-					// Create a projectile entity
-					const projectileEntity = ecs.entityManager.createEntity();
 					const projectileSprite = createProjectileSprite(ecs, 'enemy');
-
 					entityContainer.addChild(projectileSprite);
 
-					// Position the projectile at the bottom of the enemy
-					ecs.entityManager.addComponents(projectileEntity, {
+					// Create a projectile entity positioned at the bottom of the enemy
+					ecs.spawn({
 						position: {
 							x: enemyPosition.x,
 							y: enemyPosition.y + 20
@@ -154,16 +145,13 @@ export default function createRenderBundle() {
 				handler(_data, ecs) {
 					const entityContainer = ecs.getResource('entityContainer');
 					const pixi = ecs.getResource('pixi');
-
-					const playerEntity = ecs.entityManager.createEntity();
 					const playerSprite = createPlayerSprite(ecs);
-
 					entityContainer.addChild(playerSprite);
 
 					const initialX = pixi.screen.width / 2;
 					const initialY = pixi.screen.height - 80;
 
-					ecs.entityManager.addComponents(playerEntity, {
+					ecs.spawn({
 						sprite: playerSprite,
 						player: true,
 						position: {

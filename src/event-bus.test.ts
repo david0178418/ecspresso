@@ -135,8 +135,11 @@ describe('EventSystem', () => {
 			.build();
 
 		// Create an entity
-		const entity = world.entityManager.createEntity();
-		world.entityManager.addComponent(entity.id, 'health', { value: 100 });
+		const entity = world.spawn({
+			health: {
+				value: 100,
+			},
+		});
 
 		// Publish an event to trigger the handler
 		world.eventBus.publish('playerDamaged', { entityId: entity.id, amount: 10 });
@@ -169,8 +172,9 @@ describe('EventSystem', () => {
 			.build();
 
 		// Create an entity with health component
-		const entity = world.entityManager.createEntity();
-		world.entityManager.addComponent(entity.id, 'health', { value: 100 });
+		const entity = world.spawn({
+			health: { value: 100 },
+		});
 
 		// Publish an event
 		world.eventBus.publish('healthChanged', {
@@ -198,8 +202,11 @@ describe('EventSystem', () => {
 			.build();
 
 		// Create an entity with health component
-		const entity = world.entityManager.createEntity();
-		world.entityManager.addComponent(entity.id, 'health', { value: 100 });
+		const entity = world.spawn({
+			health: {
+				value: 100,
+			},
+		});
 
 		// Track events received
 		const receivedEvents: string[] = [];
@@ -308,13 +315,15 @@ describe('EventSystem', () => {
 			.build();
 
 		// Create entities to test with
-		const entity = world.entityManager.createEntity();
-		world.entityManager.addComponent(entity.id, 'health', { value: 100 });
-		world.entityManager.addComponent(entity.id, 'position', { x: 0, y: 0 });
+		const entity = world.spawn({
+			health: { value: 100 },
+			position: { x: 0, y: 0 }
+		});
 
-		const entity2 = world.entityManager.createEntity();
-		world.entityManager.addComponent(entity2.id, 'health', { value: 80 });
-		world.entityManager.addComponent(entity2.id, 'position', { x: 10, y: 10 });
+		const entity2 = world.spawn({
+			health: { value: 80 },
+			position: { x: 10, y: 10 }
+		});
 
 		// Simulate a collision between the entities
 		world.eventBus.publish('collision', {

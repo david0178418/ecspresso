@@ -1,7 +1,7 @@
 import EntityManager from "./entity-manager";
 import EventBus from "./event-bus";
 import ResourceManager from "./resource-manager";
-import type { System, FilteredEntity } from "./types";
+import type { System, FilteredEntity, Entity } from "./types";
 import type Bundle from "./bundle";
 import { createEcspressoSystemBuilder } from "./system-builder";
 import { version } from "../package.json";
@@ -348,6 +348,19 @@ export default class ECSpresso<
 	): boolean {
 		const component = this._entityManager.getComponent(entityId, componentName);
 		return component !== null;
+	}
+
+	/**
+		* Create an entity and add components to it in one call
+		* @param components Object with component names as keys and component data as values
+		* @returns The created entity with all components added
+		*/
+	spawn<T extends { [K in keyof ComponentTypes]?: ComponentTypes[K] }>(
+		components: T & Record<Exclude<keyof T, keyof ComponentTypes>, never>
+	): Entity<ComponentTypes> {
+		const entity = this._entityManager.createEntity();
+		this._entityManager.addComponents(entity, components);
+		return entity;
 	}
 
 	/**

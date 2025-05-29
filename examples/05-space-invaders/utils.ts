@@ -81,16 +81,15 @@ export function spawnEnemyFormation(ecs: ECSpresso<Components, Events, Resources
 			const y = startY + row * spacing;
 
 			// Create enemy entity
-			const enemyEntity = ecs.entityManager.createEntity();
-			ecs.entityManager.addComponents(enemyEntity, {
-				position: { x, y },
-				velocity: { x: config.enemySpeed, y: 0 },
-				sprite: enemySprite,
+			ecs.spawn({
 				enemy: {
 					type: enemyType,
 					points,
 					health
 				},
+				sprite: enemySprite,
+				position: { x, y },
+				velocity: { x: config.enemySpeed, y: 0 },
 				collider: {
 					width: enemySprite.width,
 					height: enemySprite.height

@@ -390,13 +390,15 @@ describe('ECSpresso', () => {
 				.withBundle(bundle)
 				.build();
 
-			const entity1 = world.entityManager.createEntity();
-			world.entityManager.addComponent(entity1.id, 'position', { x: 0, y: 0 });
-			world.entityManager.addComponent(entity1.id, 'velocity', { x: 5, y: 10 });
+			const entity1 = world.spawn({
+				position: { x: 0, y: 0 },
+				velocity: { x: 5, y: 10 }
+			});
 
-			const entity2 = world.entityManager.createEntity();
-			world.entityManager.addComponent(entity2.id, 'position', { x: 100, y: 100 });
-			world.entityManager.addComponent(entity2.id, 'health', { value: 100 });
+			world.spawn({
+				position: { x: 100, y: 100 },
+				health: { value: 100 }
+			});
 
 			const processedEntities: number[] = [];
 
@@ -454,8 +456,9 @@ describe('ECSpresso', () => {
 				.build();
 
 			// Add entity to match the query
-			const entity = world.entityManager.createEntity();
-			world.entityManager.addComponent(entity.id, 'position', { x: 0, y: 0 });
+			world.spawn({
+				position: { x: 0, y: 0 }
+			});
 
 			// System should run during update
 			world.update(1/60);
@@ -500,8 +503,9 @@ describe('ECSpresso', () => {
 				.build();
 
 			// Add an entity to match the query
-			const entity = world.entityManager.createEntity();
-			world.entityManager.addComponent(entity.id, 'position', { x: 0, y: 0 });
+			world.spawn({
+				position: { x: 0, y: 0 }
+			});
 
 			await world.initialize();
 
@@ -520,6 +524,34 @@ describe('ECSpresso', () => {
 
 	// Entity and component management tests
 	describe('Entity & Component Management', () => {
+		test('should create entities with components using spawn method', () => {
+			const world = new ECSpresso<TestComponents>();
+
+			// Create entity with multiple components using spawn
+			const entity = world.spawn({
+				position: { x: 10, y: 20 },
+				velocity: { x: 5, y: -2 },
+				health: { value: 100 }
+			});
+
+			// Verify entity was created
+			expect(entity.id).toBeGreaterThan(0);
+
+			// Verify all components were added
+			expect(world.hasComponent(entity.id, 'position')).toBe(true);
+			expect(world.hasComponent(entity.id, 'velocity')).toBe(true);
+			expect(world.hasComponent(entity.id, 'health')).toBe(true);
+
+			// Verify component values
+			const position = world.entityManager.getComponent(entity.id, 'position');
+			const velocity = world.entityManager.getComponent(entity.id, 'velocity');
+			const health = world.entityManager.getComponent(entity.id, 'health');
+
+			expect(position).toEqual({ x: 10, y: 20 });
+			expect(velocity).toEqual({ x: 5, y: -2 });
+			expect(health).toEqual({ value: 100 });
+		});
+
 		test('should handle state transitions in systems', () => {
 			// Create a system that updates state
 			const bundle = new Bundle<TestComponents>()
@@ -546,8 +578,9 @@ describe('ECSpresso', () => {
 			// 	bundles: [bundle]
 			// });
 
-			const entity = world.entityManager.createEntity();
-			world.entityManager.addComponent(entity.id, 'state', { current: 'idle', previous: '' });
+			const entity = world.spawn({
+				state: { current: 'idle', previous: '' }
+			});
 
 			// Run the system
 			world.update(1/60);
@@ -587,8 +620,9 @@ describe('ECSpresso', () => {
 			// });
 
 			// Create an entity with a lifetime component
-			const entity1 = world.entityManager.createEntity();
-			world.entityManager.addComponent(entity1.id, 'lifetime', { remaining: 2 });
+			const entity1 = world.spawn({
+				lifetime: { remaining: 2 }
+			});
 
 			// Create an entity without a lifetime
 			const entity2 = world.entityManager.createEntity();
@@ -646,10 +680,10 @@ describe('ECSpresso', () => {
 				.withBundle(bundle)
 				.build();
 
-			// Create entity without components yet
-			const entity = world.entityManager.createEntity();
-
-			world.entityManager.addComponent(entity.id, 'velocity', { x: 5, y: 10 });
+			// Create entity with velocity component
+			const entity = world.spawn({
+				velocity: { x: 5, y: 10 }
+			});
 
 			// First update adds the position component
 			world.update(1/60);
@@ -667,9 +701,10 @@ describe('ECSpresso', () => {
 			const world = new ECSpresso<TestComponents, TestEvents>();
 
 			// Create entities
-			const entity1 = world.entityManager.createEntity();
-			world.entityManager.addComponent(entity1.id, 'position', { x: 10, y: 20 });
-			world.entityManager.addComponent(entity1.id, 'velocity', { x: 5, y: 0 });
+			world.spawn({
+				position: { x: 10, y: 20 },
+				velocity: { x: 5, y: 0 }
+			});
 
 			// Track various calls
 			let initialized = false;
@@ -735,9 +770,10 @@ describe('ECSpresso', () => {
 			const directWorld = new ECSpresso<TestComponents>();
 
 			// Setup entities identically in all worlds
-			const entity = directWorld.entityManager.createEntity();
-			directWorld.entityManager.addComponent(entity.id, 'position', { x: 0, y: 0 });
-			directWorld.entityManager.addComponent(entity.id, 'velocity', { x: 5, y: 10 });
+			directWorld.spawn({
+				position: { x: 0, y: 0 },
+				velocity: { x: 5, y: 10 }
+			});
 
 			let bundleProcessed = false;
 			let directProcessed = false;
@@ -760,9 +796,10 @@ describe('ECSpresso', () => {
 				.build();
 
 			// We need one more entity for this world
-			const entityInNew = worldWithBundle.entityManager.createEntity();
-			worldWithBundle.entityManager.addComponent(entityInNew.id, 'position', { x: 0, y: 0 });
-			worldWithBundle.entityManager.addComponent(entityInNew.id, 'velocity', { x: 5, y: 10 });
+			worldWithBundle.spawn({
+				position: { x: 0, y: 0 },
+				velocity: { x: 5, y: 10 }
+			});
 
 			// Add a system directly
 			const directSystemBuilder = directWorld
@@ -797,13 +834,15 @@ describe('ECSpresso', () => {
 			let system3Processed = false;
 
 			// Create entities
-			const entity1 = world.entityManager.createEntity();
-			world.entityManager.addComponent(entity1.id, 'position', { x: 0, y: 0 });
-			world.entityManager.addComponent(entity1.id, 'velocity', { x: 5, y: 10 });
+			world.spawn({
+				position: { x: 0, y: 0 },
+				velocity: { x: 5, y: 10 }
+			});
 
-			const entity2 = world.entityManager.createEntity();
-			world.entityManager.addComponent(entity2.id, 'position', { x: 100, y: 100 });
-			world.entityManager.addComponent(entity2.id, 'health', { value: 100 });
+			world.spawn({
+				position: { x: 100, y: 100 },
+				health: { value: 100 }
+			});
 
 			// Test the new simplified chaining API
 			world
@@ -883,8 +922,9 @@ describe('ECSpresso', () => {
 				})
 				.build();
 
-			const entity = world.entityManager.createEntity();
-			world.entityManager.addComponent(entity.id, 'position', { x: 0, y: 0 });
+			world.spawn({
+				position: { x: 0, y: 0 }
+			});
 
 			// Update the world to run all systems
 			world.update(1/60);
@@ -930,8 +970,9 @@ describe('ECSpresso', () => {
 				})
 				.build();
 
-			const entity = world.entityManager.createEntity();
-			world.entityManager.addComponent(entity.id, 'position', { x: 0, y: 0 });
+			world.spawn({
+				position: { x: 0, y: 0 }
+			});
 
 			// Update the world to run all systems
 			world.update(1/60);
@@ -970,8 +1011,9 @@ describe('ECSpresso', () => {
 				.withBundle(bundle2)
 				.build();
 
-			const entity = world.entityManager.createEntity();
-			world.entityManager.addComponent(entity.id, 'position', { x: 0, y: 0 });
+			world.spawn({
+				position: { x: 0, y: 0 }
+			});
 
 			// Add a direct system with medium priority
 			world.addSystem('DirectSystemMedium')
@@ -1031,8 +1073,9 @@ describe('ECSpresso', () => {
 				})
 				.build();
 
-			const entity = world.entityManager.createEntity();
-			world.entityManager.addComponent(entity.id, 'position', { x: 0, y: 0 });
+			world.spawn({
+				position: { x: 0, y: 0 }
+			});
 
 			// Initial update and check
 			world.update(1/60);

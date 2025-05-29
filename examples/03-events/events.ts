@@ -70,10 +70,9 @@ ecs
 
 				ecs.addResource('worldContainer', worldContainer);
 
-				const playerEntity = ecs.entityManager.createEntity();
 				const sprite = createCircleSprite(0x0000FF, pixi);
 				worldContainer.addChild(sprite);
-				ecs.entityManager.addComponents(playerEntity, {
+				ecs.spawn({
 					player: true,
 					sprite,
 					speed: 500,
@@ -155,29 +154,28 @@ ecs
 			handler(_eventData, ecs) {
 				console.log('spawning enemy triggered');
 				const pixi = ecs.getResource('pixi');
-					const entity = ecs.entityManager.createEntity();
-					const sprite = createCircleSprite(0xFF0000, pixi);
-					const worldContainer = ecs.getResource('worldContainer');
-					worldContainer.addChild(sprite);
+				const sprite = createCircleSprite(0xFF0000, pixi);
+				const worldContainer = ecs.getResource('worldContainer');
+				worldContainer.addChild(sprite);
 
-					const speed = randomInt(300, 550);
+				const speed = randomInt(300, 550);
 
-					ecs.entityManager.addComponents(entity, {
-						sprite,
-						speed,
-						position: {
-							x: randomInt(pixi.renderer.width),
-							y: randomInt(pixi.renderer.height),
-						},
-						velocity: {
-							x: randomInt(-speed, speed),
-							y: randomInt(-speed, speed),
-						},
-					});
+				const entity = ecs.spawn({
+					sprite,
+					speed,
+					position: {
+						x: randomInt(pixi.renderer.width),
+						y: randomInt(pixi.renderer.height),
+					},
+					velocity: {
+						x: randomInt(-speed, speed),
+						y: randomInt(-speed, speed),
+					},
+				});
 
-					setInterval(() => {
-						ecs.eventBus.publish('updateEnemyDirection', { enemy: entity });
-					}, randomInt(3, 8) * 1_000);
+				setInterval(() => {
+					ecs.eventBus.publish('updateEnemyDirection', { enemy: entity });
+				}, randomInt(3, 8) * 1_000);
 			}
 		},
 		updateEnemyDirection: {

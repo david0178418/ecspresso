@@ -108,7 +108,7 @@ async function main() {
   // 10. Add a system that uses resources
   console.log("\n10. System using resources:");
   world.addSystem('gameLogic')
-    .setProcess((queries, deltaTime, ecs) => {
+    .setProcess((_queries, _deltaTime, ecs) => {
       const gameConfig = ecs.getResource('gameConfig');
       const playerStats = ecs.getResource('playerStats');
       
