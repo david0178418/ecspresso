@@ -15,9 +15,9 @@ describe('Query Type Utilities', () => {
 	test('QueryResultEntity should extract correct entity type from query definition', () => {
 		// Define a query using the new pattern
 		const movingEntitiesQuery = createQueryDefinition({
-			with: ['position', 'velocity'] as const,
-			without: ['dead'] as const
-		} as const);
+			with: ['position', 'velocity'],
+			without: ['dead']
+		});
 
 		// Extract the entity type
 		type MovingEntity = QueryResultEntity<Components, typeof movingEntitiesQuery>;
@@ -27,12 +27,12 @@ describe('Query Type Utilities', () => {
 			// TypeScript should know these components exist and are the correct types
 			entity.components.position.x += entity.components.velocity.x * deltaTime;
 			entity.components.position.y += entity.components.velocity.y * deltaTime;
-			
+
 			// TypeScript should know these components are optional
 			if (entity.components.health) {
 				entity.components.health.value -= 1;
 			}
-			
+
 			// TypeScript should prevent access to excluded components
 			// @ts-expect-error - 'dead' component should not be accessible
 			const deadStatus = entity.components.dead;
@@ -40,7 +40,7 @@ describe('Query Type Utilities', () => {
 
 		// Create an ECS world and test the integration
 		const world = new ECSpresso<Components>();
-		
+
 		world.addSystem('movement')
 			.addQuery('entities', movingEntitiesQuery)
 			.setProcess((queries, deltaTime) => {
@@ -62,16 +62,16 @@ describe('Query Type Utilities', () => {
 		world.update(1);
 		const position = world.entityManager.getComponent(entity.id, 'position');
 		expect(position).toEqual({ x: 10, y: 5 });
-		
+
 		const health = world.entityManager.getComponent(entity.id, 'health');
 		expect(health?.value).toBe(99);
 	});
 
 	test('should work with complex queries including multiple with/without clauses', () => {
 		const playerQuery = createQueryDefinition({
-			with: ['position', 'sprite', 'player'] as const,
-			without: ['dead'] as const
-		} as const);
+			with: ['position', 'sprite', 'player'],
+			without: ['dead']
+		});
 
 		type PlayerEntity = QueryResultEntity<Components, typeof playerQuery>;
 
@@ -80,21 +80,21 @@ describe('Query Type Utilities', () => {
 			const pos = entity.components.position;
 			const sprite = entity.components.sprite;
 			const isPlayer = entity.components.player;
-			
+
 			// Should have optional access to other components
 			if (entity.components.health) {
 				// Health is optional
 			}
-			
+
 			// Should not have access to excluded components
 			// @ts-expect-error - 'dead' component should not be accessible
 			const deadStatus = entity.components.dead;
-			
+
 			return { pos, sprite, isPlayer };
 		}
 
 		const world = new ECSpresso<Components>();
-		
+
 		world.addSystem('playerRenderer')
 			.addQuery('players', playerQuery)
 			.setProcess((queries) => {
@@ -129,7 +129,7 @@ describe('Query Type Utilities', () => {
 			const x = entity.components.position.x;
 			const y = entity.components.position.y;
 			const sprite = entity.components.sprite.url;
-			
+
 			return { x, y, sprite };
 		}
 
@@ -139,13 +139,13 @@ describe('Query Type Utilities', () => {
 
 	test('createQueryDefinition should preserve exact types', () => {
 		const query1 = createQueryDefinition({
-			with: ['position'] as const
-		} as const);
+			with: ['position']
+		});
 
 		const query2 = createQueryDefinition({
-			with: ['position', 'velocity'] as const,
-			without: ['dead', 'player'] as const
-		} as const);
+			with: ['position', 'velocity'],
+			without: ['dead', 'player']
+		});
 
 		// Types should be preserved exactly
 		type Entity1 = QueryResultEntity<Components, typeof query1>;
@@ -155,11 +155,11 @@ describe('Query Type Utilities', () => {
 		expect(query1.with).toEqual(['position']);
 		expect(query2.with).toEqual(['position', 'velocity']);
 		expect(query2.without).toEqual(['dead', 'player']);
-		
+
 		// Use the types to avoid TS warnings - just verify they compile
 		const checkType1: Entity1 = {} as Entity1;
 		const checkType2: Entity2 = {} as Entity2;
 		expect(typeof checkType1).toBe('object');
 		expect(typeof checkType2).toBe('object');
 	});
-}); 
+});
