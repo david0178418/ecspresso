@@ -40,12 +40,12 @@ interface Resources {
 
 // Create reusable query definitions for better type extraction
 const movingEntitiesQuery = createQueryDefinition({
-	with: ['position', 'velocity'] as const,
-} as const);
+	with: ['position', 'velocity'],
+});
 
 const renderableEntitiesQuery = createQueryDefinition({
-	with: ['sprite', 'position'] as const,
-} as const);
+	with: ['sprite', 'position'],
+});
 
 // Extract entity types from query definitions for helper functions
 type MovingEntity = QueryResultEntity<Components, typeof movingEntitiesQuery>;
@@ -66,7 +66,7 @@ function updateSpritePosition(entity: RenderableEntity) {
 
 function screenWrap(entity: MovingEntity, screenWidth: number, screenHeight: number) {
 	const pos = entity.components.position;
-	
+
 	if (pos.x < 0) pos.x = screenWidth;
 	if (pos.x > screenWidth) pos.x = 0;
 	if (pos.y < 0) pos.y = screenHeight;
@@ -251,7 +251,7 @@ function createPhysicsBundle() {
 		.addQuery('movingEntities', movingEntitiesQuery)
 		.setProcess((queries, deltaTimeMs, ecs) => {
 			const pixi = ecs.getResource('pixi');
-			
+
 			for(const entity of queries.movingEntities) {
 				updatePosition(entity, deltaTimeMs);
 				screenWrap(entity, pixi.renderer.width, pixi.renderer.height);

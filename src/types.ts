@@ -39,16 +39,16 @@ interface QueryConfig<
 /**
  * Utility type to derive the entity type that would result from a query definition.
  * This is useful for creating helper functions that operate on query results.
- * 
+ *
  * @example
  * ```typescript
  * const queryDef = {
- *   with: ['position', 'sprite'] as const,
- *   without: ['dead'] as const
- * } as const;
- * 
+ *   with: ['position', 'sprite'],
+ *   without: ['dead']
+ * };
+ *
  * type EntityType = QueryResultEntity<Components, typeof queryDef>;
- * 
+ *
  * function updateSpritePosition(entity: EntityType) {
  *   entity.components.sprite.position.set(
  *     entity.components.position.x,
@@ -72,14 +72,14 @@ export type QueryResultEntity<
 /**
  * Utility type to create a query definition with proper type inference.
  * This enables you to create reusable query definitions and extract their result types.
- * 
+ *
  * @example
  * ```typescript
  * const movingEntitiesQuery = createQueryDefinition({
- *   with: ['position', 'velocity'] as const,
- *   without: ['dead'] as const
- * } as const);
- * 
+ *   with: ['position', 'velocity'],
+ *   without: ['dead']
+ * });
+ *
  * type MovingEntity = QueryResultEntity<Components, typeof movingEntitiesQuery>;
  * ```
  */
@@ -95,21 +95,21 @@ export type QueryDefinition<
 /**
  * Helper function to create a query definition with proper type inference.
  * This enables better TypeScript inference when creating reusable queries.
- * 
+ *
  * @example
  * ```typescript
  * const movingEntitiesQuery = createQueryDefinition({
- *   with: ['position', 'velocity'] as const,
- *   without: ['dead'] as const
- * } as const);
- * 
+ *   with: ['position', 'velocity'],
+ *   without: ['dead']
+ * });
+ *
  * type MovingEntity = QueryResultEntity<Components, typeof movingEntitiesQuery>;
- * 
+ *
  * function updatePosition(entity: MovingEntity) {
  *   entity.components.position.x += entity.components.velocity.x;
  *   entity.components.position.y += entity.components.velocity.y;
  * }
- * 
+ *
  * world.addSystem('movement')
  *   .addQuery('entities', movingEntitiesQuery)
  *   .setProcess((queries) => {
