@@ -276,22 +276,8 @@ export function registerSystemWithEcspresso<
 	system: System<ComponentTypes, any, any, EventTypes, ResourceTypes>,
 	ecspresso: ECSpresso<ComponentTypes, EventTypes, ResourceTypes>
 ) {
-	// TODO: Remove the index notation workaround hack for private property access
-	// Add system to ECSpresso's system list
-	ecspresso["_systems"].push(system);
-
-	// Trigger sorting of systems by priority
-	ecspresso["_sortSystems"]();
-
-	if(!system.eventHandlers) return;
-
-	for (const eventName in system.eventHandlers) {
-		const handler = system.eventHandlers[eventName]?.handler;
-
-		handler && ecspresso.eventBus.subscribe(eventName, (data) => {
-			handler(data, ecspresso);
-		});
-	}
+	// Use the new internal registration method instead of direct property access
+	ecspresso._registerSystem(system);
 }
 
 // Helper type definitions

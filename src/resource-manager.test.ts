@@ -3,6 +3,12 @@ import ECSpresso from './ecspresso';
 import ResourceManager from './resource-manager';
 import Bundle from './bundle';
 
+// Test class for factory function detection tests
+class TestClass {
+	constructor(public value: number = 42) {}
+	getValue() { return this.value; }
+}
+
 interface TestComponents {
 	position: { x: number; y: number };
 	velocity: { x: number; y: number };
@@ -17,6 +23,8 @@ interface TestResources {
 	gameState: { current: string; previous: string };
 	logger: { log: (message: string) => void };
 	counter: { increment: () => number };
+	controlMap: { up: boolean; down: boolean; left: boolean; right: boolean };
+	objectInstance: typeof TestClass;
 }
 
 describe('ResourceManager', () => {
@@ -240,5 +248,136 @@ describe('ResourceManager', () => {
 			'Resource config updated to [object Object] (game state: playing)'
 		]);
 		expect(gameState).toEqual({ current: 'updated', previous: 'playing' });
+	});
+
+	describe('Factory Function Detection', () => {
+		test('should correctly identify factory functions vs classes vs constructors', async () => {
+			const resourceManager = new ResourceManager<TestResources>();
+
+			// Regular factory function (like activeKeyMap from examples)
+			function createControlMap() {
+				const controlMap = {
+					up: false,
+					down: false,
+					left: false,
+					right: false,
+				};
+				
+				// Simulate setting up event listeners like in the examples
+				// (we can't actually do this in tests, but the structure is the same)
+				return controlMap;
+			}
+
+			// Arrow function factory
+			const createConfig = () => ({ debug: true, maxEntities: 1000 });
+
+			// ES6 Class
+			class TestClass {
+				constructor(public value: number = 42) {}
+				getValue() { return this.value; }
+			}
+
+			// Constructor function (old-style class)
+			function OldStyleConstructor(this: any, value: number) {
+				this.value = value;
+			}
+			OldStyleConstructor.prototype.getValue = function() { return this.value; };
+
+			// Add different types of resources
+			resourceManager.add('controlMap', createControlMap);
+			resourceManager.add('config', createConfig);
+			resourceManager.add('objectInstance', TestClass);
+
+			// Initialize resources to trigger factory function execution
+			await resourceManager.initializeResources();
+
+			// Verify factory functions were executed correctly
+			const controlMap = resourceManager.get('controlMap');
+			expect(controlMap).toEqual({
+				up: false,
+				down: false,
+				left: false,
+				right: false,
+			});
+
+			const config = resourceManager.get('config');
+			expect(config).toEqual({ debug: true, maxEntities: 1000 });
+
+			// Class should be stored as-is, not executed
+			const objectClass = resourceManager.get('objectInstance');
+			expect(objectClass).toBe(TestClass);
+		});
+
+		test('should handle input system regression scenario', async () => {
+			// This test specifically reproduces the input example scenario that was broken
+			interface InputComponents {
+				position: { x: number; y: number };
+				velocity: { x: number; y: number };
+				speed: number;
+			}
+
+			interface InputResources {
+				controlMap: {
+					up: boolean;
+					down: boolean;
+					left: boolean;
+					right: boolean;
+				};
+			}
+
+			// Simulate the activeKeyMap factory function from the examples
+			function activeKeyMap() {
+				const controlMap = {
+					up: false,
+					down: false,
+					left: false,
+					right: false,
+				};
+
+				// In real implementation, this would set up event listeners
+				// For testing, we'll just return the object
+				return controlMap;
+			}
+
+			// Create ECS instance like in the examples
+			const world = new ECSpresso<InputComponents, {}, InputResources>();
+
+			// Add the controlMap resource using the factory function
+			world.addResource('controlMap', activeKeyMap);
+
+			// Initialize resources (this should execute the factory function)
+			await world.initializeResources();
+
+			// Add a system that uses the controlMap resource
+			let systemRan = false;
+			world.addSystem('input-test')
+				.addQuery('entities', { with: ['position', 'velocity', 'speed'] })
+				.setProcess((_queries, _deltaTime, ecs) => {
+					const controlMap = ecs.getResource('controlMap');
+					
+					// This should work - controlMap should be the object, not the function
+					expect(typeof controlMap).toBe('object');
+					expect(controlMap.up).toBe(false);
+					expect(controlMap.down).toBe(false);
+					expect(controlMap.left).toBe(false);
+					expect(controlMap.right).toBe(false);
+					
+					systemRan = true;
+				})
+				.build();
+
+			// Create an entity to trigger the system
+			world.spawn({
+				position: { x: 0, y: 0 },
+				velocity: { x: 0, y: 0 },
+				speed: 100
+			});
+
+			// Run the system
+			world.update(1/60);
+
+			// Verify the system ran successfully
+			expect(systemRan).toBe(true);
+		});
 	});
 });

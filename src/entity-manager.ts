@@ -166,8 +166,21 @@ class EntityManager<ComponentTypes> {
 
 		if (!entity) return false;
 
-		// Remove entity from all component indices
+		// Trigger removal callbacks for each component before removing the entity
 		for (const componentName of Object.keys(entity.components) as Array<keyof ComponentTypes>) {
+			const oldValue = entity.components[componentName];
+			
+			// Trigger removed callbacks if the component exists
+			if (oldValue !== undefined) {
+				const removeCbs = this.removedCallbacks.get(componentName);
+				if (removeCbs) {
+					for (const cb of removeCbs) {
+						cb(oldValue, entity);
+					}
+				}
+			}
+
+			// Remove entity from component indices
 			this.componentIndices.get(componentName)?.delete(entity.id);
 		}
 

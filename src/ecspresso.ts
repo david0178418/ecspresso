@@ -5,47 +5,7 @@ import type { System, FilteredEntity, Entity } from "./types";
 import type Bundle from "./bundle";
 import { createEcspressoSystemBuilder } from "./system-builder";
 import { version } from "../package.json";
-
-/**
-	* Type helper to detect conflicting types between two record types.
-	* Returns a union of keys that exist in both T and U but have incompatible types.
-*/
-type GetConflictingKeys<T, U> = {
-	[K in keyof T & keyof U]: T[K] extends U[K]
-		? U[K] extends T[K]
-			? never
-			: K
-		: K
-}[keyof T & keyof U];
-
-/**
-	* Simplified type helper to check bundle type compatibility.
-	* Returns true if bundles can be merged without type conflicts.
-*/
-type BundlesAreCompatible<
-	C1 extends Record<string, any>,
-	C2 extends Record<string, any>,
-	E1 extends Record<string, any>,
-	E2 extends Record<string, any>,
-	R1 extends Record<string, any>,
-	R2 extends Record<string, any>
-> =
-	// If all base types are empty, any bundle is compatible
-	[keyof C1] extends [never]
-		? [keyof E1] extends [never]
-			? [keyof R1] extends [never]
-				? true
-				: GetConflictingKeys<R1, R2> extends never ? true : false
-			: GetConflictingKeys<E1, E2> extends never
-				? GetConflictingKeys<R1, R2> extends never ? true : false
-				: false
-		: GetConflictingKeys<C1, C2> extends never
-			? GetConflictingKeys<E1, E2> extends never
-				? GetConflictingKeys<R1, R2> extends never
-					? true
-					: false
-				: false
-			: false;
+import type { BundlesAreCompatible } from "./type-utils";
 
 /**
 	* Interface declaration for ECSpresso constructor to ensure type augmentation works properly.
@@ -265,6 +225,27 @@ export default class ECSpresso<
 		this._sortSystems();
 
 		return true;
+	}
+
+	/**
+		* Internal method to register a system with this ECSpresso instance
+		* @internal Used by SystemBuilder - replaces direct private property access
+	*/
+	_registerSystem(system: System<ComponentTypes, any, any, EventTypes, ResourceTypes>): void {
+		this._systems.push(system);
+		this._sortSystems();
+
+		// Set up event handlers if they exist
+		if (!system.eventHandlers) return;
+
+		for (const eventName in system.eventHandlers) {
+			const handler = system.eventHandlers[eventName]?.handler;
+			if (handler) {
+				this._eventBus.subscribe(eventName, (data) => {
+					handler(data, this);
+				});
+			}
+		}
 	}
 
 	/**

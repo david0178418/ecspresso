@@ -212,25 +212,5 @@ interface System<
 	};
 }
 
-/**
- * Utility type for merging two types
- */
-// This sets props with the same name but different type to "never". Maybe we want this?
-export type Merge<T1, T2> = T1 & T2;
-// This makes the later prop types override the earlier ones. Maybe we want this instead?
-// export type Merge<T1, T2> = Omit<T1, keyof T2> & T2;
-// Or maybe this, which sets props with the same name to a union of the two types
-// export type Merge<T1, T2> = {
-// 	[K in keyof T1 | keyof T2]: K extends keyof T1 & keyof T2
-// 		? T1[K] | T2[K]
-// 		: K extends keyof T1
-// 			? T1[K]
-// 			: K extends keyof T2
-// 				? T2[K]
-// 				: never;
-// };
-
-export type MergeAll<T extends any[]> = T extends [infer First, ...infer Rest] ?
-	Rest extends [] ?
-		First: Merge<First, MergeAll<Rest>>:
-	{};
+// Re-export utility types from type-utils to maintain backward compatibility
+export type { Merge, MergeAll } from './type-utils';
