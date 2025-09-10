@@ -4,21 +4,21 @@
  */
 
 /**
- * Check if two types have conflicting keys (same key, different type).
- * Returns true if there are no conflicts.
+ * Check if two types are exactly the same for overlapping keys
  */
-export type TypesAreCompatible<T, U> = {
-	[K in keyof T & keyof U]: T[K] extends U[K]
-		? U[K] extends T[K]
-			? true
-			: false
-		: false
+type ExactlyCompatible<T, U> = T extends U ? U extends T ? true : false : false;
+
+/**
+ * Check if two record types are compatible (no conflicting keys)
+ */
+export type TypesAreCompatible<T extends Record<string, any>, U extends Record<string, any>> = {
+	[K in keyof T & keyof U]: ExactlyCompatible<T[K], U[K]>;
 }[keyof T & keyof U] extends false ? false : true;
 
 /**
- * Simplified bundle compatibility checker.
- * Allows merging when there are no type conflicts between shared keys.
- * If types don't share keys, they are always compatible.
+ * Simplified bundle compatibility checker
+ * Returns true if bundles can be merged without type conflicts
+ * More lenient - allows bundles without shared keys to be merged
  */
 export type BundlesAreCompatible<
 	C1 extends Record<string, any>,
@@ -27,29 +27,13 @@ export type BundlesAreCompatible<
 	E2 extends Record<string, any>,
 	R1 extends Record<string, any>,
 	R2 extends Record<string, any>
-> = 
-	// Check if there are any shared keys first
-	keyof C1 & keyof C2 extends never
-		? keyof E1 & keyof E2 extends never
-			? keyof R1 & keyof R2 extends never
-				? true  // No shared keys at all - always compatible
-				: TypesAreCompatible<R1, R2>  // Only resource conflicts possible
-			: TypesAreCompatible<E1, E2> extends true
-				? keyof R1 & keyof R2 extends never
-					? true
-					: TypesAreCompatible<R1, R2>
-				: false
-		: TypesAreCompatible<C1, C2> extends true
-			? keyof E1 & keyof E2 extends never
-				? keyof R1 & keyof R2 extends never
-					? true
-					: TypesAreCompatible<R1, R2>
-				: TypesAreCompatible<E1, E2> extends true
-					? keyof R1 & keyof R2 extends never
-						? true
-						: TypesAreCompatible<R1, R2>
-					: false
-			: false;
+> = keyof C1 & keyof C2 extends never
+	? keyof E1 & keyof E2 extends never
+		? keyof R1 & keyof R2 extends never
+			? true
+			: TypesAreCompatible<R1, R2>
+		: TypesAreCompatible<E1, E2>
+	: TypesAreCompatible<C1, C2>;
 
 /**
  * Utility type for merging two types

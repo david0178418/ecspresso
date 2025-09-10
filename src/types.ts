@@ -19,11 +19,9 @@ interface FilteredEntity<
 	WithoutComponents extends keyof ComponentTypes = never,
 > {
 	id: number;
-	// components: Pick<ComponentTypes, WithComponents> & Omit<Partial<ComponentTypes>, WithComponents | WithoutComponents>;
 	components: Omit<Partial<ComponentTypes>, WithoutComponents> & {
-		[ComponentName in WithComponents]: ComponentTypes[ComponentName]
+		[K in WithComponents]: ComponentTypes[K]
 	};
-
 }
 
 export
@@ -70,23 +68,12 @@ export type QueryResultEntity<
 >;
 
 /**
- * Utility type to create a query definition with proper type inference.
- * This enables you to create reusable query definitions and extract their result types.
- *
- * @example
- * ```typescript
- * const movingEntitiesQuery = createQueryDefinition({
- *   with: ['position', 'velocity'],
- *   without: ['dead']
- * });
- *
- * type MovingEntity = QueryResultEntity<Components, typeof movingEntitiesQuery>;
- * ```
+ * Simplified query definition type for creating reusable queries
  */
 export type QueryDefinition<
 	ComponentTypes extends Record<string, any>,
-	WithComponents extends keyof ComponentTypes = any,
-	WithoutComponents extends keyof ComponentTypes = any,
+	WithComponents extends keyof ComponentTypes = keyof ComponentTypes,
+	WithoutComponents extends keyof ComponentTypes = keyof ComponentTypes,
 > = {
 	with: ReadonlyArray<WithComponents>;
 	without?: ReadonlyArray<WithoutComponents>;

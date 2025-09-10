@@ -123,16 +123,16 @@ export default class Bundle<
 	}
 }
 
-// Check if object has exactly the same type
-type Exactly<T, U> =
-	T extends U
-		? U extends T
-			? true
-			: false
-		: false;
+/**
+ * Utility type to check if two types are exactly the same
+ */
+type Exactly<T, U> = T extends U ? U extends T ? true : false : false;
 
-// Create a type error for incompatible types
-type IncompatibleBundles<
+/**
+ * Simplified type constraint for bundle compatibility
+ * Ensures that overlapping keys have exactly the same types
+ */
+type CompatibleBundles<
 	C1 extends Record<string, any>,
 	C2 extends Record<string, any>,
 	E1 extends Record<string, any>,
@@ -140,11 +140,11 @@ type IncompatibleBundles<
 	R1 extends Record<string, any>,
 	R2 extends Record<string, any>
 > = {
-	[K in keyof C1 & keyof C2]: Exactly<C1[K], C2[K]> extends false ? never : unknown;
+	[K in keyof C1 & keyof C2]: Exactly<C1[K], C2[K]> extends true ? C1[K] : never;
 } & {
-	[K in keyof E1 & keyof E2]: Exactly<E1[K], E2[K]> extends false ? never : unknown;
+	[K in keyof E1 & keyof E2]: Exactly<E1[K], E2[K]> extends true ? E1[K] : never;
 } & {
-	[K in keyof R1 & keyof R2]: Exactly<R1[K], R2[K]> extends false ? never : unknown;
+	[K in keyof R1 & keyof R2]: Exactly<R1[K], R2[K]> extends true ? R1[K] : never;
 };
 
 /**
@@ -160,7 +160,7 @@ export function mergeBundles<
 >(
 	id: string,
 	bundle1: Bundle<C1, E1, R1>,
-	bundle2: Bundle<C2, E2, R2> & IncompatibleBundles<C1, C2, E1, E2, R1, R2>
+	bundle2: Bundle<C2, E2, R2> & CompatibleBundles<C1, C2, E1, E2, R1, R2>
 ): Bundle<C1 & C2, E1 & E2, R1 & R2>;
 
 export function mergeBundles<

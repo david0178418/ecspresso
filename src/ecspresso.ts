@@ -261,7 +261,7 @@ export default class ECSpresso<
 	getResource<K extends keyof ResourceTypes>(key: K): ResourceTypes[K] {
 		const resource = this._resourceManager.get(key, this);
 
-		if (!resource) throw new Error(`Resource "${key.toString()}" not found`);
+		if (!resource) throw new Error(`Resource '${String(key)}' not found. Available resources: [${this.getResourceKeys().map(k => String(k)).join(', ')}]`);
 
 		return resource;
 	}

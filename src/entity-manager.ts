@@ -31,7 +31,10 @@ class EntityManager<ComponentTypes> {
 			this.entities.get(entityOrId) :
 			entityOrId;
 
-		if (!entity) throw new Error(`Entity ${entityOrId} does not exist`);
+		if (!entity) {
+			const id = typeof entityOrId === 'number' ? entityOrId : entityOrId.id;
+			throw new Error(`Cannot add component '${String(componentName)}': Entity with ID ${id} does not exist`);
+		}
 
 		entity.components[componentName] = data;
 
@@ -65,7 +68,10 @@ class EntityManager<ComponentTypes> {
 			this.entities.get(entityOrId) :
 			entityOrId;
 
-		if (!entity) throw new Error(`Entity ${entityOrId} does not exist`);
+		if (!entity) {
+			const id = typeof entityOrId === 'number' ? entityOrId : entityOrId.id;
+			throw new Error(`Cannot add components: Entity with ID ${id} does not exist`);
+		}
 
 		for (const componentName in components) {
 			this.addComponent(
@@ -86,7 +92,10 @@ class EntityManager<ComponentTypes> {
 			this.entities.get(entityOrId) :
 			entityOrId;
 
-		if (!entity) throw new Error(`Entity ${entityOrId} does not exist`);
+		if (!entity) {
+			const id = typeof entityOrId === 'number' ? entityOrId : entityOrId.id;
+			throw new Error(`Cannot remove component '${String(componentName)}': Entity with ID ${id} does not exist`);
+		}
 		// Get old value for callbacks
 		const oldValue = entity.components[componentName] as ComponentTypes[ComponentName] | undefined;
 
@@ -109,7 +118,7 @@ class EntityManager<ComponentTypes> {
 	getComponent<ComponentName extends keyof ComponentTypes>(entityId: number, componentName: ComponentName): ComponentTypes[ComponentName] | null {
 		const entity = this.entities.get(entityId);
 
-		if (!entity) throw new Error(`Entity ${entityId} does not exist`);
+		if (!entity) throw new Error(`Cannot get component '${String(componentName)}': Entity with ID ${entityId} does not exist`);
 
 		return entity.components[componentName] || null;
 	}
@@ -136,27 +145,33 @@ class EntityManager<ComponentTypes> {
 
 		// Find the component with the smallest entity set to start with
 		const smallestComponent = required.reduce((smallest, comp) => {
-			const set = this.componentIndices.get(comp);
-			const currentSize = set ? set.size : 0;
+			const currentSize = this.componentIndices.get(comp)?.size ?? 0;
 			const smallestSize = this.componentIndices.get(smallest!)?.size ?? Infinity;
-
 			return currentSize < smallestSize ? comp : smallest;
 		}, required[0])!;
 
 		// Start with the entities from the smallest component set
-		const candidates = Array.from(this.componentIndices.get(smallestComponent) || []);
+		const candidateSet = this.componentIndices.get(smallestComponent);
+		if (!candidateSet || candidateSet.size === 0) {
+			return [] as any;
+		}
 
 		// Return full entity objects, not just IDs
-		return candidates
-			.filter(id => {
-				const entity = this.entities.get(id);
-				return (
-					entity &&
-					required.every(comp => comp in entity.components) &&
-					excluded.every(comp => !(comp in entity.components))
-				);
-			})
-			.map(id => this.entities.get(id)!) as Array<FilteredEntity<ComponentTypes, WithComponents extends never ? never : WithComponents, WithoutComponents extends never ? never : WithoutComponents>>;
+		const result: Array<FilteredEntity<ComponentTypes, WithComponents extends never ? never : WithComponents, WithoutComponents extends never ? never : WithoutComponents>> = [];
+		const hasExclusions = excluded.length > 0;
+		
+		for (const id of candidateSet) {
+			const entity = this.entities.get(id);
+			if (
+				entity &&
+				required.every(comp => comp in entity.components) &&
+				(!hasExclusions || excluded.every(comp => !(comp in entity.components)))
+			) {
+				result.push(entity as any);
+			}
+		}
+		
+		return result;
 	}
 
 	removeEntity(entityOrId: number | Entity<ComponentTypes>): boolean {

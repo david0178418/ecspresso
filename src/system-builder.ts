@@ -71,6 +71,14 @@ export class SystemBuilder<
 	 * @private
 	 */
 	private _buildSystemObject(): System<ComponentTypes, any, any, EventTypes, ResourceTypes> {
+		return this._createSystemObject();
+	}
+
+	/**
+	 * Create a system object with all configured properties
+	 * @private
+	 */
+	private _createSystemObject(): System<ComponentTypes, any, any, EventTypes, ResourceTypes> {
 		const system: System<ComponentTypes, any, any, EventTypes, ResourceTypes> = {
 			label: this._label,
 			entityQueries: this.queries,
@@ -158,7 +166,7 @@ export class SystemBuilder<
 	 */
 	registerAndContinue(): ECSpresso<ComponentTypes, EventTypes, ResourceTypes> {
 		if (!this._ecspresso) {
-			throw new Error('Cannot register system: no ECSpresso instance attached');
+			throw new Error(`Cannot register system '${this._label}': SystemBuilder is not attached to an ECSpresso instance. Use Bundle.addSystem() or ECSpresso.addSystem() instead.`);
 		}
 		
 		this._autoRegister();
@@ -172,7 +180,7 @@ export class SystemBuilder<
 	 */
 	and(): ECSpresso<ComponentTypes, EventTypes, ResourceTypes> {
 		if (!this._ecspresso) {
-			throw new Error('Cannot use and() method: no ECSpresso instance attached');
+			throw new Error(`Cannot use and() method on system '${this._label}': SystemBuilder is not attached to an ECSpresso instance. Use Bundle.addSystem() instead.`);
 		}
 		
 		this._autoRegister();
@@ -229,27 +237,7 @@ export class SystemBuilder<
 	 * Build the final system object
 	 */
 	build(ecspresso?: ECSpresso<ComponentTypes, EventTypes, ResourceTypes>) {
-		const system: System<ComponentTypes, any, any, EventTypes, ResourceTypes> = {
-			label: this._label,
-			entityQueries: this.queries,
-			priority: this._priority,
-		};
-
-		if (this.processFunction) {
-			system.process = this.processFunction;
-		}
-
-		if (this.detachFunction) {
-			system.onDetach = this.detachFunction;
-		}
-
-		if (this.initializeFunction) {
-			system.onInitialize = this.initializeFunction;
-		}
-
-		if (this.eventHandlers) {
-			system.eventHandlers = this.eventHandlers;
-		}
+		const system = this._createSystemObject();
 
 		if (this._ecspresso) {
 			registerSystemWithEcspresso(system, this._ecspresso);
