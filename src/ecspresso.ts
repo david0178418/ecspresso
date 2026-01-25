@@ -1,11 +1,15 @@
 import EntityManager from "./entity-manager";
 import EventBus from "./event-bus";
 import ResourceManager from "./resource-manager";
+import AssetManager, { AssetConfiguratorImpl, createAssetConfigurator } from "./asset-manager";
+import ScreenManager, { ScreenConfiguratorImpl, createScreenConfigurator } from "./screen-manager";
 import type { System, FilteredEntity, Entity } from "./types";
 import type Bundle from "./bundle";
 import { createEcspressoSystemBuilder } from "./system-builder";
 import { version } from "../package.json";
 import type { BundlesAreCompatible } from "./type-utils";
+import type { AssetHandle, AssetConfigurator } from "./asset-types";
+import type { ScreenDefinition, ScreenConfigurator } from "./screen-types";
 
 /**
 	* Interface declaration for ECSpresso constructor to ensure type augmentation works properly.
@@ -15,11 +19,13 @@ export default interface ECSpresso<
 	ComponentTypes extends Record<string, any> = {},
 	EventTypes extends Record<string, any> = {},
 	ResourceTypes extends Record<string, any> = {},
+	AssetTypes extends Record<string, unknown> = {},
+	ScreenStates extends Record<string, ScreenDefinition<any, any>> = {},
 > {
 	/**
 		* Default constructor
 	*/
-	new(): ECSpresso<ComponentTypes, EventTypes, ResourceTypes>;
+	new(): ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>;
 }
 
 const EmptyQueryResults = {};
@@ -32,6 +38,8 @@ export default class ECSpresso<
 	ComponentTypes extends Record<string, any> = {},
 	EventTypes extends Record<string, any> = {},
 	ResourceTypes extends Record<string, any> = {},
+	AssetTypes extends Record<string, unknown> = {},
+	ScreenStates extends Record<string, ScreenDefinition<any, any>> = {},
 > {
 	/** Library version*/
 	public static readonly VERSION = version;
@@ -44,11 +52,15 @@ export default class ECSpresso<
 	private _resourceManager: ResourceManager<ResourceTypes>;
 
 	/** Registered systems that will be updated in order*/
-	private _systems: Array<System<ComponentTypes, any, any, EventTypes, ResourceTypes>> = [];
+	private _systems: Array<System<ComponentTypes, any, any, EventTypes, ResourceTypes, AssetTypes, ScreenStates>> = [];
 	/** Cached sorted systems for efficient updates */
-	private _sortedSystems: Array<System<ComponentTypes, any, any, EventTypes, ResourceTypes>> = [];
+	private _sortedSystems: Array<System<ComponentTypes, any, any, EventTypes, ResourceTypes, AssetTypes, ScreenStates>> = [];
 	/** Track installed bundles to prevent duplicates*/
 	private _installedBundles: Set<string> = new Set();
+	/** Asset manager for loading and accessing assets */
+	private _assetManager: AssetManager<AssetTypes> | null = null;
+	/** Screen manager for state/screen transitions */
+	private _screenManager: ScreenManager<ScreenStates> | null = null;
 
 	/**
 		* Creates a new ECSpresso instance.
@@ -78,8 +90,10 @@ export default class ECSpresso<
 		C extends Record<string, any> = {},
 		E extends Record<string, any> = {},
 		R extends Record<string, any> = {},
-	>(): ECSpressoBuilder<C, E, R> {
-		return new ECSpressoBuilder<C, E, R>();
+		A extends Record<string, unknown> = {},
+		S extends Record<string, ScreenDefinition<any, any>> = {},
+	>(): ECSpressoBuilder<C, E, R, A, S> {
+		return new ECSpressoBuilder<C, E, R, A, S>();
 	}
 
 	/**
@@ -100,9 +114,37 @@ export default class ECSpresso<
 		* @param deltaTime Time elapsed since the last update (in seconds)
 	*/
 	update(deltaTime: number) {
+		const currentScreen = this._screenManager?.getCurrentScreen() ?? null;
+
 		// Use the cached sorted systems array instead of re-sorting on every update
 		for (const system of this._sortedSystems) {
 			if (!system.process) continue;
+
+			// Screen filtering - skip if system is restricted to specific screens
+			if (system.inScreens?.length) {
+				if (currentScreen === null || !system.inScreens.includes(currentScreen as string)) {
+					continue;
+				}
+			}
+
+			// Screen exclusion - skip if system excludes current screen
+			if (system.excludeScreens?.length) {
+				if (currentScreen !== null && system.excludeScreens.includes(currentScreen as string)) {
+					continue;
+				}
+			}
+
+			// Asset requirements - skip if required assets not loaded
+			if (system.requiredAssets?.length && this._assetManager) {
+				let assetsReady = true;
+				for (const assetKey of system.requiredAssets) {
+					if (!this._assetManager.isLoaded(assetKey as keyof AssetTypes)) {
+						assetsReady = false;
+						break;
+					}
+				}
+				if (!assetsReady) continue;
+			}
 
 			// Prepare query results for each defined query in the system
 			const queryResults: Record<string, any> = {};
@@ -141,7 +183,9 @@ export default class ECSpresso<
 	 * Initialize all resources and systems
 	 * This method:
 	 * 1. Initializes all resources that were added as factory functions
-	 * 2. Calls the onInitialize lifecycle hook on all systems
+	 * 2. Sets up asset manager and loads eager assets
+	 * 3. Sets up screen manager
+	 * 4. Calls the onInitialize lifecycle hook on all systems
 	 *
 	 * This is useful for game startup to ensure all resources are ready
 	 * and systems are properly initialized before the game loop begins.
@@ -151,6 +195,23 @@ export default class ECSpresso<
 	 */
 	async initialize(): Promise<void> {
 		await this.initializeResources();
+
+		// Set up asset manager if present
+		if (this._assetManager) {
+			this._assetManager.setEventBus(this._eventBus as unknown as EventBus<any>);
+			await this._assetManager.loadEagerAssets();
+			this._resourceManager.add('$assets' as keyof ResourceTypes, this._assetManager.createResource() as unknown as ResourceTypes[keyof ResourceTypes]);
+		}
+
+		// Set up screen manager if present
+		if (this._screenManager) {
+			this._screenManager.setDependencies(
+				this._eventBus as unknown as EventBus<any>,
+				this._assetManager,
+				this as unknown as ECSpresso<any, any, any, any, any>
+			);
+			this._resourceManager.add('$screen' as keyof ResourceTypes, this._screenManager.createResource() as unknown as ResourceTypes[keyof ResourceTypes]);
+		}
 
 		for (const system of this._systems) {
 			await system.onInitialize?.(this);
@@ -231,7 +292,7 @@ export default class ECSpresso<
 		* Internal method to register a system with this ECSpresso instance
 		* @internal Used by SystemBuilder - replaces direct private property access
 	*/
-	_registerSystem(system: System<ComponentTypes, any, any, EventTypes, ResourceTypes>): void {
+	_registerSystem(system: System<ComponentTypes, any, any, EventTypes, ResourceTypes, AssetTypes, ScreenStates>): void {
 		this._systems.push(system);
 		this._sortSystems();
 
@@ -376,6 +437,207 @@ export default class ECSpresso<
 		return this._eventBus;
 	}
 
+	// ==================== Asset Management ====================
+
+	/**
+	 * Get a loaded asset by key. Throws if not loaded.
+	 */
+	getAsset<K extends keyof AssetTypes>(key: K): AssetTypes[K] {
+		if (!this._assetManager) {
+			throw new Error('Asset manager not configured. Use withAssets() in builder.');
+		}
+		return this._assetManager.get(key);
+	}
+
+	/**
+	 * Get a loaded asset or undefined if not loaded
+	 */
+	getAssetOrUndefined<K extends keyof AssetTypes>(key: K): AssetTypes[K] | undefined {
+		return this._assetManager?.getOrUndefined(key);
+	}
+
+	/**
+	 * Get a handle to an asset with status information
+	 */
+	getAssetHandle<K extends keyof AssetTypes>(key: K): AssetHandle<AssetTypes[K]> {
+		if (!this._assetManager) {
+			throw new Error('Asset manager not configured. Use withAssets() in builder.');
+		}
+		return this._assetManager.getHandle(key);
+	}
+
+	/**
+	 * Check if an asset is loaded
+	 */
+	isAssetLoaded<K extends keyof AssetTypes>(key: K): boolean {
+		return this._assetManager?.isLoaded(key) ?? false;
+	}
+
+	/**
+	 * Load a single asset
+	 */
+	async loadAsset<K extends keyof AssetTypes>(key: K): Promise<AssetTypes[K]> {
+		if (!this._assetManager) {
+			throw new Error('Asset manager not configured. Use withAssets() in builder.');
+		}
+		return this._assetManager.loadAsset(key);
+	}
+
+	/**
+	 * Load all assets in a group
+	 */
+	async loadAssetGroup(groupName: string): Promise<void> {
+		if (!this._assetManager) {
+			throw new Error('Asset manager not configured. Use withAssets() in builder.');
+		}
+		return this._assetManager.loadAssetGroup(groupName);
+	}
+
+	/**
+	 * Check if all assets in a group are loaded
+	 */
+	isAssetGroupLoaded(groupName: string): boolean {
+		return this._assetManager?.isGroupLoaded(groupName) ?? false;
+	}
+
+	/**
+	 * Get the loading progress of a group (0-1)
+	 */
+	getAssetGroupProgress(groupName: string): number {
+		return this._assetManager?.getGroupProgress(groupName) ?? 0;
+	}
+
+	// ==================== Screen Management ====================
+
+	/**
+	 * Transition to a new screen, clearing the stack
+	 */
+	async setScreen<K extends keyof ScreenStates>(
+		name: K,
+		config: ScreenStates[K] extends ScreenDefinition<infer C, any> ? C : never
+	): Promise<void> {
+		if (!this._screenManager) {
+			throw new Error('Screen manager not configured. Use withScreens() in builder.');
+		}
+		return this._screenManager.setScreen(name, config);
+	}
+
+	/**
+	 * Push a screen onto the stack (overlay)
+	 */
+	async pushScreen<K extends keyof ScreenStates>(
+		name: K,
+		config: ScreenStates[K] extends ScreenDefinition<infer C, any> ? C : never
+	): Promise<void> {
+		if (!this._screenManager) {
+			throw new Error('Screen manager not configured. Use withScreens() in builder.');
+		}
+		return this._screenManager.pushScreen(name, config);
+	}
+
+	/**
+	 * Pop the current screen and return to the previous one
+	 */
+	async popScreen(): Promise<void> {
+		if (!this._screenManager) {
+			throw new Error('Screen manager not configured. Use withScreens() in builder.');
+		}
+		return this._screenManager.popScreen();
+	}
+
+	/**
+	 * Get the current screen name
+	 */
+	getCurrentScreen(): keyof ScreenStates | null {
+		return this._screenManager?.getCurrentScreen() ?? null;
+	}
+
+	/**
+	 * Get the current screen config (immutable)
+	 */
+	getScreenConfig<K extends keyof ScreenStates>(): ScreenStates[K] extends ScreenDefinition<infer C, any> ? Readonly<C> : never {
+		if (!this._screenManager) {
+			throw new Error('Screen manager not configured. Use withScreens() in builder.');
+		}
+		return this._screenManager.getConfig();
+	}
+
+	/**
+	 * Get the current screen config or null
+	 */
+	getScreenConfigOrNull<K extends keyof ScreenStates>(): (ScreenStates[K] extends ScreenDefinition<infer C, any> ? Readonly<C> : never) | null {
+		return this._screenManager?.getConfigOrNull() ?? null;
+	}
+
+	/**
+	 * Get the current screen state (mutable)
+	 */
+	getScreenState<K extends keyof ScreenStates>(): ScreenStates[K] extends ScreenDefinition<any, infer S> ? S : never {
+		if (!this._screenManager) {
+			throw new Error('Screen manager not configured. Use withScreens() in builder.');
+		}
+		return this._screenManager.getState();
+	}
+
+	/**
+	 * Get the current screen state or null
+	 */
+	getScreenStateOrNull<K extends keyof ScreenStates>(): (ScreenStates[K] extends ScreenDefinition<any, infer S> ? S : never) | null {
+		return this._screenManager?.getStateOrNull() ?? null;
+	}
+
+	/**
+	 * Update the current screen state
+	 */
+	updateScreenState<K extends keyof ScreenStates>(
+		update: Partial<ScreenStates[K] extends ScreenDefinition<any, infer S> ? S : never> |
+			((current: ScreenStates[K] extends ScreenDefinition<any, infer S> ? S : never) => Partial<ScreenStates[K] extends ScreenDefinition<any, infer S> ? S : never>)
+	): void {
+		if (!this._screenManager) {
+			throw new Error('Screen manager not configured. Use withScreens() in builder.');
+		}
+		this._screenManager.updateState(update as any);
+	}
+
+	/**
+	 * Check if a screen is the current screen
+	 */
+	isCurrentScreen(screenName: keyof ScreenStates): boolean {
+		return this._screenManager?.isCurrent(screenName) ?? false;
+	}
+
+	/**
+	 * Check if a screen is active (current or in stack)
+	 */
+	isScreenActive(screenName: keyof ScreenStates): boolean {
+		return this._screenManager?.isActive(screenName) ?? false;
+	}
+
+	/**
+	 * Get the screen stack depth
+	 */
+	getScreenStackDepth(): number {
+		return this._screenManager?.getStackDepth() ?? 0;
+	}
+
+	// ==================== Internal Methods ====================
+
+	/**
+	 * Internal method to set the asset manager
+	 * @internal Used by ECSpressoBuilder
+	 */
+	_setAssetManager(manager: AssetManager<AssetTypes>): void {
+		this._assetManager = manager;
+	}
+
+	/**
+	 * Internal method to set the screen manager
+	 * @internal Used by ECSpressoBuilder
+	 */
+	_setScreenManager(manager: ScreenManager<ScreenStates>): void {
+		this._screenManager = manager;
+	}
+
 	/**
 		* Internal method to install a bundle into this ECSpresso instance.
 		* Called by the ECSpressoBuilder during the build process.
@@ -384,8 +646,10 @@ export default class ECSpresso<
 	_installBundle<
 		C extends Record<string, any>,
 		E extends Record<string, any>,
-		R extends Record<string, any>
-	>(bundle: Bundle<C, E, R>): this {
+		R extends Record<string, any>,
+		A extends Record<string, unknown> = {},
+		S extends Record<string, ScreenDefinition<any, any>> = {},
+	>(bundle: Bundle<C, E, R, A, S>): this {
 		// Prevent duplicate installation of the same bundle
 		if (this._installedBundles.has(bundle.id)) {
 			return this;
@@ -407,6 +671,22 @@ export default class ECSpresso<
 			this._resourceManager.add(key as string, value);
 		}
 
+		// Register assets from the bundle if asset manager exists
+		if (this._assetManager) {
+			const assets = bundle.getAssets();
+			for (const [key, definition] of assets.entries()) {
+				this._assetManager.register(key, definition as any);
+			}
+		}
+
+		// Register screens from the bundle if screen manager exists
+		if (this._screenManager) {
+			const screens = bundle.getScreens();
+			for (const [name, definition] of screens.entries()) {
+				this._screenManager.register(name, definition as any);
+			}
+		}
+
 		return this;
 	}
 }
@@ -418,13 +698,19 @@ export default class ECSpresso<
 export class ECSpressoBuilder<
 	C extends Record<string, any> = {},
 	E extends Record<string, any> = {},
-	R extends Record<string, any> = {}
+	R extends Record<string, any> = {},
+	A extends Record<string, unknown> = {},
+	S extends Record<string, ScreenDefinition<any, any>> = {},
 > {
 	/** The ECSpresso instance being built*/
-	private ecspresso: ECSpresso<C, E, R>;
+	private ecspresso: ECSpresso<C, E, R, A, S>;
+	/** Asset configurator for collecting asset definitions */
+	private assetConfigurator: AssetConfiguratorImpl<A> | null = null;
+	/** Screen configurator for collecting screen definitions */
+	private screenConfigurator: ScreenConfiguratorImpl<S> | null = null;
 
 	constructor() {
-		this.ecspresso = new ECSpresso<C, E, R>();
+		this.ecspresso = new ECSpresso<C, E, R, A, S>();
 	}
 
 	/**
@@ -436,9 +722,9 @@ export class ECSpressoBuilder<
 		BE extends Record<string, any>,
 		BR extends Record<string, any>
 	>(
-		this: ECSpressoBuilder<{}, {}, {}>,
+		this: ECSpressoBuilder<{}, {}, {}, A, S>,
 		bundle: Bundle<BC, BE, BR>
-	): ECSpressoBuilder<BC, BE, BR>;
+	): ECSpressoBuilder<BC, BE, BR, A, S>;
 
 	/**
 		* Add a subsequent bundle with type checking.
@@ -452,7 +738,7 @@ export class ECSpressoBuilder<
 		bundle: BundlesAreCompatible<C, BC, E, BE, R, BR> extends true
 			? Bundle<BC, BE, BR>
 			: never
-	): ECSpressoBuilder<C & BC, E & BE, R & BR>;
+	): ECSpressoBuilder<C & BC, E & BE, R & BR, A, S>;
 
 	/**
 		* Implementation of both overloads.
@@ -465,19 +751,85 @@ export class ECSpressoBuilder<
 		BR extends Record<string, any>
 	>(
 		bundle: Bundle<BC, BE, BR>
-	): ECSpressoBuilder<C & BC, E & BE, R & BR> {
+	): ECSpressoBuilder<C & BC, E & BE, R & BR, A, S> {
 		// Install the bundle
 		// Type compatibility is guaranteed by method overloads
 		this.ecspresso._installBundle(bundle);
 
 		// Return a builder with the updated type parameters
-		return this as unknown as ECSpressoBuilder<C & BC, E & BE, R & BR>;
+		return this as unknown as ECSpressoBuilder<C & BC, E & BE, R & BR, A, S>;
+	}
+
+	/**
+	 * Configure assets for this ECSpresso instance
+	 * @param configurator Function that receives an AssetConfigurator and returns it after adding assets
+	 * @returns This builder with updated asset types
+	 *
+	 * @example
+	 * ```typescript
+	 * ECSpresso.create<Components, Events, Resources>()
+	 *   .withAssets(assets => assets
+	 *     .add('playerSprite', () => loadTexture('player.png'))
+	 *     .addGroup('level1', {
+	 *       background: () => loadTexture('level1-bg.png'),
+	 *       music: () => loadAudio('level1.mp3'),
+	 *     })
+	 *   )
+	 *   .build();
+	 * ```
+	 */
+	withAssets<NewA extends Record<string, unknown>>(
+		configurator: (assets: AssetConfigurator<{}>) => AssetConfigurator<NewA>
+	): ECSpressoBuilder<C, E, R, A & NewA, S> {
+		const assetConfig = createAssetConfigurator<{}>();
+		configurator(assetConfig);
+		this.assetConfigurator = assetConfig as unknown as AssetConfiguratorImpl<A>;
+		return this as unknown as ECSpressoBuilder<C, E, R, A & NewA, S>;
+	}
+
+	/**
+	 * Configure screens for this ECSpresso instance
+	 * @param configurator Function that receives a ScreenConfigurator and returns it after adding screens
+	 * @returns This builder with updated screen types
+	 *
+	 * @example
+	 * ```typescript
+	 * ECSpresso.create<Components, Events, Resources>()
+	 *   .withScreens(screens => screens
+	 *     .add('loading', {
+	 *       initialState: () => ({ progress: 0 }),
+	 *     })
+	 *     .add('gameplay', {
+	 *       initialState: ({ level }) => ({ score: 0, level }),
+	 *       requiredAssetGroups: ['level1'],
+	 *     })
+	 *   )
+	 *   .build();
+	 * ```
+	 */
+	withScreens<NewS extends Record<string, ScreenDefinition<any, any>>>(
+		configurator: (screens: ScreenConfigurator<{}>) => ScreenConfigurator<NewS>
+	): ECSpressoBuilder<C, E, R, A, S & NewS> {
+		const screenConfig = createScreenConfigurator<{}>();
+		configurator(screenConfig);
+		this.screenConfigurator = screenConfig as unknown as ScreenConfiguratorImpl<S>;
+		return this as unknown as ECSpressoBuilder<C, E, R, A, S & NewS>;
 	}
 
 	/**
 		* Complete the build process and return the built ECSpresso instance
 	*/
-	build(): ECSpresso<C, E, R> {
+	build(): ECSpresso<C, E, R, A, S> {
+		// Set up asset manager if configured
+		if (this.assetConfigurator) {
+			this.ecspresso._setAssetManager(this.assetConfigurator.getManager() as unknown as AssetManager<A>);
+		}
+
+		// Set up screen manager if configured
+		if (this.screenConfigurator) {
+			this.ecspresso._setScreenManager(this.screenConfigurator.getManager() as unknown as ScreenManager<S>);
+		}
+
 		return this.ecspresso;
 	}
 }

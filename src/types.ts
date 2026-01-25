@@ -123,6 +123,8 @@ interface System<
 	WithoutComponents extends keyof ComponentTypes = never,
 	EventTypes extends Record<string, any> = {},
 	ResourceTypes extends Record<string, any> = {},
+	AssetTypes extends Record<string, unknown> = {},
+	ScreenStates extends Record<string, any> = {},
 > {
 	label: string;
 	/**
@@ -130,6 +132,21 @@ interface System<
 	 * When systems have the same priority, they execute in registration order
 	 */
 	priority?: number;
+	/**
+	 * Screens where this system should run. If specified, system only runs
+	 * when current screen is in this list.
+	 */
+	inScreens?: string[];
+	/**
+	 * Screens where this system should NOT run. If specified, system skips
+	 * when current screen is in this list.
+	 */
+	excludeScreens?: string[];
+	/**
+	 * Assets that must be loaded for this system to run.
+	 * System will be skipped if any required asset is not loaded.
+	 */
+	requiredAssets?: string[];
 	entityQueries?: {
 		[queryName: string]: QueryConfig<ComponentTypes, WithComponents, WithoutComponents>;
 	};
@@ -147,7 +164,9 @@ interface System<
 		ecs: ECSpresso<
 			ComponentTypes,
 			EventTypes,
-			ResourceTypes
+			ResourceTypes,
+			AssetTypes,
+			ScreenStates
 		>
 	): void;
 
@@ -161,7 +180,9 @@ interface System<
 		ecs: ECSpresso<
 			ComponentTypes,
 			EventTypes,
-			ResourceTypes
+			ResourceTypes,
+			AssetTypes,
+			ScreenStates
 		>
 	): void | Promise<void>;
 
@@ -173,7 +194,9 @@ interface System<
 		ecs: import("./ecspresso").default<
 			ComponentTypes,
 			EventTypes,
-			ResourceTypes
+			ResourceTypes,
+			AssetTypes,
+			ScreenStates
 		>
 	): void;
 
@@ -192,7 +215,9 @@ interface System<
 				ecs: ECSpresso<
 					ComponentTypes,
 					EventTypes,
-					ResourceTypes
+					ResourceTypes,
+					AssetTypes,
+					ScreenStates
 				>
 			): void;
 		};

@@ -29,6 +29,9 @@ export class SystemBuilder<
 	};
 	private _priority = 0; // Default priority is 0
 	private _isRegistered = false; // Track if system has been auto-registered
+	private _inScreens?: string[];
+	private _excludeScreens?: string[];
+	private _requiredAssets?: string[];
 
 	constructor(
 		private _label: string,
@@ -101,6 +104,18 @@ export class SystemBuilder<
 			system.eventHandlers = this.eventHandlers;
 		}
 
+		if (this._inScreens) {
+			system.inScreens = this._inScreens;
+		}
+
+		if (this._excludeScreens) {
+			system.excludeScreens = this._excludeScreens;
+		}
+
+		if (this._requiredAssets) {
+			system.requiredAssets = this._requiredAssets;
+		}
+
 		return system;
 	}
 
@@ -114,6 +129,42 @@ export class SystemBuilder<
 	 */
 	setPriority(priority: number): this {
 		this._priority = priority;
+		return this;
+	}
+
+	/**
+	 * Restrict this system to only run in specified screens.
+	 * System will be skipped during update() when the current screen
+	 * is not in this list.
+	 * @param screens Array of screen names where this system should run
+	 * @returns This SystemBuilder instance for method chaining
+	 */
+	inScreens(screens: ReadonlyArray<string>): this {
+		this._inScreens = [...screens];
+		return this;
+	}
+
+	/**
+	 * Exclude this system from running in specified screens.
+	 * System will be skipped during update() when the current screen
+	 * is in this list.
+	 * @param screens Array of screen names where this system should NOT run
+	 * @returns This SystemBuilder instance for method chaining
+	 */
+	excludeScreens(screens: ReadonlyArray<string>): this {
+		this._excludeScreens = [...screens];
+		return this;
+	}
+
+	/**
+	 * Require specific assets to be loaded for this system to run.
+	 * System will be skipped during update() if any required asset
+	 * is not loaded.
+	 * @param assets Array of asset keys that must be loaded
+	 * @returns This SystemBuilder instance for method chaining
+	 */
+	requiresAssets(assets: ReadonlyArray<string>): this {
+		this._requiredAssets = [...assets];
 		return this;
 	}
 

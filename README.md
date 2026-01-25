@@ -11,6 +11,8 @@ A type-safe, modular, and extensible Entity Component System (ECS) framework for
 - **Developer-Friendly**: Clean, fluent API with method chaining
 - **Event-Driven**: Integrated event system for decoupled communication
 - **Resource Management**: Global state management with lazy loading
+- **Asset Management**: Eager/lazy asset loading with groups and progress tracking
+- **Screen Management**: Game state/screen transitions with overlay support
 - **Query System**: Powerful entity filtering with helper type utilities
 
 ## Installation
@@ -339,6 +341,234 @@ world.addSystem('gameSystem')
 
 // Initialize all systems
 await world.initialize();
+```
+
+### Asset Management
+
+Manage game assets with eager/lazy loading, groups, and progress tracking:
+
+```typescript
+// Define asset types
+type Assets = {
+  playerTexture: { data: ImageBitmap };
+  enemyTexture: { data: ImageBitmap };
+  level1Music: { buffer: AudioBuffer };
+  level1Background: { data: ImageBitmap };
+};
+
+// Create world with assets using the builder pattern
+const game = ECSpresso.create<Components, Events, Resources, Assets>()
+  .withAssets(assets => assets
+    // Eager assets - loaded automatically during initialize()
+    .add('playerTexture', async () => {
+      const img = await loadImage('player.png');
+      return { data: img };
+    })
+    .add('enemyTexture', async () => {
+      const img = await loadImage('enemy.png');
+      return { data: img };
+    })
+    // Lazy asset group - loaded on demand
+    .addGroup('level1', {
+      level1Music: async () => {
+        const buffer = await loadAudio('level1.mp3');
+        return { buffer };
+      },
+      level1Background: async () => {
+        const img = await loadImage('level1-bg.png');
+        return { data: img };
+      },
+    })
+  )
+  .build();
+
+// Initialize loads eager assets automatically
+await game.initialize();
+
+// Access loaded assets
+const player = game.getAsset('playerTexture');
+
+// Check if asset is loaded
+if (game.isAssetLoaded('enemyTexture')) {
+  const enemy = game.getAsset('enemyTexture');
+}
+
+// Load asset groups on demand (e.g., when entering a level)
+await game.loadAssetGroup('level1');
+
+// Track loading progress
+const progress = game.getAssetGroupProgress('level1'); // 0-1
+
+// Check if group is fully loaded
+if (game.isAssetGroupLoaded('level1')) {
+  const music = game.getAsset('level1Music');
+}
+```
+
+#### Asset Events
+
+React to asset loading with built-in events:
+
+```typescript
+game.addSystem('loadingUI')
+  .setEventHandlers({
+    assetLoaded: {
+      handler: (data) => console.log(`Loaded: ${data.key}`)
+    },
+    assetFailed: {
+      handler: (data) => console.error(`Failed: ${data.key}`, data.error)
+    },
+    assetGroupProgress: {
+      handler: (data) => {
+        console.log(`${data.group}: ${data.loaded}/${data.total}`);
+      }
+    },
+    assetGroupLoaded: {
+      handler: (data) => console.log(`Group ready: ${data.group}`)
+    }
+  })
+  .build();
+```
+
+#### Systems with Asset Requirements
+
+Systems can declare required assets and will only run when those assets are loaded:
+
+```typescript
+game.addSystem('gameplay')
+  .requiresAssets(['playerTexture', 'enemyTexture'])
+  .setProcess((queries, dt, ecs) => {
+    // This only runs when both assets are loaded
+    const player = ecs.getAsset('playerTexture');
+  })
+  .build();
+```
+
+### Screen Management
+
+Manage game states/screens with transitions and overlay support:
+
+```typescript
+import type { ScreenDefinition } from 'ecspresso';
+
+// Define screen types with config and state
+type Screens = {
+  menu: ScreenDefinition<
+    Record<string, never>,           // Config (passed when entering)
+    { selectedOption: number }       // State (mutable during screen)
+  >;
+  gameplay: ScreenDefinition<
+    { difficulty: string; level: number },  // Config
+    { score: number; isPaused: boolean }    // State
+  >;
+  pause: ScreenDefinition<
+    Record<string, never>,
+    Record<string, never>
+  >;
+};
+
+// Create world with screens
+const game = ECSpresso.create<Components, Events, Resources, {}, Screens>()
+  .withScreens(screens => screens
+    .add('menu', {
+      initialState: () => ({ selectedOption: 0 }),
+      onEnter: () => console.log('Entered menu'),
+      onExit: () => console.log('Left menu'),
+    })
+    .add('gameplay', {
+      initialState: () => ({ score: 0, isPaused: false }),
+      onEnter: (config) => console.log(`Starting level ${config.level}`),
+      onExit: () => console.log('Gameplay ended'),
+      // Require assets before screen can be entered
+      requiredAssetGroups: ['level1'],
+    })
+    .add('pause', {
+      initialState: () => ({}),
+      onEnter: () => console.log('Paused'),
+      onExit: () => console.log('Resumed'),
+    })
+  )
+  .build();
+
+await game.initialize();
+
+// Set initial screen
+await game.setScreen('menu', {});
+
+// Transition to gameplay (clears screen stack)
+await game.setScreen('gameplay', { difficulty: 'hard', level: 1 });
+
+// Push overlay screen (adds to stack, previous screen stays active)
+await game.pushScreen('pause', {});
+
+// Pop overlay (returns to previous screen)
+await game.popScreen();
+
+// Access current screen info
+const current = game.getCurrentScreen();        // 'gameplay'
+const config = game.getScreenConfig();          // { difficulty: 'hard', level: 1 }
+const state = game.getScreenState();            // { score: 0, isPaused: false }
+
+// Update screen state
+game.updateScreenState({ score: 100 });
+```
+
+#### Screen-Scoped Systems
+
+Systems can be restricted to run only in specific screens:
+
+```typescript
+// Only runs when 'menu' is the current screen
+game.addSystem('menuUI')
+  .inScreens(['menu'])
+  .setProcess((queries, dt, ecs) => {
+    const state = ecs.getScreenState();
+    renderMenu(state.selectedOption);
+  })
+  .build();
+
+// Only runs in 'gameplay' screen
+game.addSystem('scoring')
+  .inScreens(['gameplay'])
+  .setProcess((queries, dt, ecs) => {
+    const state = ecs.getScreenState();
+    ecs.updateScreenState({ score: state.score + 1 });
+  })
+  .build();
+
+// Runs in all screens EXCEPT 'pause'
+game.addSystem('animations')
+  .excludeScreens(['pause'])
+  .setProcess(() => {
+    // Animations continue except when paused
+  })
+  .build();
+```
+
+#### Screen Resource
+
+Access screen state through the `$screen` resource:
+
+```typescript
+game.addSystem('ui')
+  .setProcess((queries, dt, ecs) => {
+    const screen = ecs.getResource('$screen');
+
+    console.log(screen.current);     // Current screen name
+    console.log(screen.config);      // Current screen config
+    console.log(screen.state);       // Current screen state (mutable)
+    console.log(screen.isOverlay);   // true if screen was pushed
+    console.log(screen.stackDepth);  // Number of screens in stack
+
+    // Check screen status
+    if (screen.isCurrent('gameplay')) {
+      // ...
+    }
+    if (screen.isActive('menu')) {
+      // true if menu is current OR in the stack
+    }
+  })
+  .build();
 ```
 
 ## Type Safety

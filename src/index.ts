@@ -3,6 +3,8 @@ import { SystemBuilder } from './system-builder';
 import Bundle, { mergeBundles } from './bundle';
 
 export * from './types';
+export * from './asset-types';
+export * from './screen-types';
 export { default as EntityManager } from './entity-manager';
 export { default as EventBus } from './event-bus';
 /**
@@ -10,6 +12,8 @@ export { default as EventBus } from './event-bus';
  * Use ECSpresso resource methods instead: getResource(), addResource(), removeResource(), updateResource(), hasResource()
  */
 export { default as ResourceManager } from './resource-manager';
+export { default as AssetManager, createAssetConfigurator } from './asset-manager';
+export { default as ScreenManager, createScreenConfigurator } from './screen-manager';
 export { SystemBuilder };
 export { Bundle, mergeBundles };
 export default ECSpresso;
