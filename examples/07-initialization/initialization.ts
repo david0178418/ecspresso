@@ -130,8 +130,7 @@ function createGameBundle() {
 				}
 			}
 		})
-		.build()
-		.bundle;
+		.and();
 }
 
 function createPlayerBundle() {
@@ -184,8 +183,7 @@ function createPlayerBundle() {
 				entity.components.velocity.y *= 0.9;
 			}
 		})
-		.build()
-		.bundle;
+		.and();
 }
 
 function createRenderingBundle() {
@@ -207,8 +205,7 @@ function createRenderingBundle() {
 				console.log(`Rendering sprite ${sprite.id} at position (${Math.round(pos.x)}, ${Math.round(pos.y)}), scale: ${sprite.scale}`);
 			}
 		})
-		.build()
-		.bundle;
+		.and();
 }
 
 // Run the example

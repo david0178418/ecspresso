@@ -241,8 +241,7 @@ function createGameInitBundle() {
 				}
 			},
 		})
-		.build()
-		.bundle;
+		.and();
 }
 
 function createPhysicsBundle() {
@@ -257,8 +256,7 @@ function createPhysicsBundle() {
 				screenWrap(entity, pixi.renderer.width, pixi.renderer.height);
 			}
 		})
-		.build()
-		.bundle
+		.and()
 		.addSystem('update-sprite-position')
 		.addQuery('movingEntities', renderableEntitiesQuery)
 		.setProcess((queries) => {
@@ -266,8 +264,7 @@ function createPhysicsBundle() {
 				updateSpritePosition(entity);
 			}
 		})
-		.build()
-		.bundle
+		.and()
 		.addSystem('colision-detection')
 		.addQuery('players', {
 			with: ['position', 'sprite', 'player'],
@@ -295,8 +292,7 @@ function createPhysicsBundle() {
 				}
 			}
 		})
-		.build()
-		.bundle;
+		.and();
 }
 
 function createEnemyControllerBundle() {
@@ -350,8 +346,7 @@ function createEnemyControllerBundle() {
 				}
 			}
 		})
-		.build()
-		.bundle;
+		.and();
 }
 
 function createPlayerControllerBundle() {
@@ -386,6 +381,5 @@ function createPlayerControllerBundle() {
 				player.components.velocity.x = 0;
 			}
 		})
-		.build()
-		.bundle;
+		.and();
 }

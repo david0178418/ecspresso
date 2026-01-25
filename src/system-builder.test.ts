@@ -10,6 +10,14 @@ interface TestComponents {
 	marker: { id: string };
 }
 
+interface TestEvents {
+	testEvent: { value: number };
+}
+
+interface TestResources {
+	testResource: { data: string };
+}
+
 describe('SystemBuilder', () => {
 	test('should create a system that can query entities', () => {
 		// Track processed entities
@@ -209,5 +217,46 @@ describe('SystemBuilder', () => {
 
 		expect(updatedPos).toEqual({ x: 11, y: 22 });
 		expect(updatedHealth).toEqual({ value: 99 });
+	});
+
+	test('should support and() method for bundle-attached builders', () => {
+		let system1Processed = false;
+		let system2Processed = false;
+
+		const bundle = new Bundle<TestComponents>()
+			.addSystem('system1')
+			.addQuery('moving', { with: ['position', 'velocity'] })
+			.setProcess(() => { system1Processed = true; })
+			.and()  // Returns Bundle
+			.addSystem('system2')
+			.addQuery('healthy', { with: ['position', 'health'] })
+			.setProcess(() => { system2Processed = true; })
+			.and();  // Can end with .and() too
+
+		const world = ECSpresso.create<TestComponents>()
+			.withBundle(bundle)
+			.build();
+
+		world.spawn({ position: { x: 0, y: 0 }, velocity: { x: 1, y: 1 } });
+		world.spawn({ position: { x: 0, y: 0 }, health: { value: 100 } });
+		world.update(1/60);
+
+		expect(system1Processed).toBe(true);
+		expect(system2Processed).toBe(true);
+	});
+
+	test('and() should return correctly typed Bundle for chaining', () => {
+		const bundle = new Bundle<TestComponents, TestEvents, TestResources>()
+			.addSystem('test')
+			.setProcess(() => {})
+			.and();
+
+		// Type check: bundle should have Bundle methods
+		expect(typeof bundle.addSystem).toBe('function');
+		expect(typeof bundle.addResource).toBe('function');
+		expect(typeof bundle.getSystems).toBe('function');
+
+		// Verify it's actually a Bundle instance
+		expect(bundle).toBeInstanceOf(Bundle);
 	});
 });

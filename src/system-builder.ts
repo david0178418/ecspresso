@@ -174,17 +174,22 @@ export class SystemBuilder<
 	}
 
 	/**
-	 * Complete this system and return ECSpresso for seamless chaining
-	 * Automatically registers the system when called
-	 * This method is primarily for SystemBuilderWithEcspresso instances
+	 * Complete this system and return the parent container for seamless chaining
+	 * - For ECSpresso-attached builders: registers the system and returns ECSpresso
+	 * - For Bundle-attached builders: returns the Bundle
+	 * This method is typed via the specialized interfaces (SystemBuilderWithEcspresso, SystemBuilderWithBundle)
 	 */
-	and(): ECSpresso<ComponentTypes, EventTypes, ResourceTypes> {
-		if (!this._ecspresso) {
-			throw new Error(`Cannot use and() method on system '${this._label}': SystemBuilder is not attached to an ECSpresso instance. Use Bundle.addSystem() instead.`);
+	and(): ECSpresso<ComponentTypes, EventTypes, ResourceTypes> | Bundle<ComponentTypes, EventTypes, ResourceTypes> {
+		if (this._ecspresso) {
+			this._autoRegister();
+			return this._ecspresso;
 		}
-		
-		this._autoRegister();
-		return this._ecspresso;
+
+		if (this._bundle) {
+			return this._bundle;
+		}
+
+		throw new Error(`Cannot use and() on system '${this._label}': not attached to ECSpresso or Bundle.`);
 	}
 
 	/**
@@ -395,4 +400,10 @@ export interface SystemBuilderWithBundle<
 	Queries extends Record<string, QueryDefinition<ComponentTypes>> = {}
 > extends SystemBuilder<ComponentTypes, EventTypes, ResourceTypes, Queries> {
 	readonly bundle: Bundle<ComponentTypes, EventTypes, ResourceTypes>;
+
+	/**
+	 * Complete this system and return the Bundle for chaining
+	 * Enables fluent API: bundle.addSystem(...).and().addSystem(...)
+	 */
+	and(): Bundle<ComponentTypes, EventTypes, ResourceTypes>;
 }

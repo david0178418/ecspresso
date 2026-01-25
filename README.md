@@ -133,21 +133,32 @@ world.addSystem('scoring')
 
 ### Method Chaining
 
-Chain multiple systems for cleaner code:
+Chain multiple systems using `.and()` for cleaner code. The `.and()` method returns the parent container (ECSpresso or Bundle), enabling fluent chaining:
 
 ```typescript
+// Chaining systems on ECSpresso
 world.addSystem('physics')
   .addQuery('moving', { with: ['position', 'velocity'] })
   .setProcess((queries, deltaTime) => {
     // Physics logic
   })
-  .and() // Complete this system and continue chaining
+  .and() // Returns ECSpresso for continued chaining
   .addSystem('rendering')
   .addQuery('visible', { with: ['position', 'sprite'] })
   .setProcess((queries) => {
     // Rendering logic
   })
   .build();
+
+// Chaining systems in a Bundle
+const bundle = new Bundle<Components>()
+  .addSystem('movement')
+  .setProcess(() => { /* ... */ })
+  .and() // Returns Bundle for continued chaining
+  .addSystem('collision')
+  .setProcess(() => { /* ... */ })
+  .and()
+  .addResource('config', { speed: 10 });
 ```
 
 ### Query Type Utilities
@@ -207,35 +218,49 @@ Organize related systems and resources into reusable bundles:
 ```typescript
 import { Bundle } from 'ecspresso';
 
-// Define bundle interfaces
-interface InputComponents {
+interface GameComponents {
   position: { x: number; y: number };
   velocity: { x: number; y: number };
-  player: { id: number };
+  sprite: { texture: string };
 }
 
-interface RenderComponents {
-  position: { x: number; y: number };
-  sprite: any; // Your sprite type
+interface GameResources {
+  gravity: { value: number };
 }
 
-const inputBundle = new Bundle<InputComponents>('input')
-  .addSystem('playerInput')
-  .addQuery('players', { with: ['position', 'velocity', 'player'] })
+// Create a bundle with multiple systems using .and() for chaining
+const physicsBundle = new Bundle<GameComponents, {}, GameResources>('physics')
+  .addSystem('applyVelocity')
+  .addQuery('moving', { with: ['position', 'velocity'] })
+  .setProcess((queries, deltaTime) => {
+    for (const entity of queries.moving) {
+      entity.components.position.x += entity.components.velocity.x * deltaTime;
+      entity.components.position.y += entity.components.velocity.y * deltaTime;
+    }
+  })
+  .and()  // Returns the bundle for continued chaining
+  .addSystem('applyGravity')
+  .addQuery('falling', { with: ['velocity'] })
   .setProcess((queries, deltaTime, ecs) => {
-    // Handle input
-  });
+    const gravity = ecs.getResource('gravity');
+    for (const entity of queries.falling) {
+      entity.components.velocity.y += gravity.value * deltaTime;
+    }
+  })
+  .and()
+  .addResource('gravity', { value: 9.8 });
 
-const renderBundle = new Bundle<RenderComponents>('render')
+const renderBundle = new Bundle<GameComponents>('render')
   .addSystem('renderer')
   .addQuery('sprites', { with: ['position', 'sprite'] })
   .setProcess((queries) => {
     // Render sprites
-  });
+  })
+  .and();
 
 // Create world with bundles
-const game = ECSpresso.create()
-  .withBundle(inputBundle)
+const game = ECSpresso.create<GameComponents, {}, GameResources>()
+  .withBundle(physicsBundle)
   .withBundle(renderBundle)
   .build();
 ```

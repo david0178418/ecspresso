@@ -109,4 +109,23 @@ describe('Bundle', () => {
 		expect(world.hasResource('gravity')).toBe(true);
 		expect(world.hasResource('playerControls')).toBe(true);
 	});
+
+	test('should support chaining multiple systems with and()', () => {
+		const bundle = new Bundle<PositionComponents, {}, PositionResources>()
+			.addSystem('physics')
+			.addQuery('moving', { with: ['position', 'velocity'] })
+			.setProcess(() => {})
+			.and()
+			.addSystem('rendering')
+			.addQuery('positioned', { with: ['position'] })
+			.setProcess(() => {})
+			.and()
+			.addResource('gravity', { value: 9.8 });
+
+		const systems = bundle.getSystems();
+		expect(systems.length).toBe(2);
+		expect(systems[0]?.label).toBe('physics');
+		expect(systems[1]?.label).toBe('rendering');
+		expect(bundle.hasResource('gravity')).toBe(true);
+	});
 });
