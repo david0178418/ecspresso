@@ -25,6 +25,24 @@ class EventBus<EventTypes> {
 	}
 
 	/**
+	 * Unsubscribe a specific callback from an event by reference
+	 * @returns true if the callback was found and removed, false otherwise
+	 */
+	unsubscribe<E extends keyof EventTypes>(
+		eventType: E,
+		callback: (data: EventTypes[E]) => void
+	): boolean {
+		const handlers = this.handlers.get(eventType as string);
+		if (!handlers) return false;
+
+		const index = handlers.findIndex(h => h.callback === callback);
+		if (index === -1) return false;
+
+		handlers.splice(index, 1);
+		return true;
+	}
+
+	/**
 	 * Internal method to add an event handler
 	 */
 	private addHandler<E extends keyof EventTypes>(

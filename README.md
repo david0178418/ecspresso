@@ -279,6 +279,19 @@ interface Events {
 
 const world = new ECSpresso<Components, Events>();
 
+// Subscribe to events with on() - returns unsubscribe function
+const unsubscribe = world.on('playerDied', (data) => {
+  console.log(`Player ${data.playerId} died`);
+});
+
+// Unsubscribe when done
+unsubscribe();
+
+// Or unsubscribe by callback reference with off()
+const handler = (data) => console.log(`Level complete! Score: ${data.score}`);
+world.on('levelComplete', handler);
+world.off('levelComplete', handler);
+
 // Handle events in systems
 world.addSystem('gameLogic')
   .setEventHandlers({
@@ -341,6 +354,30 @@ world.addSystem('gameSystem')
 
 // Initialize all systems
 await world.initialize();
+```
+
+### Post-Update Hooks
+
+Register callbacks that run after all systems have processed during `update()`:
+
+```typescript
+// Register a post-update hook - returns unsubscribe function
+const unsubscribe = world.onPostUpdate((ecs, deltaTime) => {
+  // Runs after all systems in update()
+  // Useful for cleanup, state sync, or debug logging
+  console.log(`Frame completed in ${deltaTime}s`);
+});
+
+// Multiple hooks run in registration order
+world.onPostUpdate((ecs) => {
+  // First hook
+});
+world.onPostUpdate((ecs) => {
+  // Second hook
+});
+
+// Unsubscribe when no longer needed
+unsubscribe();
 ```
 
 ### Asset Management

@@ -1138,4 +1138,182 @@ describe('ECSpresso', () => {
 			world['_sortSystems'] = originalSortMethod;
 		});
 	});
+
+	// Event convenience methods tests
+	describe('Event Convenience Methods', () => {
+		test('on() should subscribe and receive events', () => {
+			const world = new ECSpresso<TestComponents, TestEvents>();
+			let receivedData: TestEvents['playerDamaged'] | undefined;
+
+			world.on('playerDamaged', (data) => {
+				receivedData = data;
+			});
+
+			world.eventBus.publish('playerDamaged', { entityId: 1, amount: 25 });
+
+			expect(receivedData).toBeDefined();
+			expect(receivedData?.entityId).toBe(1);
+			expect(receivedData?.amount).toBe(25);
+		});
+
+		test('on() should return a working unsubscribe function', () => {
+			const world = new ECSpresso<TestComponents, TestEvents>();
+			let callCount = 0;
+
+			const unsubscribe = world.on('gameStarted', () => {
+				callCount++;
+			});
+
+			world.eventBus.publish('gameStarted', {});
+			expect(callCount).toBe(1);
+
+			unsubscribe();
+
+			world.eventBus.publish('gameStarted', {});
+			expect(callCount).toBe(1); // Should not increase
+		});
+
+		test('off() should remove subscription by callback reference', () => {
+			const world = new ECSpresso<TestComponents, TestEvents>();
+			let callCount = 0;
+
+			const handler = () => { callCount++; };
+
+			world.on('gameStarted', handler);
+
+			world.eventBus.publish('gameStarted', {});
+			expect(callCount).toBe(1);
+
+			const removed = world.off('gameStarted', handler);
+			expect(removed).toBe(true);
+
+			world.eventBus.publish('gameStarted', {});
+			expect(callCount).toBe(1); // Should not increase
+		});
+
+		test('off() should return false for non-existent callback', () => {
+			const world = new ECSpresso<TestComponents, TestEvents>();
+
+			const handler1 = () => {};
+			const handler2 = () => {};
+
+			world.on('gameStarted', handler1);
+
+			const removed = world.off('gameStarted', handler2);
+			expect(removed).toBe(false);
+		});
+
+		test('on() should provide type-safe event data', () => {
+			const world = new ECSpresso<TestComponents, TestEvents>();
+
+			world.on('gameEnded', (data) => {
+				// TypeScript should know data has a winner property
+				const winner: string = data.winner;
+				expect(winner).toBe('Player 1');
+			});
+
+			world.eventBus.publish('gameEnded', { winner: 'Player 1' });
+		});
+	});
+
+	// Post-update hooks tests
+	describe('Post-Update Hooks', () => {
+		test('onPostUpdate() hook should be called after update()', () => {
+			const world = new ECSpresso<TestComponents, TestEvents>();
+			let hookCalled = false;
+
+			world.onPostUpdate(() => {
+				hookCalled = true;
+			});
+
+			expect(hookCalled).toBe(false);
+			world.update(1/60);
+			expect(hookCalled).toBe(true);
+		});
+
+		test('onPostUpdate() hook should receive ecs instance and deltaTime', () => {
+			const world = new ECSpresso<TestComponents, TestEvents>();
+			let receivedEcs: typeof world | undefined;
+			let receivedDeltaTime: number | undefined;
+
+			world.onPostUpdate((ecs, deltaTime) => {
+				receivedEcs = ecs;
+				receivedDeltaTime = deltaTime;
+			});
+
+			world.update(0.016);
+
+			expect(receivedEcs).toBeDefined();
+			expect(receivedEcs).toBe(world);
+			expect(receivedDeltaTime).toBeDefined();
+			expect(receivedDeltaTime).toBe(0.016);
+		});
+
+		test('multiple onPostUpdate() hooks should be called in registration order', () => {
+			const world = new ECSpresso<TestComponents, TestEvents>();
+			const executionOrder: string[] = [];
+
+			world.onPostUpdate(() => { executionOrder.push('first'); });
+			world.onPostUpdate(() => { executionOrder.push('second'); });
+			world.onPostUpdate(() => { executionOrder.push('third'); });
+
+			world.update(1/60);
+
+			expect(executionOrder).toEqual(['first', 'second', 'third']);
+		});
+
+		test('onPostUpdate() should return a working unsubscribe function', () => {
+			const world = new ECSpresso<TestComponents, TestEvents>();
+			let callCount = 0;
+
+			const unsubscribe = world.onPostUpdate(() => {
+				callCount++;
+			});
+
+			world.update(1/60);
+			expect(callCount).toBe(1);
+
+			unsubscribe();
+
+			world.update(1/60);
+			expect(callCount).toBe(1); // Should not increase
+		});
+
+		test('onPostUpdate() hooks should run after all systems', () => {
+			const world = new ECSpresso<TestComponents, TestEvents>();
+			const executionOrder: string[] = [];
+
+			// Add a system
+			world.addSystem('TestSystem')
+				.addQuery('entities', { with: ['position'] })
+				.setProcess(() => {
+					executionOrder.push('system');
+				})
+				.build();
+
+			// Add a post-update hook
+			world.onPostUpdate(() => {
+				executionOrder.push('post-update');
+			});
+
+			// Create entity to trigger the system
+			world.spawn({ position: { x: 0, y: 0 } });
+
+			world.update(1/60);
+
+			expect(executionOrder).toEqual(['system', 'post-update']);
+		});
+
+		test('onPostUpdate() hooks should not be called if update() is not called', () => {
+			const world = new ECSpresso<TestComponents, TestEvents>();
+			let hookCalled = false;
+
+			world.onPostUpdate(() => {
+				hookCalled = true;
+			});
+
+			// Don't call update()
+			expect(hookCalled).toBe(false);
+		});
+	});
 });

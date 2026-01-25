@@ -61,6 +61,8 @@ export default class ECSpresso<
 	private _assetManager: AssetManager<AssetTypes> | null = null;
 	/** Screen manager for state/screen transitions */
 	private _screenManager: ScreenManager<ScreenStates> | null = null;
+	/** Post-update hooks to be called after all systems in update() */
+	private _postUpdateHooks: Array<(ecs: ECSpresso<ComponentTypes, EventTypes, ResourceTypes>, deltaTime: number) => void> = [];
 
 	/**
 		* Creates a new ECSpresso instance.
@@ -176,6 +178,11 @@ export default class ECSpresso<
 			} else if(!hasQueries) {
 				system.process(EmptyQueryResults, deltaTime, this);
 			}
+		}
+
+		// Call post-update hooks
+		for (const hook of this._postUpdateHooks) {
+			hook(this as unknown as ECSpresso<ComponentTypes, EventTypes, ResourceTypes>, deltaTime);
 		}
 	}
 
@@ -435,6 +442,51 @@ export default class ECSpresso<
 
 	get eventBus() {
 		return this._eventBus;
+	}
+
+	// ==================== Event Convenience Methods ====================
+
+	/**
+	 * Subscribe to an event (convenience wrapper for eventBus.subscribe)
+	 * @param eventType The event type to subscribe to
+	 * @param callback The callback to invoke when the event is published
+	 * @returns An unsubscribe function
+	 */
+	on<E extends keyof EventTypes>(
+		eventType: E,
+		callback: (data: EventTypes[E]) => void
+	): () => void {
+		return this._eventBus.subscribe(eventType, callback);
+	}
+
+	/**
+	 * Unsubscribe from an event by callback reference (convenience wrapper for eventBus.unsubscribe)
+	 * @param eventType The event type to unsubscribe from
+	 * @param callback The callback to remove
+	 * @returns true if the callback was found and removed, false otherwise
+	 */
+	off<E extends keyof EventTypes>(
+		eventType: E,
+		callback: (data: EventTypes[E]) => void
+	): boolean {
+		return this._eventBus.unsubscribe(eventType, callback);
+	}
+
+	/**
+	 * Register a hook that runs after all systems in update()
+	 * @param callback The hook to call after all systems have processed
+	 * @returns An unsubscribe function to remove the hook
+	 */
+	onPostUpdate(
+		callback: (ecs: ECSpresso<ComponentTypes, EventTypes, ResourceTypes>, deltaTime: number) => void
+	): () => void {
+		this._postUpdateHooks.push(callback);
+		return () => {
+			const index = this._postUpdateHooks.indexOf(callback);
+			if (index !== -1) {
+				this._postUpdateHooks.splice(index, 1);
+			}
+		};
 	}
 
 	// ==================== Asset Management ====================

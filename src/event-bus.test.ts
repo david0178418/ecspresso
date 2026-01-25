@@ -345,4 +345,53 @@ describe('EventSystem', () => {
 		expect(world.entityManager.getComponent(entity.id, 'health')).toEqual({ value: 90 });
 		expect(world.entityManager.getComponent(entity2.id, 'health')).toEqual({ value: 70 });
 	});
+
+	test('should unsubscribe specific callback by reference', () => {
+		const { eventBus } = new ECSpresso<TestComponents, TestEvents>();
+		let handler1Count = 0;
+		let handler2Count = 0;
+
+		const handler1 = () => { handler1Count++; };
+		const handler2 = () => { handler2Count++; };
+
+		eventBus.subscribe('entityCreated', handler1);
+		eventBus.subscribe('entityCreated', handler2);
+
+		// Both handlers should receive the event
+		eventBus.publish('entityCreated', { entityId: 1 });
+		expect(handler1Count).toBe(1);
+		expect(handler2Count).toBe(1);
+
+		// Unsubscribe handler1 by reference
+		const removed = eventBus.unsubscribe('entityCreated', handler1);
+		expect(removed).toBe(true);
+
+		// Only handler2 should receive this event
+		eventBus.publish('entityCreated', { entityId: 2 });
+		expect(handler1Count).toBe(1); // Still 1
+		expect(handler2Count).toBe(2); // Now 2
+	});
+
+	test('should return false when unsubscribing non-existent callback', () => {
+		const { eventBus } = new ECSpresso<TestComponents, TestEvents>();
+
+		const handler = () => {};
+		const differentHandler = () => {};
+
+		eventBus.subscribe('entityCreated', handler);
+
+		// Try to unsubscribe a different callback
+		const removed = eventBus.unsubscribe('entityCreated', differentHandler);
+		expect(removed).toBe(false);
+	});
+
+	test('should return false when unsubscribing from non-existent event type', () => {
+		const { eventBus } = new ECSpresso<TestComponents, TestEvents>();
+
+		const handler = () => {};
+
+		// Try to unsubscribe from an event type that has no handlers
+		const removed = eventBus.unsubscribe('entityCreated', handler);
+		expect(removed).toBe(false);
+	});
 });
