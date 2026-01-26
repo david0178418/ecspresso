@@ -1,0 +1,240 @@
+import { expect, describe, test } from 'bun:test';
+import ECSpresso from './ecspresso';
+import Bundle from './bundle';
+
+interface TestComponents {
+	position: { x: number; y: number };
+	velocity: { x: number; y: number };
+}
+
+describe('System Groups', () => {
+	describe('inGroup builder method', () => {
+		test('system should be assigned to a group', () => {
+			const world = new ECSpresso<TestComponents>();
+
+			world.addSystem('renderSystem')
+				.inGroup('rendering')
+				.addQuery('entities', { with: ['position'] })
+				.setProcess(() => {})
+				.build();
+
+			expect(world.getSystemsInGroup('rendering')).toEqual(['renderSystem']);
+		});
+
+		test('system can belong to multiple groups', () => {
+			const world = new ECSpresso<TestComponents>();
+
+			world.addSystem('physicsRenderer')
+				.inGroup('physics')
+				.inGroup('rendering')
+				.addQuery('entities', { with: ['position'] })
+				.setProcess(() => {})
+				.build();
+
+			expect(world.getSystemsInGroup('physics')).toEqual(['physicsRenderer']);
+			expect(world.getSystemsInGroup('rendering')).toEqual(['physicsRenderer']);
+		});
+	});
+
+	describe('disable/enable group', () => {
+		test('disabled group systems should not run', () => {
+			const world = new ECSpresso<TestComponents>();
+			let renderingRan = false;
+			let otherRan = false;
+
+			world.addSystem('renderSystem')
+				.inGroup('rendering')
+				.addQuery('entities', { with: ['position'] })
+				.setProcess(() => { renderingRan = true; })
+				.build();
+
+			world.addSystem('otherSystem')
+				.addQuery('entities', { with: ['position'] })
+				.setProcess(() => { otherRan = true; })
+				.build();
+
+			world.spawn({ position: { x: 0, y: 0 } });
+
+			world.disableSystemGroup('rendering');
+			world.update(1/60);
+
+			expect(renderingRan).toBe(false);
+			expect(otherRan).toBe(true);
+		});
+
+		test('other systems should still run when group is disabled', () => {
+			const world = new ECSpresso<TestComponents>();
+			const executionOrder: string[] = [];
+
+			world.addSystem('systemA')
+				.inGroup('groupA')
+				.addQuery('entities', { with: ['position'] })
+				.setProcess(() => { executionOrder.push('A'); })
+				.build();
+
+			world.addSystem('systemB')
+				.inGroup('groupB')
+				.addQuery('entities', { with: ['position'] })
+				.setProcess(() => { executionOrder.push('B'); })
+				.build();
+
+			world.spawn({ position: { x: 0, y: 0 } });
+
+			world.disableSystemGroup('groupA');
+			world.update(1/60);
+
+			expect(executionOrder).toEqual(['B']);
+		});
+
+		test('re-enabling group should allow systems to run again', () => {
+			const world = new ECSpresso<TestComponents>();
+			let runCount = 0;
+
+			world.addSystem('renderSystem')
+				.inGroup('rendering')
+				.addQuery('entities', { with: ['position'] })
+				.setProcess(() => { runCount++; })
+				.build();
+
+			world.spawn({ position: { x: 0, y: 0 } });
+
+			// Disable and verify not running
+			world.disableSystemGroup('rendering');
+			world.update(1/60);
+			expect(runCount).toBe(0);
+
+			// Re-enable and verify running
+			world.enableSystemGroup('rendering');
+			world.update(1/60);
+			expect(runCount).toBe(1);
+		});
+	});
+
+	describe('isSystemGroupEnabled', () => {
+		test('should return true for enabled groups', () => {
+			const world = new ECSpresso<TestComponents>();
+
+			world.addSystem('testSystem')
+				.inGroup('testGroup')
+				.setProcess(() => {})
+				.build();
+
+			expect(world.isSystemGroupEnabled('testGroup')).toBe(true);
+		});
+
+		test('should return false for disabled groups', () => {
+			const world = new ECSpresso<TestComponents>();
+
+			world.addSystem('testSystem')
+				.inGroup('testGroup')
+				.setProcess(() => {})
+				.build();
+
+			world.disableSystemGroup('testGroup');
+
+			expect(world.isSystemGroupEnabled('testGroup')).toBe(false);
+		});
+
+		test('should return true for non-existent groups (default enabled)', () => {
+			const world = new ECSpresso<TestComponents>();
+
+			expect(world.isSystemGroupEnabled('nonExistent')).toBe(true);
+		});
+	});
+
+	describe('getSystemsInGroup', () => {
+		test('should return all system labels in group', () => {
+			const world = new ECSpresso<TestComponents>();
+
+			world.addSystem('system1')
+				.inGroup('groupA')
+				.setProcess(() => {})
+				.build();
+
+			world.addSystem('system2')
+				.inGroup('groupA')
+				.setProcess(() => {})
+				.build();
+
+			world.addSystem('system3')
+				.inGroup('groupB')
+				.setProcess(() => {})
+				.build();
+
+			expect(world.getSystemsInGroup('groupA').sort()).toEqual(['system1', 'system2']);
+		});
+
+		test('should return empty array for non-existent group', () => {
+			const world = new ECSpresso<TestComponents>();
+
+			expect(world.getSystemsInGroup('nonExistent')).toEqual([]);
+		});
+	});
+
+	describe('integration', () => {
+		test('should work with bundled systems', () => {
+			const bundle = new Bundle<TestComponents>()
+				.addSystem('bundledSystem')
+				.inGroup('bundleGroup')
+				.addQuery('entities', { with: ['position'] })
+				.setProcess(() => { bundleRan = true; })
+				.bundle;
+
+			const world = ECSpresso.create<TestComponents>()
+				.withBundle(bundle)
+				.build();
+
+			world.spawn({ position: { x: 0, y: 0 } });
+
+			let bundleRan = false;
+
+			world.disableSystemGroup('bundleGroup');
+			world.update(1/60);
+
+			expect(bundleRan).toBe(false);
+
+			world.enableSystemGroup('bundleGroup');
+			world.update(1/60);
+
+			expect(bundleRan).toBe(true);
+		});
+
+		test('system in multiple groups - any disabled should skip', () => {
+			const world = new ECSpresso<TestComponents>();
+			let systemRan = false;
+
+			world.addSystem('multiGroupSystem')
+				.inGroup('groupA')
+				.inGroup('groupB')
+				.addQuery('entities', { with: ['position'] })
+				.setProcess(() => { systemRan = true; })
+				.build();
+
+			world.spawn({ position: { x: 0, y: 0 } });
+
+			// Disable only one group
+			world.disableSystemGroup('groupA');
+			world.update(1/60);
+
+			expect(systemRan).toBe(false);
+		});
+
+		test('system with no groups should always run', () => {
+			const world = new ECSpresso<TestComponents>();
+			let systemRan = false;
+
+			world.addSystem('noGroupSystem')
+				.addQuery('entities', { with: ['position'] })
+				.setProcess(() => { systemRan = true; })
+				.build();
+
+			world.spawn({ position: { x: 0, y: 0 } });
+
+			// Disable some random group
+			world.disableSystemGroup('someGroup');
+			world.update(1/60);
+
+			expect(systemRan).toBe(true);
+		});
+	});
+});

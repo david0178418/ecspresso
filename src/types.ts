@@ -30,6 +30,28 @@ interface HierarchyChangedEvent {
 	newParent: number | null;
 }
 
+/**
+ * Options for hierarchy traversal methods
+ */
+export
+interface HierarchyIteratorOptions {
+	/** Specific root entities to start traversal from. If not provided, all root entities are used. */
+	roots?: readonly number[];
+}
+
+/**
+ * Entry yielded during hierarchy traversal
+ */
+export
+interface HierarchyEntry {
+	/** The entity being visited */
+	entityId: number;
+	/** The parent entity ID, or null for root entities */
+	parentId: number | null;
+	/** Depth in the hierarchy (0 for roots) */
+	depth: number;
+}
+
 export
 interface EventHandler<T> {
 	callback: (data: T) => void;
@@ -156,6 +178,10 @@ interface System<
 	 * When systems have the same priority, they execute in registration order
 	 */
 	priority?: number;
+	/**
+	 * Groups this system belongs to. If any group is disabled, the system will be skipped.
+	 */
+	groups?: string[];
 	/**
 	 * Screens where this system should run. If specified, system only runs
 	 * when current screen is in this list.

@@ -29,6 +29,7 @@ export class SystemBuilder<
 	};
 	private _priority = 0; // Default priority is 0
 	private _isRegistered = false; // Track if system has been auto-registered
+	private _groups: string[] = [];
 	private _inScreens?: string[];
 	private _excludeScreens?: string[];
 	private _requiredAssets?: string[];
@@ -104,6 +105,10 @@ export class SystemBuilder<
 			system.eventHandlers = this.eventHandlers;
 		}
 
+		if (this._groups.length > 0) {
+			system.groups = [...this._groups];
+		}
+
 		if (this._inScreens) {
 			system.inScreens = this._inScreens;
 		}
@@ -129,6 +134,19 @@ export class SystemBuilder<
 	 */
 	setPriority(priority: number): this {
 		this._priority = priority;
+		return this;
+	}
+
+	/**
+	 * Add this system to a group. Systems can belong to multiple groups.
+	 * When any group a system belongs to is disabled, the system will be skipped.
+	 * @param groupName The name of the group to add the system to
+	 * @returns This SystemBuilder instance for method chaining
+	 */
+	inGroup(groupName: string): this {
+		if (!this._groups.includes(groupName)) {
+			this._groups.push(groupName);
+		}
 		return this;
 	}
 

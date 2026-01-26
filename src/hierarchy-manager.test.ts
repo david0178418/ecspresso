@@ -1,5 +1,6 @@
 import { expect, describe, test } from 'bun:test';
 import HierarchyManager from './hierarchy-manager';
+import type { HierarchyEntry } from './types';
 
 describe('HierarchyManager', () => {
 	describe('setParent / getParent / removeParent', () => {
@@ -399,6 +400,178 @@ describe('HierarchyManager', () => {
 			// Entity 3 doesn't exist in hierarchy at all
 			const roots = hierarchy.getRootEntities();
 			expect(roots).toEqual([1]);
+		});
+	});
+
+	describe('forEachInHierarchy - parent-first traversal', () => {
+		test('should visit parent before children', () => {
+			const hierarchy = new HierarchyManager();
+			// Tree:     1
+			//          / \
+			//         2   3
+			//        /
+			//       4
+			hierarchy.setParent(2, 1);
+			hierarchy.setParent(3, 1);
+			hierarchy.setParent(4, 2);
+
+			const visitOrder: number[] = [];
+			hierarchy.forEachInHierarchy((entityId) => {
+				visitOrder.push(entityId);
+			});
+
+			// Parent-first (breadth-first): 1, then 2 and 3, then 4
+			// Entity 1 must come before 2, 3
+			// Entity 2 must come before 4
+			const indexOf1 = visitOrder.indexOf(1);
+			const indexOf2 = visitOrder.indexOf(2);
+			const indexOf3 = visitOrder.indexOf(3);
+			const indexOf4 = visitOrder.indexOf(4);
+
+			expect(indexOf1).toBeLessThan(indexOf2);
+			expect(indexOf1).toBeLessThan(indexOf3);
+			expect(indexOf2).toBeLessThan(indexOf4);
+		});
+
+		test('should provide correct depth values at each level', () => {
+			const hierarchy = new HierarchyManager();
+			hierarchy.setParent(2, 1);
+			hierarchy.setParent(3, 2);
+			hierarchy.setParent(4, 3);
+
+			const depths: Record<number, number> = {};
+			hierarchy.forEachInHierarchy((entityId, _parentId, depth) => {
+				depths[entityId] = depth;
+			});
+
+			expect(depths[1]).toBe(0);
+			expect(depths[2]).toBe(1);
+			expect(depths[3]).toBe(2);
+			expect(depths[4]).toBe(3);
+		});
+
+		test('should provide correct parentId at each node', () => {
+			const hierarchy = new HierarchyManager();
+			hierarchy.setParent(2, 1);
+			hierarchy.setParent(3, 1);
+			hierarchy.setParent(4, 2);
+
+			const parents: Record<number, number | null> = {};
+			hierarchy.forEachInHierarchy((entityId, parentId) => {
+				parents[entityId] = parentId;
+			});
+
+			expect(parents[1]).toBeNull();
+			expect(parents[2]).toBe(1);
+			expect(parents[3]).toBe(1);
+			expect(parents[4]).toBe(2);
+		});
+
+		test('should filter to specific roots when option provided', () => {
+			const hierarchy = new HierarchyManager();
+			// Two separate trees
+			hierarchy.setParent(2, 1);
+			hierarchy.setParent(3, 1);
+			hierarchy.setParent(5, 4);
+			hierarchy.setParent(6, 4);
+
+			const visited: number[] = [];
+			hierarchy.forEachInHierarchy((entityId) => {
+				visited.push(entityId);
+			}, { roots: [4] });
+
+			// Should only visit tree rooted at 4
+			expect(visited.sort()).toEqual([4, 5, 6]);
+		});
+
+		test('should return immediately for empty hierarchy', () => {
+			const hierarchy = new HierarchyManager();
+			const visited: number[] = [];
+
+			hierarchy.forEachInHierarchy((entityId) => {
+				visited.push(entityId);
+			});
+
+			expect(visited).toEqual([]);
+		});
+
+		test('should visit multiple disconnected trees', () => {
+			const hierarchy = new HierarchyManager();
+			// Two separate trees
+			hierarchy.setParent(2, 1);
+			hierarchy.setParent(4, 3);
+
+			const visited: number[] = [];
+			hierarchy.forEachInHierarchy((entityId) => {
+				visited.push(entityId);
+			});
+
+			// Should visit both trees
+			expect(visited.sort()).toEqual([1, 2, 3, 4]);
+		});
+	});
+
+	describe('hierarchyIterator - generator-based traversal', () => {
+		test('should yield same order as callback version', () => {
+			const hierarchy = new HierarchyManager();
+			hierarchy.setParent(2, 1);
+			hierarchy.setParent(3, 1);
+			hierarchy.setParent(4, 2);
+
+			const callbackOrder: number[] = [];
+			hierarchy.forEachInHierarchy((entityId) => {
+				callbackOrder.push(entityId);
+			});
+
+			const iteratorOrder: number[] = [];
+			for (const entry of hierarchy.hierarchyIterator()) {
+				iteratorOrder.push(entry.entityId);
+			}
+
+			expect(iteratorOrder).toEqual(callbackOrder);
+		});
+
+		test('should support early termination via break', () => {
+			const hierarchy = new HierarchyManager();
+			hierarchy.setParent(2, 1);
+			hierarchy.setParent(3, 1);
+			hierarchy.setParent(4, 2);
+			hierarchy.setParent(5, 2);
+
+			const visited: number[] = [];
+			for (const entry of hierarchy.hierarchyIterator()) {
+				visited.push(entry.entityId);
+				if (visited.length >= 2) break;
+			}
+
+			expect(visited.length).toBe(2);
+		});
+
+		test('should yield correct entry structure', () => {
+			const hierarchy = new HierarchyManager();
+			hierarchy.setParent(2, 1);
+
+			const entries: HierarchyEntry[] = [];
+			for (const entry of hierarchy.hierarchyIterator()) {
+				entries.push(entry);
+			}
+
+			expect(entries.length).toBe(2);
+			expect(entries[0]).toEqual({ entityId: 1, parentId: null, depth: 0 });
+			expect(entries[1]).toEqual({ entityId: 2, parentId: 1, depth: 1 });
+		});
+
+		test('should support filtering by roots option', () => {
+			const hierarchy = new HierarchyManager();
+			hierarchy.setParent(2, 1);
+			hierarchy.setParent(4, 3);
+
+			const visited: number[] = [];
+			for (const entry of hierarchy.hierarchyIterator({ roots: [3] })) {
+				visited.push(entry.entityId);
+			}
+
+			expect(visited.sort()).toEqual([3, 4]);
 		});
 	});
 });

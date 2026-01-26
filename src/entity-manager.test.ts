@@ -107,6 +107,90 @@ describe('Entity Manager', () => {
 			expect(callbackOldValue).toEqual({ current: 'start', previous: '' });
 			expect(callbackEntityId).toBe(entity.id);
 		});
+
+		test('onComponentAdded should return unsubscribe function', () => {
+			const manager = new EntityManager<TestComponents>();
+			let callbackCount = 0;
+			const entity = manager.createEntity();
+
+			const unsubscribe = manager.onComponentAdded('health', () => {
+				callbackCount++;
+			});
+
+			manager.addComponent(entity.id, 'health', { value: 100 });
+			expect(callbackCount).toBe(1);
+
+			unsubscribe();
+
+			const entity2 = manager.createEntity();
+			manager.addComponent(entity2.id, 'health', { value: 50 });
+			expect(callbackCount).toBe(1); // Should not increase after unsubscribe
+		});
+
+		test('onComponentRemoved should return unsubscribe function', () => {
+			const manager = new EntityManager<TestComponents>();
+			let callbackCount = 0;
+			const entity1 = manager.createEntity();
+			const entity2 = manager.createEntity();
+
+			manager.addComponent(entity1.id, 'position', { x: 0, y: 0 });
+			manager.addComponent(entity2.id, 'position', { x: 10, y: 10 });
+
+			const unsubscribe = manager.onComponentRemoved('position', () => {
+				callbackCount++;
+			});
+
+			manager.removeComponent(entity1.id, 'position');
+			expect(callbackCount).toBe(1);
+
+			unsubscribe();
+
+			manager.removeComponent(entity2.id, 'position');
+			expect(callbackCount).toBe(1); // Should not increase after unsubscribe
+		});
+
+		test('multiple callbacks for same component should all fire', () => {
+			const manager = new EntityManager<TestComponents>();
+			let count1 = 0;
+			let count2 = 0;
+			const entity = manager.createEntity();
+
+			manager.onComponentAdded('velocity', () => { count1++; });
+			manager.onComponentAdded('velocity', () => { count2++; });
+
+			manager.addComponent(entity.id, 'velocity', { x: 5, y: 10 });
+
+			expect(count1).toBe(1);
+			expect(count2).toBe(1);
+		});
+
+		test('unsubscribe during callback execution should not affect current iteration', () => {
+			const manager = new EntityManager<TestComponents>();
+			const callOrder: string[] = [];
+			const entity = manager.createEntity();
+
+			let unsub2: (() => void) | undefined;
+
+			manager.onComponentAdded('health', () => {
+				callOrder.push('first');
+				unsub2?.();
+			});
+
+			unsub2 = manager.onComponentAdded('health', () => {
+				callOrder.push('second');
+			});
+
+			manager.addComponent(entity.id, 'health', { value: 100 });
+
+			// Both callbacks should have been called despite unsubscribe during execution
+			expect(callOrder).toEqual(['first', 'second']);
+
+			// But subsequent adds should only call the first callback
+			callOrder.length = 0;
+			const entity2 = manager.createEntity();
+			manager.addComponent(entity2.id, 'health', { value: 50 });
+			expect(callOrder).toEqual(['first']);
+		});
 	});
 
 	describe('hierarchy', () => {

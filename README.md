@@ -15,6 +15,9 @@ A type-safe, modular, and extensible Entity Component System (ECS) framework for
 - **Screen Management**: Game state/screen transitions with overlay support
 - **Entity Hierarchy**: Parent-child relationships with traversal and cascade deletion
 - **Query System**: Powerful entity filtering with helper type utilities
+- **Reactive Queries**: Enter/exit callbacks when entities match or unmatch queries
+- **System Groups**: Enable/disable groups of systems at runtime
+- **Component Lifecycle**: Callbacks for component add/remove with unsubscribe support
 
 ## Installation
 
@@ -210,6 +213,35 @@ world.addSystem('physics')
   .setPriority(50)  // Runs second
   .setProcess(() => { /* rendering */ })
   .build();
+```
+
+### System Groups
+
+Organize systems into groups that can be enabled/disabled at runtime:
+
+```typescript
+// Assign systems to groups
+world.addSystem('renderSprites')
+  .inGroup('rendering')
+  .addQuery('sprites', { with: ['position', 'sprite'] })
+  .setProcess((queries) => { /* ... */ })
+  .and()
+  .addSystem('renderParticles')
+  .inGroup('rendering')
+  .inGroup('effects')  // Systems can belong to multiple groups
+  .setProcess(() => { /* ... */ })
+  .build();
+
+// Disable/enable groups at runtime
+world.disableSystemGroup('rendering');  // All rendering systems skip
+world.enableSystemGroup('rendering');   // Resume rendering
+
+// Query group state
+world.isSystemGroupEnabled('rendering');  // true/false
+world.getSystemsInGroup('rendering');     // ['renderSprites', 'renderParticles']
+
+// If a system belongs to multiple groups, disabling ANY group skips the system
+world.disableSystemGroup('effects');  // renderParticles won't run
 ```
 
 ## Advanced Features
@@ -444,6 +476,32 @@ world.getRootEntities();              // [root.id]
 // Child ordering
 world.getChildAt(root.id, 0);         // child.id
 world.getChildIndex(root.id, child2.id); // 1
+```
+
+#### Parent-First Traversal
+
+Iterate the hierarchy with guaranteed parent-first order (useful for transform propagation):
+
+```typescript
+// Callback-based traversal
+world.forEachInHierarchy((entityId, parentId, depth) => {
+  // Parents are always visited before their children
+  console.log(`Entity ${entityId} at depth ${depth}, parent: ${parentId}`);
+});
+
+// Filter to specific subtrees
+world.forEachInHierarchy(
+  (entityId, parentId, depth) => {
+    // Only visits entities under root.id
+  },
+  { roots: [root.id] }
+);
+
+// Generator-based traversal (supports early termination)
+for (const { entityId, parentId, depth } of world.hierarchyIterator()) {
+  if (depth > 2) break; // Stop at depth 2
+  console.log(entityId);
+}
 ```
 
 #### Cascade Deletion
@@ -771,18 +829,70 @@ world.withBundle(conflictingBundle); // TypeScript prevents this
 
 ## Component Callbacks
 
-React to component changes with callbacks:
+React to component changes with callbacks. Both methods return an unsubscribe function:
 
 ```typescript
-// Listen for component additions/removals
-world.entityManager.onComponentAdded('health', (value, entity) => {
+// Listen for component additions - returns unsubscribe function
+const unsubAdd = world.onComponentAdded('health', (value, entity) => {
   console.log(`Health added to entity ${entity.id}:`, value);
 });
 
-world.entityManager.onComponentRemoved('health', (oldValue, entity) => {
+// Listen for component removals
+const unsubRemove = world.onComponentRemoved('health', (oldValue, entity) => {
   console.log(`Health removed from entity ${entity.id}:`, oldValue);
 });
+
+// Unsubscribe when done
+unsubAdd();
+unsubRemove();
+
+// Also available on entityManager directly
+world.entityManager.onComponentAdded('position', (value, entity) => {
+  // ...
+});
 ```
+
+## Reactive Queries
+
+Get callbacks when entities enter or exit a query match. Unlike regular queries that you poll during `update()`, reactive queries push notifications when the entity's components change:
+
+```typescript
+// Add a reactive query with enter/exit callbacks
+world.addReactiveQuery('enemies', {
+  with: ['position', 'enemy'],
+  without: ['dead'],
+  onEnter: (entity) => {
+    // Called when entity starts matching the query
+    console.log(`Enemy ${entity.id} appeared at`, entity.components.position);
+    spawnHealthBar(entity.id);
+  },
+  onExit: (entityId) => {
+    // Called when entity stops matching (receives ID since entity may be removed)
+    console.log(`Enemy ${entityId} gone`);
+    removeHealthBar(entityId);
+  },
+});
+
+// Triggers: spawning matching entity, adding required component,
+//           removing excluded component
+const enemy = world.spawn({ position: { x: 0, y: 0 }, enemy: true }); // onEnter fires
+
+// Triggers: removing required component, adding excluded component,
+//           removing entity
+world.entityManager.addComponent(enemy.id, 'dead', true); // onExit fires
+
+// Existing matching entities trigger onEnter when query is added
+world.spawn({ position: { x: 10, y: 10 }, enemy: true });
+world.addReactiveQuery('positioned', {
+  with: ['position'],
+  onEnter: (entity) => { /* Called for all existing entities with position */ },
+});
+
+// Remove reactive query when no longer needed
+const removed = world.removeReactiveQuery('enemies'); // returns true if existed
+```
+
+**Note:** Component replacement (calling `addComponent` with a component that already exists) does NOT trigger enter/exit callbacks since the entity's query match status doesn't change.
 
 ## Error Handling
 

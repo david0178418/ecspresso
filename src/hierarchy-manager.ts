@@ -1,3 +1,5 @@
+import type { HierarchyEntry, HierarchyIteratorOptions } from "./types";
+
 /**
  * Manages parent-child relationships between entities.
  * Handles hierarchy storage, validation, and traversal operations.
@@ -273,5 +275,76 @@ export default class HierarchyManager {
 			current = this.parentMap.get(current);
 		}
 		return false;
+	}
+
+	/**
+	 * Traverse the hierarchy in parent-first (breadth-first) order.
+	 * Parents are guaranteed to be visited before their children.
+	 * @param callback Function called for each entity with (entityId, parentId, depth)
+	 * @param options Optional traversal options (roots to filter to specific subtrees)
+	 */
+	forEachInHierarchy(
+		callback: (entityId: number, parentId: number | null, depth: number) => void,
+		options?: HierarchyIteratorOptions
+	): void {
+		const roots = options?.roots ?? this.getRootEntities();
+		const queue: Array<{ entityId: number; parentId: number | null; depth: number }> = [];
+
+		// Initialize queue with root entities
+		for (const id of roots) {
+			queue.push({ entityId: id, parentId: null, depth: 0 });
+		}
+
+		while (queue.length > 0) {
+			const current = queue.shift();
+			if (!current) break;
+
+			callback(current.entityId, current.parentId, current.depth);
+
+			const children = this.childrenMap.get(current.entityId);
+			if (children) {
+				for (const childId of children) {
+					queue.push({
+						entityId: childId,
+						parentId: current.entityId,
+						depth: current.depth + 1
+					});
+				}
+			}
+		}
+	}
+
+	/**
+	 * Generator-based hierarchy traversal in parent-first (breadth-first) order.
+	 * Supports early termination via break.
+	 * @param options Optional traversal options (roots to filter to specific subtrees)
+	 * @yields HierarchyEntry for each entity in parent-first order
+	 */
+	*hierarchyIterator(options?: HierarchyIteratorOptions): Generator<HierarchyEntry, void, unknown> {
+		const roots = options?.roots ?? this.getRootEntities();
+		const queue: HierarchyEntry[] = [];
+
+		// Initialize queue with root entities
+		for (const id of roots) {
+			queue.push({ entityId: id, parentId: null, depth: 0 });
+		}
+
+		while (queue.length > 0) {
+			const current = queue.shift();
+			if (!current) break;
+
+			yield current;
+
+			const children = this.childrenMap.get(current.entityId);
+			if (children) {
+				for (const childId of children) {
+					queue.push({
+						entityId: childId,
+						parentId: current.entityId,
+						depth: current.depth + 1
+					});
+				}
+			}
+		}
 	}
 }

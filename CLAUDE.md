@@ -8,6 +8,7 @@ A type-safe ECS (Entity-Component-System) library for TypeScript. Uses Bun as ru
 src/
 ├── ecspresso.ts       # Main ECS class, builder pattern entry point
 ├── entity-manager.ts  # Entity storage, component indexing, queries
+├── hierarchy-manager.ts # Parent-child relationships, traversal
 ├── system-builder.ts  # Fluent builder for systems
 ├── bundle.ts          # Grouping systems/resources for modularity
 ├── event-bus.ts       # Pub/sub event system
@@ -16,6 +17,7 @@ src/
 ├── asset-types.ts     # Asset type definitions
 ├── screen-manager.ts  # Screen/state transitions, overlay stack
 ├── screen-types.ts    # Screen type definitions
+├── reactive-query-manager.ts # Reactive queries with enter/exit callbacks
 ├── types.ts           # Core type definitions
 ├── type-utils.ts      # Bundle compatibility type utilities
 └── index.ts           # Public API exports
@@ -42,8 +44,12 @@ src/
 - **Screen Builder**: `ECSpresso.create().withScreens(s => s.add()).build()`
 - **Screen-Scoped Systems**: `.inScreens(['menu'])`, `.excludeScreens(['pause'])`
 - **Asset-Required Systems**: `.requiresAssets(['playerTexture'])`
+- **System Groups**: `.inGroup('rendering')`, `disableSystemGroup()`, `enableSystemGroup()`
 - **Entity Hierarchy**: `spawnChild(parentId, components)`, `getParent()`, `getChildren()`, `getAncestors()`, `getDescendants()`
+- **Hierarchy Traversal**: `forEachInHierarchy()`, `hierarchyIterator()` for parent-first iteration
 - **Cascade Deletion**: `removeEntity(id)` removes descendants by default; use `{ cascade: false }` to orphan children
+- **Component Lifecycle**: `onComponentAdded()`, `onComponentRemoved()` return unsubscribe functions
+- **Reactive Queries**: `addReactiveQuery()` with `onEnter`/`onExit` callbacks for query match changes
 - **World Position Pattern**: `worldPos = localPos + parent.worldPos` (parent's world pos includes all grandparents)
 
 ## Commands

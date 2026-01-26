@@ -1318,6 +1318,126 @@ describe('ECSpresso', () => {
 		});
 	});
 
+	// Component lifecycle tests
+	describe('Component Lifecycle', () => {
+		test('onComponentAdded should be called when component is added', () => {
+			const world = new ECSpresso<TestComponents, TestEvents>();
+			let callbackValue: TestComponents['health'] | undefined;
+			let callbackEntityId = -1;
+
+			world.onComponentAdded('health', (value, entity) => {
+				callbackValue = value;
+				callbackEntityId = entity.id;
+			});
+
+			const entity = world.spawn({ health: { value: 100 } });
+
+			expect(callbackValue).toEqual({ value: 100 });
+			expect(callbackEntityId).toBe(entity.id);
+		});
+
+		test('onComponentAdded should be called when entity spawned with component', () => {
+			const world = new ECSpresso<TestComponents, TestEvents>();
+			const spawnedEntities: number[] = [];
+
+			world.onComponentAdded('position', (_value, entity) => {
+				spawnedEntities.push(entity.id);
+			});
+
+			const entity1 = world.spawn({ position: { x: 0, y: 0 } });
+			const entity2 = world.spawn({ position: { x: 10, y: 10 }, velocity: { x: 1, y: 1 } });
+
+			expect(spawnedEntities).toEqual([entity1.id, entity2.id]);
+		});
+
+		test('onComponentRemoved should be called when component explicitly removed', () => {
+			const world = new ECSpresso<TestComponents, TestEvents>();
+			let removedValue: TestComponents['velocity'] | undefined;
+
+			world.onComponentRemoved('velocity', (value) => {
+				removedValue = value;
+			});
+
+			const entity = world.spawn({ velocity: { x: 5, y: 10 } });
+			world.entityManager.removeComponent(entity.id, 'velocity');
+
+			expect(removedValue).toEqual({ x: 5, y: 10 });
+		});
+
+		test('onComponentRemoved should be called for each component when entity removed', () => {
+			const world = new ECSpresso<TestComponents, TestEvents>();
+			const removedComponents: string[] = [];
+
+			world.onComponentRemoved('position', () => {
+				removedComponents.push('position');
+			});
+			world.onComponentRemoved('velocity', () => {
+				removedComponents.push('velocity');
+			});
+
+			const entity = world.spawn({
+				position: { x: 0, y: 0 },
+				velocity: { x: 1, y: 1 }
+			});
+
+			world.removeEntity(entity.id);
+
+			expect(removedComponents.sort()).toEqual(['position', 'velocity']);
+		});
+
+		test('onComponentAdded unsubscribe function should stop future callbacks', () => {
+			const world = new ECSpresso<TestComponents, TestEvents>();
+			let callCount = 0;
+
+			const unsubscribe = world.onComponentAdded('health', () => {
+				callCount++;
+			});
+
+			world.spawn({ health: { value: 100 } });
+			expect(callCount).toBe(1);
+
+			unsubscribe();
+
+			world.spawn({ health: { value: 50 } });
+			expect(callCount).toBe(1); // Should not increase
+		});
+
+		test('onComponentRemoved unsubscribe function should stop future callbacks', () => {
+			const world = new ECSpresso<TestComponents, TestEvents>();
+			let callCount = 0;
+
+			const unsubscribe = world.onComponentRemoved('position', () => {
+				callCount++;
+			});
+
+			const entity1 = world.spawn({ position: { x: 0, y: 0 } });
+			world.entityManager.removeComponent(entity1.id, 'position');
+			expect(callCount).toBe(1);
+
+			unsubscribe();
+
+			const entity2 = world.spawn({ position: { x: 10, y: 10 } });
+			world.entityManager.removeComponent(entity2.id, 'position');
+			expect(callCount).toBe(1); // Should not increase
+		});
+
+		test('callback should receive correct value and entity', () => {
+			const world = new ECSpresso<TestComponents, TestEvents>();
+			let receivedValue: TestComponents['state'] | undefined;
+			let receivedEntityId: number | undefined;
+
+			world.onComponentAdded('state', (value, entity) => {
+				receivedValue = value;
+				receivedEntityId = entity.id;
+			});
+
+			const entity = world.spawn({ state: { current: 'idle', previous: '' } });
+
+			expect(receivedValue).toEqual({ current: 'idle', previous: '' });
+			expect(receivedEntityId).toBe(entity.id);
+		});
+	});
+
 	// Entity hierarchy tests
 	describe('Entity Hierarchy', () => {
 		test('should set and get parent via convenience methods', () => {

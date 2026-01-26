@@ -3,7 +3,8 @@ import EventBus from "./event-bus";
 import ResourceManager from "./resource-manager";
 import AssetManager, { AssetConfiguratorImpl, createAssetConfigurator } from "./asset-manager";
 import ScreenManager, { ScreenConfiguratorImpl, createScreenConfigurator } from "./screen-manager";
-import type { System, FilteredEntity, Entity, RemoveEntityOptions } from "./types";
+import ReactiveQueryManager, { type ReactiveQueryDefinition } from "./reactive-query-manager";
+import type { System, FilteredEntity, Entity, RemoveEntityOptions, HierarchyEntry, HierarchyIteratorOptions } from "./types";
 import type Bundle from "./bundle";
 import { createEcspressoSystemBuilder } from "./system-builder";
 import { version } from "../package.json";
@@ -57,10 +58,14 @@ export default class ECSpresso<
 	private _sortedSystems: Array<System<ComponentTypes, any, any, EventTypes, ResourceTypes, AssetTypes, ScreenStates>> = [];
 	/** Track installed bundles to prevent duplicates*/
 	private _installedBundles: Set<string> = new Set();
+	/** Disabled system groups */
+	private _disabledGroups: Set<string> = new Set();
 	/** Asset manager for loading and accessing assets */
 	private _assetManager: AssetManager<AssetTypes> | null = null;
 	/** Screen manager for state/screen transitions */
 	private _screenManager: ScreenManager<ScreenStates> | null = null;
+	/** Reactive query manager for enter/exit callbacks */
+	private _reactiveQueryManager: ReactiveQueryManager<ComponentTypes>;
 	/** Post-update hooks to be called after all systems in update() */
 	private _postUpdateHooks: Array<(ecs: ECSpresso<ComponentTypes, EventTypes, ResourceTypes>, deltaTime: number) => void> = [];
 
@@ -71,7 +76,105 @@ export default class ECSpresso<
 		this._entityManager = new EntityManager<ComponentTypes>();
 		this._eventBus = new EventBus<EventTypes>();
 		this._resourceManager = new ResourceManager<ResourceTypes>();
+		this._reactiveQueryManager = new ReactiveQueryManager<ComponentTypes>(this._entityManager);
 		this._sortedSystems = []; // Initialize the sorted systems array
+
+		// Wire up component lifecycle hooks for reactive queries
+		this._setupReactiveQueryHooks();
+	}
+
+	/**
+	 * Sets up component lifecycle hooks for reactive query tracking
+	 * @private
+	 */
+	private _setupReactiveQueryHooks(): void {
+		// Batching mechanism: during addComponents, we defer reactive query checks
+		// until all components are added to avoid intermediate state triggers
+		let batchingDepth = 0;
+		const pendingChecks = new Set<number>();
+
+		const flushPendingChecks = () => {
+			for (const entityId of pendingChecks) {
+				const entity = this._entityManager.getEntity(entityId);
+				if (entity) {
+					// Do a full recheck of the entity against all queries
+					this._reactiveQueryManager.recheckEntity(entity);
+				}
+			}
+			pendingChecks.clear();
+		};
+
+		// Track added components for reactive queries
+		const originalAddComponent = this._entityManager.addComponent.bind(this._entityManager);
+		this._entityManager.addComponent = <K extends keyof ComponentTypes>(
+			entityOrId: number | Entity<ComponentTypes>,
+			componentName: K,
+			data: ComponentTypes[K]
+		) => {
+			const result = originalAddComponent(entityOrId, componentName, data);
+			const entityId = typeof entityOrId === 'number' ? entityOrId : entityOrId.id;
+
+			if (batchingDepth > 0) {
+				// During batching, just track that this entity needs checking
+				pendingChecks.add(entityId);
+			} else {
+				// Not batching, check immediately
+				const entity = this._entityManager.getEntity(entityId);
+				if (entity) {
+					this._reactiveQueryManager.onComponentAdded(entity, componentName);
+				}
+			}
+			return result;
+		};
+
+		// Wrap addComponents to enable batching
+		const originalAddComponents = this._entityManager.addComponents.bind(this._entityManager);
+		this._entityManager.addComponents = <T extends { [K in keyof ComponentTypes]?: ComponentTypes[K] }>(
+			entityOrId: number | Entity<ComponentTypes>,
+			components: T & Record<Exclude<keyof T, keyof ComponentTypes>, never>
+		) => {
+			batchingDepth++;
+			const result = originalAddComponents(entityOrId, components);
+			batchingDepth--;
+			if (batchingDepth === 0) {
+				flushPendingChecks();
+			}
+			return result;
+		};
+
+		// Track removed components for reactive queries
+		const originalRemoveComponent = this._entityManager.removeComponent.bind(this._entityManager);
+		this._entityManager.removeComponent = <K extends keyof ComponentTypes>(
+			entityOrId: number | Entity<ComponentTypes>,
+			componentName: K
+		) => {
+			const entityId = typeof entityOrId === 'number' ? entityOrId : entityOrId.id;
+			const entity = this._entityManager.getEntity(entityId);
+			const result = originalRemoveComponent(entityOrId, componentName);
+			if (entity) {
+				this._reactiveQueryManager.onComponentRemoved(entity, componentName);
+			}
+			return result;
+		};
+
+		// Track entity removal for reactive queries
+		const originalRemoveEntity = this._entityManager.removeEntity.bind(this._entityManager);
+		this._entityManager.removeEntity = (entityOrId, options?) => {
+			const entityId = typeof entityOrId === 'number' ? entityOrId : entityOrId.id;
+			// Notify reactive query manager about all entities being removed (including descendants)
+			const entity = this._entityManager.getEntity(entityId);
+			if (entity) {
+				const cascade = options?.cascade ?? true;
+				if (cascade) {
+					const descendants = this._entityManager.getDescendants(entityId);
+					for (const descId of descendants) {
+						this._reactiveQueryManager.onEntityRemoved(descId);
+					}
+				}
+				this._reactiveQueryManager.onEntityRemoved(entityId);
+			}
+			return originalRemoveEntity(entityOrId, options);
+		};
 	}
 
 	/**
@@ -121,6 +224,18 @@ export default class ECSpresso<
 		// Use the cached sorted systems array instead of re-sorting on every update
 		for (const system of this._sortedSystems) {
 			if (!system.process) continue;
+
+			// Group filtering - skip if any of the system's groups is disabled (check first for efficiency)
+			if (system.groups?.length) {
+				let anyDisabled = false;
+				for (const group of system.groups) {
+					if (this._disabledGroups.has(group)) {
+						anyDisabled = true;
+						break;
+					}
+				}
+				if (anyDisabled) continue;
+			}
 
 			// Screen filtering - skip if system is restricted to specific screens
 			if (system.inScreens?.length) {
@@ -265,6 +380,44 @@ export default class ECSpresso<
 		this._sortSystems();
 
 		return true;
+	}
+
+	// ==================== System Group Control ====================
+
+	/**
+	 * Disable a system group. Systems in this group will be skipped during update().
+	 * @param groupName The name of the group to disable
+	 */
+	disableSystemGroup(groupName: string): void {
+		this._disabledGroups.add(groupName);
+	}
+
+	/**
+	 * Enable a system group. Systems in this group will run during update().
+	 * @param groupName The name of the group to enable
+	 */
+	enableSystemGroup(groupName: string): void {
+		this._disabledGroups.delete(groupName);
+	}
+
+	/**
+	 * Check if a system group is enabled.
+	 * @param groupName The name of the group to check
+	 * @returns true if the group is enabled (or doesn't exist), false if disabled
+	 */
+	isSystemGroupEnabled(groupName: string): boolean {
+		return !this._disabledGroups.has(groupName);
+	}
+
+	/**
+	 * Get all system labels that belong to a specific group.
+	 * @param groupName The name of the group
+	 * @returns Array of system labels in the group
+	 */
+	getSystemsInGroup(groupName: string): string[] {
+		return this._systems
+			.filter(system => system.groups?.includes(groupName))
+			.map(system => system.label);
 	}
 
 	/**
@@ -584,6 +737,29 @@ export default class ECSpresso<
 	}
 
 	/**
+	 * Traverse the hierarchy in parent-first (breadth-first) order.
+	 * Parents are guaranteed to be visited before their children.
+	 * @param callback Function called for each entity with (entityId, parentId, depth)
+	 * @param options Optional traversal options (roots to filter to specific subtrees)
+	 */
+	forEachInHierarchy(
+		callback: (entityId: number, parentId: number | null, depth: number) => void,
+		options?: HierarchyIteratorOptions
+	): void {
+		this._entityManager.forEachInHierarchy(callback, options);
+	}
+
+	/**
+	 * Generator-based hierarchy traversal in parent-first (breadth-first) order.
+	 * Supports early termination via break.
+	 * @param options Optional traversal options (roots to filter to specific subtrees)
+	 * @yields HierarchyEntry for each entity in parent-first order
+	 */
+	hierarchyIterator(options?: HierarchyIteratorOptions): Generator<HierarchyEntry, void, unknown> {
+		return this._entityManager.hierarchyIterator(options);
+	}
+
+	/**
 	 * Emit a hierarchy changed event
 	 * @internal
 	 */
@@ -607,6 +783,60 @@ export default class ECSpresso<
 
 	get eventBus() {
 		return this._eventBus;
+	}
+
+	// ==================== Component Lifecycle Hooks ====================
+
+	/**
+	 * Register a callback when a specific component is added to any entity
+	 * @param componentName The component key
+	 * @param handler Function receiving the new component value and the entity
+	 * @returns Unsubscribe function to remove the callback
+	 */
+	onComponentAdded<K extends keyof ComponentTypes>(
+		componentName: K,
+		handler: (value: ComponentTypes[K], entity: Entity<ComponentTypes>) => void
+	): () => void {
+		return this._entityManager.onComponentAdded(componentName, handler);
+	}
+
+	/**
+	 * Register a callback when a specific component is removed from any entity
+	 * @param componentName The component key
+	 * @param handler Function receiving the old component value and the entity
+	 * @returns Unsubscribe function to remove the callback
+	 */
+	onComponentRemoved<K extends keyof ComponentTypes>(
+		componentName: K,
+		handler: (oldValue: ComponentTypes[K], entity: Entity<ComponentTypes>) => void
+	): () => void {
+		return this._entityManager.onComponentRemoved(componentName, handler);
+	}
+
+	// ==================== Reactive Queries ====================
+
+	/**
+	 * Add a reactive query that triggers callbacks when entities enter/exit the query match.
+	 * @param name Unique name for the query
+	 * @param definition Query definition with with/without arrays and onEnter/onExit callbacks
+	 */
+	addReactiveQuery<
+		WithComponents extends keyof ComponentTypes,
+		WithoutComponents extends keyof ComponentTypes = never
+	>(
+		name: string,
+		definition: ReactiveQueryDefinition<ComponentTypes, WithComponents, WithoutComponents>
+	): void {
+		this._reactiveQueryManager.addQuery(name, definition);
+	}
+
+	/**
+	 * Remove a reactive query by name.
+	 * @param name Name of the query to remove
+	 * @returns true if the query existed and was removed, false otherwise
+	 */
+	removeReactiveQuery(name: string): boolean {
+		return this._reactiveQueryManager.removeQuery(name);
 	}
 
 	// ==================== Event Convenience Methods ====================

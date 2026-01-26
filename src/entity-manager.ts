@@ -1,4 +1,4 @@
-import type { Entity, FilteredEntity, RemoveEntityOptions } from "./types";
+import type { Entity, FilteredEntity, RemoveEntityOptions, HierarchyEntry, HierarchyIteratorOptions } from "./types";
 import HierarchyManager from "./hierarchy-manager";
 
 export default
@@ -48,10 +48,10 @@ class EntityManager<ComponentTypes> {
 			this.componentIndices.set(componentName, new Set());
 		}
 		this.componentIndices.get(componentName)?.add(entity.id);
-		// Trigger added callbacks
+		// Trigger added callbacks (iterate over copy to allow mid-iteration unsubscribe)
 		const callbacks = this.addedCallbacks.get(componentName);
 		if (callbacks) {
-			for (const cb of callbacks) {
+			for (const cb of [...callbacks]) {
 				cb(data, entity);
 			}
 		}
@@ -106,10 +106,10 @@ class EntityManager<ComponentTypes> {
 
 		delete entity.components[componentName];
 
-		// Trigger removed callbacks
+		// Trigger removed callbacks (iterate over copy to allow mid-iteration unsubscribe)
 		const removeCbs = this.removedCallbacks.get(componentName);
 		if (removeCbs && oldValue !== undefined) {
-			for (const cb of removeCbs) {
+			for (const cb of [...removeCbs]) {
 				cb(oldValue, entity);
 			}
 		}
@@ -214,11 +214,11 @@ class EntityManager<ComponentTypes> {
 		for (const componentName of Object.keys(entity.components) as Array<keyof ComponentTypes>) {
 			const oldValue = entity.components[componentName];
 
-			// Trigger removed callbacks if the component exists
+			// Trigger removed callbacks if the component exists (iterate over copy to allow mid-iteration unsubscribe)
 			if (oldValue !== undefined) {
 				const removeCbs = this.removedCallbacks.get(componentName);
 				if (removeCbs) {
-					for (const cb of removeCbs) {
+					for (const cb of [...removeCbs]) {
 						cb(oldValue, entity);
 					}
 				}
@@ -240,32 +240,38 @@ class EntityManager<ComponentTypes> {
 	 * Register a callback when a specific component is added to any entity
 	 * @param componentName The component key
 	 * @param handler Function receiving the new component value and the entity
+	 * @returns Unsubscribe function to remove the callback
 	 */
 	onComponentAdded<ComponentName extends keyof ComponentTypes>(
 		componentName: ComponentName,
 		handler: (value: ComponentTypes[ComponentName], entity: Entity<ComponentTypes>) => void
-	): this {
+	): () => void {
 		if (!this.addedCallbacks.has(componentName)) {
 			this.addedCallbacks.set(componentName, new Set());
 		}
 		this.addedCallbacks.get(componentName)!.add(handler as any);
-		return this;
+		return () => {
+			this.addedCallbacks.get(componentName)?.delete(handler as any);
+		};
 	}
 
 	/**
 	 * Register a callback when a specific component is removed from any entity
 	 * @param componentName The component key
 	 * @param handler Function receiving the old component value and the entity
+	 * @returns Unsubscribe function to remove the callback
 	 */
 	onComponentRemoved<ComponentName extends keyof ComponentTypes>(
 		componentName: ComponentName,
 		handler: (oldValue: ComponentTypes[ComponentName], entity: Entity<ComponentTypes>) => void
-	): this {
+	): () => void {
 		if (!this.removedCallbacks.has(componentName)) {
 			this.removedCallbacks.set(componentName, new Set());
 		}
 		this.removedCallbacks.get(componentName)!.add(handler as any);
-		return this;
+		return () => {
+			this.removedCallbacks.get(componentName)?.delete(handler as any);
+		};
 	}
 
 	// ==================== Hierarchy Methods ====================
@@ -405,5 +411,28 @@ class EntityManager<ComponentTypes> {
 	 */
 	getRootEntities(): readonly number[] {
 		return this.hierarchyManager.getRootEntities();
+	}
+
+	/**
+	 * Traverse the hierarchy in parent-first (breadth-first) order.
+	 * Parents are guaranteed to be visited before their children.
+	 * @param callback Function called for each entity with (entityId, parentId, depth)
+	 * @param options Optional traversal options (roots to filter to specific subtrees)
+	 */
+	forEachInHierarchy(
+		callback: (entityId: number, parentId: number | null, depth: number) => void,
+		options?: HierarchyIteratorOptions
+	): void {
+		this.hierarchyManager.forEachInHierarchy(callback, options);
+	}
+
+	/**
+	 * Generator-based hierarchy traversal in parent-first (breadth-first) order.
+	 * Supports early termination via break.
+	 * @param options Optional traversal options (roots to filter to specific subtrees)
+	 * @yields HierarchyEntry for each entity in parent-first order
+	 */
+	hierarchyIterator(options?: HierarchyIteratorOptions): Generator<HierarchyEntry, void, unknown> {
+		return this.hierarchyManager.hierarchyIterator(options);
 	}
 }
