@@ -30,6 +30,7 @@ src/
 - **Bundles**: Group related systems/resources for reusability
 - **Assets**: Eager/lazy loaded resources with groups and progress tracking
 - **Screens**: Game state management with transitions and overlay stack
+- **Entity Hierarchy**: Parent-child relationships with traversal and cascade deletion
 
 ## Key Patterns
 
@@ -41,6 +42,9 @@ src/
 - **Screen Builder**: `ECSpresso.create().withScreens(s => s.add()).build()`
 - **Screen-Scoped Systems**: `.inScreens(['menu'])`, `.excludeScreens(['pause'])`
 - **Asset-Required Systems**: `.requiresAssets(['playerTexture'])`
+- **Entity Hierarchy**: `spawnChild(parentId, components)`, `getParent()`, `getChildren()`, `getAncestors()`, `getDescendants()`
+- **Cascade Deletion**: `removeEntity(id)` removes descendants by default; use `{ cascade: false }` to orphan children
+- **World Position Pattern**: `worldPos = localPos + parent.worldPos` (parent's world pos includes all grandparents)
 
 ## Commands
 
