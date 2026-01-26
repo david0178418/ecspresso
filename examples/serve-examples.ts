@@ -6,6 +6,7 @@ import events from './03-events/events.html';
 import bundles from './04-bundles/bundles.html';
 import spaceInvaders from './05-space-invaders/space-invaders.html';
 import turretShooter from './06-turret-shooter/turret-shooter.html';
+import hierarchy from './09-hierarchy/hierarchy.html';
 
 const server = serve({
 	port: 3000,
@@ -20,6 +21,7 @@ const server = serve({
 		'/bundles/': bundles,
 		'/space-invaders/': spaceInvaders,
 		'/turret-shooter/': turretShooter,
+		'/hierarchy/': hierarchy,
 	},
 });
 

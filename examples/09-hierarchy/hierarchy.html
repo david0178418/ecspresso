@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Entity Hierarchy - Solar System</title>
+	<link rel="stylesheet" href="../styles.css">
+	<script src="./hierarchy.ts" type="module" defer></script>
+	<style>
+		#hierarchy-panel {
+			position: fixed;
+			top: 10px;
+			left: 10px;
+			background: rgba(0, 0, 0, 0.8);
+			color: #fff;
+			padding: 15px;
+			border-radius: 8px;
+			font-family: monospace;
+			font-size: 14px;
+			max-width: 300px;
+			z-index: 100;
+		}
+		#hierarchy-panel h3 {
+			margin: 0 0 10px 0;
+			color: #FFD700;
+		}
+		#hierarchy-tree {
+			white-space: pre;
+			line-height: 1.4;
+		}
+		#info-panel {
+			position: fixed;
+			bottom: 10px;
+			left: 10px;
+			background: rgba(0, 0, 0, 0.8);
+			color: #fff;
+			padding: 15px;
+			border-radius: 8px;
+			font-family: sans-serif;
+			font-size: 14px;
+			z-index: 100;
+		}
+	</style>
+</head>
+<body>
+	<a class="back" href="/">Back</a>
+	<div id="hierarchy-panel">
+		<h3>Entity Hierarchy</h3>
+		<div id="hierarchy-tree"></div>
+	</div>
+	<div id="info-panel">
+		WASD/Arrow keys to scroll. Click any body to destroy it (and its children).
+	</div>
+</body>
+</html>
