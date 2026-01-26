@@ -22,6 +22,7 @@ interface TestEvents {
 	playerDamaged: { entityId: number; amount: number };
 	gameStarted: {};
 	gameEnded: { winner: string };
+	hierarchyChanged: { entityId: number; oldParent: number | null; newParent: number | null };
 }
 
 describe('ECSpresso', () => {
@@ -1314,6 +1315,191 @@ describe('ECSpresso', () => {
 
 			// Don't call update()
 			expect(hookCalled).toBe(false);
+		});
+	});
+
+	// Entity hierarchy tests
+	describe('Entity Hierarchy', () => {
+		test('should set and get parent via convenience methods', () => {
+			const world = new ECSpresso<TestComponents, TestEvents>();
+			const parent = world.spawn({ position: { x: 0, y: 0 } });
+			const child = world.spawn({ position: { x: 10, y: 10 } });
+
+			world.setParent(child.id, parent.id);
+
+			expect(world.getParent(child.id)).toBe(parent.id);
+		});
+
+		test('should get children via convenience method', () => {
+			const world = new ECSpresso<TestComponents, TestEvents>();
+			const parent = world.spawn({ position: { x: 0, y: 0 } });
+			const child1 = world.spawn({ position: { x: 10, y: 10 } });
+			const child2 = world.spawn({ position: { x: 20, y: 20 } });
+
+			world.setParent(child1.id, parent.id);
+			world.setParent(child2.id, parent.id);
+
+			expect(world.getChildren(parent.id)).toEqual([child1.id, child2.id]);
+		});
+
+		test('should remove parent via convenience method', () => {
+			const world = new ECSpresso<TestComponents, TestEvents>();
+			const parent = world.spawn({ position: { x: 0, y: 0 } });
+			const child = world.spawn({ position: { x: 10, y: 10 } });
+
+			world.setParent(child.id, parent.id);
+			world.removeParent(child.id);
+
+			expect(world.getParent(child.id)).toBeNull();
+		});
+
+		test('spawnChild should create entity with parent set', () => {
+			const world = new ECSpresso<TestComponents, TestEvents>();
+			const parent = world.spawn({ position: { x: 0, y: 0 } });
+
+			const child = world.spawnChild(parent.id, { position: { x: 10, y: 10 } });
+
+			expect(world.getParent(child.id)).toBe(parent.id);
+			expect(world.getChildren(parent.id)).toEqual([child.id]);
+			expect(child.components.position).toEqual({ x: 10, y: 10 });
+		});
+
+		test('removeEntity should cascade to descendants by default', () => {
+			const world = new ECSpresso<TestComponents, TestEvents>();
+			const parent = world.spawn({ position: { x: 0, y: 0 } });
+			const child = world.spawnChild(parent.id, { position: { x: 10, y: 10 } });
+			const grandchild = world.spawnChild(child.id, { position: { x: 20, y: 20 } });
+
+			world.removeEntity(parent.id);
+
+			expect(world.entityManager.getEntity(parent.id)).toBeUndefined();
+			expect(world.entityManager.getEntity(child.id)).toBeUndefined();
+			expect(world.entityManager.getEntity(grandchild.id)).toBeUndefined();
+		});
+
+		test('removeEntity with cascade:false should orphan children', () => {
+			const world = new ECSpresso<TestComponents, TestEvents>();
+			const parent = world.spawn({ position: { x: 0, y: 0 } });
+			const child = world.spawnChild(parent.id, { position: { x: 10, y: 10 } });
+
+			world.removeEntity(parent.id, { cascade: false });
+
+			expect(world.entityManager.getEntity(parent.id)).toBeUndefined();
+			expect(world.entityManager.getEntity(child.id)).toBeDefined();
+			expect(world.getParent(child.id)).toBeNull();
+		});
+
+		test('traversal methods should work via convenience methods', () => {
+			const world = new ECSpresso<TestComponents, TestEvents>();
+			const root = world.spawn({ position: { x: 0, y: 0 } });
+			const child1 = world.spawnChild(root.id, { position: { x: 10, y: 10 } });
+			const child2 = world.spawnChild(root.id, { position: { x: 20, y: 20 } });
+			const grandchild = world.spawnChild(child1.id, { position: { x: 30, y: 30 } });
+
+			expect(world.getAncestors(grandchild.id)).toEqual([child1.id, root.id]);
+			expect(world.getDescendants(root.id)).toEqual([child1.id, grandchild.id, child2.id]);
+			expect(world.getRoot(grandchild.id)).toBe(root.id);
+			expect(world.getSiblings(child1.id)).toEqual([child2.id]);
+			expect(world.isDescendantOf(grandchild.id, root.id)).toBe(true);
+			expect(world.isAncestorOf(root.id, grandchild.id)).toBe(true);
+			expect(world.getRootEntities()).toEqual([root.id]);
+			expect(world.getChildAt(root.id, 0)).toBe(child1.id);
+			expect(world.getChildIndex(root.id, child2.id)).toBe(1);
+		});
+
+		test('hierarchyChanged event should emit when parent is set', () => {
+			const world = new ECSpresso<TestComponents, TestEvents>();
+			const parent = world.spawn({ position: { x: 0, y: 0 } });
+			const child = world.spawn({ position: { x: 10, y: 10 } });
+
+			const events: TestEvents['hierarchyChanged'][] = [];
+			world.on('hierarchyChanged', (data) => {
+				events.push(data);
+			});
+
+			world.setParent(child.id, parent.id);
+
+			expect(events.length).toBe(1);
+			expect(events[0]).toEqual({
+				entityId: child.id,
+				oldParent: null,
+				newParent: parent.id,
+			});
+		});
+
+		test('hierarchyChanged event should emit when parent is removed', () => {
+			const world = new ECSpresso<TestComponents, TestEvents>();
+			const parent = world.spawn({ position: { x: 0, y: 0 } });
+			const child = world.spawn({ position: { x: 10, y: 10 } });
+
+			world.setParent(child.id, parent.id);
+
+			const events: TestEvents['hierarchyChanged'][] = [];
+			world.on('hierarchyChanged', (data) => {
+				events.push(data);
+			});
+
+			world.removeParent(child.id);
+
+			expect(events.length).toBe(1);
+			expect(events[0]).toEqual({
+				entityId: child.id,
+				oldParent: parent.id,
+				newParent: null,
+			});
+		});
+
+		test('hierarchyChanged event should emit when parent is changed', () => {
+			const world = new ECSpresso<TestComponents, TestEvents>();
+			const parent1 = world.spawn({ position: { x: 0, y: 0 } });
+			const parent2 = world.spawn({ position: { x: 50, y: 50 } });
+			const child = world.spawn({ position: { x: 10, y: 10 } });
+
+			world.setParent(child.id, parent1.id);
+
+			const events: TestEvents['hierarchyChanged'][] = [];
+			world.on('hierarchyChanged', (data) => {
+				events.push(data);
+			});
+
+			world.setParent(child.id, parent2.id);
+
+			expect(events.length).toBe(1);
+			expect(events[0]).toEqual({
+				entityId: child.id,
+				oldParent: parent1.id,
+				newParent: parent2.id,
+			});
+		});
+
+		test('spawn and spawnChild should infer component types from arguments', () => {
+			const world = new ECSpresso<TestComponents, TestEvents>();
+
+			// spawn should infer that position is present
+			const entity = world.spawn({ position: { x: 10, y: 20 } });
+			// TypeScript should know position exists (not optional)
+			const x: number = entity.components.position.x;
+			const y: number = entity.components.position.y;
+			expect(x).toBe(10);
+			expect(y).toBe(20);
+
+			// spawnChild should also infer component types
+			const child = world.spawnChild(entity.id, {
+				velocity: { x: 5, y: 10 },
+				health: { value: 100 }
+			});
+			// TypeScript should know velocity and health exist (not optional)
+			const vx: number = child.components.velocity.x;
+			const hp: number = child.components.health.value;
+			expect(vx).toBe(5);
+			expect(hp).toBe(100);
+
+			// Components not provided should still be optional
+			expect(child.components.position).toBeUndefined();
+
+			// Type-level verification: assigning optional component to non-optional should error
+			// @ts-expect-error - position was not provided, so it's optional and can't be assigned to non-optional
+			const _badAssign: { x: number; y: number } = child.components.position;
 		});
 	});
 });

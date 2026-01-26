@@ -6,6 +6,30 @@ interface Entity<ComponentTypes> {
 	components: Partial<ComponentTypes>;
 }
 
+/**
+ * Options for removing an entity
+ */
+export
+interface RemoveEntityOptions {
+	/**
+	 * Whether to also remove all descendants (default: true)
+	 */
+	cascade?: boolean;
+}
+
+/**
+ * Event data emitted when an entity's parent changes
+ */
+export
+interface HierarchyChangedEvent {
+	/** The entity whose parent changed */
+	entityId: number;
+	/** The previous parent, or null if entity had no parent */
+	oldParent: number | null;
+	/** The new parent, or null if entity was orphaned */
+	newParent: number | null;
+}
+
 export
 interface EventHandler<T> {
 	callback: (data: T) => void;

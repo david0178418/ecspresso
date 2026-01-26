@@ -9,6 +9,7 @@ interface TestComponents {
 	damage: { value: number };
 	lifetime: { remaining: number };
 	state: { current: string; previous: string };
+	name: { value: string };
 }
 
 
@@ -105,6 +106,124 @@ describe('Entity Manager', () => {
 			expect(callbackCount).toBe(1);
 			expect(callbackOldValue).toEqual({ current: 'start', previous: '' });
 			expect(callbackEntityId).toBe(entity.id);
+		});
+	});
+
+	describe('hierarchy', () => {
+		test('should set and get parent', () => {
+			const manager = new EntityManager<TestComponents>();
+			const parent = manager.createEntity();
+			const child = manager.createEntity();
+
+			manager.setParent(child.id, parent.id);
+
+			expect(manager.getParent(child.id)).toBe(parent.id);
+		});
+
+		test('should get children', () => {
+			const manager = new EntityManager<TestComponents>();
+			const parent = manager.createEntity();
+			const child1 = manager.createEntity();
+			const child2 = manager.createEntity();
+
+			manager.setParent(child1.id, parent.id);
+			manager.setParent(child2.id, parent.id);
+
+			expect(manager.getChildren(parent.id)).toEqual([child1.id, child2.id]);
+		});
+
+		test('should remove parent', () => {
+			const manager = new EntityManager<TestComponents>();
+			const parent = manager.createEntity();
+			const child = manager.createEntity();
+
+			manager.setParent(child.id, parent.id);
+			manager.removeParent(child.id);
+
+			expect(manager.getParent(child.id)).toBeNull();
+		});
+
+		test('spawnChild should create entity with parent', () => {
+			const manager = new EntityManager<TestComponents>();
+			const parent = manager.createEntity();
+			manager.addComponent(parent.id, 'position', { x: 0, y: 0 });
+
+			const child = manager.spawnChild(parent.id, { position: { x: 10, y: 10 } });
+
+			expect(manager.getParent(child.id)).toBe(parent.id);
+			expect(manager.getChildren(parent.id)).toEqual([child.id]);
+			expect(child.components.position).toEqual({ x: 10, y: 10 });
+		});
+
+		test('removeEntity should cascade to descendants by default', () => {
+			const manager = new EntityManager<TestComponents>();
+			const parent = manager.createEntity();
+			const child = manager.createEntity();
+			const grandchild = manager.createEntity();
+
+			manager.setParent(child.id, parent.id);
+			manager.setParent(grandchild.id, child.id);
+
+			manager.removeEntity(parent.id);
+
+			expect(manager.getEntity(parent.id)).toBeUndefined();
+			expect(manager.getEntity(child.id)).toBeUndefined();
+			expect(manager.getEntity(grandchild.id)).toBeUndefined();
+		});
+
+		test('removeEntity with cascade:false should orphan children', () => {
+			const manager = new EntityManager<TestComponents>();
+			const parent = manager.createEntity();
+			const child = manager.createEntity();
+
+			manager.setParent(child.id, parent.id);
+
+			manager.removeEntity(parent.id, { cascade: false });
+
+			expect(manager.getEntity(parent.id)).toBeUndefined();
+			expect(manager.getEntity(child.id)).toBeDefined();
+			expect(manager.getParent(child.id)).toBeNull();
+		});
+
+		test('removeEntity should fire component removal callbacks for cascaded entities', () => {
+			const manager = new EntityManager<TestComponents>();
+			const parent = manager.createEntity();
+			const child = manager.createEntity();
+
+			manager.addComponent(parent.id, 'name', { value: 'parent' });
+			manager.addComponent(child.id, 'name', { value: 'child' });
+			manager.setParent(child.id, parent.id);
+
+			const removedNames: string[] = [];
+			manager.onComponentRemoved('name', (value) => {
+				removedNames.push(value.value);
+			});
+
+			manager.removeEntity(parent.id);
+
+			expect(removedNames.sort()).toEqual(['child', 'parent']);
+		});
+
+		test('traversal methods should delegate to hierarchy manager', () => {
+			const manager = new EntityManager<TestComponents>();
+			const root = manager.createEntity();
+			const child1 = manager.createEntity();
+			const child2 = manager.createEntity();
+			const grandchild = manager.createEntity();
+
+			manager.setParent(child1.id, root.id);
+			manager.setParent(child2.id, root.id);
+			manager.setParent(grandchild.id, child1.id);
+
+			expect(manager.getAncestors(grandchild.id)).toEqual([child1.id, root.id]);
+			expect(manager.getDescendants(root.id)).toEqual([child1.id, grandchild.id, child2.id]);
+			expect(manager.getRoot(grandchild.id)).toBe(root.id);
+			expect(manager.getSiblings(child1.id)).toEqual([child2.id]);
+			expect(manager.isDescendantOf(grandchild.id, root.id)).toBe(true);
+			expect(manager.isAncestorOf(root.id, grandchild.id)).toBe(true);
+			expect(manager.getRootEntities()).toEqual([root.id]);
+			expect(manager.getChildAt(root.id, 0)).toBe(child1.id);
+			expect(manager.getChildIndex(root.id, child2.id)).toBe(1);
 		});
 	});
 });

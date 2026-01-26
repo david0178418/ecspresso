@@ -1,4 +1,5 @@
-import type { Entity, FilteredEntity } from "./types";
+import type { Entity, FilteredEntity, RemoveEntityOptions } from "./types";
+import HierarchyManager from "./hierarchy-manager";
 
 export default
 class EntityManager<ComponentTypes> {
@@ -13,6 +14,10 @@ class EntityManager<ComponentTypes> {
 	 * Callbacks registered for component removals
 	 */
 	private removedCallbacks: Map<keyof ComponentTypes, Set<(oldValue: any, entity: Entity<ComponentTypes>) => void>> = new Map();
+	/**
+	 * Hierarchy manager for parent-child relationships
+	 */
+	private hierarchyManager: HierarchyManager = new HierarchyManager();
 
 	createEntity(): Entity<ComponentTypes> {
 		const id = this.nextId++;
@@ -174,17 +179,41 @@ class EntityManager<ComponentTypes> {
 		return result;
 	}
 
-	removeEntity(entityOrId: number | Entity<ComponentTypes>): boolean {
+	removeEntity(entityOrId: number | Entity<ComponentTypes>, options?: RemoveEntityOptions): boolean {
 		const entity = typeof entityOrId === 'number' ?
 			this.entities.get(entityOrId) :
 			entityOrId;
 
 		if (!entity) return false;
 
+		const cascade = options?.cascade ?? true;
+
+		if (cascade) {
+			// Get all descendants first (depth-first order)
+			const descendants = this.hierarchyManager.getDescendants(entity.id);
+			// Remove descendants in reverse order (children before parents) for proper cleanup
+			for (const descendantId of [...descendants].reverse()) {
+				this.removeEntityInternal(descendantId);
+			}
+		}
+
+		return this.removeEntityInternal(entity.id);
+	}
+
+	/**
+	 * Internal method to remove a single entity without cascade logic
+	 */
+	private removeEntityInternal(entityId: number): boolean {
+		const entity = this.entities.get(entityId);
+		if (!entity) return false;
+
+		// Clean up hierarchy
+		this.hierarchyManager.removeEntity(entityId);
+
 		// Trigger removal callbacks for each component before removing the entity
 		for (const componentName of Object.keys(entity.components) as Array<keyof ComponentTypes>) {
 			const oldValue = entity.components[componentName];
-			
+
 			// Trigger removed callbacks if the component exists
 			if (oldValue !== undefined) {
 				const removeCbs = this.removedCallbacks.get(componentName);
@@ -237,5 +266,144 @@ class EntityManager<ComponentTypes> {
 		}
 		this.removedCallbacks.get(componentName)!.add(handler as any);
 		return this;
+	}
+
+	// ==================== Hierarchy Methods ====================
+
+	/**
+	 * Create an entity as a child of another entity with initial components
+	 * @param parentId The parent entity ID
+	 * @param components Initial components to add
+	 * @returns The created child entity
+	 */
+	spawnChild<T extends { [K in keyof ComponentTypes]?: ComponentTypes[K] }>(
+		parentId: number,
+		components: T & Record<Exclude<keyof T, keyof ComponentTypes>, never>
+	): FilteredEntity<ComponentTypes, keyof T & keyof ComponentTypes, never> {
+		const entity = this.createEntity();
+		this.addComponents(entity, components);
+		this.setParent(entity.id, parentId);
+		return entity as FilteredEntity<ComponentTypes, keyof T & keyof ComponentTypes, never>;
+	}
+
+	/**
+	 * Set the parent of an entity
+	 * @param childId The entity to set as a child
+	 * @param parentId The entity to set as the parent
+	 */
+	setParent(childId: number, parentId: number): this {
+		this.hierarchyManager.setParent(childId, parentId);
+		return this;
+	}
+
+	/**
+	 * Remove the parent relationship for an entity (orphan it)
+	 * @param childId The entity to orphan
+	 * @returns true if a parent was removed, false if entity had no parent
+	 */
+	removeParent(childId: number): boolean {
+		return this.hierarchyManager.removeParent(childId);
+	}
+
+	/**
+	 * Get the parent of an entity
+	 * @param entityId The entity to get the parent of
+	 * @returns The parent entity ID, or null if no parent
+	 */
+	getParent(entityId: number): number | null {
+		return this.hierarchyManager.getParent(entityId);
+	}
+
+	/**
+	 * Get all children of an entity in insertion order
+	 * @param parentId The parent entity
+	 * @returns Readonly array of child entity IDs
+	 */
+	getChildren(parentId: number): readonly number[] {
+		return this.hierarchyManager.getChildren(parentId);
+	}
+
+	/**
+	 * Get a child at a specific index
+	 * @param parentId The parent entity
+	 * @param index The index of the child
+	 * @returns The child entity ID, or null if index is out of bounds
+	 */
+	getChildAt(parentId: number, index: number): number | null {
+		return this.hierarchyManager.getChildAt(parentId, index);
+	}
+
+	/**
+	 * Get the index of a child within its parent's children list
+	 * @param parentId The parent entity
+	 * @param childId The child entity to find
+	 * @returns The index of the child, or -1 if not found
+	 */
+	getChildIndex(parentId: number, childId: number): number {
+		return this.hierarchyManager.getChildIndex(parentId, childId);
+	}
+
+	/**
+	 * Get all ancestors of an entity in order [parent, grandparent, ...]
+	 * @param entityId The entity to get ancestors of
+	 * @returns Readonly array of ancestor entity IDs
+	 */
+	getAncestors(entityId: number): readonly number[] {
+		return this.hierarchyManager.getAncestors(entityId);
+	}
+
+	/**
+	 * Get all descendants of an entity in depth-first order
+	 * @param entityId The entity to get descendants of
+	 * @returns Readonly array of descendant entity IDs
+	 */
+	getDescendants(entityId: number): readonly number[] {
+		return this.hierarchyManager.getDescendants(entityId);
+	}
+
+	/**
+	 * Get the root ancestor of an entity (topmost parent), or self if no parent
+	 * @param entityId The entity to get the root of
+	 * @returns The root entity ID
+	 */
+	getRoot(entityId: number): number {
+		return this.hierarchyManager.getRoot(entityId);
+	}
+
+	/**
+	 * Get siblings of an entity (other children of the same parent)
+	 * @param entityId The entity to get siblings of
+	 * @returns Readonly array of sibling entity IDs
+	 */
+	getSiblings(entityId: number): readonly number[] {
+		return this.hierarchyManager.getSiblings(entityId);
+	}
+
+	/**
+	 * Check if an entity is a descendant of another entity
+	 * @param entityId The potential descendant
+	 * @param ancestorId The potential ancestor
+	 * @returns true if entityId is a descendant of ancestorId
+	 */
+	isDescendantOf(entityId: number, ancestorId: number): boolean {
+		return this.hierarchyManager.isDescendantOf(entityId, ancestorId);
+	}
+
+	/**
+	 * Check if an entity is an ancestor of another entity
+	 * @param entityId The potential ancestor
+	 * @param descendantId The potential descendant
+	 * @returns true if entityId is an ancestor of descendantId
+	 */
+	isAncestorOf(entityId: number, descendantId: number): boolean {
+		return this.hierarchyManager.isAncestorOf(entityId, descendantId);
+	}
+
+	/**
+	 * Get all root entities (entities that have children but no parent)
+	 * @returns Readonly array of root entity IDs
+	 */
+	getRootEntities(): readonly number[] {
+		return this.hierarchyManager.getRootEntities();
 	}
 }

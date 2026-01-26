@@ -13,6 +13,7 @@ A type-safe, modular, and extensible Entity Component System (ECS) framework for
 - **Resource Management**: Global state management with lazy loading
 - **Asset Management**: Eager/lazy asset loading with groups and progress tracking
 - **Screen Management**: Game state/screen transitions with overlay support
+- **Entity Hierarchy**: Parent-child relationships with traversal and cascade deletion
 - **Query System**: Powerful entity filtering with helper type utilities
 
 ## Installation
@@ -378,6 +379,117 @@ world.onPostUpdate((ecs) => {
 
 // Unsubscribe when no longer needed
 unsubscribe();
+```
+
+### Entity Hierarchy
+
+Create parent-child relationships between entities for scene graphs, UI trees, or skeletal hierarchies:
+
+```typescript
+const world = new ECSpresso<Components>();
+
+// Create a parent entity
+const player = world.spawn({
+  position: { x: 0, y: 0 }
+});
+
+// Create a child entity using spawnChild
+const weapon = world.spawnChild(player.id, {
+  position: { x: 10, y: 0 }  // Relative to parent
+});
+
+// Or set parent on existing entity
+const shield = world.spawn({ position: { x: -10, y: 0 } });
+world.setParent(shield.id, player.id);
+
+// Query relationships
+world.getParent(weapon.id);           // player.id
+world.getChildren(player.id);         // [weapon.id, shield.id]
+
+// Orphan an entity (remove from parent)
+world.removeParent(shield.id);
+world.getParent(shield.id);           // null
+```
+
+#### Traversal Methods
+
+Navigate the hierarchy tree with traversal utilities:
+
+```typescript
+// Build a hierarchy: root -> child -> grandchild
+const root = world.spawn({ position: { x: 0, y: 0 } });
+const child = world.spawnChild(root.id, { position: { x: 10, y: 0 } });
+const grandchild = world.spawnChild(child.id, { position: { x: 20, y: 0 } });
+
+// Ancestors (from entity up to root)
+world.getAncestors(grandchild.id);    // [child.id, root.id]
+
+// Descendants (depth-first order)
+world.getDescendants(root.id);        // [child.id, grandchild.id]
+
+// Get root of any entity
+world.getRoot(grandchild.id);         // root.id
+
+// Siblings (other children of same parent)
+const child2 = world.spawnChild(root.id, { position: { x: -10, y: 0 } });
+world.getSiblings(child.id);          // [child2.id]
+
+// Relationship checks
+world.isDescendantOf(grandchild.id, root.id);  // true
+world.isAncestorOf(root.id, grandchild.id);    // true
+
+// All root entities (entities with children but no parent)
+world.getRootEntities();              // [root.id]
+
+// Child ordering
+world.getChildAt(root.id, 0);         // child.id
+world.getChildIndex(root.id, child2.id); // 1
+```
+
+#### Cascade Deletion
+
+When removing entities, descendants are automatically removed by default:
+
+```typescript
+const parent = world.spawn({ position: { x: 0, y: 0 } });
+const child = world.spawnChild(parent.id, { position: { x: 10, y: 0 } });
+const grandchild = world.spawnChild(child.id, { position: { x: 20, y: 0 } });
+
+// Remove parent - cascades to all descendants
+world.removeEntity(parent.id);
+world.entityManager.getEntity(child.id);      // undefined
+world.entityManager.getEntity(grandchild.id); // undefined
+
+// To orphan children instead of deleting them:
+world.removeEntity(parent.id, { cascade: false });
+// Children still exist but have no parent
+```
+
+#### Hierarchy Events
+
+React to hierarchy changes with the `hierarchyChanged` event:
+
+```typescript
+interface Events {
+  hierarchyChanged: {
+    entityId: number;
+    oldParent: number | null;
+    newParent: number | null;
+  };
+}
+
+const world = new ECSpresso<Components, Events>();
+
+world.on('hierarchyChanged', (data) => {
+  if (data.newParent !== null) {
+    console.log(`Entity ${data.entityId} attached to ${data.newParent}`);
+  } else {
+    console.log(`Entity ${data.entityId} detached from ${data.oldParent}`);
+  }
+});
+
+// Events fire on setParent, removeParent, and spawnChild
+world.setParent(child.id, parent.id);  // Emits hierarchyChanged
 ```
 
 ### Asset Management
