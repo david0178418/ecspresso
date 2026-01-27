@@ -15,7 +15,7 @@ async function initGame() {
 	// Create ECS instance with our types
 	const game = ECSpresso
 		.create<Components, Events, Resources>()
-		.withBundle(createTimerBundle())
+		.withBundle(createTimerBundle<Events>())
 		.withBundle(await createInitBundle())
 		.withBundle(createInputBundle())
 		.withBundle(createRenderBundle())

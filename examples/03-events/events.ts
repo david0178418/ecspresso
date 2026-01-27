@@ -13,15 +13,15 @@ import {
 	type TimerComponentTypes,
 } from "../../src/bundles/utils/timers";
 
-interface Components extends PixiComponentTypes, TimerComponentTypes {
+interface Events extends PixiEventTypes {}
+
+interface Components extends PixiComponentTypes, TimerComponentTypes<Events> {
 	player: true;
 	speed: number;
 	velocity: { x: number; y: number };
 	enemySpawner: true;
 	enemy: true;
 }
-
-interface Events extends PixiEventTypes {}
 
 interface Resources extends PixiResourceTypes {
 	controlMap: ActiveKeyMap;
@@ -40,7 +40,7 @@ const ecs = ECSpresso
 		init: { background: '#1099bb', resizeTo: window },
 		container: document.body,
 	}))
-	.withBundle(createTimerBundle())
+	.withBundle(createTimerBundle<Events>())
 	.withResource('controlMap', createActiveKeyMap)
 	.build();
 
@@ -84,7 +84,7 @@ ecs
 					x: randomInt(pixiApp.renderer.width),
 					y: randomInt(pixiApp.renderer.height),
 				}),
-				...createRepeatingTimer(randomInt(3, 8)),
+				...createRepeatingTimer<Events>(randomInt(3, 8)),
 				speed,
 				velocity: {
 					x: randomInt(-speed, speed),
@@ -169,7 +169,7 @@ ecs.spawn({
 
 // Spawn enemy spawner entity with a repeating 5-second timer
 ecs.spawn({
-	...createRepeatingTimer(5),
+	...createRepeatingTimer<Events>(5),
 	enemySpawner: true,
 });
 

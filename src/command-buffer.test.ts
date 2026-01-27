@@ -1,0 +1,522 @@
+import { describe, test, expect } from 'bun:test';
+import ECSpresso from './ecspresso';
+import CommandBuffer from './command-buffer';
+
+interface TestComponents {
+	position: { x: number; y: number };
+	velocity: { x: number; y: number };
+	health: { value: number };
+	tag: boolean;
+}
+
+interface TestEvents {
+	test: boolean;
+}
+
+interface TestResources {
+	counter: number;
+}
+
+describe('CommandBuffer', () => {
+	describe('Basic Operations', () => {
+		test('should queue commands without executing immediately', () => {
+			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>().build();
+			const buffer = new CommandBuffer<TestComponents, TestEvents, TestResources>();
+
+			const entity = ecs.spawn({ position: { x: 0, y: 0 } });
+
+			// Queue removal command
+			buffer.removeEntity(entity.id);
+
+			// Entity should still exist (command not executed)
+			expect(ecs.entityManager.getEntity(entity.id)).toBeDefined();
+		});
+
+		test('should execute commands in FIFO order on playback', () => {
+			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>().build();
+			const buffer = new CommandBuffer<TestComponents, TestEvents, TestResources>();
+
+
+			// Queue multiple commands
+			buffer.spawn({ position: { x: 1, y: 1 } });
+			buffer.spawn({ position: { x: 2, y: 2 } });
+			buffer.spawn({ position: { x: 3, y: 3 } });
+
+			// Playback and track order
+			buffer.playback(ecs);
+
+			const entities = ecs.getEntitiesWithQuery(['position']);
+			expect(entities.length).toBe(3);
+			expect(entities[0]?.components.position.x).toBe(1);
+			expect(entities[1]?.components.position.x).toBe(2);
+			expect(entities[2]?.components.position.x).toBe(3);
+		});
+
+		test('should clear all queued commands', () => {
+			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>().build();
+			const buffer = new CommandBuffer<TestComponents, TestEvents, TestResources>();
+
+			// Queue commands
+			buffer.spawn({ position: { x: 1, y: 1 } });
+			buffer.spawn({ position: { x: 2, y: 2 } });
+
+			// Clear before playback
+			buffer.clear();
+
+			// Playback should do nothing
+			buffer.playback(ecs);
+
+			const entities = ecs.getEntitiesWithQuery(['position']);
+			expect(entities.length).toBe(0);
+		});
+
+		test('should not re-execute commands after playback', () => {
+			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>().build();
+			const buffer = new CommandBuffer<TestComponents, TestEvents, TestResources>();
+
+			buffer.spawn({ position: { x: 1, y: 1 } });
+
+			// First playback
+			buffer.playback(ecs);
+			expect(ecs.getEntitiesWithQuery(['position']).length).toBe(1);
+
+			// Second playback should not add another entity
+			buffer.playback(ecs);
+			expect(ecs.getEntitiesWithQuery(['position']).length).toBe(1);
+		});
+	});
+
+	describe('removeEntity', () => {
+		test('should queue entity removal', () => {
+			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>().build();
+			const buffer = new CommandBuffer<TestComponents, TestEvents, TestResources>();
+
+			const entity = ecs.spawn({ position: { x: 0, y: 0 } });
+
+			buffer.removeEntity(entity.id);
+			expect(ecs.entityManager.getEntity(entity.id)).toBeDefined();
+
+			buffer.playback(ecs);
+			expect(ecs.entityManager.getEntity(entity.id)).toBeUndefined();
+		});
+
+		test('should remove multiple entities in order', () => {
+			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>().build();
+			const buffer = new CommandBuffer<TestComponents, TestEvents, TestResources>();
+
+			const e1 = ecs.spawn({ position: { x: 1, y: 1 } });
+			const e2 = ecs.spawn({ position: { x: 2, y: 2 } });
+			const e3 = ecs.spawn({ position: { x: 3, y: 3 } });
+
+			buffer.removeEntity(e1.id);
+			buffer.removeEntity(e3.id);
+
+			buffer.playback(ecs);
+
+			expect(ecs.entityManager.getEntity(e1.id)).toBeUndefined();
+			expect(ecs.entityManager.getEntity(e2.id)).toBeDefined();
+			expect(ecs.entityManager.getEntity(e3.id)).toBeUndefined();
+		});
+	});
+
+	describe('addComponent', () => {
+		test('should queue component addition', () => {
+			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>().build();
+			const buffer = new CommandBuffer<TestComponents, TestEvents, TestResources>();
+
+			const entity = ecs.spawn({ position: { x: 0, y: 0 } });
+
+			buffer.addComponent(entity.id, 'velocity', { x: 1, y: 1 });
+			expect(ecs.entityManager.getComponent(entity.id, 'velocity')).toBeNull();
+
+			buffer.playback(ecs);
+			expect(ecs.entityManager.getComponent(entity.id, 'velocity')).toEqual({ x: 1, y: 1 });
+		});
+
+		test('should add multiple components to same entity', () => {
+			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>().build();
+			const buffer = new CommandBuffer<TestComponents, TestEvents, TestResources>();
+
+			const entity = ecs.spawn({ position: { x: 0, y: 0 } });
+
+			buffer.addComponent(entity.id, 'velocity', { x: 1, y: 1 });
+			buffer.addComponent(entity.id, 'health', { value: 100 });
+
+			buffer.playback(ecs);
+
+			expect(ecs.entityManager.getComponent(entity.id, 'velocity')).toEqual({ x: 1, y: 1 });
+			expect(ecs.entityManager.getComponent(entity.id, 'health')).toEqual({ value: 100 });
+		});
+	});
+
+	describe('removeComponent', () => {
+		test('should queue component removal', () => {
+			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>().build();
+			const buffer = new CommandBuffer<TestComponents, TestEvents, TestResources>();
+
+			const entity = ecs.spawn({ position: { x: 0, y: 0 }, velocity: { x: 1, y: 1 } });
+
+			buffer.removeComponent(entity.id, 'velocity');
+			expect(ecs.entityManager.getComponent(entity.id, 'velocity')).toEqual({ x: 1, y: 1 });
+
+			buffer.playback(ecs);
+			expect(ecs.entityManager.getComponent(entity.id, 'velocity')).toBeNull();
+		});
+	});
+
+	describe('spawn', () => {
+		test('should queue entity spawn', () => {
+			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>().build();
+			const buffer = new CommandBuffer<TestComponents, TestEvents, TestResources>();
+
+			buffer.spawn({ position: { x: 10, y: 20 }, velocity: { x: 1, y: 1 } });
+
+			expect(ecs.getEntitiesWithQuery(['position']).length).toBe(0);
+
+			buffer.playback(ecs);
+
+			const entities = ecs.getEntitiesWithQuery(['position', 'velocity']);
+			expect(entities.length).toBe(1);
+			expect(entities[0]?.components.position).toEqual({ x: 10, y: 20 });
+		});
+
+		test('should spawn multiple entities', () => {
+			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>().build();
+			const buffer = new CommandBuffer<TestComponents, TestEvents, TestResources>();
+
+			buffer.spawn({ position: { x: 1, y: 1 } });
+			buffer.spawn({ position: { x: 2, y: 2 } });
+			buffer.spawn({ position: { x: 3, y: 3 } });
+
+			buffer.playback(ecs);
+
+			expect(ecs.getEntitiesWithQuery(['position']).length).toBe(3);
+		});
+	});
+
+	describe('spawnChild', () => {
+		test('should queue child entity spawn', () => {
+			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>().build();
+			const buffer = new CommandBuffer<TestComponents, TestEvents, TestResources>();
+
+			const parent = ecs.spawn({ position: { x: 0, y: 0 } });
+
+			buffer.spawnChild(parent.id, { position: { x: 5, y: 5 } });
+
+			expect(ecs.getChildren(parent.id).length).toBe(0);
+
+			buffer.playback(ecs);
+
+			const children = ecs.getChildren(parent.id);
+			expect(children.length).toBe(1);
+		});
+	});
+
+	describe('addComponents', () => {
+		test('should queue multiple component additions', () => {
+			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>().build();
+			const buffer = new CommandBuffer<TestComponents, TestEvents, TestResources>();
+
+			const entity = ecs.spawn({ position: { x: 0, y: 0 } });
+
+			buffer.addComponents(entity.id, {
+				velocity: { x: 1, y: 1 },
+				health: { value: 100 }
+			});
+
+			expect(ecs.entityManager.getComponent(entity.id, 'velocity')).toBeNull();
+			expect(ecs.entityManager.getComponent(entity.id, 'health')).toBeNull();
+
+			buffer.playback(ecs);
+
+			expect(ecs.entityManager.getComponent(entity.id, 'velocity')).toEqual({ x: 1, y: 1 });
+			expect(ecs.entityManager.getComponent(entity.id, 'health')).toEqual({ value: 100 });
+		});
+	});
+
+	describe('setParent', () => {
+		test('should queue parent assignment', () => {
+			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>().build();
+			const buffer = new CommandBuffer<TestComponents, TestEvents, TestResources>();
+
+			const parent = ecs.spawn({ position: { x: 0, y: 0 } });
+			const child = ecs.spawn({ position: { x: 5, y: 5 } });
+
+			buffer.setParent(child.id, parent.id);
+
+			expect(ecs.getParent(child.id)).toBe(null);
+
+			buffer.playback(ecs);
+
+			expect(ecs.getParent(child.id)).toBe(parent.id);
+		});
+	});
+
+	describe('removeParent', () => {
+		test('should queue parent removal', () => {
+			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>().build();
+			const buffer = new CommandBuffer<TestComponents, TestEvents, TestResources>();
+
+			const parent = ecs.spawn({ position: { x: 0, y: 0 } });
+			const child = ecs.spawnChild(parent.id, { position: { x: 5, y: 5 } });
+
+			buffer.removeParent(child.id);
+
+			expect(ecs.getParent(child.id)).toBe(parent.id);
+
+			buffer.playback(ecs);
+
+			expect(ecs.getParent(child.id)).toBe(null);
+		});
+	});
+
+	describe('Complex Scenarios', () => {
+		test('should handle mixed operations in correct order', () => {
+			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>().build();
+			const buffer = new CommandBuffer<TestComponents, TestEvents, TestResources>();
+
+			// Create initial entity
+			const e1 = ecs.spawn({ position: { x: 0, y: 0 } });
+
+			// Queue operations
+			buffer.spawn({ position: { x: 1, y: 1 } }); // Create new
+			buffer.addComponent(e1.id, 'velocity', { x: 2, y: 2 }); // Add to existing
+			buffer.spawn({ position: { x: 3, y: 3 } }); // Create another
+			buffer.removeComponent(e1.id, 'position'); // Remove from existing
+
+			buffer.playback(ecs);
+
+			// Verify results
+			expect(ecs.getEntitiesWithQuery(['position']).length).toBe(2); // e1 has no position now
+			expect(ecs.entityManager.getComponent(e1.id, 'velocity')).toEqual({ x: 2, y: 2 });
+			expect(ecs.entityManager.getComponent(e1.id, 'position')).toBeNull();
+		});
+
+		test('should handle entity creation and immediate removal', () => {
+			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>().build();
+			const buffer = new CommandBuffer<TestComponents, TestEvents, TestResources>();
+
+			const entity = ecs.spawn({ position: { x: 0, y: 0 } });
+
+			// Queue spawn and remove in same batch
+			buffer.removeEntity(entity.id);
+			buffer.spawn({ position: { x: 1, y: 1 } });
+
+			buffer.playback(ecs);
+
+			// Old entity should be gone, new one should exist
+			expect(ecs.entityManager.getEntity(entity.id)).toBeUndefined();
+			expect(ecs.getEntitiesWithQuery(['position']).length).toBe(1);
+		});
+
+		test('should handle operations on non-existent entities gracefully', () => {
+			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>().build();
+			const buffer = new CommandBuffer<TestComponents, TestEvents, TestResources>();
+
+			// Queue operations on non-existent entity
+			buffer.addComponent(999, 'position', { x: 0, y: 0 });
+			buffer.removeComponent(999, 'position');
+			buffer.removeEntity(999);
+
+			// Should not throw
+			expect(() => buffer.playback(ecs)).not.toThrow();
+		});
+	});
+
+	describe('Integration with ECSpresso', () => {
+		test('ECSpresso should have commands property', () => {
+			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>().build();
+
+			expect(ecs.commands).toBeDefined();
+			expect(typeof ecs.commands.removeEntity).toBe('function');
+			expect(typeof ecs.commands.spawn).toBe('function');
+		});
+
+		test('commands should execute automatically after update()', () => {
+			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>().build();
+
+			ecs.addSystem('test')
+				.setProcess((_queries, _deltaTime, ecs) => {
+					ecs.commands.spawn({ position: { x: 1, y: 1 } });
+				})
+				.build();
+
+			// Before update
+			expect(ecs.getEntitiesWithQuery(['position']).length).toBe(0);
+
+			// After update
+			ecs.update(0.016);
+
+			// Command should have been executed
+			expect(ecs.getEntitiesWithQuery(['position']).length).toBe(1);
+		});
+
+		test('queries should reflect post-playback state', () => {
+			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>().build();
+
+			const entity = ecs.spawn({ position: { x: 0, y: 0 }, tag: true });
+
+			let queriesSeenDuringSystem = 0;
+			let queriesSeenAfterUpdate = 0;
+
+			ecs.addSystem('test')
+				.addQuery('tagged', { with: ['tag'] })
+				.setProcess(({ tagged }, _deltaTime, ecs) => {
+					queriesSeenDuringSystem = tagged.length;
+
+					// Remove entity via commands
+					ecs.commands.removeEntity(entity.id);
+				})
+				.build();
+
+			ecs.update(0.016);
+
+			queriesSeenAfterUpdate = ecs.getEntitiesWithQuery(['tag']).length;
+
+			// During system, entity was still there
+			expect(queriesSeenDuringSystem).toBe(1);
+
+			// After update, entity should be gone
+			expect(queriesSeenAfterUpdate).toBe(0);
+		});
+
+		test('immediate methods should still work alongside commands', () => {
+			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>().build();
+
+			// Immediate spawn
+			const e1 = ecs.spawn({ position: { x: 0, y: 0 } });
+			expect(ecs.entityManager.getEntity(e1.id)).toBeDefined();
+
+			// Deferred spawn
+			ecs.commands.spawn({ position: { x: 1, y: 1 } });
+			expect(ecs.getEntitiesWithQuery(['position']).length).toBe(1); // Only e1
+
+			// After update, both exist
+			ecs.update(0.016);
+			expect(ecs.getEntitiesWithQuery(['position']).length).toBe(2);
+		});
+	});
+
+	describe('Integration with Timer Events', () => {
+		test('timer event handler can use command buffer to remove entities', () => {
+			const { createTimer } = require('./bundles/utils/timers');
+			const { createTimerBundle } = require('./bundles/utils/timers');
+
+			interface TimerTestEvents {
+				cleanup: { entityId: number };
+			}
+
+			const ecs = ECSpresso
+				.create<TestComponents, TimerTestEvents, TestResources>()
+				.withBundle(createTimerBundle())
+				.build();
+
+			const targetEntity = ecs.spawn({ position: { x: 0, y: 0 }, tag: true });
+
+			// Event handler uses commands to remove entity (closure captures ecs)
+			ecs.eventBus.subscribe('cleanup', (data) => {
+				ecs.commands.removeEntity(data.entityId);
+			});
+
+			// Create timer that passes the entity ID in the event
+			const timerEntity = ecs.spawn({
+				...createTimer(0.5, { onComplete: 'cleanup' }),
+				position: { x: 1, y: 1 },
+			});
+
+			// Need to use a system event handler to have access to the timer entity ID
+			// Or use a workaround with closure
+			// Let's simplify the test
+			let timerFiredEntityId: number | null = null;
+			ecs.eventBus.subscribe('cleanup', (data) => {
+				timerFiredEntityId = data.entityId;
+				ecs.commands.removeEntity(targetEntity.id);
+			});
+
+			// Entity should exist before update
+			expect(ecs.entityManager.getEntity(targetEntity.id)).toBeDefined();
+
+			// Update past timer
+			ecs.update(0.6);
+
+			// Timer should have fired
+			expect(timerFiredEntityId).not.toBeNull();
+			expect(timerFiredEntityId!).toBe(timerEntity.id);
+
+			// Entity should be removed after update (commands executed)
+			expect(ecs.entityManager.getEntity(targetEntity.id)).toBeUndefined();
+		});
+
+		test('multiple timers firing events that queue commands', () => {
+			const { createTimer } = require('./bundles/utils/timers');
+			const { createTimerBundle } = require('./bundles/utils/timers');
+
+			interface MultiTimerEvents {
+				spawnEntity: {};
+				modifyEntity: { id: number };
+			}
+
+			const ecs = ECSpresso
+				.create<TestComponents, MultiTimerEvents, TestResources>()
+				.withBundle(createTimerBundle())
+				.build();
+
+			// Event handler that spawns entity via commands (closure captures ecs)
+			ecs.eventBus.subscribe('spawnEntity', () => {
+				ecs.commands.spawn({ position: { x: 10, y: 10 }, health: { value: 100 } });
+			});
+
+			// Create timers
+			ecs.spawn({ ...createTimer(0.3, { onComplete: 'spawnEntity' }) });
+			ecs.spawn({ ...createTimer(0.5, { onComplete: 'spawnEntity' }) });
+
+			// Before update, no entities with health
+			expect(ecs.getEntitiesWithQuery(['health']).length).toBe(0);
+
+			// Update to fire both timers
+			ecs.update(0.6);
+
+			// After update, 2 entities should have been spawned
+			expect(ecs.getEntitiesWithQuery(['health']).length).toBe(2);
+		});
+
+		test('commands queued in timer event execute in same frame', () => {
+			const { createTimer } = require('./bundles/utils/timers');
+			const { createTimerBundle } = require('./bundles/utils/timers');
+
+			interface Events {
+				removeAll: {};
+			}
+
+			const ecs = ECSpresso
+				.create<TestComponents, Events, TestResources>()
+				.withBundle(createTimerBundle())
+				.build();
+
+			// Create several entities
+			ecs.spawn({ position: { x: 1, y: 1 }, tag: true });
+			ecs.spawn({ position: { x: 2, y: 2 }, tag: true });
+			ecs.spawn({ position: { x: 3, y: 3 }, tag: true });
+
+			// Event handler queues removal of all tagged entities (closure captures ecs)
+			ecs.eventBus.subscribe('removeAll', () => {
+				const tagged = ecs.getEntitiesWithQuery(['tag']);
+				for (const entity of tagged) {
+					ecs.commands.removeEntity(entity.id);
+				}
+			});
+
+			// Timer that fires the event
+			ecs.spawn({ ...createTimer(1.0, { onComplete: 'removeAll' }) });
+
+			// All entities exist before update
+			expect(ecs.getEntitiesWithQuery(['tag']).length).toBe(3);
+
+			// Update past timer
+			ecs.update(1.1);
+
+			// All tagged entities should be removed after update
+			expect(ecs.getEntitiesWithQuery(['tag']).length).toBe(0);
+		});
+	});
+});

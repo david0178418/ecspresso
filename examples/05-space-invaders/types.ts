@@ -3,9 +3,57 @@ import type { Application } from 'pixi.js';
 import type { TimerComponentTypes } from '../../src/bundles/utils/timers';
 
 /**
+ * All event types used in the Space Invaders game
+ */
+export interface Events {
+	// Game state events
+	gameInit: true;
+	gameStart: true;
+	gamePause: true;
+	gameResume: true;
+	gameOver: {
+		win: boolean;
+		score: number;
+	};
+	levelComplete: {
+		level: number;
+	};
+
+	// Input events
+	inputUpdate: {
+		key: string;
+		pressed: boolean;
+	};
+
+	// Gameplay events
+	playerShoot: {};
+	playerDeath: {};
+	enemyShoot: {
+		enemyId: number;
+	};
+	enemyMove: {
+		direction: 'left' | 'right' | 'down';
+	};
+	entityDestroyed: {
+		entityId: number;
+		wasEnemy?: boolean;
+		points?: number;
+	};
+	playerRespawn: {};
+
+	// UI events
+	updateScore: {
+		points: number;
+	};
+	updateLives: {
+		lives: number;
+	};
+}
+
+/**
  * All component types used in the Space Invaders game
  */
-export interface Components extends TimerComponentTypes {
+export interface Components extends TimerComponentTypes<Events> {
 	// Timer tags
 	levelTransitionTimer: true;
 	respawnTimer: true;
@@ -55,54 +103,6 @@ export interface Components extends TimerComponentTypes {
 	powerup: {
 		type: 'rapidFire' | 'shield' | 'extraLife';
 		duration?: number;
-	};
-}
-
-/**
- * All event types used in the Space Invaders game
- */
-export interface Events {
-	// Game state events
-	gameInit: true;
-	gameStart: true;
-	gamePause: true;
-	gameResume: true;
-	gameOver: {
-		win: boolean;
-		score: number;
-	};
-	levelComplete: {
-		level: number;
-	};
-
-	// Input events
-	inputUpdate: {
-		key: string;
-		pressed: boolean;
-	};
-
-	// Gameplay events
-	playerShoot: {};
-	playerDeath: {};
-	enemyShoot: {
-		enemyId: number;
-	};
-	enemyMove: {
-		direction: 'left' | 'right' | 'down';
-	};
-	entityDestroyed: {
-		entityId: number;
-		wasEnemy?: boolean;
-		points?: number;
-	};
-	playerRespawn: {};
-
-	// UI events
-	updateScore: {
-		points: number;
-	};
-	updateLives: {
-		lives: number;
 	};
 }
 

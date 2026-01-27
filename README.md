@@ -18,6 +18,8 @@ A type-safe, modular, and extensible Entity Component System (ECS) framework for
 - **Reactive Queries**: Enter/exit callbacks when entities match or unmatch queries
 - **System Groups**: Enable/disable groups of systems at runtime
 - **Component Lifecycle**: Callbacks for component add/remove with unsubscribe support
+- **Command Buffer**: Deferred structural changes for safe entity/component operations during systems
+- **Timer Bundle**: ECS-native timers with event-based completion notifications
 
 ## Installation
 
@@ -966,6 +968,178 @@ const removed = world.removeReactiveQuery('enemies'); // returns true if existed
 ```
 
 **Note:** Component replacement (calling `addComponent` with a component that already exists) does NOT trigger enter/exit callbacks since the entity's query match status doesn't change.
+
+## Command Buffer
+
+The command buffer allows you to queue structural changes (entity creation, removal, component changes) that execute at the end of the update cycle. This prevents issues when modifying entities during system iteration.
+
+```typescript
+// Queue commands during system execution
+world.addSystem('combat')
+  .addQuery('enemies', { with: ['enemy', 'health'] })
+  .setProcess((queries, dt, ecs) => {
+    for (const entity of queries.enemies) {
+      if (entity.components.health.value <= 0) {
+        // Queue removal - doesn't execute immediately
+        ecs.commands.removeEntity(entity.id);
+
+        // Queue spawning an explosion
+        ecs.commands.spawn({
+          position: entity.components.position,
+          explosion: true,
+        });
+      }
+    }
+    // Commands execute automatically at end of update()
+  })
+  .build();
+```
+
+### Available Commands
+
+```typescript
+// Entity operations
+ecs.commands.spawn({ position: { x: 0, y: 0 } });
+ecs.commands.spawnChild(parentId, { position: { x: 10, y: 0 } });
+ecs.commands.removeEntity(entityId);
+ecs.commands.removeEntity(entityId, { cascade: false }); // Orphan children
+
+// Component operations
+ecs.commands.addComponent(entityId, 'velocity', { x: 5, y: 0 });
+ecs.commands.addComponents(entityId, { velocity: { x: 5, y: 0 }, health: { value: 100 } });
+ecs.commands.removeComponent(entityId, 'velocity');
+
+// Hierarchy operations
+ecs.commands.setParent(childId, parentId);
+ecs.commands.removeParent(childId);
+
+// Utility
+ecs.commands.length;  // Number of queued commands
+ecs.commands.clear(); // Discard all queued commands
+```
+
+Commands execute in FIFO order. If a command fails (e.g., entity doesn't exist), it logs a warning and continues with remaining commands.
+
+## Timer Bundle
+
+The timer bundle provides ECS-native timers that follow the "data, not callbacks" philosophy. Timers are components processed each frame, with optional event-based completion notifications.
+
+```typescript
+import {
+  createTimerBundle,
+  createTimer,
+  createRepeatingTimer,
+  type TimerComponentTypes,
+  type TimerEventData
+} from 'ecspresso/bundles/utils/timers';
+
+// Define events that use TimerEventData payload
+interface Events {
+  hideMessage: TimerEventData;
+  spawnWave: TimerEventData;
+}
+
+// Extend components with timer support
+interface Components extends TimerComponentTypes<Events> {
+  position: { x: number; y: number };
+  messageDisplay: true;
+  spawner: true;
+}
+
+// Create world with timer bundle
+const world = ECSpresso
+  .create<Components, Events, Resources>()
+  .withBundle(createTimerBundle<Events>())
+  .build();
+
+// One-shot timer without event (poll justFinished)
+world.spawn({
+  ...createTimer<Events>(2.0),
+  messageDisplay: true,
+});
+
+// One-shot timer with completion event
+world.spawn({
+  ...createTimer<Events>(1.5, { onComplete: 'hideMessage' }),
+  messageDisplay: true,
+});
+
+// Repeating timer with event
+world.spawn({
+  ...createRepeatingTimer<Events>(5.0, { onComplete: 'spawnWave' }),
+  spawner: true,
+});
+
+// Subscribe to timer events
+world.on('hideMessage', (data) => {
+  console.log(`Timer on entity ${data.entityId} completed after ${data.elapsed}s`);
+});
+```
+
+### Timer Event Data
+
+Events used with timer `onComplete` must have `TimerEventData` as their payload type:
+
+```typescript
+interface TimerEventData {
+  entityId: number;  // Entity the timer belongs to
+  duration: number;  // Timer's configured duration
+  elapsed: number;   // Actual elapsed time (may exceed duration slightly)
+}
+```
+
+### Polling vs Events
+
+You can use timers in two ways:
+
+```typescript
+// 1. Polling with justFinished flag
+world.addSystem('timerPolling')
+  .addQuery('timers', { with: ['timer', 'messageDisplay'] })
+  .setProcess((queries) => {
+    for (const entity of queries.timers) {
+      if (entity.components.timer.justFinished) {
+        // Timer just completed this frame
+        hideMessage(entity.id);
+      }
+    }
+  })
+  .build();
+
+// 2. Event-based (decoupled)
+world.addSystem('timerEvents')
+  .setEventHandlers({
+    hideMessage: {
+      handler: (data, ecs) => {
+        // React to timer completion
+        ecs.commands.removeEntity(data.entityId);
+      }
+    }
+  })
+  .build();
+```
+
+### Timer Properties
+
+```typescript
+interface Timer {
+  elapsed: number;      // Time accumulated (seconds)
+  duration: number;     // Target duration (seconds)
+  repeat: boolean;      // Whether timer repeats
+  active: boolean;      // Whether timer is running
+  justFinished: boolean; // True for one frame after completion
+  onComplete?: string;  // Event name to publish (optional)
+}
+
+// Control timer at runtime
+const entity = world.spawn({ ...createTimer<Events>(5.0), myTimer: true });
+const timer = entity.components.timer;
+
+timer.active = false;  // Pause
+timer.active = true;   // Resume
+timer.elapsed = 0;     // Reset
+timer.duration = 10;   // Change duration
+```
 
 ## Error Handling
 

@@ -141,7 +141,7 @@ export default function createUIBundle() {
 
 					// Spawn timer to hide message after delay
 					ecs.spawn({
-						...createTimer(1.5),
+						...createTimer<Events>(1.5),
 						messageHideTimer: true as const,
 					});
 				}

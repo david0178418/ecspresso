@@ -26,7 +26,7 @@ const game = ECSpresso
 	.withResource('score', {
 		value: 0
 	})
-	.withBundle(createTimerBundle())
+	.withBundle(createTimerBundle<Events>())
 	.withBundle(await createInitBundle())
 	.withBundle(createInputBundle())
 	.withBundle(await createRenderBundle())

@@ -114,7 +114,7 @@ export default function createCollisionBundle(): Bundle<Components, Events, Reso
 					} else {
 						// Spawn respawn timer entity
 						ecs.spawn({
-							...createTimer(1.0),
+							...createTimer<Events>(1.0),
 							respawnTimer: true as const,
 						});
 					}

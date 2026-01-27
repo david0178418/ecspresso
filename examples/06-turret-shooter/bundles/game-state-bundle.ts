@@ -38,7 +38,7 @@ export default function createGameStateBundle() {
 					// Spawn enemy spawner entity with repeating timer
 					const spawnInterval = 1 / config.enemySpawnRate;
 					ecs.spawn({
-						...createRepeatingTimer(spawnInterval),
+						...createRepeatingTimer<Events>(spawnInterval),
 						enemySpawner: true as const,
 					});
 
@@ -49,7 +49,7 @@ export default function createGameStateBundle() {
 						uiElements.messageElement.style.opacity = '1';
 						uiElements.messageElement.style.top = '25%';
 						ecs.spawn({
-							...createTimer(2),
+							...createTimer<Events>(2),
 							messageTimer: true as const,
 						});
 					}
@@ -185,7 +185,7 @@ export default function createGameStateBundle() {
 						uiElements.messageElement.style.opacity = '1';
 						uiElements.messageElement.style.top = '25%';
 						ecs.spawn({
-							...createTimer(2),
+							...createTimer<Events>(2),
 							messageTimer: true as const,
 						});
 					}
@@ -245,7 +245,7 @@ export default function createGameStateBundle() {
 						// Add timer for pending destruction if not already pending
 						// (enemies reaching player already have pendingDestroy from ai-bundle)
 						if (!entity.components.pendingDestroy) {
-							ecs.entityManager.addComponent(data.entityId, 'timer', createTimer(0.2).timer);
+							ecs.entityManager.addComponent(data.entityId, 'timer', createTimer<Events>(0.2).timer);
 							ecs.entityManager.addComponent(data.entityId, 'pendingDestroy', true as const);
 						}
 

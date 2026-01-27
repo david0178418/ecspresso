@@ -8,9 +8,75 @@ import {
 import type { TimerComponentTypes } from '../../src/bundles/utils/timers';
 
 /**
+ * All event types used in the 3D Turret Shooter game
+ */
+export interface Events {
+	// Game state events
+	gameInit: true;
+	gameStart: true;
+	gamePause: true;
+	gameResume: true;
+	gameOver: {
+		win: boolean;
+		score: number;
+	};
+	waveComplete: {
+		wave: number;
+	};
+
+	// Input events
+	inputMouseMove: {
+		x: number;
+		y: number;
+	};
+	inputMouseDown: {
+		button: number;
+	};
+	inputMouseUp: {
+		button: number;
+	};
+	inputKeyDown: {
+		key: string;
+	};
+	inputKeyUp: {
+		key: string;
+	};
+
+	// Gameplay events
+	playerShoot: {
+		direction: Vector3;
+	};
+	playerHit: {
+		damage: number;
+	};
+	enemySpawn: {
+		type: 'ground' | 'air';
+		position: Vector3;
+	};
+	enemyDestroyed: {
+		entityId: number;
+		points: number;
+	};
+	entityDestroyed: {
+		entityId: number;
+	};
+
+	// UI events
+	updateScore: {
+		points: number;
+	};
+	updateHealth: {
+		health: number;
+	};
+	updateWave: {
+		wave: number;
+	};
+}
+
+/**
  * All component types used in the 3D Turret Shooter game
  */
-export interface Components extends TimerComponentTypes {
+export interface Components extends TimerComponentTypes<Events> {
 	// Timer tags
 	enemySpawner: true;
 	pendingDestroy: true;
@@ -76,72 +142,6 @@ export interface Components extends TimerComponentTypes {
 		type: 'ground' | 'air';
 		distance: number;
 		angle: number;
-	};
-}
-
-/**
- * All event types used in the 3D Turret Shooter game
- */
-export interface Events {
-	// Game state events
-	gameInit: true;
-	gameStart: true;
-	gamePause: true;
-	gameResume: true;
-	gameOver: {
-		win: boolean;
-		score: number;
-	};
-	waveComplete: {
-		wave: number;
-	};
-
-	// Input events
-	inputMouseMove: {
-		x: number;
-		y: number;
-	};
-	inputMouseDown: {
-		button: number;
-	};
-	inputMouseUp: {
-		button: number;
-	};
-	inputKeyDown: {
-		key: string;
-	};
-	inputKeyUp: {
-		key: string;
-	};
-
-	// Gameplay events
-	playerShoot: {
-		direction: Vector3;
-	};
-	playerHit: {
-		damage: number;
-	};
-	enemySpawn: {
-		type: 'ground' | 'air';
-		position: Vector3;
-	};
-	enemyDestroyed: {
-		entityId: number;
-		points: number;
-	};
-	entityDestroyed: {
-		entityId: number;
-	};
-
-	// UI events
-	updateScore: {
-		points: number;
-	};
-	updateHealth: {
-		health: number;
-	};
-	updateWave: {
-		wave: number;
 	};
 }
 

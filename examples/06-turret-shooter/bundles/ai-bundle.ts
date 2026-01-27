@@ -58,7 +58,7 @@ export default function createAIBundle() {
 						});
 
 						// Add timer for pending destruction (visual effect delay)
-						ecs.entityManager.addComponent(enemy.id, 'timer', createTimer(0.5).timer);
+						ecs.entityManager.addComponent(enemy.id, 'timer', createTimer<Events>(0.5).timer);
 						ecs.entityManager.addComponent(enemy.id, 'pendingDestroy', true as const);
 					}
 				} else {

@@ -96,9 +96,9 @@ export default function createGameLogicBundle() {
 						ecs.eventBus.publish('updateScore', { points: score.value });
 
 						// Check if all enemies are destroyed
-						// The render bundle removes entities before this handler runs (due to bundle order)
+						// With command buffer, entity removal is deferred, so check if this is the last enemy
 						const enemies = ecs.getEntitiesWithQuery(['enemy']);
-						if (enemies.length === 0) {
+						if (enemies.length === 1) {
 							const gameState = ecs.getResource('gameState');
 							if (gameState.status === 'playing') {
 								ecs.eventBus.publish('levelComplete', { level: gameState.level });
@@ -118,7 +118,7 @@ export default function createGameLogicBundle() {
 
 					// Spawn timer entity for level transition delay
 					ecs.spawn({
-						...createTimer(1.5),
+						...createTimer<Events>(1.5),
 						levelTransitionTimer: true as const,
 					});
 				}
@@ -136,8 +136,8 @@ export default function createGameLogicBundle() {
 
 			for (const entity of transitionTimers) {
 				if (entity.components.timer.justFinished) {
-					// Remove the timer entity
-					ecs.removeEntity(entity.id);
+					// Remove the timer entity using command buffer
+					ecs.commands.removeEntity(entity.id);
 
 					// Spawn new enemy formation if game is still playing
 					if (gameState.status === 'playing') {
@@ -177,8 +177,8 @@ export default function createGameLogicBundle() {
 						}
 					}
 
-					// Remove the timer entity
-					ecs.removeEntity(entity.id);
+					// Remove the timer entity using command buffer
+					ecs.commands.removeEntity(entity.id);
 
 					// Change horizontal direction based on which edge was hit
 					movementState.isMovingDown = false;
@@ -255,7 +255,7 @@ export default function createGameLogicBundle() {
 
 					// Spawn descent timer (500ms)
 					ecs.spawn({
-						...createTimer(0.5),
+						...createTimer<Events>(0.5),
 						descentTimer: true as const,
 					});
 				}

@@ -4,6 +4,7 @@ import ResourceManager from "./resource-manager";
 import AssetManager, { AssetConfiguratorImpl, createAssetConfigurator } from "./asset-manager";
 import ScreenManager, { ScreenConfiguratorImpl, createScreenConfigurator } from "./screen-manager";
 import ReactiveQueryManager, { type ReactiveQueryDefinition } from "./reactive-query-manager";
+import CommandBuffer from "./command-buffer";
 import type { System, FilteredEntity, Entity, RemoveEntityOptions, HierarchyEntry, HierarchyIteratorOptions } from "./types";
 import type Bundle from "./bundle";
 import { createEcspressoSystemBuilder } from "./system-builder";
@@ -51,6 +52,8 @@ export default class ECSpresso<
 	private _eventBus: EventBus<EventTypes>;
 	/** Access/modify registered resources*/
 	private _resourceManager: ResourceManager<ResourceTypes>;
+	/** Command buffer for deferred structural changes */
+	private _commandBuffer: CommandBuffer<ComponentTypes, EventTypes, ResourceTypes>;
 
 	/** Registered systems that will be updated in order*/
 	private _systems: Array<System<ComponentTypes, any, any, EventTypes, ResourceTypes, AssetTypes, ScreenStates>> = [];
@@ -77,6 +80,7 @@ export default class ECSpresso<
 		this._eventBus = new EventBus<EventTypes>();
 		this._resourceManager = new ResourceManager<ResourceTypes>();
 		this._reactiveQueryManager = new ReactiveQueryManager<ComponentTypes>(this._entityManager);
+		this._commandBuffer = new CommandBuffer<ComponentTypes, EventTypes, ResourceTypes>();
 		this._sortedSystems = []; // Initialize the sorted systems array
 
 		// Wire up component lifecycle hooks for reactive queries
@@ -299,6 +303,9 @@ export default class ECSpresso<
 		for (const hook of this._postUpdateHooks) {
 			hook(this as unknown as ECSpresso<ComponentTypes, EventTypes, ResourceTypes>, deltaTime);
 		}
+
+		// Execute queued commands (automatic playback)
+		this._commandBuffer.playback(this);
 	}
 
 	/**
@@ -808,6 +815,21 @@ export default class ECSpresso<
 
 	get eventBus() {
 		return this._eventBus;
+	}
+
+	/**
+	 * Command buffer for queuing deferred structural changes.
+	 * Commands are executed automatically at the end of each update() cycle.
+	 *
+	 * @example
+	 * ```typescript
+	 * // In a system or event handler
+	 * ecs.commands.removeEntity(entityId);
+	 * ecs.commands.spawn({ position: { x: 0, y: 0 } });
+	 * ```
+	 */
+	get commands() {
+		return this._commandBuffer;
 	}
 
 	// ==================== Component Lifecycle Hooks ====================

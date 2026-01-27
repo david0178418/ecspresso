@@ -109,7 +109,7 @@ export default function createRenderBundle() {
 			},
 			entityDestroyed: {
 				handler(data, ecs) {
-					ecs.removeEntity(data.entityId);
+					ecs.commands.removeEntity(data.entityId);
 				}
 			},
 

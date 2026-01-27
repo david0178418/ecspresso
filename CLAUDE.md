@@ -13,6 +13,7 @@ src/
 ├── bundle.ts          # Grouping systems/resources for modularity
 ├── event-bus.ts       # Pub/sub event system
 ├── resource-manager.ts # Global state, factory detection, lazy init
+├── command-buffer.ts  # Deferred structural changes (spawn, remove, etc.)
 ├── asset-manager.ts   # Asset loading, groups, progress tracking
 ├── asset-types.ts     # Asset type definitions
 ├── screen-manager.ts  # Screen/state transitions, overlay stack
@@ -20,7 +21,10 @@ src/
 ├── reactive-query-manager.ts # Reactive queries with enter/exit callbacks
 ├── types.ts           # Core type definitions
 ├── type-utils.ts      # Bundle compatibility type utilities
-└── index.ts           # Public API exports
+├── index.ts           # Public API exports
+└── bundles/
+    └── utils/
+        └── timers.ts  # Timer bundle with event-based completion
 ```
 
 ## Core Concepts
@@ -30,9 +34,11 @@ src/
 - **Resources**: Global singleton state accessible to systems
 - **Events**: Decoupled pub/sub for inter-system communication
 - **Bundles**: Group related systems/resources for reusability
+- **Command Buffer**: Deferred structural changes executed at end of update cycle
 - **Assets**: Eager/lazy loaded resources with groups and progress tracking
 - **Screens**: Game state management with transitions and overlay stack
 - **Entity Hierarchy**: Parent-child relationships with traversal and cascade deletion
+- **Timer Bundle**: ECS-native timers with optional event-based completion
 
 ## Key Patterns
 
@@ -54,6 +60,9 @@ src/
 - **Resource Dependencies**: `addResource('cache', { dependsOn: ['db'], factory: (ecs) => ... })`
 - **Resource Builder**: `ECSpresso.create().withResource('key', value).build()` for fluent resource addition
 - **Resource Disposal**: `onDispose` callback for cleanup, `disposeResource()`, `disposeResources()` for proper teardown
+- **Command Buffer**: `ecs.commands.removeEntity(id)`, `ecs.commands.spawn({...})` for deferred execution
+- **Timer Bundle**: `createTimerBundle<Events>()`, `createTimer<Events>(duration, { onComplete: 'eventName' })`
+- **Timer Event Data**: Events used with timer `onComplete` must have `TimerEventData` payload type
 
 ## Commands
 
