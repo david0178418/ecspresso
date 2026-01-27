@@ -382,6 +382,66 @@ await world.initializeResources();
 - Circular dependencies throw a descriptive error at initialization time
 - Existing patterns (direct values, simple factories) work unchanged
 
+### Resource Builder
+
+Add resources fluently during ECSpresso construction using `withResource()`:
+
+```typescript
+const world = ECSpresso
+  .create<Components, Events, Resources>()
+  .withBundle(physicsBundle)
+  .withResource('config', { debug: true, maxEntities: 1000 })
+  .withResource('score', () => ({ value: 0 }))
+  .withResource('cache', {
+    dependsOn: ['database'],
+    factory: (ecs) => createCache(ecs.getResource('database'))
+  })
+  .build();
+```
+
+This chains naturally with `withBundle()`, `withAssets()`, and `withScreens()`.
+
+### Resource Disposal
+
+Resources can define cleanup logic with `onDispose` callbacks, useful for removing event listeners, closing connections, or releasing resources:
+
+```typescript
+// Factory with disposal callback
+world.addResource('keyboard', {
+  factory: () => {
+    const handler = (e: KeyboardEvent) => { /* ... */ };
+    window.addEventListener('keydown', handler);
+    return { handler };
+  },
+  onDispose: (resource) => {
+    window.removeEventListener('keydown', resource.handler);
+  }
+});
+
+// Or with the builder pattern
+const world = ECSpresso
+  .create<Components, Events, Resources>()
+  .withResource('database', {
+    factory: async () => await connectToDatabase(),
+    onDispose: async (db) => await db.close()
+  })
+  .build();
+
+// Dispose a single resource
+await world.disposeResource('keyboard');
+
+// Dispose all resources in reverse dependency order
+// (dependents are disposed before their dependencies)
+await world.disposeResources();
+```
+
+**Disposal Features:**
+- `onDispose` receives the resource value and the ECSpresso instance as context
+- `disposeResources()` disposes in reverse topological order (dependents first)
+- Only initialized resources have their `onDispose` called
+- Supports both sync and async disposal callbacks
+- `removeResource()` still exists for removal without disposal
+
 ### System Lifecycle
 
 Systems can have initialization and cleanup hooks:

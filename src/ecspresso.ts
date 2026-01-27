@@ -495,19 +495,41 @@ export default class ECSpresso<
 		resource:
 			| ResourceTypes[K]
 			| ((ecs: ECSpresso<ComponentTypes, EventTypes, ResourceTypes>) => ResourceTypes[K] | Promise<ResourceTypes[K]>)
-			| { dependsOn: readonly string[]; factory: (ecs: ECSpresso<ComponentTypes, EventTypes, ResourceTypes>) => ResourceTypes[K] | Promise<ResourceTypes[K]> }
+			| {
+				dependsOn?: readonly string[];
+				factory: (ecs: ECSpresso<ComponentTypes, EventTypes, ResourceTypes>) => ResourceTypes[K] | Promise<ResourceTypes[K]>;
+				onDispose?: (resource: ResourceTypes[K], ecs?: ECSpresso<ComponentTypes, EventTypes, ResourceTypes>) => void | Promise<void>;
+			}
 	): this {
 		this._resourceManager.add(key, resource);
 		return this;
 	}
 
 	/**
-		* Remove a resource from the ECS instance
+		* Remove a resource from the ECS instance (without calling onDispose)
 		* @param key The resource key to remove
 		* @returns True if the resource was removed, false if it didn't exist
 	*/
 	removeResource<K extends keyof ResourceTypes>(key: K): boolean {
 		return this._resourceManager.remove(key);
+	}
+
+	/**
+	 * Dispose a single resource, calling its onDispose callback if defined
+	 * @param key The resource key to dispose
+	 * @returns True if the resource existed and was disposed, false if it didn't exist
+	 */
+	async disposeResource<K extends keyof ResourceTypes>(key: K): Promise<boolean> {
+		return this._resourceManager.disposeResource(key, this);
+	}
+
+	/**
+	 * Dispose all initialized resources in reverse dependency order.
+	 * Resources that depend on others are disposed first.
+	 * Calls each resource's onDispose callback if defined.
+	 */
+	async disposeResources(): Promise<void> {
+		return this._resourceManager.disposeResources(this);
 	}
 
 	/**
@@ -1142,6 +1164,15 @@ export default class ECSpresso<
 }
 
 /**
+ * Resource factory with optional dependencies and disposal callback
+ */
+type ResourceFactoryWithDeps<T> = {
+	dependsOn?: readonly string[];
+	factory: (context?: any) => T | Promise<T>;
+	onDispose?: (resource: T, context?: any) => void | Promise<void>;
+};
+
+/**
 	* Builder class for ECSpresso that provides fluent type-safe bundle installation.
 	* Handles type checking during build process to ensure type safety.
 */
@@ -1158,6 +1189,8 @@ export class ECSpressoBuilder<
 	private assetConfigurator: AssetConfiguratorImpl<A> | null = null;
 	/** Screen configurator for collecting screen definitions */
 	private screenConfigurator: ScreenConfiguratorImpl<S> | null = null;
+	/** Pending resources to add during build */
+	private pendingResources: Array<{ key: string; value: unknown }> = [];
 
 	constructor() {
 		this.ecspresso = new ECSpresso<C, E, R, A, S>();
@@ -1208,6 +1241,33 @@ export class ECSpressoBuilder<
 
 		// Return a builder with the updated type parameters
 		return this as unknown as ECSpressoBuilder<C & BC, E & BE, R & BR, A, S>;
+	}
+
+	/**
+	 * Add a resource during ECSpresso construction
+	 * @param key The resource key
+	 * @param resource The resource value, factory function, or factory with dependencies/disposal
+	 * @returns This builder with updated resource types
+	 *
+	 * @example
+	 * ```typescript
+	 * ECSpresso.create<Components, Events, Resources>()
+	 *   .withResource('config', { debug: true })
+	 *   .withResource('counter', () => 42)
+	 *   .withResource('derived', {
+	 *     dependsOn: ['base'],
+	 *     factory: (ecs) => ecs.getResource('base') * 2,
+	 *     onDispose: (value) => console.log('Disposed:', value)
+	 *   })
+	 *   .build();
+	 * ```
+	 */
+	withResource<K extends string, V>(
+		key: K,
+		resource: V | ((context?: any) => V | Promise<V>) | ResourceFactoryWithDeps<V>
+	): ECSpressoBuilder<C, E, R & Record<K, V>, A, S> {
+		this.pendingResources.push({ key, value: resource });
+		return this as unknown as ECSpressoBuilder<C, E, R & Record<K, V>, A, S>;
 	}
 
 	/**
@@ -1270,6 +1330,11 @@ export class ECSpressoBuilder<
 		* Complete the build process and return the built ECSpresso instance
 	*/
 	build(): ECSpresso<C, E, R, A, S> {
+		// Apply pending resources
+		for (const { key, value } of this.pendingResources) {
+			this.ecspresso.addResource(key as keyof R, value as any);
+		}
+
 		// Set up asset manager if configured
 		if (this.assetConfigurator) {
 			this.ecspresso._setAssetManager(this.assetConfigurator.getManager() as unknown as AssetManager<A>);

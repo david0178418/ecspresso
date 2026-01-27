@@ -30,10 +30,10 @@ const ecs = ECSpresso
 		init: { background: '#1099bb', resizeTo: window },
 		container: document.body,
 	}))
+	.withResource('controlMap', createActiveKeyMap())
 	.build();
 
 ecs
-	.addResource('controlMap', createActiveKeyMap)
 	.addSystem('player-input')
 	.addQuery('playerInputEntities', {
 		with: ['localTransform', 'velocity', 'speed'],
@@ -69,7 +69,11 @@ const pixiApp = ecs.getResource('pixiApp');
 
 // Create ball entity
 const ballRadius = 30;
-const sprite = createCircleSprite(0x0000FF, ballRadius);
+const sprite = new Sprite(
+	pixiApp.renderer.generateTexture(
+		new Graphics().circle(0, 0, ballRadius).fill(0x0000FF)
+	)
+);
 
 ecs.spawn({
 	...createSpriteComponents(sprite, {
@@ -82,21 +86,7 @@ ecs.spawn({
 
 pixiApp.ticker.add(ticker => ecs.update(ticker.deltaMS / 1000));
 
-function createCircleSprite(color: number, radius: number): Sprite {
-	const texture = ecs.getResource('pixiApp').renderer.generateTexture(
-		new Graphics().circle(0, 0, radius).fill(color)
-	);
-	return new Sprite(texture);
-}
-
-function createActiveKeyMap(): ActiveKeyMap {
-	const controlMap: ActiveKeyMap = {
-		up: false,
-		down: false,
-		left: false,
-		right: false,
-	};
-
+function createActiveKeyMap() {
 	const keyToControl: Record<string, keyof ActiveKeyMap> = {
 		'w': 'up',
 		'ArrowUp': 'up',
@@ -108,15 +98,37 @@ function createActiveKeyMap(): ActiveKeyMap {
 		'ArrowRight': 'right',
 	};
 
-	window.addEventListener('keydown', (event) => {
-		const control = keyToControl[event.key];
-		if (control) controlMap[control] = true;
-	});
+	// Store handler references for cleanup
+	let onKeyDown: (event: KeyboardEvent) => void;
+	let onKeyUp: (event: KeyboardEvent) => void;
 
-	window.addEventListener('keyup', (event) => {
-		const control = keyToControl[event.key];
-		if (control) controlMap[control] = false;
-	});
+	return {
+		factory: (): ActiveKeyMap => {
+			const controlMap: ActiveKeyMap = {
+				up: false,
+				down: false,
+				left: false,
+				right: false,
+			};
 
-	return controlMap;
+			onKeyDown = (event) => {
+				const control = keyToControl[event.key];
+				if (control) controlMap[control] = true;
+			};
+
+			onKeyUp = (event) => {
+				const control = keyToControl[event.key];
+				if (control) controlMap[control] = false;
+			};
+
+			window.addEventListener('keydown', onKeyDown);
+			window.addEventListener('keyup', onKeyUp);
+
+			return controlMap;
+		},
+		onDispose: () => {
+			window.removeEventListener('keydown', onKeyDown);
+			window.removeEventListener('keyup', onKeyUp);
+		}
+	};
 }

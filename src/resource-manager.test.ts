@@ -539,4 +539,185 @@ describe('ResourceManager', () => {
 			expect(rm.getDependencies('c')).toEqual([]);
 		});
 	});
+
+	describe('Resource Disposal', () => {
+		test('disposeResource() should call onDispose callback with resource value', async () => {
+			const rm = new ResourceManager<{ db: { close: () => void } }>();
+			let disposeCalled = false;
+			let disposedValue: { close: () => void } | undefined;
+
+			rm.add('db', {
+				factory: () => ({ close: () => {} }),
+				onDispose: (resource) => {
+					disposeCalled = true;
+					disposedValue = resource;
+				}
+			});
+
+			await rm.initializeResources();
+			const dbValue = rm.get('db');
+
+			await rm.disposeResource('db');
+
+			expect(disposeCalled).toBe(true);
+			expect(disposedValue).toBe(dbValue);
+			expect(rm.has('db')).toBe(false);
+		});
+
+		test('disposeResource() should return true if resource existed, false otherwise', async () => {
+			const rm = new ResourceManager<{ a: number; b: number }>();
+			rm.add('a', 1);
+
+			const result1 = await rm.disposeResource('a');
+			const result2 = await rm.disposeResource('a');
+			const result3 = await rm.disposeResource('b');
+
+			expect(result1).toBe(true);
+			expect(result2).toBe(false);
+			expect(result3).toBe(false);
+		});
+
+		test('disposeResources() should dispose in reverse dependency order', async () => {
+			const order: string[] = [];
+			const rm = new ResourceManager<{ a: number; b: number; c: number }>();
+
+			rm.add('a', {
+				factory: () => 1,
+				onDispose: () => { order.push('a'); }
+			});
+			rm.add('b', {
+				dependsOn: ['a'],
+				factory: () => 2,
+				onDispose: () => { order.push('b'); }
+			});
+			rm.add('c', {
+				dependsOn: ['b'],
+				factory: () => 3,
+				onDispose: () => { order.push('c'); }
+			});
+
+			await rm.initializeResources();
+			await rm.disposeResources();
+
+			// Should dispose in reverse order: c, b, a
+			expect(order).toEqual(['c', 'b', 'a']);
+		});
+
+		test('disposeResources() should support async disposal', async () => {
+			const rm = new ResourceManager<{ asyncResource: number }>();
+			let asyncDisposeCalled = false;
+
+			rm.add('asyncResource', {
+				factory: () => 42,
+				onDispose: async () => {
+					await new Promise(r => setTimeout(r, 10));
+					asyncDisposeCalled = true;
+				}
+			});
+
+			await rm.initializeResources();
+			await rm.disposeResources();
+
+			expect(asyncDisposeCalled).toBe(true);
+		});
+
+		test('resources without onDispose should just be removed', async () => {
+			const rm = new ResourceManager<{ simple: number }>();
+			rm.add('simple', 42);
+
+			const result = await rm.disposeResource('simple');
+
+			expect(result).toBe(true);
+			expect(rm.has('simple')).toBe(false);
+		});
+
+		test('disposeResources() should handle diamond dependencies', async () => {
+			const order: string[] = [];
+			const rm = new ResourceManager<{ a: number; b: number; c: number; d: number }>();
+
+			rm.add('a', {
+				factory: () => 1,
+				onDispose: () => { order.push('a'); }
+			});
+			rm.add('b', {
+				dependsOn: ['a'],
+				factory: () => 2,
+				onDispose: () => { order.push('b'); }
+			});
+			rm.add('c', {
+				dependsOn: ['a'],
+				factory: () => 3,
+				onDispose: () => { order.push('c'); }
+			});
+			rm.add('d', {
+				dependsOn: ['b', 'c'],
+				factory: () => 4,
+				onDispose: () => { order.push('d'); }
+			});
+
+			await rm.initializeResources();
+			await rm.disposeResources();
+
+			// d must be first, a must be last
+			expect(order[0]).toBe('d');
+			expect(order[3]).toBe('a');
+			// b and c must come before a
+			expect(order.indexOf('b')).toBeLessThan(order.indexOf('a'));
+			expect(order.indexOf('c')).toBeLessThan(order.indexOf('a'));
+		});
+
+		test('should only dispose initialized resources', async () => {
+			const order: string[] = [];
+			const rm = new ResourceManager<{ initialized: number; notInitialized: number }>();
+
+			rm.add('initialized', {
+				factory: () => 1,
+				onDispose: () => { order.push('initialized'); }
+			});
+			rm.add('notInitialized', {
+				factory: () => 2,
+				onDispose: () => { order.push('notInitialized'); }
+			});
+
+			// Only initialize one resource
+			await rm.initializeResource('initialized');
+			await rm.disposeResources();
+
+			expect(order).toEqual(['initialized']);
+		});
+
+		test('disposeResource() should pass context to onDispose', async () => {
+			const rm = new ResourceManager<{ db: { value: number } }>();
+			let receivedContext: any;
+
+			rm.add('db', {
+				factory: () => ({ value: 42 }),
+				onDispose: (_resource, context) => {
+					receivedContext = context;
+				}
+			});
+
+			await rm.initializeResources();
+			const mockContext = { name: 'test-context' };
+			await rm.disposeResource('db', mockContext);
+
+			expect(receivedContext).toBe(mockContext);
+		});
+
+		test('factory with onDispose but no dependsOn should work', async () => {
+			const rm = new ResourceManager<{ simple: number }>();
+			let disposed = false;
+
+			rm.add('simple', {
+				factory: () => 42,
+				onDispose: () => { disposed = true; }
+			});
+
+			await rm.initializeResources();
+			expect(rm.get('simple')).toBe(42);
+
+			await rm.disposeResources();
+			expect(disposed).toBe(true);
+		});
+	});
 });

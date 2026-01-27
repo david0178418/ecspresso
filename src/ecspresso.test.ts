@@ -1622,4 +1622,179 @@ describe('ECSpresso', () => {
 			const _badAssign: { x: number; y: number } = child.components.position;
 		});
 	});
+
+	describe('withResource() Builder', () => {
+		test('should add direct value resource', () => {
+			const world = ECSpresso
+				.create<{}, {}, { config: { debug: boolean } }>()
+				.withResource('config', { debug: true })
+				.build();
+
+			expect(world.getResource('config')).toEqual({ debug: true });
+		});
+
+		test('should add factory resource', async () => {
+			const world = ECSpresso
+				.create<{}, {}, { counter: number }>()
+				.withResource('counter', () => 42)
+				.build();
+
+			await world.initializeResources();
+			expect(world.getResource('counter')).toBe(42);
+		});
+
+		test('should add factory with dependencies', async () => {
+			const world = ECSpresso
+				.create<{}, {}, { base: number; derived: number }>()
+				.withResource('base', 10)
+				.withResource('derived', {
+					dependsOn: ['base'] as const,
+					factory: (ecs) => ecs.getResource('base') * 2
+				})
+				.build();
+
+			await world.initializeResources();
+			expect(world.getResource('derived')).toBe(20);
+		});
+
+		test('should add factory with onDispose', async () => {
+			let disposed = false;
+			const world = ECSpresso
+				.create<{}, {}, { db: { value: number } }>()
+				.withResource('db', {
+					factory: () => ({ value: 42 }),
+					onDispose: () => { disposed = true; }
+				})
+				.build();
+
+			await world.initializeResources();
+			expect(world.getResource('db').value).toBe(42);
+
+			await world.disposeResources();
+			expect(disposed).toBe(true);
+		});
+
+		test('should chain with withBundle()', () => {
+			const bundle = new Bundle<{ position: { x: number; y: number } }, {}, { physics: { gravity: number } }>()
+				.addResource('physics', { gravity: 9.8 });
+
+			const world = ECSpresso
+				.create<{}, {}, {}>()
+				.withBundle(bundle)
+				.withResource('config', { debug: true })
+				.build();
+
+			expect(world.getResource('physics')).toEqual({ gravity: 9.8 });
+			expect(world.getResource('config')).toEqual({ debug: true });
+		});
+
+		test('should infer types for merged resources', () => {
+			const world = ECSpresso
+				.create<{}, {}, { existing: string }>()
+				.withResource('existing', 'test')
+				.withResource('newNum', 42)
+				.withResource('newBool', true)
+				.build();
+
+			// TypeScript should know all resources exist
+			const str: string = world.getResource('existing');
+			const num: number = world.getResource('newNum');
+			const bool: boolean = world.getResource('newBool');
+
+			expect(str).toBe('test');
+			expect(num).toBe(42);
+			expect(bool).toBe(true);
+		});
+
+		test('should work with withAssets() and withScreens()', () => {
+			const world = ECSpresso
+				.create<{}, {}, {}>()
+				.withResource('config', { debug: true })
+				.withAssets(assets => assets.add('test', () => Promise.resolve('texture')))
+				.build();
+
+			expect(world.getResource('config')).toEqual({ debug: true });
+		});
+	});
+
+	describe('Resource Disposal via ECSpresso', () => {
+		test('disposeResource() should dispose a single resource', async () => {
+			let disposed = false;
+			const world = ECSpresso
+				.create<{}, {}, { db: { value: number } }>()
+				.withResource('db', {
+					factory: () => ({ value: 42 }),
+					onDispose: () => { disposed = true; }
+				})
+				.build();
+
+			await world.initializeResources();
+			expect(world.hasResource('db')).toBe(true);
+
+			const result = await world.disposeResource('db');
+
+			expect(result).toBe(true);
+			expect(disposed).toBe(true);
+			expect(world.hasResource('db')).toBe(false);
+		});
+
+		test('disposeResources() should dispose all resources in reverse dependency order', async () => {
+			const order: string[] = [];
+			const world = ECSpresso
+				.create<{}, {}, { a: number; b: number; c: number }>()
+				.withResource('a', {
+					factory: () => 1,
+					onDispose: () => { order.push('a'); }
+				})
+				.withResource('b', {
+					dependsOn: ['a'] as const,
+					factory: () => 2,
+					onDispose: () => { order.push('b'); }
+				})
+				.withResource('c', {
+					dependsOn: ['b'] as const,
+					factory: () => 3,
+					onDispose: () => { order.push('c'); }
+				})
+				.build();
+
+			await world.initializeResources();
+			await world.disposeResources();
+
+			expect(order).toEqual(['c', 'b', 'a']);
+		});
+
+		test('disposeResource() should pass ECSpresso as context to onDispose', async () => {
+			let receivedContext: any;
+			const world = ECSpresso
+				.create<{}, {}, { db: number }>()
+				.withResource('db', {
+					factory: () => 42,
+					onDispose: (_resource, context) => {
+						receivedContext = context;
+					}
+				})
+				.build();
+
+			await world.initializeResources();
+			await world.disposeResource('db');
+
+			expect(receivedContext).toBe(world);
+		});
+
+		test('dispose should work with resources added via addResource()', async () => {
+			let disposed = false;
+			const world = new ECSpresso<{}, {}, { counter: number }>();
+
+			world.addResource('counter', {
+				factory: () => 42,
+				onDispose: () => { disposed = true; }
+			});
+
+			await world.initializeResources();
+			await world.disposeResource('counter');
+
+			expect(disposed).toBe(true);
+		});
+	});
 });

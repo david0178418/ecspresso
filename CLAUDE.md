@@ -52,6 +52,8 @@ src/
 - **Reactive Queries**: `addReactiveQuery()` with `onEnter`/`onExit` callbacks for query match changes
 - **World Position Pattern**: `worldPos = localPos + parent.worldPos` (parent's world pos includes all grandparents)
 - **Resource Dependencies**: `addResource('cache', { dependsOn: ['db'], factory: (ecs) => ... })`
+- **Resource Builder**: `ECSpresso.create().withResource('key', value).build()` for fluent resource addition
+- **Resource Disposal**: `onDispose` callback for cleanup, `disposeResource()`, `disposeResources()` for proper teardown
 
 ## Commands
 

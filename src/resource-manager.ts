@@ -1,21 +1,20 @@
 /**
- * Resource factory with declared dependencies
+ * Resource factory with declared dependencies and optional disposal callback
  */
 interface ResourceFactoryWithDeps<T> {
-	dependsOn: readonly string[];
+	dependsOn?: readonly string[];
 	factory: (context?: any) => T | Promise<T>;
+	onDispose?: (resource: T, context?: any) => void | Promise<void>;
 }
 
 /**
- * Type guard for detecting { dependsOn, factory } pattern
+ * Type guard for detecting { factory } pattern (with optional dependsOn and onDispose)
  */
 function isFactoryWithDeps<T>(resource: unknown): resource is ResourceFactoryWithDeps<T> {
 	return (
 		typeof resource === 'object' &&
 		resource !== null &&
-		'dependsOn' in resource &&
 		'factory' in resource &&
-		Array.isArray((resource as ResourceFactoryWithDeps<T>).dependsOn) &&
 		typeof (resource as ResourceFactoryWithDeps<T>).factory === 'function'
 	);
 }
@@ -59,6 +58,7 @@ class ResourceManager<ResourceTypes extends Record<string, any> = Record<string,
 	private resources: Map<string, any> = new Map();
 	private resourceFactories: Map<string, (context?: any) => any | Promise<any>> = new Map();
 	private resourceDependencies: Map<string, readonly string[]> = new Map();
+	private resourceDisposers: Map<string, (resource: any, context?: any) => void | Promise<void>> = new Map();
 	private initializedResourceKeys: Set<string> = new Set();
 
 	/**
@@ -75,9 +75,12 @@ class ResourceManager<ResourceTypes extends Record<string, any> = Record<string,
 			| ResourceFactoryWithDeps<ResourceTypes[K]>,
 	) {
 		if (isFactoryWithDeps<ResourceTypes[K]>(resource)) {
-			// Factory with dependencies
+			// Factory with optional dependencies and/or onDispose
 			this.resourceFactories.set(label as string, resource.factory);
-			this.resourceDependencies.set(label as string, resource.dependsOn);
+			this.resourceDependencies.set(label as string, resource.dependsOn ?? []);
+			if (resource.onDispose) {
+				this.resourceDisposers.set(label as string, resource.onDispose);
+			}
 		} else if (this._isFactoryFunction(resource)) {
 			// Factory function (no dependencies)
 			this.resourceFactories.set(label as string, resource as (context?: any) => any | Promise<any>);
@@ -183,16 +186,16 @@ class ResourceManager<ResourceTypes extends Record<string, any> = Record<string,
 	}
 
 	/**
-	 * Remove a resource
+	 * Remove a resource (without calling onDispose)
 	 * @param label The resource key
 	 * @returns True if the resource was removed
 	 */
 	remove<K extends keyof ResourceTypes>(label: K): boolean {
 		const resourceRemoved = this.resources.delete(label as string);
 		const factoryRemoved = this.resourceFactories.delete(label as string);
-		if (this.initializedResourceKeys.has(label as string)) {
-			this.initializedResourceKeys.delete(label as string);
-		}
+		this.resourceDependencies.delete(label as string);
+		this.resourceDisposers.delete(label as string);
+		this.initializedResourceKeys.delete(label as string);
 		return resourceRemoved || factoryRemoved;
 	}
 
@@ -286,5 +289,63 @@ class ResourceManager<ResourceTypes extends Record<string, any> = Record<string,
 	 */
 	getDependencies<K extends keyof ResourceTypes>(label: K): readonly string[] {
 		return this.resourceDependencies.get(label as string) ?? [];
+	}
+
+	/**
+	 * Dispose a single resource, calling its onDispose callback if it exists
+	 * @param label The resource key to dispose
+	 * @param context Optional context to pass to the onDispose callback
+	 * @returns True if the resource existed and was disposed, false if it didn't exist
+	 */
+	async disposeResource<K extends keyof ResourceTypes>(
+		label: K,
+		context?: any
+	): Promise<boolean> {
+		const key = label as string;
+
+		if (!this.resources.has(key) && !this.resourceFactories.has(key)) {
+			return false;
+		}
+
+		// Only call onDispose if the resource was initialized
+		if (this.initializedResourceKeys.has(key)) {
+			const disposer = this.resourceDisposers.get(key);
+			const resource = this.resources.get(key);
+			if (disposer && resource !== undefined) {
+				await disposer(resource, context);
+			}
+		}
+
+		// Clean up all tracking
+		this.resources.delete(key);
+		this.resourceFactories.delete(key);
+		this.resourceDependencies.delete(key);
+		this.resourceDisposers.delete(key);
+		this.initializedResourceKeys.delete(key);
+
+		return true;
+	}
+
+	/**
+	 * Dispose all initialized resources in reverse dependency order.
+	 * Resources that depend on others are disposed first.
+	 * @param context Optional context to pass to onDispose callbacks
+	 */
+	async disposeResources(context?: any): Promise<void> {
+		// Get only initialized resource keys
+		const initializedKeys = Array.from(this.initializedResourceKeys);
+
+		if (initializedKeys.length === 0) return;
+
+		// Sort in dependency order, then reverse for disposal
+		const sortedKeys = topologicalSort(
+			initializedKeys,
+			(key) => this.resourceDependencies.get(key) ?? []
+		).reverse();
+
+		// Dispose in reverse dependency order
+		for (const key of sortedKeys) {
+			await this.disposeResource(key as keyof ResourceTypes, context);
+		}
 	}
 }
