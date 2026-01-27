@@ -1,4 +1,5 @@
 import Bundle from '../../../src/bundle';
+import { createTimer } from '../../../src/bundles/utils/timers';
 import type { Components, Events, Resources } from '../types';
 import { isColliding } from '../utils';
 
@@ -111,11 +112,33 @@ export default function createCollisionBundle(): Bundle<Components, Events, Reso
 							score: ecs.getResource('score').value
 						});
 					} else {
-						// Respawn player after a delay
-						setTimeout(() => {
-							if (gameState.status !== 'playing') return;
-							ecs.eventBus.publish('playerRespawn', {});
-						}, 1000);
+						// Spawn respawn timer entity
+						ecs.spawn({
+							...createTimer(1.0),
+							respawnTimer: true as const,
+						});
+					}
+				}
+			}
+		})
+		.bundle
+		// Respawn timer system
+		.addSystem('respawn-timer')
+		.inGroup('gameplay')
+		.addQuery('respawnTimers', {
+			with: ['timer', 'respawnTimer'] as const,
+		})
+		.setProcess(({ respawnTimers }, _deltaTime, ecs) => {
+			const gameState = ecs.getResource('gameState');
+
+			for (const entity of respawnTimers) {
+				if (entity.components.timer.justFinished) {
+					// Remove the timer entity
+					ecs.removeEntity(entity.id);
+
+					// Trigger respawn if game is still playing
+					if (gameState.status === 'playing') {
+						ecs.eventBus.publish('playerRespawn', {});
 					}
 				}
 			}

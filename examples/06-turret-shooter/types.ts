@@ -5,11 +5,16 @@ import {
 	WebGLRenderer,
 	Vector3
 } from 'three';
+import type { TimerComponentTypes } from '../../src/bundles/utils/timers';
 
 /**
  * All component types used in the 3D Turret Shooter game
  */
-export interface Components {
+export interface Components extends TimerComponentTypes {
+	// Timer tags
+	enemySpawner: true;
+	pendingDestroy: true;
+	messageTimer: true;
 	// 3D position, rotation and scale
 	position: {
 		x: number;
@@ -191,7 +196,6 @@ export interface Resources {
 	waveManager: {
 		currentWave: number;
 		enemiesRemaining: number;
-		lastSpawnTime: number;
 		waveStartTime: number;
 	};
 

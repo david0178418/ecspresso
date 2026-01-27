@@ -1,4 +1,5 @@
 import Bundle from '../../../src/bundle';
+import { createTimer } from '../../../src/bundles/utils/timers';
 import type { Components, Events, Resources } from '../types';
 import { spawnEnemyFormation } from '../utils';
 
@@ -56,8 +57,15 @@ export default function createGameLogicBundle() {
 					gameState.status = 'playing';
 					ecs.enableSystemGroup('gameplay');
 
-					// Spawn enemies
+					// Reset movement state for new game
+					const movementState = ecs.getResource('enemyMovementState');
+					movementState.isMovingDown = false;
+					movementState.currentDirection = 'right';
+					movementState.lastEdgeHit = null;
+
+					// Spawn enemies and start them moving right
 					spawnEnemyFormation(ecs);
+					ecs.eventBus.publish('enemyMove', { direction: 'right' });
 				}
 			},
 
@@ -119,12 +127,74 @@ export default function createGameLogicBundle() {
 					// Increase level
 					gameState.level += 1;
 
-					// Spawn new enemy formation with increased difficulty
-					setTimeout(() => {
-						if (gameState.status === 'playing') {
-							spawnEnemyFormation(ecs);
+					// Spawn timer entity for level transition delay
+					ecs.spawn({
+						...createTimer(1.5),
+						levelTransitionTimer: true as const,
+					});
+				}
+			}
+		})
+		.bundle
+		// Level transition timer system
+		.addSystem('level-transition-timer')
+		.inGroup('gameplay')
+		.addQuery('transitionTimers', {
+			with: ['timer', 'levelTransitionTimer'] as const,
+		})
+		.setProcess(({ transitionTimers }, _deltaTime, ecs) => {
+			const gameState = ecs.getResource('gameState');
+
+			for (const entity of transitionTimers) {
+				if (entity.components.timer.justFinished) {
+					// Remove the timer entity
+					ecs.removeEntity(entity.id);
+
+					// Spawn new enemy formation if game is still playing
+					if (gameState.status === 'playing') {
+						// Reset movement state for new level
+						const movementState = ecs.getResource('enemyMovementState');
+						movementState.isMovingDown = false;
+						movementState.currentDirection = 'right';
+						movementState.lastEdgeHit = null;
+
+						// Spawn enemies and start them moving right
+						spawnEnemyFormation(ecs);
+						ecs.eventBus.publish('enemyMove', { direction: 'right' });
+					}
+				}
+			}
+		})
+		.bundle
+		// Descent timer system - handles horizontal direction change after descent
+		.addSystem('descent-timer')
+		.inGroup('gameplay')
+		.addQuery('descentTimers', {
+			with: ['timer', 'descentTimer'] as const,
+		})
+		.setProcess(({ descentTimers }, _deltaTime, ecs) => {
+			for (const entity of descentTimers) {
+				if (entity.components.timer.justFinished) {
+					const movementState = ecs.getResource('enemyMovementState');
+
+					// Get current formation boundaries to determine new direction
+					const enemies = ecs.getEntitiesWithQuery(['enemy', 'position']);
+					let minX = Number.MAX_VALUE;
+
+					for (const enemy of enemies) {
+						const position = enemy.components['position'];
+						if (position) {
+							minX = Math.min(minX, position.x);
 						}
-					}, 1500);
+					}
+
+					// Remove the timer entity
+					ecs.removeEntity(entity.id);
+
+					// Change horizontal direction based on which edge was hit
+					movementState.isMovingDown = false;
+					movementState.currentDirection = minX < 30 ? 'right' : 'left';
+					ecs.eventBus.publish('enemyMove', { direction: movementState.currentDirection });
 				}
 			}
 		})
@@ -139,8 +209,8 @@ export default function createGameLogicBundle() {
 			// Add a resource to track movement state
 			ecs.addResource('enemyMovementState', {
 				isMovingDown: false,
-				lastDirectionChange: 0,
-				currentDirection: 'right' as 'left' | 'right'
+				currentDirection: 'right' as 'left' | 'right',
+				lastEdgeHit: null as 'left' | 'right' | null
 			});
 		})
 		.setProcess(({ enemies }, deltaTime, ecs) => {
@@ -166,9 +236,11 @@ export default function createGameLogicBundle() {
 				maxY = Math.max(maxY, position.y);
 			}
 
-			// Determine if direction change is needed
+			// Determine which edge was hit (if any)
 			const padding = 30;
-			const needsDirectionChange = minX < padding || maxX > screenWidth - padding;
+			const hitLeftEdge = minX < padding;
+			const hitRightEdge = maxX > screenWidth - padding;
+			const currentEdge = hitLeftEdge ? 'left' : hitRightEdge ? 'right' : null;
 
 			// Check if enemies reached the bottom of the screen
 			if (maxY > pixi.screen.height - 100) {
@@ -177,20 +249,27 @@ export default function createGameLogicBundle() {
 				return;
 			}
 
-			const currentTime = Date.now();
+			// Update enemy movement direction - only trigger descent if hitting a different edge
+			const shouldDescend = currentEdge !== null &&
+				currentEdge !== movementState.lastEdgeHit &&
+				!movementState.isMovingDown;
 
-			// Update enemy movement direction
-			if (needsDirectionChange && !movementState.isMovingDown) {
-				// Start moving down
-				movementState.isMovingDown = true;
-				movementState.lastDirectionChange = currentTime;
-				ecs.eventBus.publish('enemyMove', { direction: 'down' });
-			} else if (movementState.isMovingDown && currentTime - movementState.lastDirectionChange > 500) {
-				// After moving down for 500ms, change horizontal direction
-				movementState.isMovingDown = false;
-				movementState.lastDirectionChange = currentTime;
-				movementState.currentDirection = minX < padding ? 'right' : 'left';
-				ecs.eventBus.publish('enemyMove', { direction: movementState.currentDirection });
+			if (shouldDescend) {
+				// Check if a descent timer already exists
+				const existingTimers = ecs.getEntitiesWithQuery(['descentTimer']);
+				if (existingTimers.length === 0) {
+					// Track which edge triggered this descent
+					movementState.lastEdgeHit = currentEdge;
+					// Start moving down
+					movementState.isMovingDown = true;
+					ecs.eventBus.publish('enemyMove', { direction: 'down' });
+
+					// Spawn descent timer (500ms)
+					ecs.spawn({
+						...createTimer(0.5),
+						descentTimer: true as const,
+					});
+				}
 			}
 
 			// Random enemy shooting

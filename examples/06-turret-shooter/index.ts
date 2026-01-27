@@ -1,4 +1,5 @@
 import ECSpresso from '../../src';
+import { createTimerBundle } from '../../src/bundles/utils/timers';
 import createInitBundle from './bundles/init-bundle';
 import createInputBundle from './bundles/input-bundle';
 import createRenderBundle from './bundles/render-bundle';
@@ -14,6 +15,7 @@ async function initGame() {
 	// Create ECS instance with our types
 	const game = ECSpresso
 		.create<Components, Events, Resources>()
+		.withBundle(createTimerBundle())
 		.withBundle(await createInitBundle())
 		.withBundle(createInputBundle())
 		.withBundle(createRenderBundle())

@@ -1,4 +1,5 @@
 import ECSpresso from '../../src';
+import { createTimerBundle } from '../../src/bundles/utils/timers';
 import createCollisionBundle from './bundles/collision-bundle';
 import createInputBundle from './bundles/input-bundle';
 import createRenderBundle from './bundles/render-bundle';
@@ -9,6 +10,7 @@ import createInitBundle from './bundles/init-bundle';
 
 const game = ECSpresso
 	.create<Components, Events, Resources>()
+	.withBundle(createTimerBundle())
 	.withBundle(await createInitBundle())
 	.withBundle(createInputBundle())
 	.withBundle(await createRenderBundle())

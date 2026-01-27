@@ -1,5 +1,6 @@
 import { Vector3 } from 'three';
 import Bundle from '../../../src/bundle';
+import { createTimer } from '../../../src/bundles/utils/timers';
 import type { Components, Events, Resources } from '../types';
 
 export default function createAIBundle() {
@@ -56,12 +57,9 @@ export default function createAIBundle() {
 							points: Math.floor(enemyComponent.scoreValue / 2) // Half points for enemies that reach the player
 						});
 
-						// Queue entity for destruction
-						setTimeout(() => {
-							ecs.eventBus.publish('entityDestroyed', {
-								entityId: enemy.id
-							});
-						}, 500); // Increased delay for better visual effect
+						// Add timer for pending destruction (visual effect delay)
+						ecs.entityManager.addComponent(enemy.id, 'timer', createTimer(0.5).timer);
+						ecs.entityManager.addComponent(enemy.id, 'pendingDestroy', true as const);
 					}
 				} else {
 					// Normalize direction
@@ -89,24 +87,35 @@ export default function createAIBundle() {
 			ecs.addResource('playerInitialRotation', { y: 0 });
 		})
 		.bundle
-		// Spawn system - in gameplay group
-		.addSystem('spawn-system')
+		// Pending destroy system - destroys entities after their timer finishes
+		.addSystem('pending-destroy')
 		.inGroup('gameplay')
-		.setProcess((_queries, _deltaTime, ecs) => {
+		.addQuery('pendingDestroys', {
+			with: ['timer', 'pendingDestroy'] as const,
+		})
+		.setProcess(({ pendingDestroys }, _deltaTime, ecs) => {
+			for (const entity of pendingDestroys) {
+				if (entity.components.timer.justFinished) {
+					ecs.eventBus.publish('entityDestroyed', {
+						entityId: entity.id
+					});
+				}
+			}
+		})
+		.bundle
+		// Spawn timer system - handles enemy spawning via spawner entity
+		.addSystem('spawn-timer')
+		.inGroup('gameplay')
+		.addQuery('spawners', {
+			with: ['timer', 'enemySpawner'] as const,
+		})
+		.setProcess(({ spawners }, _deltaTime, ecs) => {
 			const waveManager = ecs.getResource('waveManager');
 			const config = ecs.getResource('config');
 			const playerInitialRotation = ecs.getResource('playerInitialRotation');
 
-			// Current time in seconds
-			const currentTime = performance.now() / 1000;
-
-			// Check if it's time to spawn a new enemy
-			const timeSinceLastSpawn = currentTime - waveManager.lastSpawnTime;
-			const spawnInterval = 1 / config.enemySpawnRate;
-
-			if (timeSinceLastSpawn >= spawnInterval) {
-				// Update last spawn time
-				waveManager.lastSpawnTime = currentTime;
+			for (const spawner of spawners) {
+				if (!spawner.components.timer.justFinished) continue;
 
 				// Check if we still need to spawn enemies for this wave
 				if (waveManager.enemiesRemaining > 0) {

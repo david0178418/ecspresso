@@ -1,4 +1,5 @@
 import Bundle from '../../../src/bundle';
+import { createTimer, createRepeatingTimer } from '../../../src/bundles/utils/timers';
 import type { Components, Events, Resources } from '../types';
 import { updateUI } from '../utils';
 
@@ -34,17 +35,23 @@ export default function createGameStateBundle() {
 					waveManager.enemiesRemaining = config.enemiesPerWave;
 					waveManager.waveStartTime = performance.now() / 1000;
 
-					// Show wave start message
+					// Spawn enemy spawner entity with repeating timer
+					const spawnInterval = 1 / config.enemySpawnRate;
+					ecs.spawn({
+						...createRepeatingTimer(spawnInterval),
+						enemySpawner: true as const,
+					});
+
+					// Show wave start message and create timer to hide it
 					const uiElements = ecs.getResource('uiElements');
 					if (uiElements.messageElement) {
 						uiElements.messageElement.innerText = `WAVE ${waveManager.currentWave}`;
 						uiElements.messageElement.style.opacity = '1';
 						uiElements.messageElement.style.top = '25%';
-						setTimeout(() => {
-							if (uiElements.messageElement) {
-								uiElements.messageElement.style.opacity = '0';
-							}
-						}, 2000);
+						ecs.spawn({
+							...createTimer(2),
+							messageTimer: true as const,
+						});
 					}
 
 					// Update UI
@@ -171,17 +178,16 @@ export default function createGameStateBundle() {
 					waveManager.enemiesRemaining = config.enemiesPerWave * waveManager.currentWave;
 					waveManager.waveStartTime = performance.now() / 1000;
 
-					// Show wave start message
+					// Show wave start message and create timer to hide it
 					const uiElements = ecs.getResource('uiElements');
 					if (uiElements.messageElement) {
 						uiElements.messageElement.innerText = `WAVE ${waveManager.currentWave}`;
 						uiElements.messageElement.style.opacity = '1';
 						uiElements.messageElement.style.top = '25%';
-						setTimeout(() => {
-							if (uiElements.messageElement) {
-								uiElements.messageElement.style.opacity = '0';
-							}
-						}, 2000);
+						ecs.spawn({
+							...createTimer(2),
+							messageTimer: true as const,
+						});
 					}
 
 					// Update UI
@@ -236,12 +242,12 @@ export default function createGameStateBundle() {
 							entity.components.model.scale.set(1.5, 1.5, 1.5);
 						}
 
-						// Ensure the entity is destroyed after visual effect
-						setTimeout(() => {
-							ecs.eventBus.publish('entityDestroyed', {
-								entityId: data.entityId
-							});
-						}, 200);
+						// Add timer for pending destruction if not already pending
+						// (enemies reaching player already have pendingDestroy from ai-bundle)
+						if (!entity.components.pendingDestroy) {
+							ecs.entityManager.addComponent(data.entityId, 'timer', createTimer(0.2).timer);
+							ecs.entityManager.addComponent(data.entityId, 'pendingDestroy', true as const);
+						}
 
 						// Update score
 						ecs.eventBus.publish('updateScore', {
@@ -259,6 +265,27 @@ export default function createGameStateBundle() {
 							});
 						}
 					}
+				}
+			}
+		})
+		.bundle
+		// Message timer system - hides messages after their timer finishes
+		.addSystem('message-timer')
+		.addQuery('messageTimers', {
+			with: ['timer', 'messageTimer'] as const,
+		})
+		.setProcess(({ messageTimers }, _deltaTime, ecs) => {
+			const uiElements = ecs.getResource('uiElements');
+
+			for (const entity of messageTimers) {
+				if (entity.components.timer.justFinished) {
+					// Hide the message
+					if (uiElements.messageElement) {
+						uiElements.messageElement.style.opacity = '0';
+					}
+
+					// Remove the timer entity
+					ecs.removeEntity(entity.id);
 				}
 			}
 		})

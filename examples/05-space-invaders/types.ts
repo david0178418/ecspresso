@@ -1,10 +1,15 @@
 import { Container, Sprite, Text } from 'pixi.js';
 import type { Application } from 'pixi.js';
+import type { TimerComponentTypes } from '../../src/bundles/utils/timers';
 
 /**
  * All component types used in the Space Invaders game
  */
-export interface Components {
+export interface Components extends TimerComponentTypes {
+	// Timer tags
+	levelTransitionTimer: true;
+	respawnTimer: true;
+	descentTimer: true;
 	// Position and movement
 	position: {
 		x: number;
@@ -139,8 +144,8 @@ export interface Resources {
 	// Enemy movement state
 	enemyMovementState: {
 		isMovingDown: boolean;
-		lastDirectionChange: number;
 		currentDirection: 'left' | 'right';
+		lastEdgeHit: 'left' | 'right' | null;
 	};
 
 	// UI elements

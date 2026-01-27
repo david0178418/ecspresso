@@ -117,7 +117,6 @@ export default async function createInitBundle() {
 				.addResource('waveManager', {
 					currentWave: 1,
 					enemiesRemaining: 15,
-					lastSpawnTime: 0,
 					waveStartTime: 0
 				})
 				.addResource('uiElements', {
