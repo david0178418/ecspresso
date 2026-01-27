@@ -2,12 +2,12 @@
  * PixiJS Renderer Bundle for ECSpresso
  *
  * An opt-in PixiJS rendering bundle that automates scene graph wiring.
- * Import from 'ecspresso/renderers/pixi'
+ * Import from 'ecspresso/bundles/renderers/pixi'
  */
 
 import type { Application, ApplicationOptions, Container, Sprite, Graphics } from 'pixi.js';
-import Bundle from '../bundle';
-import type ECSpresso from '../ecspresso';
+import Bundle from '../../bundle';
+import type ECSpresso from '../../ecspresso';
 
 // Dynamic import for Application to avoid requiring pixi.js at bundle creation time
 // when using managed mode (init options instead of pre-initialized app)
@@ -708,4 +708,3 @@ export function createPixiBundle(
 
 	return bundle;
 }
-

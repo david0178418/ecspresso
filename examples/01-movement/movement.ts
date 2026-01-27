@@ -6,7 +6,7 @@ import {
 	type PixiComponentTypes,
 	type PixiEventTypes,
 	type PixiResourceTypes,
-} from "../../src/renderers/pixi";
+} from "../../src/bundles/renderers/pixi";
 
 interface Components extends PixiComponentTypes {
 	velocity: { x: number; y: number };
