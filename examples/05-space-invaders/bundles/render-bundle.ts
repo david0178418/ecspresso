@@ -1,12 +1,18 @@
 import Bundle from '../../../src/bundle';
 import type { Components, Events, Resources } from '../types';
-import { createPlayerSprite, createProjectileSprite } from '../utils';
+import { spawnPlayer, createProjectileSprite } from '../utils';
 
 export default function createRenderBundle() {
 	return new Bundle<Components, Events, Resources>('render-bundle')
 		.addSystem('renderer')
 		.addQuery('renderables', {
 			with: ['position', 'sprite']
+		})
+		.setOnInitialize((ecs) => {
+			// Set up sprite cleanup on component removal
+			ecs.onComponentRemoved('sprite', (sprite) => {
+				sprite.parent?.removeChild(sprite);
+			});
 		})
 		.setProcess(({ renderables }, _deltaTime, _ecs) => {
 			for (const entity of renderables) {
@@ -21,30 +27,7 @@ export default function createRenderBundle() {
 		.setEventHandlers({
 			gameInit: {
 				handler(_data, ecs) {
-					const entityContainer = ecs.getResource('entityContainer');
-					const playerSprite = createPlayerSprite(ecs);
-					entityContainer.addChild(playerSprite);
-
-					const pixi = ecs.getResource('pixi');
-					const initialX = pixi.screen.width / 2;
-					const initialY = pixi.screen.height - 80;
-
-					ecs.spawn({
-						sprite: playerSprite,
-						player: true,
-						position: {
-							x: initialX,
-							y: initialY,
-						},
-						velocity: {
-							x: 0,
-							y: 0,
-						},
-						collider: {
-							width: playerSprite.width,
-							height: playerSprite.height,
-						},
-					});
+					spawnPlayer(ecs);
 				},
 			},
 			playerShoot: {
@@ -126,44 +109,13 @@ export default function createRenderBundle() {
 			},
 			entityDestroyed: {
 				handler(data, ecs) {
-					const entity = ecs.entityManager.getEntity(data.entityId);
-
-					if (!entity) return;
-
-					if (entity.components.sprite) {
-						entity.components.sprite.parent?.removeChild(entity.components.sprite);
-					}
-
 					ecs.removeEntity(data.entityId);
 				}
 			},
 
 			playerRespawn: {
 				handler(_data, ecs) {
-					const entityContainer = ecs.getResource('entityContainer');
-					const pixi = ecs.getResource('pixi');
-					const playerSprite = createPlayerSprite(ecs);
-					entityContainer.addChild(playerSprite);
-
-					const initialX = pixi.screen.width / 2;
-					const initialY = pixi.screen.height - 80;
-
-					ecs.spawn({
-						sprite: playerSprite,
-						player: true,
-						position: {
-							x: initialX,
-							y: initialY,
-						},
-						velocity: {
-							x: 0,
-							y: 0,
-						},
-						collider: {
-							width: playerSprite.width,
-							height: playerSprite.height,
-						},
-					});
+					spawnPlayer(ecs);
 				}
 			}
 		})

@@ -10,6 +10,22 @@ import createInitBundle from './bundles/init-bundle';
 
 const game = ECSpresso
 	.create<Components, Events, Resources>()
+	.withResource('gameState', {
+		status: 'ready',
+		level: 1,
+		lives: 3
+	})
+	.withResource('config', {
+		playerSpeed: 200,
+		enemySpeed: 50,
+		projectileSpeed: 400,
+		enemiesPerRow: 8,
+		enemyRows: 4,
+		shootCooldown: 0.5
+	})
+	.withResource('score', {
+		value: 0
+	})
 	.withBundle(createTimerBundle())
 	.withBundle(await createInitBundle())
 	.withBundle(createInputBundle())

@@ -10,6 +10,11 @@ export interface Components extends TimerComponentTypes {
 	levelTransitionTimer: true;
 	respawnTimer: true;
 	descentTimer: true;
+	messageHideTimer: true;
+	// Formation entity
+	enemyFormation: {
+		level: number;
+	};
 	// Position and movement
 	position: {
 		x: number;

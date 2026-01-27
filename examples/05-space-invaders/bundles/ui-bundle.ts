@@ -1,5 +1,6 @@
 import { Text, TextStyle } from 'pixi.js';
 import Bundle from '../../../src/bundle';
+import { createTimer } from '../../../src/bundles/utils/timers';
 import type { Components, Events, Resources } from '../types';
 
 export default function createUIBundle() {
@@ -138,13 +139,32 @@ export default function createUIBundle() {
 					uiElements.messageText.y = pixi.screen.height / 2 - 50;
 					uiElements.messageText.visible = true;
 
-					// Hide message after a delay
-					setTimeout(() => {
-						const gameState = ecs.getResource('gameState');
-						if (gameState.status === 'playing') {
-							uiElements.messageText.visible = false;
-						}
-					}, 1500);
+					// Spawn timer to hide message after delay
+					ecs.spawn({
+						...createTimer(1.5),
+						messageHideTimer: true as const,
+					});
+				}
+			}
+		})
+		.bundle
+		// Message hide timer system
+		.addSystem('message-hide-timer')
+		.addQuery('messageHideTimers', {
+			with: ['timer', 'messageHideTimer'] as const,
+		})
+		.setProcess(({ messageHideTimers }, _deltaTime, ecs) => {
+			for (const entity of messageHideTimers) {
+				if (entity.components.timer.justFinished) {
+					// Remove the timer entity
+					ecs.removeEntity(entity.id);
+
+					// Hide message if game is still playing
+					const gameState = ecs.getResource('gameState');
+					if (gameState.status === 'playing') {
+						const uiElements = ecs.getResource('uiElements');
+						uiElements.messageText.visible = false;
+					}
 				}
 			}
 		})

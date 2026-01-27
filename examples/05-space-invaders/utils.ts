@@ -53,7 +53,14 @@ export function spawnEnemyFormation(ecs: ECSpresso<Components, Events, Resources
 		grunt: { points: 20 * gameState.level, health: 1, color: 0xFFAA00 },
 	};
 
-	// Create enemies
+	// Create formation parent entity
+	const formation = ecs.spawn({
+		enemyFormation: {
+			level: gameState.level,
+		},
+	});
+
+	// Create enemies as children of formation
 	for (let row = 0; row < rows; row++) {
 		for (let col = 0; col < enemiesPerRow; col++) {
 			// Determine enemy type based on row
@@ -69,8 +76,8 @@ export function spawnEnemyFormation(ecs: ECSpresso<Components, Events, Resources
 			const x = startX + col * spacing;
 			const y = startY + row * spacing;
 
-			// Create enemy entity
-			ecs.spawn({
+			// Create enemy entity as child of formation
+			ecs.spawnChild(formation.id, {
 				enemy: {
 					type: enemyType,
 					points,
@@ -175,4 +182,36 @@ export function createProjectileSprite(ecs: ECSpresso<Components, Events, Resour
 	sprite.anchor.set(0.5, 0.5);
 
 	return sprite;
+}
+
+/**
+ * Spawns the player entity
+ */
+export function spawnPlayer(ecs: ECSpresso<Components, Events, Resources>): number {
+	const entityContainer = ecs.getResource('entityContainer');
+	const pixi = ecs.getResource('pixi');
+	const playerSprite = createPlayerSprite(ecs);
+	entityContainer.addChild(playerSprite);
+
+	const initialX = pixi.screen.width / 2;
+	const initialY = pixi.screen.height - 80;
+
+	const player = ecs.spawn({
+		sprite: playerSprite,
+		player: true,
+		position: {
+			x: initialX,
+			y: initialY,
+		},
+		velocity: {
+			x: 0,
+			y: 0,
+		},
+		collider: {
+			width: playerSprite.width,
+			height: playerSprite.height,
+		},
+	});
+
+	return player.id;
 }

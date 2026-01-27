@@ -6,27 +6,15 @@ import { spawnEnemyFormation } from '../utils';
 /**
  * Creates a bundle for handling game logic in the Space Invaders game
  */
+// Direction velocity multipliers (multiply by baseSpeed at runtime)
+const DIRECTION_VELOCITIES: Record<string, { x: number; y: number }> = {
+	'left': { x: -1, y: 0 },
+	'right': { x: 1, y: 0 },
+	'down': { x: 0, y: 2 },
+};
+
 export default function createGameLogicBundle() {
 	return new Bundle<Components, Events, Resources>('game-logic-bundle')
-		// Add resource for game state
-		.addResource('gameState', {
-			status: 'ready',
-			level: 1,
-			lives: 3
-		})
-		// Add resource for game configuration
-		.addResource('config', {
-			playerSpeed: 200,
-			enemySpeed: 50,
-			projectileSpeed: 400,
-			enemiesPerRow: 8,
-			enemyRows: 4,
-			shootCooldown: 0.5
-		})
-		// Add resource for score
-		.addResource('score', {
-			value: 0
-		})
 		// Game state system
 		.addSystem('game-state')
 		.setEventHandlers({
@@ -108,12 +96,13 @@ export default function createGameLogicBundle() {
 						ecs.eventBus.publish('updateScore', { points: score.value });
 
 						// Check if all enemies are destroyed
+						// The render bundle removes entities before this handler runs (due to bundle order)
 						const enemies = ecs.getEntitiesWithQuery(['enemy']);
 						if (enemies.length === 0) {
 							const gameState = ecs.getResource('gameState');
-
-							// Complete level
-							ecs.eventBus.publish('levelComplete', { level: gameState.level });
+							if (gameState.status === 'playing') {
+								ecs.eventBus.publish('levelComplete', { level: gameState.level });
+							}
 						}
 					}
 				}
@@ -301,23 +290,17 @@ export default function createGameLogicBundle() {
 					const speedMultiplier = 1.0 + (gameState.level - 1) * 0.2;
 					const baseSpeed = config.enemySpeed * speedMultiplier;
 
-					// Direction to velocity mapping
-					const directionVelocities: Record<string, { x: number; y: number }> = {
-						'left': { x: -baseSpeed, y: 0 },
-						'right': { x: baseSpeed, y: 0 },
-						'down': { x: 0, y: baseSpeed * 2 },
-					};
-
-					const velocity = directionVelocities[data.direction];
-					if (!velocity) return;
+					// Get velocity multiplier from constant
+					const velocityMultiplier = DIRECTION_VELOCITIES[data.direction];
+					if (!velocityMultiplier) return;
 
 					// Update enemy velocities based on direction
 					for (const enemy of enemies) {
 						const enemyVel = enemy.components['velocity'];
 						if (!enemyVel) continue;
 
-						enemyVel.x = velocity.x;
-						enemyVel.y = velocity.y;
+						enemyVel.x = velocityMultiplier.x * baseSpeed;
+						enemyVel.y = velocityMultiplier.y * baseSpeed;
 					}
 				}
 			}
