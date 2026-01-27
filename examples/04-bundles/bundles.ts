@@ -1,5 +1,5 @@
 import { Container, Graphics, Sprite } from 'pixi.js';
-import ECSpresso, { Bundle, Entity, QueryResultEntity, createQueryDefinition } from "../../src";
+import ECSpresso, { Bundle, QueryResultEntity, createQueryDefinition } from "../../src";
 import {
 	createPixiBundle,
 	createSpriteComponents,
@@ -7,17 +7,22 @@ import {
 	type PixiEventTypes,
 	type PixiResourceTypes,
 } from "../../src/bundles/renderers/pixi";
+import {
+	createTimerBundle,
+	createRepeatingTimer,
+	type TimerComponentTypes,
+} from "../../src/bundles/utils/timers";
 
-interface Components extends PixiComponentTypes {
+interface Components extends PixiComponentTypes, TimerComponentTypes {
 	player: true;
 	speed: number;
 	velocity: { x: number; y: number };
+	enemySpawner: true;
+	enemy: true;
 }
 
 interface Events extends PixiEventTypes {
 	initializeGame: { someRandomData: Date };
-	spawnEnemy: void;
-	updateEnemyDirection: { enemy: Entity<Components> };
 	initializeMap: void;
 	startGame: void;
 }
@@ -58,6 +63,7 @@ const ecs = ECSpresso
 		init: { background: '#1099bb', resizeTo: window },
 		container: document.body,
 	}))
+	.withBundle(createTimerBundle())
 	.withBundle(createGameInitBundle())
 	.withBundle(createPhysicsBundle())
 	.withBundle(createEnemyControllerBundle())
@@ -163,6 +169,18 @@ function createGameInitBundle() {
 				handler(_eventData, ecs) {
 					const pixiApp = ecs.getResource('pixiApp');
 
+					// Spawn enemy spawner entity with a repeating 5-second timer
+					const spawnerEntity = ecs.spawn({
+						...createRepeatingTimer(5),
+						enemySpawner: true,
+					});
+
+					// Trigger initial spawn
+					const spawner = ecs.entityManager.getComponent(spawnerEntity.id, 'timer');
+					if (spawner) {
+						spawner.justFinished = true;
+					}
+
 					pixiApp.ticker.add(ticker => {
 						ecs.update(ticker.deltaMS / 1_000);
 					});
@@ -190,8 +208,7 @@ function createPhysicsBundle() {
 			with: ['localTransform', 'pixiSprite', 'player'],
 		})
 		.addQuery('enemies', {
-			with: ['localTransform', 'pixiSprite'],
-			without: ['player'],
+			with: ['localTransform', 'pixiSprite', 'enemy'],
 		})
 		.setProcess((queries, _deltaTimeMs, ecs) => {
 			const [player] = queries.players;
@@ -219,53 +236,49 @@ function createPhysicsBundle() {
 
 function createEnemyControllerBundle() {
 	return new Bundle<Components, Events, Resources>()
-		.addSystem('enemy-controller')
-		.setEventHandlers({
-			startGame: {
-				handler(_eventData, ecs) {
-					ecs.eventBus.publish('spawnEnemy');
-					setInterval(() => {
-						ecs.eventBus.publish('spawnEnemy');
-					}, 5_000);
-				}
-			},
-			spawnEnemy: {
-				handler(_eventData, ecs) {
-					console.log('spawning enemy triggered');
-					const pixiApp = ecs.getResource('pixiApp');
-					const worldContainer = ecs.getResource('worldContainer');
+		.addSystem('enemy-spawner')
+		.addQuery('spawners', {
+			with: ['timer', 'enemySpawner'],
+		})
+		.setProcess((queries, _deltaTimeMs, ecs) => {
+			for (const spawner of queries.spawners) {
+				if (!spawner.components.timer.justFinished) continue;
 
-					const sprite = createCircleSprite(0xFF0000);
-					worldContainer.addChild(sprite);
+				console.log('spawning enemy triggered');
+				const pixiApp = ecs.getResource('pixiApp');
+				const worldContainer = ecs.getResource('worldContainer');
 
-					const speed = randomInt(300, 550);
+				const sprite = createCircleSprite(0xFF0000);
+				worldContainer.addChild(sprite);
 
-					const entity = ecs.spawn({
-						...createSpriteComponents(sprite, {
-							x: randomInt(pixiApp.renderer.width),
-							y: randomInt(pixiApp.renderer.height),
-						}),
-						speed,
-						velocity: {
-							x: randomInt(-speed, speed),
-							y: randomInt(-speed, speed),
-						},
-					});
+				const speed = randomInt(300, 550);
 
-					setInterval(() => {
-						ecs.eventBus.publish('updateEnemyDirection', { enemy: entity });
-					}, randomInt(3, 8) * 1_000);
-				}
-			},
-			updateEnemyDirection: {
-				handler(eventData) {
-					const { enemy } = eventData;
+				ecs.spawn({
+					...createSpriteComponents(sprite, {
+						x: randomInt(pixiApp.renderer.width),
+						y: randomInt(pixiApp.renderer.height),
+					}),
+					...createRepeatingTimer(randomInt(3, 8)),
+					speed,
+					velocity: {
+						x: randomInt(-speed, speed),
+						y: randomInt(-speed, speed),
+					},
+					enemy: true,
+				});
+			}
+		})
+		.and()
+		.addSystem('enemy-direction-change')
+		.addQuery('enemies', {
+			with: ['timer', 'velocity', 'speed', 'enemy'],
+		})
+		.setProcess((queries) => {
+			for (const { components } of queries.enemies) {
+				if (!components.timer.justFinished) continue;
 
-					if (!(enemy.components.velocity && enemy.components.speed)) return;
-
-					enemy.components.velocity.x = randomInt(-enemy.components.speed, enemy.components.speed);
-					enemy.components.velocity.y = randomInt(-enemy.components.speed, enemy.components.speed);
-				}
+				components.velocity.x = randomInt(-components.speed, components.speed);
+				components.velocity.y = randomInt(-components.speed, components.speed);
 			}
 		})
 		.and();
