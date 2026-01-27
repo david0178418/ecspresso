@@ -1,4 +1,4 @@
-import { Container, Graphics, Sprite } from 'pixi.js';
+import { Graphics, Sprite } from 'pixi.js';
 import ECSpresso, { Entity } from "../../src";
 import {
 	createPixiBundle,
@@ -15,15 +15,11 @@ interface Components extends PixiComponentTypes {
 }
 
 interface Events extends PixiEventTypes {
-	initializeGame: { someRandomData: Date };
 	spawnEnemy: void;
 	updateEnemyDirection: { enemy: Entity<Components> };
-	initializeMap: void;
-	startGame: void;
 }
 
 interface Resources extends PixiResourceTypes {
-	worldContainer: Container;
 	controlMap: ActiveKeyMap;
 }
 
@@ -40,54 +36,10 @@ const ecs = ECSpresso
 		init: { background: '#1099bb', resizeTo: window },
 		container: document.body,
 	}))
+	.withResource('controlMap', createActiveKeyMap)
 	.build();
 
 ecs
-	.addResource('controlMap', createActiveKeyMap)
-	.addSystem('init')
-	.setEventHandlers({
-		initializeGame: {
-			handler(data, ecs) {
-				console.log(`initializing at ${data.someRandomData.toLocaleDateString()}`);
-
-				const pixiApp = ecs.getResource('pixiApp');
-				const worldContainer = new Container();
-				pixiApp.stage.addChild(worldContainer);
-				ecs.addResource('worldContainer', worldContainer);
-
-				ecs.eventBus.publish('initializeMap');
-			},
-		},
-		initializeMap: {
-			handler(_eventData, ecs) {
-				console.log('initializing map triggered');
-				const worldContainer = ecs.getResource('worldContainer');
-
-				const sprite = createCircleSprite(0x0000FF);
-				worldContainer.addChild(sprite);
-
-				ecs.spawn({
-					...createSpriteComponents(sprite, { x: 100, y: 100 }),
-					player: true,
-					speed: 500,
-					velocity: { x: 0, y: 0 },
-				});
-
-				ecs.eventBus.publish('startGame');
-			},
-		},
-		startGame: {
-			handler(_eventData, ecs) {
-				console.log('game started triggered');
-				const pixiApp = ecs.getResource('pixiApp');
-
-				pixiApp.ticker.add(ticker => {
-					ecs.update(ticker.deltaMS / 1_000);
-				});
-			}
-		},
-	})
-	.and()
 	.addSystem('apply-velocity')
 	.addQuery('movingEntities', {
 		with: ['localTransform', 'velocity'],
@@ -108,27 +60,16 @@ ecs
 		}
 	})
 	.and()
-	.addSystem('enemy-movement')
+	.addSystem('enemy-spawner')
 	.setEventHandlers({
-		startGame: {
-			handler(_eventData, ecs) {
-				ecs.eventBus.publish('spawnEnemy');
-				setInterval(() => {
-					ecs.eventBus.publish('spawnEnemy');
-				}, 5_000);
-			}
-		},
 		spawnEnemy: {
 			handler(_eventData, ecs) {
 				console.log('spawning enemy triggered');
 				const pixiApp = ecs.getResource('pixiApp');
-				const worldContainer = ecs.getResource('worldContainer');
-
 				const sprite = createCircleSprite(0xFF0000);
-				worldContainer.addChild(sprite);
-
 				const speed = randomInt(300, 550);
 
+				// Sprite is automatically added to scene graph by pixi bundle
 				const entity = ecs.spawn({
 					...createSpriteComponents(sprite, {
 						x: randomInt(pixiApp.renderer.width),
@@ -198,16 +139,32 @@ ecs
 
 			if (isColliding) {
 				console.log('collision detected');
-				enemy.components.pixiSprite.sprite.destroy();
 				ecs.removeEntity(enemy.id);
 			}
 		}
 	})
 	.build();
 
-// Start the game by publishing the initialization event
+// Initialize ECS and resources
 await ecs.initialize();
-ecs.eventBus.publish('initializeGame', { someRandomData: new Date() });
+
+const pixiApp = ecs.getResource('pixiApp');
+
+// Spawn player - sprite is automatically added to scene graph by pixi bundle
+const playerSprite = createCircleSprite(0x0000FF);
+ecs.spawn({
+	...createSpriteComponents(playerSprite, { x: 100, y: 100 }),
+	player: true,
+	speed: 500,
+	velocity: { x: 0, y: 0 },
+});
+
+// Start enemy spawning using events
+ecs.eventBus.publish('spawnEnemy');
+setInterval(() => ecs.eventBus.publish('spawnEnemy'), 5_000);
+
+// Start game loop
+pixiApp.ticker.add(ticker => ecs.update(ticker.deltaMS / 1_000));
 
 function createCircleSprite(color: number): Sprite {
 	const texture = ecs.getResource('pixiApp').renderer.generateTexture(
