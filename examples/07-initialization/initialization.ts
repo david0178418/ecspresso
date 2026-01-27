@@ -21,8 +21,8 @@ interface Resources {
 	};
 	assets: {
 		loaded: boolean;
-		sprites: Record<string, any>;
-		sounds: Record<string, any>;
+		sprites: Record<string, unknown>;
+		sounds: Record<string, unknown>;
 	};
 	controlSettings: {
 		sensitivity: number;
@@ -127,6 +127,9 @@ function createGameBundle() {
 					const gameState = ecs.getResource('gameState');
 					gameState.status = 'playing';
 					gameState.startTime = Date.now();
+
+					// Enable gameplay systems when game starts
+					ecs.enableSystemGroup('gameplay');
 				}
 			}
 		})
@@ -136,6 +139,7 @@ function createGameBundle() {
 function createPlayerBundle() {
 	return new Bundle<Components, Events, Resources>('player-bundle')
 		.addSystem('playerController')
+		.inGroup('gameplay')
 		.setOnInitialize((ecs) => {
 			console.log("Initializing player controller system...");
 
@@ -148,6 +152,9 @@ function createPlayerBundle() {
 			});
 
 			console.log("Player entity created with ID:", playerEntity.id);
+
+			// Disable gameplay systems until game starts
+			ecs.disableSystemGroup('gameplay');
 		})
 		.setEventHandlers({
 			playerMove: {
@@ -168,11 +175,7 @@ function createPlayerBundle() {
 			}
 		})
 		.addQuery('players', { with: ['position', 'velocity'] })
-		.setProcess((queries, deltaTime, ecs) => {
-			// Only process if game is playing
-			const gameState = ecs.getResource('gameState');
-			if (gameState.status !== 'playing') return;
-
+		.setProcess((queries, deltaTime, _ecs) => {
 			// Update player positions based on velocity
 			for (const entity of queries.players) {
 				entity.components.position.x += entity.components.velocity.x * deltaTime;
@@ -189,15 +192,12 @@ function createPlayerBundle() {
 function createRenderingBundle() {
 	return new Bundle<Components, Events, Resources>('rendering-bundle')
 		.addSystem('renderer')
+		.inGroup('gameplay')
 		.setOnInitialize((_ecs) => {
 			console.log("Initializing rendering system...");
 		})
 		.addQuery('renderables', { with: ['position', 'sprite'] })
-		.setProcess((queries, _deltaTime, ecs) => {
-			// Only render if game is ready or playing
-			const gameState = ecs.getResource('gameState');
-			if (gameState.status !== 'ready' && gameState.status !== 'playing') return;
-
+		.setProcess((queries, _deltaTime, _ecs) => {
 			// Simple rendering to console
 			for (const entity of queries.renderables) {
 				const pos = entity.components.position;

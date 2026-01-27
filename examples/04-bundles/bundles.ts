@@ -1,104 +1,75 @@
-import { Application, Container, Graphics, Sprite } from 'pixi.js';
+import { Container, Graphics, Sprite } from 'pixi.js';
 import ECSpresso, { Bundle, Entity, QueryResultEntity, createQueryDefinition } from "../../src";
+import {
+	createPixiBundle,
+	createSpriteComponents,
+	type PixiComponentTypes,
+	type PixiEventTypes,
+	type PixiResourceTypes,
+} from "../../src/renderers/pixi";
 
-interface Components {
-	sprite: Sprite;
+interface Components extends PixiComponentTypes {
 	player: true;
 	speed: number;
-	position: {
-		x: number;
-		y: number;
-	};
-	velocity: {
-		x: number;
-		y: number;
-	};
+	velocity: { x: number; y: number };
 }
 
-interface Events {
-	initializeGame: {
-		someRandomData: Date;
-	};
+interface Events extends PixiEventTypes {
+	initializeGame: { someRandomData: Date };
 	spawnEnemy: void;
-	updateEnemyDirection: {
-		enemy: Entity<Components>;
-	};
+	updateEnemyDirection: { enemy: Entity<Components> };
 	initializeMap: void;
 	startGame: void;
 }
 
-interface Resources {
-	pixi: Application;
+interface Resources extends PixiResourceTypes {
 	worldContainer: Container;
-	controlMap: {
-		up: boolean;
-		down: boolean;
-		left: boolean;
-		right: boolean;
-	};
+	controlMap: ActiveKeyMap;
 }
 
 // Create reusable query definitions for better type extraction
 const movingEntitiesQuery = createQueryDefinition({
-	with: ['position', 'velocity'],
-});
-
-const renderableEntitiesQuery = createQueryDefinition({
-	with: ['sprite', 'position'],
+	with: ['localTransform', 'velocity'],
 });
 
 // Extract entity types from query definitions for helper functions
 type MovingEntity = QueryResultEntity<Components, typeof movingEntitiesQuery>;
-type RenderableEntity = QueryResultEntity<Components, typeof renderableEntitiesQuery>;
 
 // Helper functions with proper typing - these can be tested independently!
-function updatePosition(entity: MovingEntity, deltaTime: number) {
-	entity.components.position.x += entity.components.velocity.x * deltaTime;
-	entity.components.position.y += entity.components.velocity.y * deltaTime;
+function updatePosition(entity: MovingEntity, deltaTime: number): void {
+	const { localTransform, velocity } = entity.components;
+	localTransform.x += velocity.x * deltaTime;
+	localTransform.y += velocity.y * deltaTime;
 }
 
-function updateSpritePosition(entity: RenderableEntity) {
-	entity.components.sprite.position.set(
-		entity.components.position.x,
-		entity.components.position.y
-	);
-}
+function screenWrap(entity: MovingEntity, screenWidth: number, screenHeight: number): void {
+	const { localTransform } = entity.components;
 
-function screenWrap(entity: MovingEntity, screenWidth: number, screenHeight: number) {
-	const pos = entity.components.position;
-
-	if (pos.x < 0) pos.x = screenWidth;
-	if (pos.x > screenWidth) pos.x = 0;
-	if (pos.y < 0) pos.y = screenHeight;
-	if (pos.y > screenHeight) pos.y = 0;
+	if (localTransform.x < 0) localTransform.x = screenWidth;
+	if (localTransform.x > screenWidth) localTransform.x = 0;
+	if (localTransform.y < 0) localTransform.y = screenHeight;
+	if (localTransform.y > screenHeight) localTransform.y = 0;
 }
 
 // Create an ECSpresso instance with our game bundles
-ECSpresso
+const ecs = ECSpresso
 	.create<Components, Events, Resources>()
+	.withBundle(createPixiBundle({
+		init: { background: '#1099bb', resizeTo: window },
+		container: document.body,
+	}))
 	.withBundle(createGameInitBundle())
 	.withBundle(createPhysicsBundle())
 	.withBundle(createEnemyControllerBundle())
 	.withBundle(createPlayerControllerBundle())
 	.build()
 	// Add global resources
-	.addResource('controlMap', activeKeyMap)
-	.addResource('pixi', initPixi)
-	// Trigger game initialization
-	.eventBus.publish('initializeGame', {
-		someRandomData: new Date(),
-	});
+	.addResource('controlMap', createActiveKeyMap);
 
-async function initPixi() {
-	const pixi = new Application();
+await ecs.initialize();
 
-	await pixi.init({
-		background: '#1099bb',
-		resizeTo: window,
-	});
-
-	return pixi;
-}
+// Trigger game initialization
+ecs.eventBus.publish('initializeGame', { someRandomData: new Date() });
 
 interface ActiveKeyMap {
 	left: boolean;
@@ -107,18 +78,14 @@ interface ActiveKeyMap {
 	down: boolean;
 }
 
-function createCircleSprite(color: number, pixi: Application): Sprite {
-	const texture = pixi.renderer.generateTexture(
-		new Graphics()
-			.circle(0, 0, 30)
-			.fill(color)
+function createCircleSprite(color: number): Sprite {
+	const texture = ecs.getResource('pixiApp').renderer.generateTexture(
+		new Graphics().circle(0, 0, 30).fill(color)
 	);
-
 	return new Sprite(texture);
 }
 
-function activeKeyMap() {
-	console.log('activeKeyMap');
+function createActiveKeyMap(): ActiveKeyMap {
 	const controlMap: ActiveKeyMap = {
 		up: false,
 		down: false,
@@ -126,57 +93,35 @@ function activeKeyMap() {
 		right: false,
 	};
 
+	const keyToControl: Record<string, keyof ActiveKeyMap> = {
+		'w': 'up',
+		'ArrowUp': 'up',
+		's': 'down',
+		'ArrowDown': 'down',
+		'a': 'left',
+		'ArrowLeft': 'left',
+		'd': 'right',
+		'ArrowRight': 'right',
+	};
+
 	window.addEventListener('keydown', (event) => {
-		switch(event.key) {
-			case 'w':
-			case 'ArrowUp':
-				controlMap.up = true;
-				break;
-			case 's':
-			case 'ArrowDown':
-				controlMap.down = true;
-				break;
-			case 'a':
-			case 'ArrowLeft':
-				controlMap.left = true;
-				break;
-			case 'd':
-			case 'ArrowRight':
-				controlMap.right = true;
-				break;
-		}
+		const control = keyToControl[event.key];
+		if (control) controlMap[control] = true;
 	});
 
 	window.addEventListener('keyup', (event) => {
-		switch(event.key) {
-			case 'w':
-			case 'ArrowUp':
-				controlMap.up = false;
-				break;
-			case 's':
-			case 'ArrowDown':
-				controlMap.down = false;
-				break;
-			case 'a':
-			case 'ArrowLeft':
-				controlMap.left = false;
-				break;
-			case 'd':
-			case 'ArrowRight':
-				controlMap.right = false;
-				break;
-		}
+		const control = keyToControl[event.key];
+		if (control) controlMap[control] = false;
 	});
 
 	return controlMap;
 }
 
-function randomInt(min: number, max?: number) {
+function randomInt(min: number, max?: number): number {
 	if (max === undefined) {
 		max = min;
 		min = 0;
 	}
-
 	return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
@@ -185,19 +130,13 @@ function createGameInitBundle() {
 		.addSystem('init')
 		.setEventHandlers({
 			initializeGame: {
-				async handler(data, ecs) {
+				handler(data, ecs) {
 					console.log(`initializing at ${data.someRandomData.toLocaleDateString()}`);
-					await ecs.initializeResources();
 
-					const pixi = ecs.getResource('pixi');
-
-					console.log('pixi', pixi);
-
-					const canvasContainerEl = document
-						.createElement('div')
-						.appendChild(pixi.canvas);
-
-					document.body.appendChild(canvasContainerEl);
+					const pixiApp = ecs.getResource('pixiApp');
+					const worldContainer = new Container();
+					pixiApp.stage.addChild(worldContainer);
+					ecs.addResource('worldContainer', worldContainer);
 
 					ecs.eventBus.publish('initializeMap');
 				},
@@ -205,27 +144,16 @@ function createGameInitBundle() {
 			initializeMap: {
 				handler(_eventData, ecs) {
 					console.log('initializing map triggered');
-					const pixi = ecs.getResource('pixi');
-					const worldContainer = new Container();
+					const worldContainer = ecs.getResource('worldContainer');
 
-					pixi.stage.addChild(worldContainer);
-
-					ecs.addResource('worldContainer', worldContainer);
-
-					const sprite = createCircleSprite(0x0000FF, pixi);
+					const sprite = createCircleSprite(0x0000FF);
 					worldContainer.addChild(sprite);
+
 					ecs.spawn({
+						...createSpriteComponents(sprite, { x: 100, y: 100 }),
 						player: true,
-						sprite,
 						speed: 500,
-						position: {
-							x: 100,
-							y: 100
-						},
-						velocity: {
-							x: 0,
-							y: 0
-						},
+						velocity: { x: 0, y: 0 },
 					});
 
 					ecs.eventBus.publish('startGame');
@@ -233,9 +161,9 @@ function createGameInitBundle() {
 			},
 			startGame: {
 				handler(_eventData, ecs) {
-					const pixi = ecs.getResource('pixi');
+					const pixiApp = ecs.getResource('pixiApp');
 
-					pixi.ticker.add(ticker => {
+					pixiApp.ticker.add(ticker => {
 						ecs.update(ticker.deltaMS / 1_000);
 					});
 				}
@@ -249,46 +177,40 @@ function createPhysicsBundle() {
 		.addSystem('apply-velocity')
 		.addQuery('movingEntities', movingEntitiesQuery)
 		.setProcess((queries, deltaTimeMs, ecs) => {
-			const pixi = ecs.getResource('pixi');
+			const pixiApp = ecs.getResource('pixiApp');
 
-			for(const entity of queries.movingEntities) {
+			for (const entity of queries.movingEntities) {
 				updatePosition(entity, deltaTimeMs);
-				screenWrap(entity, pixi.renderer.width, pixi.renderer.height);
+				screenWrap(entity, pixiApp.renderer.width, pixiApp.renderer.height);
 			}
 		})
 		.and()
-		.addSystem('update-sprite-position')
-		.addQuery('movingEntities', renderableEntitiesQuery)
-		.setProcess((queries) => {
-			for(const entity of queries.movingEntities) {
-				updateSpritePosition(entity);
-			}
-		})
-		.and()
-		.addSystem('colision-detection')
+		.addSystem('collision-detection')
 		.addQuery('players', {
-			with: ['position', 'sprite', 'player'],
+			with: ['localTransform', 'pixiSprite', 'player'],
 		})
 		.addQuery('enemies', {
-			with: ['position', 'sprite'],
+			with: ['localTransform', 'pixiSprite'],
 			without: ['player'],
 		})
 		.setProcess((queries, _deltaTimeMs, ecs) => {
 			const [player] = queries.players;
 			if (!player) return;
 
-			for(const enemy of queries.enemies) {
-				const playerBounds = player.components.sprite.getBounds();
-				const enemyBounds = enemy.components.sprite.getBounds();
-				// console.log('checking collision between player and enemy', enemyBounds);
-				if (playerBounds.x < enemyBounds.x + enemyBounds.width &&
+			for (const enemy of queries.enemies) {
+				const playerBounds = player.components.pixiSprite.sprite.getBounds();
+				const enemyBounds = enemy.components.pixiSprite.sprite.getBounds();
+
+				const isColliding =
+					playerBounds.x < enemyBounds.x + enemyBounds.width &&
 					playerBounds.x + playerBounds.width > enemyBounds.x &&
 					playerBounds.y < enemyBounds.y + enemyBounds.height &&
-					playerBounds.y + playerBounds.height > enemyBounds.y) {
+					playerBounds.y + playerBounds.height > enemyBounds.y;
+
+				if (isColliding) {
 					console.log('collision detected');
-					// handle collision (e.g., remove enemy, reduce player health, etc.)
-					ecs.entityManager.removeEntity(enemy.id);
-					enemy.components.sprite.destroy();
+					enemy.components.pixiSprite.sprite.destroy();
+					ecs.removeEntity(enemy.id);
 				}
 			}
 		})
@@ -310,20 +232,20 @@ function createEnemyControllerBundle() {
 			spawnEnemy: {
 				handler(_eventData, ecs) {
 					console.log('spawning enemy triggered');
-					const pixi = ecs.getResource('pixi');
-					const sprite = createCircleSprite(0xFF0000, pixi);
+					const pixiApp = ecs.getResource('pixiApp');
 					const worldContainer = ecs.getResource('worldContainer');
+
+					const sprite = createCircleSprite(0xFF0000);
 					worldContainer.addChild(sprite);
 
 					const speed = randomInt(300, 550);
 
 					const entity = ecs.spawn({
-						sprite,
+						...createSpriteComponents(sprite, {
+							x: randomInt(pixiApp.renderer.width),
+							y: randomInt(pixiApp.renderer.height),
+						}),
 						speed,
-						position: {
-							x: randomInt(pixi.renderer.width),
-							y: randomInt(pixi.renderer.height),
-						},
 						velocity: {
 							x: randomInt(-speed, speed),
 							y: randomInt(-speed, speed),
@@ -336,8 +258,8 @@ function createEnemyControllerBundle() {
 				}
 			},
 			updateEnemyDirection: {
-				handler(_eventData) {
-					const { enemy } = _eventData;
+				handler(eventData) {
+					const { enemy } = eventData;
 
 					if (!(enemy.components.velocity && enemy.components.speed)) return;
 
@@ -353,11 +275,7 @@ function createPlayerControllerBundle() {
 	return new Bundle<Components, Events, Resources>()
 		.addSystem('player-control')
 		.addQuery('players', {
-			with: [
-				'speed',
-				'position',
-				'velocity'
-			],
+			with: ['speed', 'localTransform', 'velocity'],
 		})
 		.setProcess((queries, _deltaTimeMs, ecs) => {
 			const controlMap = ecs.getResource('controlMap');
@@ -365,21 +283,10 @@ function createPlayerControllerBundle() {
 
 			if (!player) return;
 
-			if (controlMap.up) {
-				player.components.velocity.y = -player.components.speed;
-			} else if (controlMap.down) {
-				player.components.velocity.y = player.components.speed;
-			} else {
-				player.components.velocity.y = 0;
-			}
+			const { velocity, speed } = player.components;
 
-			if (controlMap.left) {
-				player.components.velocity.x = -player.components.speed;
-			} else if (controlMap.right) {
-				player.components.velocity.x = player.components.speed;
-			} else {
-				player.components.velocity.x = 0;
-			}
+			velocity.y = controlMap.up ? -speed : controlMap.down ? speed : 0;
+			velocity.x = controlMap.left ? -speed : controlMap.right ? speed : 0;
 		})
 		.and();
 }

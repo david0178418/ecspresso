@@ -27,7 +27,6 @@ export default async function createInitBundle() {
 			document.getElementById('game-container')?.appendChild(pixi.canvas);
 
 			ecs
-				.addResource('pixi', pixi)
 				.addResource('gameContainer', gameContainer)
 				.addResource('entityContainer', entityContainer)
 				.addResource('uiContainer', uiContainer);

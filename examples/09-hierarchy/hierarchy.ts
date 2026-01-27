@@ -103,7 +103,7 @@ const SOLAR_SYSTEM = {
 
 // ==================== ECS Setup ====================
 
-const ecs = new ECSpresso<Components, Events, Resources>();
+const ecs = ECSpresso.create<Components, Events, Resources>().build();
 
 ecs
 	.addResource('pixi', async () => {
@@ -212,6 +212,13 @@ ecs
 		ecs.addResource('keys', keys);
 		setupKeyboardInput(keys);
 
+		// Add reactive query to auto-update hierarchy display
+		ecs.addReactiveQuery('celestialBodies', {
+			with: ['celestialBody'],
+			onEnter: () => updateHierarchyDisplay(ecs),
+			onExit: () => updateHierarchyDisplay(ecs),
+		});
+
 		// Append canvas to body
 		document.body.appendChild(pixi.canvas);
 
@@ -280,9 +287,6 @@ ecs
 			}
 		}
 
-		// Initial hierarchy update
-		updateHierarchyDisplay(ecs);
-
 		// Start the game loop
 		pixi.ticker.add((ticker) => {
 			ecs.update(ticker.deltaMS / 1000);
@@ -292,19 +296,32 @@ ecs
 
 // ==================== Helper Functions ====================
 
+type KeyDirection = 'up' | 'down' | 'left' | 'right';
+
+const keyToDirection: Record<string, KeyDirection> = {
+	'ArrowUp': 'up',
+	'w': 'up',
+	'W': 'up',
+	'ArrowDown': 'down',
+	's': 'down',
+	'S': 'down',
+	'ArrowLeft': 'left',
+	'a': 'left',
+	'A': 'left',
+	'ArrowRight': 'right',
+	'd': 'right',
+	'D': 'right',
+};
+
 function setupKeyboardInput(keys: { up: boolean; down: boolean; left: boolean; right: boolean }): void {
 	window.addEventListener('keydown', (e) => {
-		if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') keys.up = true;
-		if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') keys.down = true;
-		if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.left = true;
-		if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = true;
+		const direction = keyToDirection[e.key];
+		if (direction) keys[direction] = true;
 	});
 
 	window.addEventListener('keyup', (e) => {
-		if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') keys.up = false;
-		if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') keys.down = false;
-		if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.left = false;
-		if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = false;
+		const direction = keyToDirection[e.key];
+		if (direction) keys[direction] = false;
 	});
 }
 
@@ -362,9 +379,6 @@ function registerClickHandler(
 
 		// Remove entity (cascade: true by default removes all children)
 		ecs.removeEntity(entityId);
-
-		// Update hierarchy display
-		updateHierarchyDisplay(ecs);
 
 		console.log(`Destroyed ${celestialBody.name} and ${descendants.length} descendants`);
 	});

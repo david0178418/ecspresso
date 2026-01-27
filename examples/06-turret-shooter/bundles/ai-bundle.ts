@@ -4,21 +4,13 @@ import type { Components, Events, Resources } from '../types';
 
 export default function createAIBundle() {
 	return new Bundle<Components, Events, Resources>('ai-bundle')
-		// Enemy AI system
+		// Enemy AI system - in gameplay group so it pauses automatically
 		.addSystem('enemy-ai')
+		.inGroup('gameplay')
 		.addQuery('enemies', {
-			with: [
-				'enemy',
-				'position',
-				'velocity',
-				'rotation'
-			]
+			with: ['enemy', 'position', 'velocity', 'rotation']
 		})
 		.setProcess(({ enemies }, _deltaTime, ecs) => {
-			// Check if game is paused
-			const gameState = ecs.getResource('gameState');
-			if (gameState.status !== 'playing') return;
-
 			const playerEntities = ecs.entityManager.getEntitiesWithQuery(['player', 'position']);
 
 			// Skip if no player exists
@@ -97,14 +89,10 @@ export default function createAIBundle() {
 			ecs.addResource('playerInitialRotation', { y: 0 });
 		})
 		.bundle
-		// Spawn system
+		// Spawn system - in gameplay group
 		.addSystem('spawn-system')
+		.inGroup('gameplay')
 		.setProcess((_queries, _deltaTime, ecs) => {
-			const gameState = ecs.getResource('gameState');
-
-			// Only spawn enemies if game is playing
-			if (gameState.status !== 'playing') return;
-
 			const waveManager = ecs.getResource('waveManager');
 			const config = ecs.getResource('config');
 			const playerInitialRotation = ecs.getResource('playerInitialRotation');

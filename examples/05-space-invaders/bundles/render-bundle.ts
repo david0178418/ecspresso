@@ -6,10 +6,7 @@ export default function createRenderBundle() {
 	return new Bundle<Components, Events, Resources>('render-bundle')
 		.addSystem('renderer')
 		.addQuery('renderables', {
-			with: [
-				'position',
-				'sprite',
-			]
+			with: ['position', 'sprite']
 		})
 		.setProcess(({ renderables }, _deltaTime, _ecs) => {
 			for (const entity of renderables) {
@@ -53,7 +50,7 @@ export default function createRenderBundle() {
 			playerShoot: {
 				handler(_data, ecs) {
 					const entityContainer = ecs.getResource('entityContainer');
-					const playerEntities = ecs.entityManager.getEntitiesWithQuery(['player', 'position']);
+					const playerEntities = ecs.getEntitiesWithQuery(['player', 'position']);
 
 					const [player] = playerEntities;
 
@@ -137,7 +134,7 @@ export default function createRenderBundle() {
 						entity.components.sprite.parent?.removeChild(entity.components.sprite);
 					}
 
-					ecs.entityManager.removeEntity(data.entityId);
+					ecs.removeEntity(data.entityId);
 				}
 			},
 

@@ -46,31 +46,20 @@ export function spawnEnemyFormation(ecs: ECSpresso<Components, Events, Resources
 	const startX = (pixi.screen.width - (enemiesPerRow - 1) * spacing) / 2;
 	const startY = 80;
 
+	// Enemy type configurations by row
+	const enemyConfigs: Record<'boss' | 'elite' | 'grunt', { points: number; health: number; color: number }> = {
+		boss: { points: 100 * gameState.level, health: 3, color: 0xFF0000 },
+		elite: { points: 50 * gameState.level, health: 2, color: 0xFF00FF },
+		grunt: { points: 20 * gameState.level, health: 1, color: 0xFFAA00 },
+	};
+
 	// Create enemies
 	for (let row = 0; row < rows; row++) {
 		for (let col = 0; col < enemiesPerRow; col++) {
 			// Determine enemy type based on row
-			let enemyType: 'grunt' | 'elite' | 'boss';
-			let points: number;
-			let health: number;
-			let color: number;
-
-			if (row === 0) {
-				enemyType = 'boss';
-				points = 100 * gameState.level;
-				health = 3;
-				color = 0xFF0000; // Red
-			} else if (row < 2) {
-				enemyType = 'elite';
-				points = 50 * gameState.level;
-				health = 2;
-				color = 0xFF00FF; // Magenta
-			} else {
-				enemyType = 'grunt';
-				points = 20 * gameState.level;
-				health = 1;
-				color = 0xFFAA00; // Orange
-			}
+			const enemyType: 'boss' | 'elite' | 'grunt' =
+				row === 0 ? 'boss' : row < 2 ? 'elite' : 'grunt';
+			const { points, health, color } = enemyConfigs[enemyType];
 
 			// Create enemy sprite
 			const enemySprite = createEnemySprite(ecs, enemyType, color);
@@ -102,48 +91,44 @@ export function spawnEnemyFormation(ecs: ECSpresso<Components, Events, Resources
 	ecs.eventBus.publish('enemyMove', { direction: 'right' });
 }
 
-export function createEnemySprite(ecs: any, type: 'grunt' | 'elite' | 'boss', color: number): Sprite {
+type EnemyType = 'grunt' | 'elite' | 'boss';
+
+const enemyDrawers: Record<EnemyType, (graphics: Graphics, color: number) => void> = {
+	boss: (graphics, color) => {
+		// Boss is larger with a more complex shape
+		graphics
+			.rect(-20, -20, 40, 40)
+			.rect(-25, -10, 50, 20)
+			.fill(color)
+			// detail
+			.circle(-10, -5, 5)
+			.circle(10, -5, 5)
+			.fill(0xFFFFFF);
+	},
+	elite: (graphics, color) => {
+		// Elite is medium-sized
+		graphics
+			.rect(-15, -15, 30, 30)
+			.fill(color)
+			// Add detail
+			.circle(-5, -5, 3)
+			.circle(5, -5, 3)
+			.fill(0xFFFFFF);
+	},
+	grunt: (graphics, color) => {
+		// Grunt is small and simple
+		graphics
+			.rect(-10, -10, 20, 20)
+			.fill(color);
+	},
+};
+
+export function createEnemySprite(ecs: ECSpresso<Components, Events, Resources>, type: EnemyType, color: number): Sprite {
 	const pixi = ecs.getResource('pixi');
 
 	// Create enemy shape based on type
 	const graphics = new Graphics();
-
-	switch (type) {
-		case 'boss':
-			// Boss is larger with a more complex shape
-			graphics
-				.rect(-20, -20, 40, 40)
-				.rect(-25, -10, 50, 20)
-				.fill(color)
-				// detail
-				.circle(-10, -5, 5)
-				.circle(10, -5, 5)
-				.fill(0xFFFFFF);
-
-			break;
-
-		case 'elite':
-			// Elite is medium-sized
-			graphics
-				.rect(-15, -15, 30, 30)
-				.fill(color)
-				// Add detail
-				.circle(-5, -5, 3)
-				.circle(5, -5, 3)
-				.fill(0xFFFFFF);
-
-			break;
-
-		case 'grunt':
-		default:
-			// Grunt is small and simple
-			graphics
-				.rect(-10, -10, 20, 20)
-				.fill(color);
-
-			break;
-	}
-
+	enemyDrawers[type](graphics, color);
 	graphics.fill(color);
 
 	// Generate a texture and create a sprite

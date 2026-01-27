@@ -13,6 +13,9 @@ export default function createGameStateBundle() {
 					const gameState = ecs.getResource('gameState');
 					gameState.status = 'playing';
 
+					// Enable gameplay systems
+					ecs.enableSystemGroup('gameplay');
+
 					// Get player's initial rotation
 					const playerEntities = ecs.entityManager.getEntitiesWithQuery(['player', 'rotation']);
 					if (playerEntities.length > 0) {
@@ -54,6 +57,9 @@ export default function createGameStateBundle() {
 					const gameState = ecs.getResource('gameState');
 					gameState.status = 'paused';
 
+					// Disable gameplay systems
+					ecs.disableSystemGroup('gameplay');
+
 					// Explicitly pause radar sweep
 					const radarSweep = document.getElementById('radar-sweep') as HTMLDivElement;
 					if (radarSweep) {
@@ -75,6 +81,9 @@ export default function createGameStateBundle() {
 					// Resume the game
 					const gameState = ecs.getResource('gameState');
 					gameState.status = 'playing';
+
+					// Enable gameplay systems
+					ecs.enableSystemGroup('gameplay');
 
 					// Explicitly resume radar sweep
 					const radarSweep = document.getElementById('radar-sweep') as HTMLDivElement;
@@ -184,6 +193,9 @@ export default function createGameStateBundle() {
 					// Update game state
 					const gameState = ecs.getResource('gameState');
 					gameState.status = 'gameOver';
+
+					// Disable gameplay systems
+					ecs.disableSystemGroup('gameplay');
 
 					// Pause radar sweep
 					const radarSweep = document.getElementById('radar-sweep') as HTMLDivElement;

@@ -54,6 +54,7 @@ export default function createGameLogicBundle() {
 
 					// Update game state
 					gameState.status = 'playing';
+					ecs.enableSystemGroup('gameplay');
 
 					// Spawn enemies
 					spawnEnemyFormation(ecs);
@@ -65,6 +66,7 @@ export default function createGameLogicBundle() {
 				handler(_data, ecs) {
 					const gameState = ecs.getResource('gameState');
 					gameState.status = 'paused';
+					ecs.disableSystemGroup('gameplay');
 				}
 			},
 
@@ -73,6 +75,7 @@ export default function createGameLogicBundle() {
 				handler(_data, ecs) {
 					const gameState = ecs.getResource('gameState');
 					gameState.status = 'playing';
+					ecs.enableSystemGroup('gameplay');
 				}
 			},
 
@@ -81,6 +84,7 @@ export default function createGameLogicBundle() {
 				handler(_data, ecs) {
 					const gameState = ecs.getResource('gameState');
 					gameState.status = 'gameOver';
+					ecs.disableSystemGroup('gameplay');
 				}
 			},
 
@@ -125,8 +129,9 @@ export default function createGameLogicBundle() {
 			}
 		})
 		.bundle
-		// Enemy controller system
+		// Enemy controller system - in gameplay group so it pauses
 		.addSystem('enemy-controller')
+		.inGroup('gameplay')
 		.addQuery('enemies', {
 			with: ['enemy', 'position']
 		})
@@ -143,9 +148,6 @@ export default function createGameLogicBundle() {
 
 			const gameState = ecs.getResource('gameState');
 			const movementState = ecs.getResource('enemyMovementState');
-
-			// Skip if game is not playing
-			if (gameState.status !== 'playing') return;
 
 			// Track formation boundaries
 			let minX = Number.MAX_VALUE;
@@ -197,14 +199,15 @@ export default function createGameLogicBundle() {
 				const randomIndex = Math.floor(Math.random() * enemies.length);
 				const randomEnemy = enemies[randomIndex];
 
-				if(!randomEnemy) return;
+				if (!randomEnemy) return;
 
 				ecs.eventBus.publish('enemyShoot', { enemyId: randomEnemy.id });
 			}
 		})
 		.bundle
-		// Enemy movement system
+		// Enemy movement system - in gameplay group
 		.addSystem('enemy-movement')
+		.inGroup('gameplay')
 		.addQuery('enemies', {
 			with: ['enemy', 'position', 'velocity']
 		})
@@ -219,43 +222,38 @@ export default function createGameLogicBundle() {
 					const speedMultiplier = 1.0 + (gameState.level - 1) * 0.2;
 					const baseSpeed = config.enemySpeed * speedMultiplier;
 
+					// Direction to velocity mapping
+					const directionVelocities: Record<string, { x: number; y: number }> = {
+						'left': { x: -baseSpeed, y: 0 },
+						'right': { x: baseSpeed, y: 0 },
+						'down': { x: 0, y: baseSpeed * 2 },
+					};
+
+					const velocity = directionVelocities[data.direction];
+					if (!velocity) return;
+
 					// Update enemy velocities based on direction
 					for (const enemy of enemies) {
-						const velocity = enemy.components['velocity'];
-						if (!velocity) continue;
+						const enemyVel = enemy.components['velocity'];
+						if (!enemyVel) continue;
 
-						switch (data.direction) {
-							case 'left':
-								velocity.x = -baseSpeed;
-								velocity.y = 0;
-								break;
-							case 'right':
-								velocity.x = baseSpeed;
-								velocity.y = 0;
-								break;
-							case 'down':
-								velocity.x = 0;
-								velocity.y = baseSpeed * 2;
-								break;
-						}
+						enemyVel.x = velocity.x;
+						enemyVel.y = velocity.y;
 					}
 				}
 			}
 		})
 		.bundle
-		// Player movement system
+		// Player movement system - in gameplay group
 		.addSystem('player-movement')
+		.inGroup('gameplay')
 		.addQuery('players', {
 			with: ['player', 'position', 'velocity', 'collider']
 		})
 		.setProcess(({ players }, _deltaTime, ecs) => {
-			const gameState = ecs.getResource('gameState');
 			const input = ecs.getResource('input');
 			const config = ecs.getResource('config');
 			const pixi = ecs.getResource('pixi');
-
-			// Skip if game is not playing
-			if (gameState.status !== 'playing') return;
 
 			// Update player velocity based on input
 			for (const player of players) {
@@ -264,13 +262,7 @@ export default function createGameLogicBundle() {
 				const collider = player.components.collider;
 
 				// Update velocity based on input
-				if (input.left) {
-					velocity.x = -config.playerSpeed;
-				} else if (input.right) {
-					velocity.x = config.playerSpeed;
-				} else {
-					velocity.x = 0;
-				}
+				velocity.x = input.left ? -config.playerSpeed : input.right ? config.playerSpeed : 0;
 
 				// Keep player within screen bounds
 				const halfWidth = collider.width / 2;

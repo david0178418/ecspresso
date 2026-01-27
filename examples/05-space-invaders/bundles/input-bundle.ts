@@ -1,6 +1,16 @@
 import Bundle from '../../../src/bundle';
 import type { Components, Events, Resources } from '../types';
 
+type InputKey = 'left' | 'right' | 'shoot';
+
+const keyToInput: Record<string, InputKey> = {
+	'ArrowLeft': 'left',
+	'KeyA': 'left',
+	'ArrowRight': 'right',
+	'KeyD': 'right',
+	'Space': 'shoot',
+};
+
 export default function createInputBundle(): Bundle<Components, Events, Resources> {
 	return new Bundle<Components, Events, Resources>('input-bundle')
 		.addResource('input', {
@@ -32,37 +42,29 @@ export default function createInputBundle(): Bundle<Components, Events, Resource
 					const input = ecs.getResource('input');
 					const gameState = ecs.getResource('gameState');
 
-					switch (data.key) {
-						case 'ArrowLeft':
-						case 'KeyA':
-							input.left = data.pressed;
-							break;
-						case 'ArrowRight':
-						case 'KeyD':
-							input.right = data.pressed;
-							break;
-						case 'Space':
-							input.shoot = data.pressed;
+					// Handle movement and shoot keys
+					const inputKey = keyToInput[data.key];
+					if (inputKey) {
+						input[inputKey] = data.pressed;
 
-							if (data.pressed && gameState.status === 'playing') {
-								ecs.eventBus.publish('playerShoot', {});
-							}
+						// Fire on shoot press during gameplay
+						if (inputKey === 'shoot' && data.pressed && gameState.status === 'playing') {
+							ecs.eventBus.publish('playerShoot', {});
+						}
+						return;
+					}
 
-							break;
-						case 'KeyP':
-							// Toggle pause on key down (not on key up)
-							if(!data.pressed) return;
+					// Handle pause key
+					if (data.key === 'KeyP' && data.pressed) {
+						input.pause = !input.pause;
 
-							input.pause = !input.pause;
+						const statusToEvent: Record<string, () => void> = {
+							'playing': () => ecs.eventBus.publish('gamePause'),
+							'paused': () => ecs.eventBus.publish('gameResume'),
+							'ready': () => ecs.eventBus.publish('gameStart'),
+						};
 
-							if (gameState.status === 'playing') {
-								ecs.eventBus.publish('gamePause');
-							} else if (gameState.status === 'paused') {
-								ecs.eventBus.publish('gameResume');
-							} else if (gameState.status === 'ready') {
-								ecs.eventBus.publish('gameStart');
-							}
-							break;
+						statusToEvent[gameState.status]?.();
 					}
 				}
 			},

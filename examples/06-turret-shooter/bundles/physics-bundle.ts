@@ -3,19 +3,13 @@ import type { Components, Events, Resources } from '../types';
 
 export default function createPhysicsBundle() {
 	return new Bundle<Components, Events, Resources>('physics-bundle')
-		// Movement system
+		// Movement system - in gameplay group so it pauses automatically
 		.addSystem('movement')
+		.inGroup('gameplay')
 		.addQuery('movables', {
-			with: [
-				'position',
-				'velocity'
-			]
+			with: ['position', 'velocity']
 		})
-		.setProcess(({ movables }, deltaTime, ecs) => {
-			// Check if game is paused
-			const gameState = ecs.getResource('gameState');
-			if (gameState.status !== 'playing') return;
-
+		.setProcess(({ movables }, deltaTime, _ecs) => {
 			for (const entity of movables) {
 				const { position, velocity } = entity.components;
 

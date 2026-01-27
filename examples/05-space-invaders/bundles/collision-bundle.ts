@@ -3,39 +3,22 @@ import type { Components, Events, Resources } from '../types';
 import { isColliding } from '../utils';
 
 /**
- * Createscontinue;a bundle for handling collisions in the Space Invaders game
+ * Creates a bundle for handling collisions in the Space Invaders game
  */
 export default function createCollisionBundle(): Bundle<Components, Events, Resources> {
-	console.log('createCollisionBundle');
 	return new Bundle<Components, Events, Resources>('collision-bundle')
 		.addSystem('collision-detection')
+		.inGroup('gameplay')
 		.addQuery('projectiles', {
-			with: [
-				'projectile',
-				'position',
-				'collider',
-			],
+			with: ['projectile', 'position', 'collider'],
 		})
 		.addQuery('players', {
-			with: [
-				'player',
-				'position',
-				'collider',
-			],
+			with: ['player', 'position', 'collider'],
 		})
 		.addQuery('enemies', {
-			with: [
-				'enemy',
-				'position',
-				'collider',
-			],
+			with: ['enemy', 'position', 'collider'],
 		})
 		.setProcess(({ projectiles, players, enemies }, _deltaTime, ecs) => {
-			const gameState = ecs.getResource('gameState');
-
-			// Skip collision detection if game is not playing
-			if (gameState.status !== 'playing') return;
-
 			// Process projectile collisions
 			for (const projectile of projectiles) {
 				const projectileData = projectile.components['projectile'];
@@ -91,7 +74,7 @@ export default function createCollisionBundle(): Bundle<Components, Events, Reso
 
 						if (!playerPos || !playerCollider) continue;
 
-						if(!!isColliding(
+						if (!isColliding(
 							projectilePos.x, projectilePos.y, projectileCollider.width, projectileCollider.height,
 							playerPos.x, playerPos.y, playerCollider.width, playerCollider.height
 						)) continue;
@@ -139,15 +122,11 @@ export default function createCollisionBundle(): Bundle<Components, Events, Reso
 		})
 		.bundle
 		.addSystem('movement')
+		.inGroup('gameplay')
 		.addQuery('movingEntities', {
 			with: ['position', 'velocity']
 		})
 		.setProcess(({ movingEntities }, deltaTime, ecs) => {
-			const gameState = ecs.getResource('gameState');
-
-			// Skip if game is not playing
-			if (gameState.status !== 'playing') return;
-
 			const pixi = ecs.getResource('pixi');
 			const screenWidth = pixi.screen.width;
 			const screenHeight = pixi.screen.height;
@@ -182,15 +161,11 @@ export default function createCollisionBundle(): Bundle<Components, Events, Reso
 		.bundle
 		// Lifetime system for temporary entities
 		.addSystem('lifetime')
+		.inGroup('gameplay')
 		.addQuery('temporaries', {
 			with: ['lifetime']
 		})
 		.setProcess(({ temporaries }, deltaTime, ecs) => {
-			const gameState = ecs.getResource('gameState');
-
-			// Skip if game is not playing
-			if (gameState.status !== 'playing') return;
-
 			// Update lifetimes and destroy expired entities
 			for (const entity of temporaries) {
 				const lifetime = entity.components['lifetime'];
