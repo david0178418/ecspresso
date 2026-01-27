@@ -380,4 +380,163 @@ describe('ResourceManager', () => {
 			expect(systemRan).toBe(true);
 		});
 	});
+
+	describe('Resource Dependencies', () => {
+		test('should initialize resources in dependency order', async () => {
+			const order: string[] = [];
+			const rm = new ResourceManager<{ a: number; b: number; c: number }>();
+
+			rm.add('c', {
+				dependsOn: ['b'],
+				factory: () => { order.push('c'); return 3; }
+			});
+			rm.add('a', () => { order.push('a'); return 1; });
+			rm.add('b', {
+				dependsOn: ['a'],
+				factory: () => { order.push('b'); return 2; }
+			});
+
+			await rm.initializeResources();
+
+			expect(order).toEqual(['a', 'b', 'c']);
+		});
+
+		test('should handle diamond dependencies', async () => {
+			// D depends on B and C, both depend on A
+			const order: string[] = [];
+			const rm = new ResourceManager<{ a: number; b: number; c: number; d: number }>();
+
+			rm.add('d', { dependsOn: ['b', 'c'], factory: () => { order.push('d'); return 4; } });
+			rm.add('b', { dependsOn: ['a'], factory: () => { order.push('b'); return 2; } });
+			rm.add('c', { dependsOn: ['a'], factory: () => { order.push('c'); return 3; } });
+			rm.add('a', () => { order.push('a'); return 1; });
+
+			await rm.initializeResources();
+
+			expect(order[0]).toBe('a');           // A must be first
+			expect(order[3]).toBe('d');           // D must be last
+			expect(order.indexOf('b')).toBeLessThan(order.indexOf('d'));
+			expect(order.indexOf('c')).toBeLessThan(order.indexOf('d'));
+		});
+
+		test('should detect circular dependencies', async () => {
+			const rm = new ResourceManager<{ a: number; b: number }>();
+
+			rm.add('a', { dependsOn: ['b'], factory: () => 1 });
+			rm.add('b', { dependsOn: ['a'], factory: () => 2 });
+
+			await expect(rm.initializeResources()).rejects.toThrow(/[Cc]ircular/);
+		});
+
+		test('should detect self-referential dependencies', async () => {
+			const rm = new ResourceManager<{ a: number }>();
+
+			rm.add('a', { dependsOn: ['a'], factory: () => 1 });
+
+			await expect(rm.initializeResources()).rejects.toThrow(/[Cc]ircular/);
+		});
+
+		test('should allow factory to access dependencies via context', async () => {
+			interface Res { config: { value: number }; derived: { doubled: number } }
+			const rm = new ResourceManager<Res>();
+
+			// Create a mock ECS instance with getResource method
+			const mockEcs = {
+				getResource: (key: keyof Res) => rm.get(key)
+			};
+
+			rm.add('config', { value: 42 });
+			rm.add('derived', {
+				dependsOn: ['config'],
+				factory: (ecs) => ({ doubled: ecs.getResource('config').value * 2 })
+			});
+
+			await rm.initializeResources(mockEcs);
+
+			expect(rm.get('derived')).toEqual({ doubled: 84 });
+		});
+
+		test('should work with async factories that have dependencies', async () => {
+			const rm = new ResourceManager<{ sync: number; async: number }>();
+
+			rm.add('sync', () => 1);
+			rm.add('async', {
+				dependsOn: ['sync'],
+				factory: async () => {
+					await new Promise(r => setTimeout(r, 10));
+					return 2;
+				}
+			});
+
+			await rm.initializeResources();
+
+			expect(rm.get('async')).toBe(2);
+		});
+
+		test('backward compatibility - existing patterns still work', async () => {
+			const rm = new ResourceManager<{ direct: number; factory: number; asyncFactory: number }>();
+
+			rm.add('direct', 1);
+			rm.add('factory', () => 2);
+			rm.add('asyncFactory', async () => 3);
+
+			await rm.initializeResources();
+
+			expect(rm.get('direct')).toBe(1);
+			expect(rm.get('factory')).toBe(2);
+			expect(rm.get('asyncFactory')).toBe(3);
+		});
+
+		test('should handle multiple independent and dependent resources', async () => {
+			const order: string[] = [];
+			const rm = new ResourceManager<{ a: number; b: number; c: number; d: number; e: number }>();
+
+			// Independent resources
+			rm.add('a', () => { order.push('a'); return 1; });
+			rm.add('b', () => { order.push('b'); return 2; });
+
+			// c depends on a
+			rm.add('c', {
+				dependsOn: ['a'],
+				factory: () => { order.push('c'); return 3; }
+			});
+
+			// d depends on b
+			rm.add('d', {
+				dependsOn: ['b'],
+				factory: () => { order.push('d'); return 4; }
+			});
+
+			// e depends on c and d
+			rm.add('e', {
+				dependsOn: ['c', 'd'],
+				factory: () => { order.push('e'); return 5; }
+			});
+
+			await rm.initializeResources();
+
+			// a must come before c
+			expect(order.indexOf('a')).toBeLessThan(order.indexOf('c'));
+			// b must come before d
+			expect(order.indexOf('b')).toBeLessThan(order.indexOf('d'));
+			// c and d must come before e
+			expect(order.indexOf('c')).toBeLessThan(order.indexOf('e'));
+			expect(order.indexOf('d')).toBeLessThan(order.indexOf('e'));
+		});
+
+		test('should expose getDependencies for introspection', () => {
+			const rm = new ResourceManager<{ a: number; b: number; c: number }>();
+
+			rm.add('a', 1);
+			rm.add('b', {
+				dependsOn: ['a'],
+				factory: () => 2
+			});
+			rm.add('c', () => 3);
+
+			expect(rm.getDependencies('a')).toEqual([]);
+			expect(rm.getDependencies('b')).toEqual(['a']);
+			expect(rm.getDependencies('c')).toEqual([]);
+		});
+	});
 });

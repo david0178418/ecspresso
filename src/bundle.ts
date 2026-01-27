@@ -66,14 +66,17 @@ export default class Bundle<
 	/**
 	 * Add a resource to this bundle
 	 * @param label The resource key
-	 * @param resource The resource value or a factory function that returns the resource
+	 * @param resource The resource value, a factory function, or a factory with dependencies
 	 */
 	addResource<K extends keyof ResourceTypes>(
 		label: K,
-		resource: ResourceTypes[K] | ((ecs: ECSpresso<ComponentTypes, EventTypes, ResourceTypes>) => ResourceTypes[K] | Promise<ResourceTypes[K]>)
+		resource:
+			| ResourceTypes[K]
+			| ((ecs: ECSpresso<ComponentTypes, EventTypes, ResourceTypes>) => ResourceTypes[K] | Promise<ResourceTypes[K]>)
+			| { dependsOn: readonly string[]; factory: (ecs: ECSpresso<ComponentTypes, EventTypes, ResourceTypes>) => ResourceTypes[K] | Promise<ResourceTypes[K]> }
 	) {
 		// We need this cast because TypeScript doesn't recognize that a value of type
-		// ResourceTypes[K] | (() => ResourceTypes[K] | Promise<ResourceTypes[K]>)
+		// ResourceTypes[K] | (() => ResourceTypes[K] | Promise<ResourceTypes[K]>) | { dependsOn, factory }
 		// can be properly assigned to Map<keyof ResourceTypes, ResourceTypes[keyof ResourceTypes]>
 		this._resources.set(label, resource as unknown as ResourceTypes[K]);
 		return this;

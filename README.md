@@ -348,7 +348,8 @@ Create resources lazily with factory functions:
 ```typescript
 interface Resources {
   config: { difficulty: string; soundEnabled: boolean };
-  assets: { textures: any[] };
+  database: Database;
+  cache: { db: Database };
 }
 
 const world = new ECSpresso<Components, {}, Resources>();
@@ -360,14 +361,26 @@ world.addResource('config', () => ({
 }));
 
 // Async factory
-world.addResource('assets', async () => {
-  const textures = await loadTextures();
-  return { textures };
+world.addResource('database', async () => {
+  return await connectToDatabase();
 });
 
-// Initialize all resources
+// Factory with dependencies - initialized after dependencies are ready
+world.addResource('cache', {
+  dependsOn: ['database'],
+  factory: (ecs) => ({
+    db: ecs.getResource('database')
+  })
+});
+
+// Initialize all resources (respects dependency order)
 await world.initializeResources();
 ```
+
+**Dependency Features:**
+- Resources are initialized in topological order (dependencies first)
+- Circular dependencies throw a descriptive error at initialization time
+- Existing patterns (direct values, simple factories) work unchanged
 
 ### System Lifecycle
 

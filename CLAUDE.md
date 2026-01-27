@@ -51,6 +51,7 @@ src/
 - **Component Lifecycle**: `onComponentAdded()`, `onComponentRemoved()` return unsubscribe functions
 - **Reactive Queries**: `addReactiveQuery()` with `onEnter`/`onExit` callbacks for query match changes
 - **World Position Pattern**: `worldPos = localPos + parent.worldPos` (parent's world pos includes all grandparents)
+- **Resource Dependencies**: `addResource('cache', { dependsOn: ['db'], factory: (ecs) => ... })`
 
 ## Commands
 

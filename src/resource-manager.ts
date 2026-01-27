@@ -1,26 +1,92 @@
+/**
+ * Resource factory with declared dependencies
+ */
+interface ResourceFactoryWithDeps<T> {
+	dependsOn: readonly string[];
+	factory: (context?: any) => T | Promise<T>;
+}
+
+/**
+ * Type guard for detecting { dependsOn, factory } pattern
+ */
+function isFactoryWithDeps<T>(resource: unknown): resource is ResourceFactoryWithDeps<T> {
+	return (
+		typeof resource === 'object' &&
+		resource !== null &&
+		'dependsOn' in resource &&
+		'factory' in resource &&
+		Array.isArray((resource as ResourceFactoryWithDeps<T>).dependsOn) &&
+		typeof (resource as ResourceFactoryWithDeps<T>).factory === 'function'
+	);
+}
+
+/**
+ * Topological sort with cycle detection
+ */
+function topologicalSort(
+	keys: readonly string[],
+	getDeps: (key: string) => readonly string[]
+): string[] {
+	const sorted: string[] = [];
+	const visited = new Set<string>();
+	const visiting = new Set<string>();
+
+	function visit(key: string, path: string[] = []): void {
+		if (visited.has(key)) return;
+		if (visiting.has(key)) {
+			throw new Error(`Circular resource dependency: ${[...path, key].join(' -> ')}`);
+		}
+
+		visiting.add(key);
+		for (const dep of getDeps(key)) {
+			if (keys.includes(dep)) {
+				visit(dep, [...path, key]);
+			}
+		}
+		visiting.delete(key);
+		visited.add(key);
+		sorted.push(key);
+	}
+
+	for (const key of keys) {
+		visit(key);
+	}
+	return sorted;
+}
+
 export default
 class ResourceManager<ResourceTypes extends Record<string, any> = Record<string, any>> {
 	private resources: Map<string, any> = new Map();
 	private resourceFactories: Map<string, (context?: any) => any | Promise<any>> = new Map();
+	private resourceDependencies: Map<string, readonly string[]> = new Map();
 	private initializedResourceKeys: Set<string> = new Set();
 
 	/**
 	 * Add a resource to the manager
 	 * @param label The resource key
-	 * @param resource The resource value or a factory function that returns the resource
+	 * @param resource The resource value, a factory function, or a factory with dependencies
 	 * @returns The resource manager instance for chaining
 	 */
 	add<K extends keyof ResourceTypes>(
 		label: K,
-		resource: ResourceTypes[K] | ((context?: any) => ResourceTypes[K] | Promise<ResourceTypes[K]>),
+		resource:
+			| ResourceTypes[K]
+			| ((context?: any) => ResourceTypes[K] | Promise<ResourceTypes[K]>)
+			| ResourceFactoryWithDeps<ResourceTypes[K]>,
 	) {
-		if (this._isFactoryFunction(resource)) {
-			// Factory function
+		if (isFactoryWithDeps<ResourceTypes[K]>(resource)) {
+			// Factory with dependencies
+			this.resourceFactories.set(label as string, resource.factory);
+			this.resourceDependencies.set(label as string, resource.dependsOn);
+		} else if (this._isFactoryFunction(resource)) {
+			// Factory function (no dependencies)
 			this.resourceFactories.set(label as string, resource as (context?: any) => any | Promise<any>);
+			this.resourceDependencies.set(label as string, []);
 		} else {
 			// Direct resource value
 			this.resources.set(label as string, resource);
 			this.initializedResourceKeys.add(label as string);
+			this.resourceDependencies.set(label as string, []);
 		}
 		return this;
 	}
@@ -183,24 +249,42 @@ class ResourceManager<ResourceTypes extends Record<string, any> = Record<string,
 	}
 
 	/**
-	 * Initialize specific resources or all resources that haven't been initialized yet
-	 * @param keys Optional array of resource keys to initialize or optional context to pass to factory functions
+	 * Initialize specific resources or all resources that haven't been initialized yet.
+	 * Resources are initialized in topological order based on their dependencies.
+	 * @param context Optional context to pass to factory functions (usually the ECSpresso instance)
+	 * @param keys Optional array of resource keys to initialize
 	 * @returns Promise that resolves when the specified resources are initialized
 	 */
 	async initializeResources<K extends keyof ResourceTypes>(
 		context?: any,
 		...keys: K[]
 	): Promise<void> {
-		// If no keys provided, initialize all pending resources
-		if (keys.length === 0) {
-			const pendingKeys = this.getPendingInitializationKeys();
-			await Promise.all(pendingKeys.map(key => this.initializeResource(key, context)));
-			return;
-		}
+		// Determine which keys to initialize
+		const keysToInit = keys.length === 0
+			? this.getPendingInitializationKeys()
+			: keys.map(k => k as string);
 
-		// Otherwise, initialize only the specified resources
-		await Promise.all(
-			keys.map(key => this.initializeResource(key, context))
+		// If no keys to initialize, we're done
+		if (keysToInit.length === 0) return;
+
+		// Sort keys topologically based on dependencies
+		const sortedKeys = topologicalSort(
+			keysToInit,
+			(key) => this.resourceDependencies.get(key) ?? []
 		);
+
+		// Initialize in order (sequentially to respect dependencies)
+		for (const key of sortedKeys) {
+			await this.initializeResource(key, context);
+		}
+	}
+
+	/**
+	 * Get the dependencies of a resource
+	 * @param label The resource key
+	 * @returns Array of resource keys that this resource depends on
+	 */
+	getDependencies<K extends keyof ResourceTypes>(label: K): readonly string[] {
+		return this.resourceDependencies.get(label as string) ?? [];
 	}
 }

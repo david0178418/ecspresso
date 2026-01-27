@@ -492,7 +492,10 @@ export default class ECSpresso<
 	*/
 	addResource<K extends keyof ResourceTypes>(
 		key: K,
-		resource: ResourceTypes[K] | ((ecs: ECSpresso<ComponentTypes, EventTypes, ResourceTypes>) => ResourceTypes[K] | Promise<ResourceTypes[K]>)
+		resource:
+			| ResourceTypes[K]
+			| ((ecs: ECSpresso<ComponentTypes, EventTypes, ResourceTypes>) => ResourceTypes[K] | Promise<ResourceTypes[K]>)
+			| { dependsOn: readonly string[]; factory: (ecs: ECSpresso<ComponentTypes, EventTypes, ResourceTypes>) => ResourceTypes[K] | Promise<ResourceTypes[K]> }
 	): this {
 		this._resourceManager.add(key, resource);
 		return this;
