@@ -1,6 +1,6 @@
 import { Graphics, Sprite } from "pixi.js";
 import ECSpresso from "../../src";
-import { createTransform } from "../../src/bundles/utils/transform";
+import { createSpriteComponents } from "../../src/bundles/renderers/pixi";
 import { createVelocity } from "../../src/bundles/utils/movement";
 import { createAABBCollider } from "../../src/bundles/utils/collision";
 import { createClampToBounds } from "../../src/bundles/utils/bounds";
@@ -13,8 +13,7 @@ import { Components, Events, Resources } from "./types";
 export function spawnEnemyFormation(ecs: ECSpresso<Components, Events, Resources>): void {
 	const config = ecs.getResource('config');
 	const gameState = ecs.getResource('gameState');
-	const entityContainer = ecs.getResource('entityContainer');
-	const pixi = ecs.getResource('pixi');
+	const pixi = ecs.getResource('pixiApp');
 
 	const enemiesPerRow = config.enemiesPerRow;
 	const rows = config.enemyRows;
@@ -35,12 +34,10 @@ export function spawnEnemyFormation(ecs: ECSpresso<Components, Events, Resources
 			const { points, health, color } = enemyConfigs[enemyType];
 
 			const enemySprite = createEnemySprite(ecs, enemyType, color);
-			entityContainer.addChild(enemySprite);
 
 			ecs.spawn({
 				enemy: { type: enemyType, points, health },
-				sprite: enemySprite,
-				...createTransform(startX + col * spacing, startY + row * spacing),
+				...createSpriteComponents(enemySprite, { x: startX + col * spacing, y: startY + row * spacing }),
 				...createVelocity(config.enemySpeed, 0),
 				...createAABBCollider(enemySprite.width, enemySprite.height),
 				...layers.enemy(),
@@ -75,7 +72,7 @@ const enemyDrawers: Record<EnemyType, (graphics: Graphics, color: number) => voi
 };
 
 export function createEnemySprite(ecs: ECSpresso<Components, Events, Resources>, type: EnemyType, color: number): Sprite {
-	const pixi = ecs.getResource('pixi');
+	const pixi = ecs.getResource('pixiApp');
 	const graphics = new Graphics();
 	enemyDrawers[type](graphics, color);
 
@@ -86,7 +83,7 @@ export function createEnemySprite(ecs: ECSpresso<Components, Events, Resources>,
 }
 
 export function createPlayerSprite(ecs: ECSpresso<Components, Events, Resources>): Sprite {
-	const pixi = ecs.getResource('pixi');
+	const pixi = ecs.getResource('pixiApp');
 	const graphics = new Graphics()
 		.rect(-20, -10, 40, 20)
 		.moveTo(-10, -10)
@@ -102,7 +99,7 @@ export function createPlayerSprite(ecs: ECSpresso<Components, Events, Resources>
 }
 
 export function createProjectileSprite(ecs: ECSpresso<Components, Events, Resources>, owner: 'player' | 'enemy'): Sprite {
-	const pixi = ecs.getResource('pixi');
+	const pixi = ecs.getResource('pixiApp');
 	const graphics = new Graphics()
 		.rect(-2, -8, 4, 16)
 		.fill(owner === 'player' ? 0x00FFFF : 0xFF0000);
@@ -114,15 +111,12 @@ export function createProjectileSprite(ecs: ECSpresso<Components, Events, Resour
 }
 
 export function spawnPlayer(ecs: ECSpresso<Components, Events, Resources>): number {
-	const entityContainer = ecs.getResource('entityContainer');
-	const pixi = ecs.getResource('pixi');
+	const pixi = ecs.getResource('pixiApp');
 	const playerSprite = createPlayerSprite(ecs);
-	entityContainer.addChild(playerSprite);
 
 	const player = ecs.spawn({
-		sprite: playerSprite,
+		...createSpriteComponents(playerSprite, { x: pixi.screen.width / 2, y: pixi.screen.height - 80 }),
 		player: true,
-		...createTransform(pixi.screen.width / 2, pixi.screen.height - 80),
 		...createVelocity(0, 0),
 		...createAABBCollider(playerSprite.width, playerSprite.height),
 		...layers.player(),

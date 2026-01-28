@@ -134,7 +134,7 @@ export default function createGameLogicBundle() {
 
 			const gameState = ecs.getResource('gameState');
 			const movementState = ecs.getResource('enemyMovementState');
-			const pixi = ecs.getResource('pixi');
+			const pixi = ecs.getResource('pixiApp');
 
 			let minX = Number.MAX_VALUE;
 			let maxX = Number.MIN_VALUE;

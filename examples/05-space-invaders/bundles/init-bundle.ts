@@ -1,34 +1,30 @@
-import { Application, Container } from "pixi.js";
+import { Container } from "pixi.js";
 import Bundle from "../../../src/bundle";
 import { createBounds } from "../../../src/bundles/utils/bounds";
 import type { Components, Events, Resources } from "../types";
 
-export default async function createInitBundle() {
-	const pixi = new Application();
-
-	await pixi.init({
-		background: '#000000',
-		resizeTo: window,
-	});
-
+/**
+ * Game-specific initialization: container hierarchy, game loop, bounds.
+ * PixiJS Application is provided by the pixi bundle.
+ */
+export default function createInitBundle() {
 	return new Bundle<Components, Events, Resources>('init-bundle')
-		.addResource('pixi', pixi)
 		.addSystem('init')
 		.setOnInitialize((ecs) => {
+			const pixiApp = ecs.getResource('pixiApp');
+
 			// Create containers for entities and UI
 			const gameContainer = new Container();
 			const entityContainer = new Container();
 			const uiContainer = new Container();
 
 			// Add containers to the stage
-			pixi.stage.addChild(gameContainer);
+			pixiApp.stage.addChild(gameContainer);
 			gameContainer.addChild(entityContainer);
 			gameContainer.addChild(uiContainer);
 
-			document.getElementById('game-container')?.appendChild(pixi.canvas);
-
 			// Update bounds to match actual screen size
-			const bounds = createBounds(pixi.screen.width, pixi.screen.height);
+			const bounds = createBounds(pixiApp.screen.width, pixiApp.screen.height);
 
 			ecs
 				.addResource('gameContainer', gameContainer)
@@ -37,10 +33,10 @@ export default async function createInitBundle() {
 				.addResource('bounds', bounds);
 		})
 		.setEventHandlers({
-			// Initialize the game
 			gameInit: {
 				handler(_, ecs) {
-					pixi.ticker.add(ticker => {
+					const pixiApp = ecs.getResource('pixiApp');
+					pixiApp.ticker.add(ticker => {
 						ecs.update(ticker.deltaMS / 1_000);
 					});
 				},

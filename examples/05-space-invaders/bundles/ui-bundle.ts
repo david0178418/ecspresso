@@ -8,7 +8,7 @@ export default function createUIBundle() {
 		.addSystem('ui-manager')
 		.setOnInitialize((ecs) => {
 			const uiContainer = ecs.getResource('uiContainer');
-			const pixi = ecs.getResource('pixi');
+			const pixi = ecs.getResource('pixiApp');
 
 			const scoreText = new Text({
 				x: 0,
@@ -79,7 +79,7 @@ export default function createUIBundle() {
 			gameInit: {
 				handler(_data, ecs) {
 					const uiElements = ecs.getResource('uiElements');
-					const pixi = ecs.getResource('pixi');
+					const pixi = ecs.getResource('pixiApp');
 
 					uiElements.messageText.text = 'PRESS P TO START';
 					uiElements.messageText.x = (pixi.screen.width - uiElements.messageText.width) / 2;
@@ -98,7 +98,7 @@ export default function createUIBundle() {
 			gamePause: {
 				handler(_data, ecs) {
 					const uiElements = ecs.getResource('uiElements');
-					const pixi = ecs.getResource('pixi');
+					const pixi = ecs.getResource('pixiApp');
 
 					uiElements.messageText.text = 'PAUSED';
 					uiElements.messageText.x = (pixi.screen.width - uiElements.messageText.width) / 2;
@@ -117,7 +117,7 @@ export default function createUIBundle() {
 			gameOver: {
 				handler(data, ecs) {
 					const uiElements = ecs.getResource('uiElements');
-					const pixi = ecs.getResource('pixi');
+					const pixi = ecs.getResource('pixiApp');
 
 					uiElements.messageText.text = data.win
 						? `YOU WIN!\nFINAL SCORE: ${data.score}`
@@ -132,7 +132,7 @@ export default function createUIBundle() {
 			levelComplete: {
 				handler(data, ecs) {
 					const uiElements = ecs.getResource('uiElements');
-					const pixi = ecs.getResource('pixi');
+					const pixi = ecs.getResource('pixiApp');
 
 					uiElements.messageText.text = `LEVEL ${data.level} COMPLETE!`;
 					uiElements.messageText.x = (pixi.screen.width - uiElements.messageText.width) / 2;

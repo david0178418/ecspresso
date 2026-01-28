@@ -1,4 +1,5 @@
 import ECSpresso from '../../src';
+import { createPixiBundle } from '../../src/bundles/renderers/pixi';
 import { createTransformBundle } from '../../src/bundles/utils/transform';
 import { createTimerBundle } from '../../src/bundles/utils/timers';
 import { createMovementBundle } from '../../src/bundles/utils/movement';
@@ -6,7 +7,7 @@ import { createBoundsBundle, createBounds } from '../../src/bundles/utils/bounds
 import { createCollisionBundle } from '../../src/bundles/utils/collision';
 import createCombatBundle from './bundles/combat-bundle';
 import createInputBundle from './bundles/input-bundle';
-import createRenderBundle from './bundles/render-bundle';
+import createSpawnerBundle from './bundles/spawner-bundle';
 import createUIBundle from './bundles/ui-bundle';
 import createGameLogicBundle from './bundles/game-logic-bundle';
 import createInitBundle from './bundles/init-bundle';
@@ -26,8 +27,8 @@ const game = ECSpresso
 	.withResource('score', { value: 0 })
 	.withResource('enemyMovementState', {
 		isMovingDown: false,
-		currentDirection: 'right' as const,
-		lastEdgeHit: null as 'left' | 'right' | null
+		currentDirection: 'right',
+		lastEdgeHit: null,
 	})
 	.withResource('bounds', createBounds(800, 600)) // Updated dynamically in init-bundle
 	.withBundle(createTimerBundle<Events>())
@@ -35,9 +36,13 @@ const game = ECSpresso
 	.withBundle(createMovementBundle({ priority: 200 }))
 	.withBundle(createBoundsBundle({ priority: 100 }))
 	.withBundle(createCollisionBundle({ priority: 50 }))
-	.withBundle(await createInitBundle())
+	.withBundle(createPixiBundle({
+		init: { background: '#000000', resizeTo: window },
+		container: '#game-container',
+	}))
+	.withBundle(createInitBundle())
 	.withBundle(createInputBundle())
-	.withBundle(createRenderBundle())
+	.withBundle(createSpawnerBundle())
 	.withBundle(createUIBundle())
 	.withBundle(createGameLogicBundle())
 	.withBundle(createCombatBundle())
