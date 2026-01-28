@@ -1,4 +1,5 @@
 import Bundle from '../../../src/bundle';
+import { createTimer } from '../../../src/bundles/utils/timers';
 import type { Components, Events, Resources } from '../types';
 import { spawnPlayer, createProjectileSprite } from '../utils';
 
@@ -44,6 +45,7 @@ export default function createRenderBundle() {
 					entityContainer.addChild(projectileSprite);
 
 					ecs.spawn({
+						...createTimer<Events>(2.0), // Auto-remove after 2 seconds
 						position: {
 							x: playerPosition.x,
 							y: playerPosition.y - 20
@@ -61,9 +63,6 @@ export default function createRenderBundle() {
 							width: projectileSprite.width,
 							height: projectileSprite.height
 						},
-						lifetime: {
-							remaining: 2.0 // Seconds before auto-destruction
-						}
 					});
 				}
 			},
@@ -84,6 +83,7 @@ export default function createRenderBundle() {
 
 					// Create a projectile entity positioned at the bottom of the enemy
 					ecs.spawn({
+						...createTimer<Events>(4.0), // Auto-remove after 4 seconds
 						position: {
 							x: enemyPosition.x,
 							y: enemyPosition.y + 20
@@ -101,9 +101,6 @@ export default function createRenderBundle() {
 							width: projectileSprite.width,
 							height: projectileSprite.height
 						},
-						lifetime: {
-							remaining: 4.0,
-						}
 					});
 				}
 			},

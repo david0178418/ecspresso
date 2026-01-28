@@ -57,10 +57,6 @@ export interface Events {
  * All component types used in the Space Invaders game
  */
 export interface Components extends TimerComponentTypes<Events> {
-	// Formation entity
-	enemyFormation: {
-		level: number;
-	};
 	// Position and movement
 	position: {
 		x: number;
@@ -85,22 +81,11 @@ export interface Components extends TimerComponentTypes<Events> {
 		owner: 'player' | 'enemy';
 		damage: number;
 	};
-	shield: {
-		health: number;
-		maxHealth: number;
-	};
 
-	// Additional components
+	// Collision
 	collider: {
 		width: number;
 		height: number;
-	};
-	lifetime: {
-		remaining: number;
-	};
-	powerup: {
-		type: 'rapidFire' | 'shield' | 'extraLife';
-		duration?: number;
 	};
 }
 

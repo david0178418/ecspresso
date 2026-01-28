@@ -53,14 +53,6 @@ export function spawnEnemyFormation(ecs: ECSpresso<Components, Events, Resources
 		grunt: { points: 20 * gameState.level, health: 1, color: 0xFFAA00 },
 	};
 
-	// Create formation parent entity
-	const formation = ecs.spawn({
-		enemyFormation: {
-			level: gameState.level,
-		},
-	});
-
-	// Create enemies as children of formation
 	for (let row = 0; row < rows; row++) {
 		for (let col = 0; col < enemiesPerRow; col++) {
 			// Determine enemy type based on row
@@ -76,8 +68,7 @@ export function spawnEnemyFormation(ecs: ECSpresso<Components, Events, Resources
 			const x = startX + col * spacing;
 			const y = startY + row * spacing;
 
-			// Create enemy entity as child of formation
-			ecs.spawnChild(formation.id, {
+			ecs.spawn({
 				enemy: {
 					type: enemyType,
 					points,
@@ -93,9 +84,6 @@ export function spawnEnemyFormation(ecs: ECSpresso<Components, Events, Resources
 			});
 		}
 	}
-
-	// Start enemies moving to the right
-	ecs.eventBus.publish('enemyMove', { direction: 'right' });
 }
 
 type EnemyType = 'grunt' | 'elite' | 'boss';

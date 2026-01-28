@@ -158,26 +158,5 @@ export default function createCollisionBundle(): Bundle<Components, Events, Reso
 				}
 			}
 		})
-		.bundle
-		// Lifetime system for temporary entities
-		.addSystem('lifetime')
-		.inGroup('gameplay')
-		.addQuery('temporaries', {
-			with: ['lifetime']
-		})
-		.setProcess(({ temporaries }, deltaTime, ecs) => {
-			// Update lifetimes and destroy expired entities
-			for (const entity of temporaries) {
-				const lifetime = entity.components['lifetime'];
-
-				if (!lifetime) continue;
-
-				lifetime.remaining -= deltaTime;
-
-				if (lifetime.remaining <= 0) {
-					ecs.eventBus.publish('entityDestroyed', { entityId: entity.id });
-				}
-			}
-		})
 		.bundle;
 }
