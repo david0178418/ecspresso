@@ -2,11 +2,12 @@
  * Collision Bundle for ECSpresso
  *
  * Provides layer-based collision detection with events.
+ * Uses worldTransform for position (world-space collision).
  * Supports AABB and circle colliders.
  */
 
 import Bundle from '../../bundle';
-import type { MovementComponentTypes } from './movement';
+import type { TransformComponentTypes } from './transform';
 
 // ==================== Component Types ====================
 
@@ -52,7 +53,7 @@ export interface CollisionLayer {
  *
  * @example
  * ```typescript
- * interface GameComponents extends MovementComponentTypes, CollisionComponentTypes {
+ * interface GameComponents extends TransformComponentTypes, CollisionComponentTypes {
  *   sprite: Sprite;
  *   enemy: boolean;
  * }
@@ -115,7 +116,7 @@ export interface CollisionBundleOptions {
  * @example
  * ```typescript
  * ecs.spawn({
- *   ...createPosition(100, 200),
+ *   ...createTransform(100, 200),
  *   ...createAABBCollider(50, 30),
  * });
  * ```
@@ -143,7 +144,7 @@ export function createAABBCollider(
  * @example
  * ```typescript
  * ecs.spawn({
- *   ...createPosition(100, 200),
+ *   ...createTransform(100, 200),
  *   ...createCircleCollider(25),
  * });
  * ```
@@ -169,7 +170,7 @@ export function createCircleCollider(
  * @example
  * ```typescript
  * ecs.spawn({
- *   ...createPosition(100, 200),
+ *   ...createTransform(100, 200),
  *   ...createAABBCollider(50, 30),
  *   ...createCollisionLayer('player', ['enemy', 'obstacle']),
  * });
@@ -208,7 +209,7 @@ export type LayerFactories<T extends Record<string, readonly string[]>> = {
  *
  * // Usage
  * ecs.spawn({
- *   ...createPosition(100, 200),
+ *   ...createTransform(100, 200),
  *   ...createAABBCollider(50, 30),
  *   ...layers.player(),
  * });
@@ -229,7 +230,7 @@ export function defineCollisionLayers<T extends Record<string, readonly string[]
 
 // ==================== Internal Types ====================
 
-type CombinedComponentTypes = CollisionComponentTypes & MovementComponentTypes;
+type CombinedComponentTypes = CollisionComponentTypes & TransformComponentTypes;
 
 interface ColliderInfo {
 	entityId: number;
@@ -252,18 +253,19 @@ interface ColliderInfo {
  * - Layer-based filtering for collision pairs
  * - Deduplication of A-B / B-A collisions
  *
- * Requires entities to have a `position` component (from movement bundle or user-defined).
+ * Uses worldTransform for position (world-space collision detection).
  *
  * @example
  * ```typescript
  * const ecs = ECSpresso
  *   .create<Components, Events, Resources>()
+ *   .withBundle(createTransformBundle())
  *   .withBundle(createCollisionBundle())
  *   .build();
  *
  * // Entity with collision
  * ecs.spawn({
- *   ...createPosition(100, 200),
+ *   ...createTransform(100, 200),
  *   ...createAABBCollider(50, 30),
  *   ...createCollisionLayer('player', ['enemy']),
  * });
@@ -284,14 +286,14 @@ export function createCollisionBundle(
 		.setPriority(priority)
 		.inGroup(systemGroup)
 		.addQuery('collidables', {
-			with: ['position', 'collisionLayer'] as const,
+			with: ['worldTransform', 'collisionLayer'] as const,
 		})
 		.setProcess((queries, _deltaTime, ecs) => {
 			// Build list of collidable entities with their computed positions
 			const colliders: ColliderInfo[] = [];
 
 			for (const entity of queries.collidables) {
-				const { position, collisionLayer } = entity.components;
+				const { worldTransform, collisionLayer } = entity.components;
 
 				// Get collider info
 				const aabb = ecs.entityManager.getComponent(entity.id, 'aabbCollider') as AABBCollider | null;
@@ -302,8 +304,8 @@ export function createCollisionBundle(
 
 				const info: ColliderInfo = {
 					entityId: entity.id,
-					x: position.x,
-					y: position.y,
+					x: worldTransform.x,
+					y: worldTransform.y,
 					layer: collisionLayer.layer,
 					collidesWith: collisionLayer.collidesWith,
 				};

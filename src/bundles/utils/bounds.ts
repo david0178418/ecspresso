@@ -1,12 +1,13 @@
 /**
  * Bounds Bundle for ECSpresso
  *
- * Provides screen bounds enforcement for entities with position components.
+ * Provides screen bounds enforcement for entities with transforms.
+ * Reads worldTransform for position checking; modifies localTransform for corrections.
  * Supports destroy, clamp, and wrap behaviors.
  */
 
 import Bundle from '../../bundle';
-import type { MovementComponentTypes } from './movement';
+import type { TransformComponentTypes } from './transform';
 
 // ==================== Component Types ====================
 
@@ -40,7 +41,7 @@ export interface WrapAtBounds {
  *
  * @example
  * ```typescript
- * interface GameComponents extends MovementComponentTypes, BoundsComponentTypes {
+ * interface GameComponents extends TransformComponentTypes, BoundsComponentTypes {
  *   sprite: Sprite;
  * }
  * ```
@@ -143,7 +144,7 @@ export function createBounds(width: number, height: number, x?: number, y?: numb
  * @example
  * ```typescript
  * ecs.spawn({
- *   ...createPosition(100, 200),
+ *   ...createTransform(100, 200),
  *   ...createDestroyOutOfBounds(20),
  * });
  * ```
@@ -163,7 +164,7 @@ export function createDestroyOutOfBounds(padding?: number): Pick<BoundsComponent
  * @example
  * ```typescript
  * ecs.spawn({
- *   ...createPosition(100, 200),
+ *   ...createTransform(100, 200),
  *   ...createClampToBounds(30),
  * });
  * ```
@@ -183,7 +184,7 @@ export function createClampToBounds(margin?: number): Pick<BoundsComponentTypes,
  * @example
  * ```typescript
  * ecs.spawn({
- *   ...createPosition(100, 200),
+ *   ...createTransform(100, 200),
  *   ...createWrapAtBounds(10),
  * });
  * ```
@@ -196,7 +197,7 @@ export function createWrapAtBounds(padding?: number): Pick<BoundsComponentTypes,
 
 // ==================== Internal Types ====================
 
-type CombinedComponentTypes = BoundsComponentTypes & MovementComponentTypes;
+type CombinedComponentTypes = BoundsComponentTypes & TransformComponentTypes;
 
 // ==================== Bundle Factory ====================
 
@@ -208,24 +209,27 @@ type CombinedComponentTypes = BoundsComponentTypes & MovementComponentTypes;
  * - Clamp to bounds system - constrains entities within bounds
  * - Wrap at bounds system - wraps entities to opposite edge
  *
- * Requires entities to have a `position` component (from movement bundle or user-defined).
+ * Uses worldTransform for position checking (world-space) and modifies
+ * localTransform for corrections. Works best with entities that don't
+ * have parent transforms (orphan entities).
  *
  * @example
  * ```typescript
  * const ecs = ECSpresso
  *   .create<Components, Events, Resources>()
  *   .withResource('bounds', createBounds(800, 600))
+ *   .withBundle(createTransformBundle())
  *   .withBundle(createBoundsBundle())
  *   .build();
  *
  * // Entity that gets destroyed when leaving screen
  * ecs.spawn({
- *   ...createPosition(100, 200),
+ *   ...createTransform(100, 200),
  *   ...createDestroyOutOfBounds(),
  * });
  * ```
  */
-export function createBoundsBundle<ResourceTypes extends Record<string, any> = BoundsResourceTypes>(
+export function createBoundsBundle<ResourceTypes extends BoundsResourceTypes = BoundsResourceTypes>(
 	options?: BoundsBundleOptions
 ): Bundle<CombinedComponentTypes, BoundsEventTypes, ResourceTypes> {
 	const {
@@ -243,7 +247,7 @@ export function createBoundsBundle<ResourceTypes extends Record<string, any> = B
 		.setPriority(priority)
 		.inGroup(systemGroup)
 		.addQuery('entities', {
-			with: ['position', 'destroyOutOfBounds'] as const,
+			with: ['worldTransform', 'destroyOutOfBounds'] as const,
 		})
 		.setProcess((queries, _deltaTime, ecs) => {
 			const bounds = ecs.getResource(boundsResourceKey as keyof ResourceTypes) as BoundsRect;
@@ -253,10 +257,10 @@ export function createBoundsBundle<ResourceTypes extends Record<string, any> = B
 			const maxY = minY + bounds.height;
 
 			for (const entity of queries.entities) {
-				const { position, destroyOutOfBounds } = entity.components;
+				const { worldTransform, destroyOutOfBounds } = entity.components;
 				const padding = destroyOutOfBounds.padding ?? 0;
 
-				const exitEdge = getExitEdge(position, minX, minY, maxX, maxY, padding);
+				const exitEdge = getExitEdge(worldTransform, minX, minY, maxX, maxY, padding);
 				if (!exitEdge) continue;
 
 				ecs.eventBus.publish('entityOutOfBounds', {
@@ -277,7 +281,7 @@ export function createBoundsBundle<ResourceTypes extends Record<string, any> = B
 		.setPriority(priority - 1)
 		.inGroup(systemGroup)
 		.addQuery('entities', {
-			with: ['position', 'clampToBounds'] as const,
+			with: ['localTransform', 'worldTransform', 'clampToBounds'] as const,
 		})
 		.setProcess((queries, _deltaTime, ecs) => {
 			const bounds = ecs.getResource(boundsResourceKey as keyof ResourceTypes) as BoundsRect;
@@ -287,7 +291,7 @@ export function createBoundsBundle<ResourceTypes extends Record<string, any> = B
 			const maxY = minY + bounds.height;
 
 			for (const entity of queries.entities) {
-				const { position, clampToBounds } = entity.components;
+				const { localTransform, worldTransform, clampToBounds } = entity.components;
 				const margin = clampToBounds.margin ?? 0;
 
 				const clampedMinX = minX + margin;
@@ -295,10 +299,18 @@ export function createBoundsBundle<ResourceTypes extends Record<string, any> = B
 				const clampedMaxX = maxX - margin;
 				const clampedMaxY = maxY - margin;
 
-				if (position.x < clampedMinX) position.x = clampedMinX;
-				if (position.x > clampedMaxX) position.x = clampedMaxX;
-				if (position.y < clampedMinY) position.y = clampedMinY;
-				if (position.y > clampedMaxY) position.y = clampedMaxY;
+				// Calculate world-space correction and apply to local transform
+				// For entities without parents, this is equivalent to direct position clamping
+				let deltaX = 0;
+				let deltaY = 0;
+
+				if (worldTransform.x < clampedMinX) deltaX = clampedMinX - worldTransform.x;
+				if (worldTransform.x > clampedMaxX) deltaX = clampedMaxX - worldTransform.x;
+				if (worldTransform.y < clampedMinY) deltaY = clampedMinY - worldTransform.y;
+				if (worldTransform.y > clampedMaxY) deltaY = clampedMaxY - worldTransform.y;
+
+				localTransform.x += deltaX;
+				localTransform.y += deltaY;
 			}
 		})
 		.and();
@@ -309,7 +321,7 @@ export function createBoundsBundle<ResourceTypes extends Record<string, any> = B
 		.setPriority(priority - 2)
 		.inGroup(systemGroup)
 		.addQuery('entities', {
-			with: ['position', 'wrapAtBounds'] as const,
+			with: ['localTransform', 'worldTransform', 'wrapAtBounds'] as const,
 		})
 		.setProcess((queries, _deltaTime, ecs) => {
 			const bounds = ecs.getResource(boundsResourceKey as keyof ResourceTypes) as BoundsRect;
@@ -319,22 +331,30 @@ export function createBoundsBundle<ResourceTypes extends Record<string, any> = B
 			const maxY = minY + bounds.height;
 
 			for (const entity of queries.entities) {
-				const { position, wrapAtBounds } = entity.components;
+				const { localTransform, worldTransform, wrapAtBounds } = entity.components;
 				const padding = wrapAtBounds.padding ?? 0;
 
+				let deltaX = 0;
+				let deltaY = 0;
+				const boundsWidth = maxX - minX;
+				const boundsHeight = maxY - minY;
+
 				// Wrap horizontally
-				if (position.x > maxX + padding) {
-					position.x = minX + (position.x - maxX - padding);
-				} else if (position.x < minX - padding) {
-					position.x = maxX + (position.x - minX + padding);
+				if (worldTransform.x > maxX + padding) {
+					deltaX = -(boundsWidth + 2 * padding);
+				} else if (worldTransform.x < minX - padding) {
+					deltaX = boundsWidth + 2 * padding;
 				}
 
 				// Wrap vertically
-				if (position.y > maxY + padding) {
-					position.y = minY + (position.y - maxY - padding);
-				} else if (position.y < minY - padding) {
-					position.y = maxY + (position.y - minY + padding);
+				if (worldTransform.y > maxY + padding) {
+					deltaY = -(boundsHeight + 2 * padding);
+				} else if (worldTransform.y < minY - padding) {
+					deltaY = boundsHeight + 2 * padding;
 				}
+
+				localTransform.x += deltaX;
+				localTransform.y += deltaY;
 			}
 		})
 		.and();
@@ -346,16 +366,16 @@ export function createBoundsBundle<ResourceTypes extends Record<string, any> = B
  * Determine which edge an entity has exited through, if any.
  */
 function getExitEdge(
-	position: { x: number; y: number },
+	transform: { x: number; y: number },
 	minX: number,
 	minY: number,
 	maxX: number,
 	maxY: number,
 	padding: number
 ): 'top' | 'bottom' | 'left' | 'right' | null {
-	if (position.x > maxX + padding) return 'right';
-	if (position.x < minX - padding) return 'left';
-	if (position.y > maxY + padding) return 'bottom';
-	if (position.y < minY - padding) return 'top';
+	if (transform.x > maxX + padding) return 'right';
+	if (transform.x < minX - padding) return 'left';
+	if (transform.y > maxY + padding) return 'bottom';
+	if (transform.y < minY - padding) return 'top';
 	return null;
 }

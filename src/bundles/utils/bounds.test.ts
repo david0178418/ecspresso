@@ -10,9 +10,10 @@ import {
 	type BoundsEventTypes,
 	type BoundsResourceTypes,
 } from './bounds';
-import { createMovementBundle, type MovementComponentTypes } from './movement';
+import { createTransformBundle, createTransform, type TransformComponentTypes } from './transform';
+import { createMovementBundle, createVelocity, type MovementComponentTypes } from './movement';
 
-interface TestComponents extends MovementComponentTypes, BoundsComponentTypes {
+interface TestComponents extends TransformComponentTypes, MovementComponentTypes, BoundsComponentTypes {
 	tag: string;
 }
 
@@ -26,11 +27,12 @@ describe('Bounds Bundle', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
 				.withResource('bounds', createBounds(800, 600))
+				.withBundle(createTransformBundle())
 				.withBundle(createBoundsBundle())
 				.build();
 
 			const entity = ecs.spawn({
-				position: { x: 850, y: 300 }, // Outside right edge
+				...createTransform(850, 300), // Outside right edge
 				...createDestroyOutOfBounds(),
 			});
 
@@ -43,11 +45,12 @@ describe('Bounds Bundle', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
 				.withResource('bounds', createBounds(800, 600))
+				.withBundle(createTransformBundle())
 				.withBundle(createBoundsBundle())
 				.build();
 
 			const entity = ecs.spawn({
-				position: { x: 400, y: 300 },
+				...createTransform(400, 300),
 				...createDestroyOutOfBounds(),
 			});
 
@@ -59,12 +62,13 @@ describe('Bounds Bundle', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
 				.withResource('bounds', createBounds(800, 600))
+				.withBundle(createTransformBundle())
 				.withBundle(createBoundsBundle())
 				.build();
 
 			// Entity at 820 with 50 padding - should still be alive (threshold is 850)
 			const entity = ecs.spawn({
-				position: { x: 820, y: 300 },
+				...createTransform(820, 300),
 				...createDestroyOutOfBounds(50),
 			});
 
@@ -72,7 +76,8 @@ describe('Bounds Bundle', () => {
 			expect(ecs.entityManager.getEntity(entity.id)).toBeDefined();
 
 			// Move beyond threshold
-			ecs.entityManager.getComponent(entity.id, 'position')!.x = 860;
+			const localTransform = ecs.entityManager.getComponent(entity.id, 'localTransform');
+			if (localTransform) localTransform.x = 860;
 			ecs.update(0.016);
 			expect(ecs.entityManager.getEntity(entity.id)).toBeUndefined();
 		});
@@ -81,6 +86,7 @@ describe('Bounds Bundle', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
 				.withResource('bounds', createBounds(800, 600))
+				.withBundle(createTransformBundle())
 				.withBundle(createBoundsBundle())
 				.build();
 
@@ -90,22 +96,22 @@ describe('Bounds Bundle', () => {
 			});
 
 			const rightEntity = ecs.spawn({
-				position: { x: 850, y: 300 },
+				...createTransform(850, 300),
 				...createDestroyOutOfBounds(),
 			});
 
 			const topEntity = ecs.spawn({
-				position: { x: 400, y: -50 },
+				...createTransform(400, -50),
 				...createDestroyOutOfBounds(),
 			});
 
 			const leftEntity = ecs.spawn({
-				position: { x: -50, y: 300 },
+				...createTransform(-50, 300),
 				...createDestroyOutOfBounds(),
 			});
 
 			const bottomEntity = ecs.spawn({
-				position: { x: 400, y: 650 },
+				...createTransform(400, 650),
 				...createDestroyOutOfBounds(),
 			});
 
@@ -122,6 +128,7 @@ describe('Bounds Bundle', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
 				.withResource('bounds', createBounds(800, 600))
+				.withBundle(createTransformBundle())
 				.withBundle(createBoundsBundle({ autoRemove: false }))
 				.build();
 
@@ -131,7 +138,7 @@ describe('Bounds Bundle', () => {
 			});
 
 			const entity = ecs.spawn({
-				position: { x: 850, y: 300 },
+				...createTransform(850, 300),
 				...createDestroyOutOfBounds(),
 			});
 
@@ -146,76 +153,80 @@ describe('Bounds Bundle', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
 				.withResource('bounds', createBounds(800, 600))
+				.withBundle(createTransformBundle())
 				.withBundle(createBoundsBundle())
 				.build();
 
 			const entity = ecs.spawn({
-				position: { x: 850, y: 650 },
+				...createTransform(850, 650),
 				...createClampToBounds(),
 			});
 
 			ecs.update(0.016);
 
-			const position = ecs.entityManager.getComponent(entity.id, 'position');
-			expect(position?.x).toBe(800);
-			expect(position?.y).toBe(600);
+			const localTransform = ecs.entityManager.getComponent(entity.id, 'localTransform');
+			expect(localTransform?.x).toBe(800);
+			expect(localTransform?.y).toBe(600);
 		});
 
 		test('should clamp negative positions to minimum', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
 				.withResource('bounds', createBounds(800, 600))
+				.withBundle(createTransformBundle())
 				.withBundle(createBoundsBundle())
 				.build();
 
 			const entity = ecs.spawn({
-				position: { x: -50, y: -100 },
+				...createTransform(-50, -100),
 				...createClampToBounds(),
 			});
 
 			ecs.update(0.016);
 
-			const position = ecs.entityManager.getComponent(entity.id, 'position');
-			expect(position?.x).toBe(0);
-			expect(position?.y).toBe(0);
+			const localTransform = ecs.entityManager.getComponent(entity.id, 'localTransform');
+			expect(localTransform?.x).toBe(0);
+			expect(localTransform?.y).toBe(0);
 		});
 
 		test('should respect margin - shrinks valid area', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
 				.withResource('bounds', createBounds(800, 600))
+				.withBundle(createTransformBundle())
 				.withBundle(createBoundsBundle())
 				.build();
 
 			const entity = ecs.spawn({
-				position: { x: 790, y: 590 },
+				...createTransform(790, 590),
 				...createClampToBounds(20),
 			});
 
 			ecs.update(0.016);
 
-			const position = ecs.entityManager.getComponent(entity.id, 'position');
-			expect(position?.x).toBe(780); // 800 - 20
-			expect(position?.y).toBe(580); // 600 - 20
+			const localTransform = ecs.entityManager.getComponent(entity.id, 'localTransform');
+			expect(localTransform?.x).toBe(780); // 800 - 20
+			expect(localTransform?.y).toBe(580); // 600 - 20
 		});
 
 		test('should not change position when already within bounds', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
 				.withResource('bounds', createBounds(800, 600))
+				.withBundle(createTransformBundle())
 				.withBundle(createBoundsBundle())
 				.build();
 
 			const entity = ecs.spawn({
-				position: { x: 400, y: 300 },
+				...createTransform(400, 300),
 				...createClampToBounds(),
 			});
 
 			ecs.update(0.016);
 
-			const position = ecs.entityManager.getComponent(entity.id, 'position');
-			expect(position?.x).toBe(400);
-			expect(position?.y).toBe(300);
+			const localTransform = ecs.entityManager.getComponent(entity.id, 'localTransform');
+			expect(localTransform?.x).toBe(400);
+			expect(localTransform?.y).toBe(300);
 		});
 	});
 
@@ -224,76 +235,80 @@ describe('Bounds Bundle', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
 				.withResource('bounds', createBounds(800, 600))
+				.withBundle(createTransformBundle())
 				.withBundle(createBoundsBundle())
 				.build();
 
 			const entity = ecs.spawn({
-				position: { x: 850, y: 300 },
+				...createTransform(850, 300),
 				...createWrapAtBounds(),
 			});
 
 			ecs.update(0.016);
 
-			const position = ecs.entityManager.getComponent(entity.id, 'position');
-			expect(position?.x).toBe(50); // Wrapped to left + overflow
-			expect(position?.y).toBe(300);
+			const localTransform = ecs.entityManager.getComponent(entity.id, 'localTransform');
+			expect(localTransform?.x).toBe(50); // Wrapped to left + overflow
+			expect(localTransform?.y).toBe(300);
 		});
 
 		test('should wrap to opposite edge when exiting left', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
 				.withResource('bounds', createBounds(800, 600))
+				.withBundle(createTransformBundle())
 				.withBundle(createBoundsBundle())
 				.build();
 
 			const entity = ecs.spawn({
-				position: { x: -50, y: 300 },
+				...createTransform(-50, 300),
 				...createWrapAtBounds(),
 			});
 
 			ecs.update(0.016);
 
-			const position = ecs.entityManager.getComponent(entity.id, 'position');
-			expect(position?.x).toBe(750); // Wrapped to right - overflow
-			expect(position?.y).toBe(300);
+			const localTransform = ecs.entityManager.getComponent(entity.id, 'localTransform');
+			expect(localTransform?.x).toBe(750); // Wrapped to right - overflow
+			expect(localTransform?.y).toBe(300);
 		});
 
 		test('should wrap vertically', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
 				.withResource('bounds', createBounds(800, 600))
+				.withBundle(createTransformBundle())
 				.withBundle(createBoundsBundle())
 				.build();
 
 			const entity = ecs.spawn({
-				position: { x: 400, y: 650 },
+				...createTransform(400, 650),
 				...createWrapAtBounds(),
 			});
 
 			ecs.update(0.016);
 
-			const position = ecs.entityManager.getComponent(entity.id, 'position');
-			expect(position?.x).toBe(400);
-			expect(position?.y).toBe(50);
+			const localTransform = ecs.entityManager.getComponent(entity.id, 'localTransform');
+			expect(localTransform?.x).toBe(400);
+			expect(localTransform?.y).toBe(50);
 		});
 
 		test('should respect padding for wrap threshold', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
 				.withResource('bounds', createBounds(800, 600))
+				.withBundle(createTransformBundle())
 				.withBundle(createBoundsBundle())
 				.build();
 
 			// At 810 with 20 padding - should not wrap yet (threshold is 820)
 			const entity = ecs.spawn({
-				position: { x: 810, y: 300 },
+				...createTransform(810, 300),
 				...createWrapAtBounds(20),
 			});
 
 			ecs.update(0.016);
 
-			const position = ecs.entityManager.getComponent(entity.id, 'position');
-			expect(position?.x).toBe(810); // No wrap yet
+			const localTransform = ecs.entityManager.getComponent(entity.id, 'localTransform');
+			expect(localTransform?.x).toBe(810); // No wrap yet
 		});
 	});
 
@@ -302,19 +317,20 @@ describe('Bounds Bundle', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
 				.withResource('bounds', createBounds(400, 300, 100, 50))
+				.withBundle(createTransformBundle())
 				.withBundle(createBoundsBundle())
 				.build();
 
 			const entity = ecs.spawn({
-				position: { x: 50, y: 30 }, // Outside left edge (min is 100)
+				...createTransform(50, 30), // Outside left edge (min is 100)
 				...createClampToBounds(),
 			});
 
 			ecs.update(0.016);
 
-			const position = ecs.entityManager.getComponent(entity.id, 'position');
-			expect(position?.x).toBe(100);
-			expect(position?.y).toBe(50);
+			const localTransform = ecs.entityManager.getComponent(entity.id, 'localTransform');
+			expect(localTransform?.x).toBe(100);
+			expect(localTransform?.y).toBe(50);
 		});
 
 		test('should work with custom bounds resource key', () => {
@@ -325,18 +341,19 @@ describe('Bounds Bundle', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, CustomResources>()
 				.withResource('gameBounds', createBounds(800, 600))
+				.withBundle(createTransformBundle())
 				.withBundle(createBoundsBundle({ boundsResourceKey: 'gameBounds' }))
 				.build();
 
 			const entity = ecs.spawn({
-				position: { x: 850, y: 300 },
+				...createTransform(850, 300),
 				...createClampToBounds(),
 			});
 
 			ecs.update(0.016);
 
-			const position = ecs.entityManager.getComponent(entity.id, 'position');
-			expect(position?.x).toBe(800);
+			const localTransform = ecs.entityManager.getComponent(entity.id, 'localTransform');
+			expect(localTransform?.x).toBe(800);
 		});
 	});
 
@@ -387,21 +404,22 @@ describe('Bounds Bundle', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
 				.withResource('bounds', createBounds(800, 600))
+				.withBundle(createTransformBundle())
 				.withBundle(createMovementBundle())
 				.withBundle(createBoundsBundle())
 				.build();
 
 			const entity = ecs.spawn({
-				position: { x: 780, y: 300 },
-				velocity: { x: 100, y: 0 },
+				...createTransform(780, 300),
+				...createVelocity(100, 0),
 				...createClampToBounds(),
 			});
 
 			// After 1 second, position would be 880 but should clamp to 800
 			ecs.update(1.0);
 
-			const position = ecs.entityManager.getComponent(entity.id, 'position');
-			expect(position?.x).toBe(800);
+			const localTransform = ecs.entityManager.getComponent(entity.id, 'localTransform');
+			expect(localTransform?.x).toBe(800);
 		});
 	});
 });

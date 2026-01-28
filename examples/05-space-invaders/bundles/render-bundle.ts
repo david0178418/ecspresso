@@ -1,74 +1,51 @@
 import Bundle from '../../../src/bundle';
-import { createTimer } from '../../../src/bundles/utils/timers';
-import { createAABBCollider, defineCollisionLayers } from '../../../src/bundles/utils/collision';
+import { createTransform } from '../../../src/bundles/utils/transform';
+import { createVelocity } from '../../../src/bundles/utils/movement';
+import { createAABBCollider } from '../../../src/bundles/utils/collision';
 import { createDestroyOutOfBounds } from '../../../src/bundles/utils/bounds';
 import type { Components, Events, Resources } from '../types';
 import { spawnPlayer, createProjectileSprite } from '../utils';
-
-// Define collision layers locally to avoid circular import with index.ts
-const layers = defineCollisionLayers({
-	player: ['enemyProjectile'],
-	playerProjectile: ['enemy'],
-	enemy: ['playerProjectile'],
-	enemyProjectile: ['player'],
-});
+import { layers } from '../layers';
 
 export default function createRenderBundle() {
 	return new Bundle<Components, Events, Resources>('render-bundle')
 		.addSystem('renderer')
-		.addQuery('renderables', {
-			with: ['position', 'sprite']
-		})
+		.addQuery('renderables', { with: ['worldTransform', 'sprite'] })
 		.setOnInitialize((ecs) => {
-			// Set up sprite cleanup on component removal
 			ecs.onComponentRemoved('sprite', (sprite) => {
 				sprite.parent?.removeChild(sprite);
 			});
 		})
-		.setProcess(({ renderables }, _deltaTime, _ecs) => {
+		.setProcess(({ renderables }) => {
 			for (const entity of renderables) {
-				const { position, sprite } = entity.components;
-
-				sprite.x = position.x;
-				sprite.y = position.y;
+				const { worldTransform, sprite } = entity.components;
+				sprite.x = worldTransform.x;
+				sprite.y = worldTransform.y;
 			}
 		})
 		.bundle
-		.addSystem('sprite-factory')
+		.addSystem('entity-spawner')
 		.setEventHandlers({
 			gameInit: {
 				handler(_data, ecs) {
 					spawnPlayer(ecs);
 				},
 			},
+
 			playerShoot: {
 				handler(_data, ecs) {
-					const entityContainer = ecs.getResource('entityContainer');
-					const playerEntities = ecs.getEntitiesWithQuery(['player', 'position']);
-
-					const [player] = playerEntities;
-
+					const [player] = ecs.getEntitiesWithQuery(['player', 'worldTransform']);
 					if (!player) return;
 
-					const playerPosition = player.components.position;
+					const entityContainer = ecs.getResource('entityContainer');
 					const projectileSprite = createProjectileSprite(ecs, 'player');
 					entityContainer.addChild(projectileSprite);
 
 					ecs.spawn({
-						...createTimer<Events>(2.0), // Auto-remove after 2 seconds
-						position: {
-							x: playerPosition.x,
-							y: playerPosition.y - 20
-						},
-						velocity: {
-							x: 0,
-							y: -400, // Move up
-						},
+						...createTransform(player.components.worldTransform.x, player.components.worldTransform.y - 20),
+						...createVelocity(0, -400),
 						sprite: projectileSprite,
-						projectile: {
-							owner: 'player',
-							damage: 1
-						},
+						projectile: { owner: 'player', damage: 1 },
 						...createAABBCollider(projectileSprite.width, projectileSprite.height),
 						...layers.playerProjectile(),
 						...createDestroyOutOfBounds(20),
@@ -78,43 +55,25 @@ export default function createRenderBundle() {
 
 			enemyShoot: {
 				handler(data, ecs) {
-					const entityContainer = ecs.getResource('entityContainer');
 					const enemyEntity = ecs.entityManager.getEntity(data.enemyId);
-
 					if (!enemyEntity) return;
 
-					const enemyPosition = enemyEntity.components['position'];
+					const enemyWorldTransform = enemyEntity.components['worldTransform'];
+					if (!enemyWorldTransform) return;
 
-					if (!enemyPosition) return;
-
+					const entityContainer = ecs.getResource('entityContainer');
 					const projectileSprite = createProjectileSprite(ecs, 'enemy');
 					entityContainer.addChild(projectileSprite);
 
-					// Create a projectile entity positioned at the bottom of the enemy
 					ecs.spawn({
-						...createTimer<Events>(4.0), // Auto-remove after 4 seconds
-						position: {
-							x: enemyPosition.x,
-							y: enemyPosition.y + 20
-						},
-						velocity: {
-							x: 0,
-							y: 400,
-						},
+						...createTransform(enemyWorldTransform.x, enemyWorldTransform.y + 20),
+						...createVelocity(0, 400),
 						sprite: projectileSprite,
-						projectile: {
-							owner: 'enemy',
-							damage: 1
-						},
+						projectile: { owner: 'enemy', damage: 1 },
 						...createAABBCollider(projectileSprite.width, projectileSprite.height),
 						...layers.enemyProjectile(),
 						...createDestroyOutOfBounds(20),
 					});
-				}
-			},
-			entityDestroyed: {
-				handler(data, ecs) {
-					ecs.commands.removeEntity(data.entityId);
 				}
 			},
 

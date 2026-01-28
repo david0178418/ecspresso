@@ -3,11 +3,19 @@
  *
  * An opt-in PixiJS rendering bundle that automates scene graph wiring.
  * Import from 'ecspresso/bundles/renderers/pixi'
+ *
+ * Note: This bundle requires the transform bundle for transform propagation.
+ * Add createTransformBundle() before this bundle.
  */
 
 import type { Application, ApplicationOptions, Container, Sprite, Graphics } from 'pixi.js';
 import Bundle from '../../bundle';
 import type ECSpresso from '../../ecspresso';
+import type { LocalTransform, WorldTransform, TransformComponentTypes } from '../utils/transform';
+
+// Re-export transform types for convenience
+export type { LocalTransform, WorldTransform, TransformComponentTypes };
+export { createTransform, createLocalTransform, createWorldTransform } from '../utils/transform';
 
 // Dynamic import for Application to avoid requiring pixi.js at bundle creation time
 // when using managed mode (init options instead of pre-initialized app)
@@ -19,28 +27,6 @@ async function createPixiApplication(options: Partial<ApplicationOptions>): Prom
 }
 
 // ==================== Component Types ====================
-
-/**
- * Local transform relative to parent (or world if no parent)
- */
-export interface LocalTransform {
-	x: number;
-	y: number;
-	rotation: number;
-	scaleX: number;
-	scaleY: number;
-}
-
-/**
- * Computed world transform (accumulated from parent chain)
- */
-export interface WorldTransform {
-	x: number;
-	y: number;
-	rotation: number;
-	scaleX: number;
-	scaleY: number;
-}
 
 /**
  * PixiJS Sprite component
@@ -84,9 +70,7 @@ export interface PixiVisible {
  * }
  * ```
  */
-export interface PixiComponentTypes {
-	localTransform: LocalTransform;
-	worldTransform: WorldTransform;
+export interface PixiComponentTypes extends TransformComponentTypes {
 	pixiSprite: PixiSprite;
 	pixiGraphics: PixiGraphics;
 	pixiContainer: PixiContainer;
@@ -126,8 +110,6 @@ interface PixiBundleCommonOptions {
 	rootContainer?: Container;
 	/** System group name (default: 'pixi-renderer') */
 	systemGroup?: string;
-	/** Priority for transform propagation system (default: 1000) */
-	transformPriority?: number;
 	/** Priority for render sync system (default: 500) */
 	renderSyncPriority?: number;
 }
@@ -165,6 +147,7 @@ export interface PixiBundleManagedOptions extends PixiBundleCommonOptions {
  * const app = new Application();
  * await app.init({ resizeTo: window });
  * const ecs = ECSpresso.create<...>()
+ *   .withBundle(createTransformBundle())
  *   .withBundle(createPixiBundle({ app }))
  *   .build();
  * ```
@@ -172,6 +155,7 @@ export interface PixiBundleManagedOptions extends PixiBundleCommonOptions {
  * @example Managed mode (convenience)
  * ```typescript
  * const ecs = ECSpresso.create<...>()
+ *   .withBundle(createTransformBundle())
  *   .withBundle(createPixiBundle({
  *     init: { background: '#1099bb', resizeTo: window },
  *     container: document.body,
@@ -220,7 +204,7 @@ interface TransformOptions {
 	alpha?: number;
 }
 
-function createLocalTransform(
+function createLocalTransformInternal(
 	position?: PositionOption,
 	options?: TransformOptions
 ): LocalTransform {
@@ -241,7 +225,7 @@ function createLocalTransform(
 	};
 }
 
-function createWorldTransform(
+function createWorldTransformInternal(
 	position?: PositionOption,
 	options?: TransformOptions
 ): WorldTransform {
@@ -291,8 +275,8 @@ export function createSpriteComponents(
 			sprite,
 			anchor: options?.anchor,
 		},
-		localTransform: createLocalTransform(position, options),
-		worldTransform: createWorldTransform(position, options),
+		localTransform: createLocalTransformInternal(position, options),
+		worldTransform: createWorldTransformInternal(position, options),
 		pixiVisible: createVisibleComponent(options),
 	};
 }
@@ -315,8 +299,8 @@ export function createGraphicsComponents(
 ): Pick<PixiComponentTypes, 'pixiGraphics' | 'localTransform' | 'worldTransform' | 'pixiVisible'> {
 	return {
 		pixiGraphics: { graphics },
-		localTransform: createLocalTransform(position, options),
-		worldTransform: createWorldTransform(position, options),
+		localTransform: createLocalTransformInternal(position, options),
+		worldTransform: createWorldTransformInternal(position, options),
 		pixiVisible: createVisibleComponent(options),
 	};
 }
@@ -339,8 +323,8 @@ export function createContainerComponents(
 ): Pick<PixiComponentTypes, 'pixiContainer' | 'localTransform' | 'worldTransform' | 'pixiVisible'> {
 	return {
 		pixiContainer: { container },
-		localTransform: createLocalTransform(position, options),
-		worldTransform: createWorldTransform(position, options),
+		localTransform: createLocalTransformInternal(position, options),
+		worldTransform: createWorldTransformInternal(position, options),
 		pixiVisible: createVisibleComponent(options),
 	};
 }
@@ -351,9 +335,11 @@ export function createContainerComponents(
  * Create a PixiJS rendering bundle for ECSpresso.
  *
  * This bundle provides:
- * - Transform propagation system (computes world transforms from hierarchy)
  * - Render sync system (updates PixiJS objects from ECS components)
  * - Scene graph management (mirrors ECS hierarchy in PixiJS scene graph)
+ *
+ * **Important**: This bundle requires the transform bundle for transform propagation.
+ * Add `createTransformBundle()` before this bundle.
  *
  * @example Pre-initialized mode
  * ```typescript
@@ -361,6 +347,7 @@ export function createContainerComponents(
  * await app.init({ resizeTo: window });
  *
  * const ecs = ECSpresso.create<GameComponents, {}, {}>()
+ *   .withBundle(createTransformBundle())
  *   .withBundle(createPixiBundle({ app }))
  *   .build();
  * ```
@@ -368,6 +355,7 @@ export function createContainerComponents(
  * @example Managed mode
  * ```typescript
  * const ecs = ECSpresso.create<GameComponents, {}, {}>()
+ *   .withBundle(createTransformBundle())
  *   .withBundle(createPixiBundle({
  *     init: { background: '#1099bb', resizeTo: window },
  *     container: document.body,
@@ -382,7 +370,6 @@ export function createPixiBundle(
 	const {
 		rootContainer: customRootContainer,
 		systemGroup = 'pixi-renderer',
-		transformPriority = 1000,
 		renderSyncPriority = 500,
 	} = options;
 
@@ -503,75 +490,6 @@ export function createPixiBundle(
 			targetContainer.addChild(pixiObject);
 		}
 	}
-
-	// ==================== Transform Propagation System ====================
-	// Computes world transforms from local transforms + parent hierarchy
-	bundle
-		.addSystem('pixi-transform-propagation')
-		.setPriority(transformPriority)
-		.inGroup(systemGroup)
-		.setProcess((_queries, _deltaTime, ecs) => {
-			// Use parent-first traversal to ensure parents are processed before children
-			ecs.forEachInHierarchy((entityId, parentId) => {
-				const localTransform = ecs.entityManager.getComponent(entityId, 'localTransform');
-				const worldTransform = ecs.entityManager.getComponent(entityId, 'worldTransform');
-
-				if (!localTransform || !worldTransform) return;
-
-				if (parentId === null) {
-					// Root entity: world transform equals local transform
-					worldTransform.x = localTransform.x;
-					worldTransform.y = localTransform.y;
-					worldTransform.rotation = localTransform.rotation;
-					worldTransform.scaleX = localTransform.scaleX;
-					worldTransform.scaleY = localTransform.scaleY;
-				} else {
-					// Child entity: combine with parent's world transform
-					const parentWorld = ecs.entityManager.getComponent(parentId, 'worldTransform');
-					if (parentWorld) {
-						// Apply parent's scale to local position
-						const scaledLocalX = localTransform.x * parentWorld.scaleX;
-						const scaledLocalY = localTransform.y * parentWorld.scaleY;
-
-						// Rotate local position by parent's rotation
-						const cos = Math.cos(parentWorld.rotation);
-						const sin = Math.sin(parentWorld.rotation);
-						const rotatedX = scaledLocalX * cos - scaledLocalY * sin;
-						const rotatedY = scaledLocalX * sin + scaledLocalY * cos;
-
-						// Add to parent's position
-						worldTransform.x = parentWorld.x + rotatedX;
-						worldTransform.y = parentWorld.y + rotatedY;
-						worldTransform.rotation = parentWorld.rotation + localTransform.rotation;
-						worldTransform.scaleX = parentWorld.scaleX * localTransform.scaleX;
-						worldTransform.scaleY = parentWorld.scaleY * localTransform.scaleY;
-					} else {
-						// Parent has no world transform, treat as root
-						worldTransform.x = localTransform.x;
-						worldTransform.y = localTransform.y;
-						worldTransform.rotation = localTransform.rotation;
-						worldTransform.scaleX = localTransform.scaleX;
-						worldTransform.scaleY = localTransform.scaleY;
-					}
-				}
-			});
-
-			// Also process entities not in hierarchy (orphans with transforms)
-			const orphanedEntities = ecs.getEntitiesWithQuery(['localTransform', 'worldTransform']);
-			for (const entity of orphanedEntities) {
-				const parentId = ecs.getParent(entity.id);
-				// Only process if truly orphaned (no parent and not a root with children)
-				if (parentId === null && ecs.getChildren(entity.id).length === 0) {
-					const { localTransform, worldTransform } = entity.components;
-					worldTransform.x = localTransform.x;
-					worldTransform.y = localTransform.y;
-					worldTransform.rotation = localTransform.rotation;
-					worldTransform.scaleX = localTransform.scaleX;
-					worldTransform.scaleY = localTransform.scaleY;
-				}
-			}
-		})
-		.and();
 
 	// ==================== Render Sync System ====================
 	// Updates PixiJS objects from world transforms and visibility

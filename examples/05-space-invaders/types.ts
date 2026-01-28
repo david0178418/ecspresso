@@ -1,59 +1,41 @@
 import { Container, Sprite, Text } from 'pixi.js';
 import type { Application } from 'pixi.js';
 import type { TimerComponentTypes, TimerEventData } from '../../src/bundles/utils/timers';
+import type { TransformComponentTypes } from '../../src/bundles/utils/transform';
 import type { MovementComponentTypes } from '../../src/bundles/utils/movement';
-import type { BoundsComponentTypes, BoundsEventTypes, BoundsResourceTypes } from '../../src/bundles/utils/bounds';
+import type { BoundsComponentTypes, BoundsResourceTypes } from '../../src/bundles/utils/bounds';
 import type { CollisionComponentTypes, CollisionEventTypes } from '../../src/bundles/utils/collision';
 
 /**
  * All event types used in the Space Invaders game
  */
-export interface Events extends BoundsEventTypes, CollisionEventTypes {
-	// Game state events
+export interface Events extends CollisionEventTypes {
+	// Game state
 	gameInit: true;
 	gameStart: true;
 	gamePause: true;
 	gameResume: true;
-	gameOver: {
-		win: boolean;
-		score: number;
-	};
-	levelComplete: {
-		level: number;
-	};
+	gameOver: { win: boolean; score: number };
+	levelComplete: { level: number };
 
-	// Input events
-	inputUpdate: {
-		key: string;
-		pressed: boolean;
-	};
+	// Input
+	inputUpdate: { key: string; pressed: boolean };
 
-	// Gameplay events
+	// Gameplay
 	playerShoot: {};
 	playerDeath: {};
-	enemyShoot: {
-		enemyId: number;
-	};
-	enemyMove: {
-		direction: 'left' | 'right' | 'down';
-	};
-	entityDestroyed: {
-		entityId: number;
-		wasEnemy?: boolean;
-		points?: number;
-	};
+	enemyShoot: { enemyId: number };
+	enemyMove: { direction: 'left' | 'right' | 'down' };
+
+	// Timer completions
 	playerRespawn: TimerEventData;
 	messageHide: TimerEventData;
 	levelTransitionComplete: TimerEventData;
 	descentComplete: TimerEventData;
 
-	// UI events
-	updateScore: {
-		points: number;
-	};
-	updateLives: {
-		lives: number;
-	};
+	// UI
+	updateScore: { points: number };
+	updateLives: { lives: number };
 }
 
 /**
@@ -61,43 +43,31 @@ export interface Events extends BoundsEventTypes, CollisionEventTypes {
  */
 export interface Components
 	extends TimerComponentTypes<Events>,
+	        TransformComponentTypes,
 	        MovementComponentTypes,
 	        BoundsComponentTypes,
 	        CollisionComponentTypes {
-	// Rendering
 	sprite: Sprite;
-
-	// Game object types
 	player: boolean;
-	enemy: {
-		type: 'grunt' | 'elite' | 'boss';
-		points: number;
-		health: number;
-	};
-	projectile: {
-		owner: 'player' | 'enemy';
-		damage: number;
-	};
+	enemy: { type: 'grunt' | 'elite' | 'boss'; points: number; health: number };
+	projectile: { owner: 'player' | 'enemy'; damage: number };
 }
 
 /**
  * All resource types used in the Space Invaders game
  */
 export interface Resources extends BoundsResourceTypes {
-	// PIXI resources
 	pixi: Application;
 	gameContainer: Container;
 	entityContainer: Container;
 	uiContainer: Container;
 
-	// Game state
 	gameState: {
 		status: 'ready' | 'playing' | 'paused' | 'gameOver';
 		level: number;
 		lives: number;
 	};
 
-	// Player input
 	input: {
 		left: boolean;
 		right: boolean;
@@ -105,7 +75,6 @@ export interface Resources extends BoundsResourceTypes {
 		pause: boolean;
 	};
 
-	// Game configuration
 	config: {
 		playerSpeed: number;
 		enemySpeed: number;
@@ -115,19 +84,14 @@ export interface Resources extends BoundsResourceTypes {
 		shootCooldown: number;
 	};
 
-	// Score
-	score: {
-		value: number;
-	};
+	score: { value: number };
 
-	// Enemy movement state
 	enemyMovementState: {
 		isMovingDown: boolean;
 		currentDirection: 'left' | 'right';
 		lastEdgeHit: 'left' | 'right' | null;
 	};
 
-	// UI elements
 	uiElements: {
 		scoreText: Text;
 		livesText: Text;

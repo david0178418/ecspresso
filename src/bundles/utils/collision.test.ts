@@ -9,9 +9,9 @@ import {
 	type CollisionComponentTypes,
 	type CollisionEventTypes,
 } from './collision';
-import type { MovementComponentTypes } from './movement';
+import { createTransformBundle, createTransform, type TransformComponentTypes } from './transform';
 
-interface TestComponents extends MovementComponentTypes, CollisionComponentTypes {
+interface TestComponents extends TransformComponentTypes, CollisionComponentTypes {
 	tag: string;
 }
 
@@ -24,6 +24,7 @@ describe('Collision Bundle', () => {
 		test('should detect collision when overlapping', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
+				.withBundle(createTransformBundle())
 				.withBundle(createCollisionBundle())
 				.build();
 
@@ -33,13 +34,13 @@ describe('Collision Bundle', () => {
 			});
 
 			const entityA = ecs.spawn({
-				position: { x: 100, y: 100 },
+				...createTransform(100, 100),
 				...createAABBCollider(50, 50),
 				...createCollisionLayer('player', ['enemy']),
 			});
 
 			const entityB = ecs.spawn({
-				position: { x: 120, y: 120 },
+				...createTransform(120, 120),
 				...createAABBCollider(50, 50),
 				...createCollisionLayer('enemy', ['player']),
 			});
@@ -56,6 +57,7 @@ describe('Collision Bundle', () => {
 		test('should not detect collision when not overlapping', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
+				.withBundle(createTransformBundle())
 				.withBundle(createCollisionBundle())
 				.build();
 
@@ -65,13 +67,13 @@ describe('Collision Bundle', () => {
 			});
 
 			ecs.spawn({
-				position: { x: 100, y: 100 },
+				...createTransform(100, 100),
 				...createAABBCollider(50, 50),
 				...createCollisionLayer('player', ['enemy']),
 			});
 
 			ecs.spawn({
-				position: { x: 200, y: 200 },
+				...createTransform(200, 200),
 				...createAABBCollider(50, 50),
 				...createCollisionLayer('enemy', ['player']),
 			});
@@ -86,6 +88,7 @@ describe('Collision Bundle', () => {
 		test('should detect collision when overlapping', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
+				.withBundle(createTransformBundle())
 				.withBundle(createCollisionBundle())
 				.build();
 
@@ -95,13 +98,13 @@ describe('Collision Bundle', () => {
 			});
 
 			ecs.spawn({
-				position: { x: 100, y: 100 },
+				...createTransform(100, 100),
 				...createCircleCollider(30),
 				...createCollisionLayer('player', ['enemy']),
 			});
 
 			ecs.spawn({
-				position: { x: 140, y: 100 }, // 40 units apart, both have radius 30 = overlap
+				...createTransform(140, 100), // 40 units apart, both have radius 30 = overlap
 				...createCircleCollider(30),
 				...createCollisionLayer('enemy', ['player']),
 			});
@@ -114,6 +117,7 @@ describe('Collision Bundle', () => {
 		test('should not detect collision when not overlapping', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
+				.withBundle(createTransformBundle())
 				.withBundle(createCollisionBundle())
 				.build();
 
@@ -123,13 +127,13 @@ describe('Collision Bundle', () => {
 			});
 
 			ecs.spawn({
-				position: { x: 100, y: 100 },
+				...createTransform(100, 100),
 				...createCircleCollider(20),
 				...createCollisionLayer('player', ['enemy']),
 			});
 
 			ecs.spawn({
-				position: { x: 150, y: 100 }, // 50 units apart, both have radius 20 = no overlap
+				...createTransform(150, 100), // 50 units apart, both have radius 20 = no overlap
 				...createCircleCollider(20),
 				...createCollisionLayer('enemy', ['player']),
 			});
@@ -144,6 +148,7 @@ describe('Collision Bundle', () => {
 		test('should detect collision when overlapping', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
+				.withBundle(createTransformBundle())
 				.withBundle(createCollisionBundle())
 				.build();
 
@@ -153,13 +158,13 @@ describe('Collision Bundle', () => {
 			});
 
 			ecs.spawn({
-				position: { x: 100, y: 100 },
+				...createTransform(100, 100),
 				...createAABBCollider(50, 50),
 				...createCollisionLayer('player', ['enemy']),
 			});
 
 			ecs.spawn({
-				position: { x: 140, y: 100 },
+				...createTransform(140, 100),
 				...createCircleCollider(20),
 				...createCollisionLayer('enemy', ['player']),
 			});
@@ -172,6 +177,7 @@ describe('Collision Bundle', () => {
 		test('should not detect collision when not overlapping', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
+				.withBundle(createTransformBundle())
 				.withBundle(createCollisionBundle())
 				.build();
 
@@ -181,13 +187,13 @@ describe('Collision Bundle', () => {
 			});
 
 			ecs.spawn({
-				position: { x: 100, y: 100 },
+				...createTransform(100, 100),
 				...createAABBCollider(30, 30),
 				...createCollisionLayer('player', ['enemy']),
 			});
 
 			ecs.spawn({
-				position: { x: 200, y: 100 },
+				...createTransform(200, 100),
 				...createCircleCollider(20),
 				...createCollisionLayer('enemy', ['player']),
 			});
@@ -202,6 +208,7 @@ describe('Collision Bundle', () => {
 		test('should only collide when layers match', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
+				.withBundle(createTransformBundle())
 				.withBundle(createCollisionBundle())
 				.build();
 
@@ -212,14 +219,14 @@ describe('Collision Bundle', () => {
 
 			// Player collides with enemies
 			ecs.spawn({
-				position: { x: 100, y: 100 },
+				...createTransform(100, 100),
 				...createAABBCollider(50, 50),
 				...createCollisionLayer('player', ['enemy']),
 			});
 
 			// Another player does not collide with players
 			ecs.spawn({
-				position: { x: 120, y: 120 },
+				...createTransform(120, 120),
 				...createAABBCollider(50, 50),
 				...createCollisionLayer('player', ['enemy']),
 			});
@@ -232,6 +239,7 @@ describe('Collision Bundle', () => {
 		test('should work with bidirectional layer configuration', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
+				.withBundle(createTransformBundle())
 				.withBundle(createCollisionBundle())
 				.build();
 
@@ -242,14 +250,14 @@ describe('Collision Bundle', () => {
 
 			// Only A specifies it collides with B
 			ecs.spawn({
-				position: { x: 100, y: 100 },
+				...createTransform(100, 100),
 				...createAABBCollider(50, 50),
 				...createCollisionLayer('typeA', ['typeB']),
 			});
 
 			// B does not specify collision with A, but A→B should still work
 			ecs.spawn({
-				position: { x: 120, y: 120 },
+				...createTransform(120, 120),
 				...createAABBCollider(50, 50),
 				...createCollisionLayer('typeB', []),
 			});
@@ -264,6 +272,7 @@ describe('Collision Bundle', () => {
 		test('should contain correct entity IDs and layers', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
+				.withBundle(createTransformBundle())
 				.withBundle(createCollisionBundle())
 				.build();
 
@@ -273,13 +282,13 @@ describe('Collision Bundle', () => {
 			});
 
 			const player = ecs.spawn({
-				position: { x: 100, y: 100 },
+				...createTransform(100, 100),
 				...createAABBCollider(50, 50),
 				...createCollisionLayer('player', ['enemy']),
 			});
 
 			const enemy = ecs.spawn({
-				position: { x: 120, y: 120 },
+				...createTransform(120, 120),
 				...createAABBCollider(50, 50),
 				...createCollisionLayer('enemy', ['player']),
 			});
@@ -305,6 +314,7 @@ describe('Collision Bundle', () => {
 		test('should only fire once per collision pair', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
+				.withBundle(createTransformBundle())
 				.withBundle(createCollisionBundle())
 				.build();
 
@@ -315,13 +325,13 @@ describe('Collision Bundle', () => {
 
 			// Both entities collide with each other
 			ecs.spawn({
-				position: { x: 100, y: 100 },
+				...createTransform(100, 100),
 				...createAABBCollider(50, 50),
 				...createCollisionLayer('player', ['enemy']),
 			});
 
 			ecs.spawn({
-				position: { x: 120, y: 120 },
+				...createTransform(120, 120),
 				...createAABBCollider(50, 50),
 				...createCollisionLayer('enemy', ['player']),
 			});
@@ -337,6 +347,7 @@ describe('Collision Bundle', () => {
 		test('should shift collision detection with offset', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
+				.withBundle(createTransformBundle())
 				.withBundle(createCollisionBundle())
 				.build();
 
@@ -347,14 +358,14 @@ describe('Collision Bundle', () => {
 
 			// Entity at 100,100 with offset 50,0 - effective position is 150,100
 			ecs.spawn({
-				position: { x: 100, y: 100 },
+				...createTransform(100, 100),
 				...createAABBCollider(30, 30, 50, 0),
 				...createCollisionLayer('player', ['enemy']),
 			});
 
 			// Entity at 160,100 - should collide with offset entity
 			ecs.spawn({
-				position: { x: 160, y: 100 },
+				...createTransform(160, 100),
 				...createAABBCollider(30, 30),
 				...createCollisionLayer('enemy', ['player']),
 			});
@@ -369,6 +380,7 @@ describe('Collision Bundle', () => {
 		test('should detect multiple collisions in single update', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
+				.withBundle(createTransformBundle())
 				.withBundle(createCollisionBundle())
 				.build();
 
@@ -379,26 +391,26 @@ describe('Collision Bundle', () => {
 
 			// Central player
 			ecs.spawn({
-				position: { x: 100, y: 100 },
+				...createTransform(100, 100),
 				...createAABBCollider(80, 80),
 				...createCollisionLayer('player', ['enemy']),
 			});
 
 			// Multiple enemies all overlapping player
 			ecs.spawn({
-				position: { x: 90, y: 90 },
+				...createTransform(90, 90),
 				...createAABBCollider(30, 30),
 				...createCollisionLayer('enemy', ['player']),
 			});
 
 			ecs.spawn({
-				position: { x: 110, y: 110 },
+				...createTransform(110, 110),
 				...createAABBCollider(30, 30),
 				...createCollisionLayer('enemy', ['player']),
 			});
 
 			ecs.spawn({
-				position: { x: 100, y: 120 },
+				...createTransform(100, 120),
 				...createAABBCollider(30, 30),
 				...createCollisionLayer('enemy', ['player']),
 			});
@@ -484,6 +496,7 @@ describe('Collision Bundle', () => {
 
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
+				.withBundle(createTransformBundle())
 				.withBundle(createCollisionBundle())
 				.build();
 
@@ -493,13 +506,13 @@ describe('Collision Bundle', () => {
 			});
 
 			ecs.spawn({
-				position: { x: 100, y: 100 },
+				...createTransform(100, 100),
 				...createAABBCollider(50, 50),
 				...layers.player(),
 			});
 
 			ecs.spawn({
-				position: { x: 120, y: 120 },
+				...createTransform(120, 120),
 				...createAABBCollider(50, 50),
 				...layers.enemy(),
 			});
@@ -514,6 +527,7 @@ describe('Collision Bundle', () => {
 		test('should ignore entities without collision layer', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
+				.withBundle(createTransformBundle())
 				.withBundle(createCollisionBundle())
 				.build();
 
@@ -523,13 +537,13 @@ describe('Collision Bundle', () => {
 			});
 
 			ecs.spawn({
-				position: { x: 100, y: 100 },
+				...createTransform(100, 100),
 				...createAABBCollider(50, 50),
 				// No collision layer
 			});
 
 			ecs.spawn({
-				position: { x: 120, y: 120 },
+				...createTransform(120, 120),
 				...createAABBCollider(50, 50),
 				...createCollisionLayer('enemy', ['player']),
 			});
@@ -537,6 +551,44 @@ describe('Collision Bundle', () => {
 			ecs.update(0.016);
 
 			expect(collisions.length).toBe(0);
+		});
+	});
+
+	describe('World transform usage', () => {
+		test('should use world transform for collision detection with hierarchy', () => {
+			const ecs = ECSpresso
+				.create<TestComponents, TestEvents, TestResources>()
+				.withBundle(createTransformBundle())
+				.withBundle(createCollisionBundle())
+				.build();
+
+			const collisions: Array<{ entityA: number; entityB: number }> = [];
+			ecs.eventBus.subscribe('collision', (data) => {
+				collisions.push(data);
+			});
+
+			// Parent at 100, 100
+			const parent = ecs.spawn({
+				...createTransform(100, 100),
+			});
+
+			// Child at local 50, 50 - world position is 150, 150
+			ecs.spawnChild(parent.id, {
+				...createTransform(50, 50),
+				...createAABBCollider(30, 30),
+				...createCollisionLayer('player', ['enemy']),
+			});
+
+			// Enemy at world position 160, 160 - should collide with child
+			ecs.spawn({
+				...createTransform(160, 160),
+				...createAABBCollider(30, 30),
+				...createCollisionLayer('enemy', ['player']),
+			});
+
+			ecs.update(0.016);
+
+			expect(collisions.length).toBe(1);
 		});
 	});
 });

@@ -2,11 +2,10 @@ import { describe, test, expect } from 'bun:test';
 import ECSpresso from '../../ecspresso';
 import {
 	createMovementBundle,
-	createPosition,
 	createVelocity,
-	createMovable,
 	type MovementComponentTypes,
 } from './movement';
+import { createTransform, createTransformBundle } from './transform';
 
 interface TestComponents extends MovementComponentTypes {
 	tag: string;
@@ -18,86 +17,90 @@ interface TestResources {}
 
 describe('Movement Bundle', () => {
 	describe('Position updates', () => {
-		test('should update position by velocity × deltaTime', () => {
+		test('should update localTransform by velocity × deltaTime', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
+				.withBundle(createTransformBundle())
 				.withBundle(createMovementBundle())
 				.build();
 
 			const entity = ecs.spawn({
-				position: { x: 100, y: 100 },
-				velocity: { x: 50, y: -25 },
+				...createTransform(100, 100),
+				...createVelocity(50, -25),
 			});
 
 			ecs.update(0.5);
 
-			const position = ecs.entityManager.getComponent(entity.id, 'position');
-			expect(position?.x).toBe(125); // 100 + 50 * 0.5
-			expect(position?.y).toBe(87.5); // 100 + (-25) * 0.5
+			const localTransform = ecs.entityManager.getComponent(entity.id, 'localTransform');
+			expect(localTransform?.x).toBe(125); // 100 + 50 * 0.5
+			expect(localTransform?.y).toBe(87.5); // 100 + (-25) * 0.5
 		});
 
 		test('should leave position unchanged with zero velocity', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
+				.withBundle(createTransformBundle())
 				.withBundle(createMovementBundle())
 				.build();
 
 			const entity = ecs.spawn({
-				position: { x: 50, y: 75 },
-				velocity: { x: 0, y: 0 },
+				...createTransform(50, 75),
+				...createVelocity(0, 0),
 			});
 
 			ecs.update(1.0);
 
-			const position = ecs.entityManager.getComponent(entity.id, 'position');
-			expect(position?.x).toBe(50);
-			expect(position?.y).toBe(75);
+			const localTransform = ecs.entityManager.getComponent(entity.id, 'localTransform');
+			expect(localTransform?.x).toBe(50);
+			expect(localTransform?.y).toBe(75);
 		});
 
 		test('should decrease position with negative velocity', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
+				.withBundle(createTransformBundle())
 				.withBundle(createMovementBundle())
 				.build();
 
 			const entity = ecs.spawn({
-				position: { x: 200, y: 300 },
-				velocity: { x: -100, y: -150 },
+				...createTransform(200, 300),
+				...createVelocity(-100, -150),
 			});
 
 			ecs.update(1.0);
 
-			const position = ecs.entityManager.getComponent(entity.id, 'position');
-			expect(position?.x).toBe(100);
-			expect(position?.y).toBe(150);
+			const localTransform = ecs.entityManager.getComponent(entity.id, 'localTransform');
+			expect(localTransform?.x).toBe(100);
+			expect(localTransform?.y).toBe(150);
 		});
 
 		test('should update all moving entities', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
+				.withBundle(createTransformBundle())
 				.withBundle(createMovementBundle())
 				.build();
 
 			const entity1 = ecs.spawn({
-				position: { x: 0, y: 0 },
-				velocity: { x: 10, y: 20 },
+				...createTransform(0, 0),
+				...createVelocity(10, 20),
 			});
 
 			const entity2 = ecs.spawn({
-				position: { x: 100, y: 100 },
-				velocity: { x: -5, y: 15 },
+				...createTransform(100, 100),
+				...createVelocity(-5, 15),
 			});
 
 			const entity3 = ecs.spawn({
-				position: { x: 50, y: 50 },
-				velocity: { x: 0, y: -30 },
+				...createTransform(50, 50),
+				...createVelocity(0, -30),
 			});
 
 			ecs.update(1.0);
 
-			const pos1 = ecs.entityManager.getComponent(entity1.id, 'position');
-			const pos2 = ecs.entityManager.getComponent(entity2.id, 'position');
-			const pos3 = ecs.entityManager.getComponent(entity3.id, 'position');
+			const pos1 = ecs.entityManager.getComponent(entity1.id, 'localTransform');
+			const pos2 = ecs.entityManager.getComponent(entity2.id, 'localTransform');
+			const pos3 = ecs.entityManager.getComponent(entity3.id, 'localTransform');
 
 			expect(pos1?.x).toBe(10);
 			expect(pos1?.y).toBe(20);
@@ -111,31 +114,33 @@ describe('Movement Bundle', () => {
 	});
 
 	describe('Query filtering', () => {
-		test('should ignore entities with only position', () => {
+		test('should ignore entities with only localTransform', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
+				.withBundle(createTransformBundle())
 				.withBundle(createMovementBundle())
 				.build();
 
 			const entity = ecs.spawn({
-				position: { x: 100, y: 100 },
+				...createTransform(100, 100),
 			});
 
 			ecs.update(1.0);
 
-			const position = ecs.entityManager.getComponent(entity.id, 'position');
-			expect(position?.x).toBe(100);
-			expect(position?.y).toBe(100);
+			const localTransform = ecs.entityManager.getComponent(entity.id, 'localTransform');
+			expect(localTransform?.x).toBe(100);
+			expect(localTransform?.y).toBe(100);
 		});
 
 		test('should ignore entities with only velocity', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
+				.withBundle(createTransformBundle())
 				.withBundle(createMovementBundle())
 				.build();
 
 			const entity = ecs.spawn({
-				velocity: { x: 50, y: 50 },
+				...createVelocity(50, 50),
 			});
 
 			// Should not throw and velocity should remain unchanged
@@ -148,13 +153,6 @@ describe('Movement Bundle', () => {
 	});
 
 	describe('Helper functions', () => {
-		test('createPosition should return correct shape', () => {
-			const result = createPosition(10, 20);
-			expect(result).toEqual({
-				position: { x: 10, y: 20 },
-			});
-		});
-
 		test('createVelocity should return correct shape', () => {
 			const result = createVelocity(30, -40);
 			expect(result).toEqual({
@@ -162,37 +160,23 @@ describe('Movement Bundle', () => {
 			});
 		});
 
-		test('createMovable should return both components', () => {
-			const result = createMovable(100, 200, 50, -25);
-			expect(result).toEqual({
-				position: { x: 100, y: 200 },
-				velocity: { x: 50, y: -25 },
-			});
-		});
-
-		test('createMovable should default velocity to zero', () => {
-			const result = createMovable(100, 200);
-			expect(result).toEqual({
-				position: { x: 100, y: 200 },
-				velocity: { x: 0, y: 0 },
-			});
-		});
-
 		test('helpers should work with ecs.spawn', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
+				.withBundle(createTransformBundle())
 				.withBundle(createMovementBundle())
 				.build();
 
 			const entity = ecs.spawn({
-				...createMovable(50, 75, 10, 20),
+				...createTransform(50, 75),
+				...createVelocity(10, 20),
 			});
 
 			ecs.update(1.0);
 
-			const position = ecs.entityManager.getComponent(entity.id, 'position');
-			expect(position?.x).toBe(60);
-			expect(position?.y).toBe(95);
+			const localTransform = ecs.entityManager.getComponent(entity.id, 'localTransform');
+			expect(localTransform?.x).toBe(60);
+			expect(localTransform?.y).toBe(95);
 		});
 	});
 
@@ -218,12 +202,13 @@ describe('Movement Bundle', () => {
 		test('should disable with system group', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
+				.withBundle(createTransformBundle())
 				.withBundle(createMovementBundle({ systemGroup: 'physics' }))
 				.build();
 
 			const entity = ecs.spawn({
-				position: { x: 100, y: 100 },
-				velocity: { x: 50, y: 50 },
+				...createTransform(100, 100),
+				...createVelocity(50, 50),
 			});
 
 			// Disable the physics group
@@ -231,17 +216,38 @@ describe('Movement Bundle', () => {
 			ecs.update(1.0);
 
 			// Position should not have changed
-			const position = ecs.entityManager.getComponent(entity.id, 'position');
-			expect(position?.x).toBe(100);
-			expect(position?.y).toBe(100);
+			const localTransform = ecs.entityManager.getComponent(entity.id, 'localTransform');
+			expect(localTransform?.x).toBe(100);
+			expect(localTransform?.y).toBe(100);
 
 			// Enable and update
 			ecs.enableSystemGroup('physics');
 			ecs.update(1.0);
 
-			const updatedPosition = ecs.entityManager.getComponent(entity.id, 'position');
-			expect(updatedPosition?.x).toBe(150);
-			expect(updatedPosition?.y).toBe(150);
+			const updatedTransform = ecs.entityManager.getComponent(entity.id, 'localTransform');
+			expect(updatedTransform?.x).toBe(150);
+			expect(updatedTransform?.y).toBe(150);
+		});
+	});
+
+	describe('Integration with transform propagation', () => {
+		test('should update worldTransform after movement', () => {
+			const ecs = ECSpresso
+				.create<TestComponents, TestEvents, TestResources>()
+				.withBundle(createTransformBundle())
+				.withBundle(createMovementBundle())
+				.build();
+
+			const entity = ecs.spawn({
+				...createTransform(100, 100),
+				...createVelocity(50, 50),
+			});
+
+			ecs.update(1.0);
+
+			const worldTransform = ecs.entityManager.getComponent(entity.id, 'worldTransform');
+			expect(worldTransform?.x).toBe(150);
+			expect(worldTransform?.y).toBe(150);
 		});
 	});
 });

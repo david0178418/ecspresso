@@ -3,15 +3,14 @@ import { createTimer } from '../../../src/bundles/utils/timers';
 import type { Components, Events, Resources } from '../types';
 
 /**
- * Creates a bundle for handling game-specific collision responses in Space Invaders.
- * The actual collision detection is handled by the collision bundle.
+ * Handles game-specific collision responses and combat logic.
+ * Collision detection is provided by the collision bundle.
  */
-export default function createGameCollisionBundle(): Bundle<Components, Events, Resources> {
-	return new Bundle<Components, Events, Resources>('game-collision-bundle')
-		.addSystem('collision-response')
+export default function createCombatBundle(): Bundle<Components, Events, Resources> {
+	return new Bundle<Components, Events, Resources>('combat-bundle')
+		.addSystem('combat')
 		.inGroup('gameplay')
 		.setEventHandlers({
-			// Handle collision events from the collision bundle
 			collision: {
 				handler(data, ecs) {
 					const { entityA, entityB, layerA, layerB } = data;
@@ -24,8 +23,8 @@ export default function createGameCollisionBundle(): Bundle<Components, Events, 
 						const projectileId = layerA === 'playerProjectile' ? entityA : entityB;
 						const enemyId = layerA === 'enemy' ? entityA : entityB;
 
-						// Destroy the projectile
-						ecs.eventBus.publish('entityDestroyed', { entityId: projectileId });
+						// Remove the projectile
+						ecs.commands.removeEntity(projectileId);
 
 						// Damage the enemy
 						const enemyData = ecs.entityManager.getComponent(enemyId, 'enemy');
@@ -34,11 +33,21 @@ export default function createGameCollisionBundle(): Bundle<Components, Events, 
 						enemyData.health -= 1;
 
 						if (enemyData.health <= 0) {
-							ecs.eventBus.publish('entityDestroyed', {
-								entityId: enemyId,
-								wasEnemy: true,
-								points: enemyData.points,
-							});
+							ecs.commands.removeEntity(enemyId);
+
+							// Update score
+							const score = ecs.getResource('score');
+							score.value += enemyData.points;
+							ecs.eventBus.publish('updateScore', { points: score.value });
+
+							// Check if all enemies destroyed (this is the last one)
+							const enemies = ecs.getEntitiesWithQuery(['enemy']);
+							if (enemies.length === 1) {
+								const gameState = ecs.getResource('gameState');
+								if (gameState.status === 'playing') {
+									ecs.eventBus.publish('levelComplete', { level: gameState.level });
+								}
+							}
 						}
 						return;
 					}
@@ -51,47 +60,26 @@ export default function createGameCollisionBundle(): Bundle<Components, Events, 
 						const projectileId = layerA === 'enemyProjectile' ? entityA : entityB;
 						const playerId = layerA === 'player' ? entityA : entityB;
 
-						// Destroy the projectile
-						ecs.eventBus.publish('entityDestroyed', { entityId: projectileId });
-
-						// Kill the player
-						ecs.eventBus.publish('entityDestroyed', { entityId: playerId });
+						ecs.commands.removeEntity(projectileId);
+						ecs.commands.removeEntity(playerId);
 						ecs.eventBus.publish('playerDeath');
 					}
 				},
 			},
 
-			// Handle player death
 			playerDeath: {
 				handler(_data, ecs) {
 					const gameState = ecs.getResource('gameState');
 					gameState.lives -= 1;
-
-					// Update lives UI
 					ecs.eventBus.publish('updateLives', { lives: gameState.lives });
 
 					if (gameState.lives <= 0) {
-						// Game over
 						ecs.eventBus.publish('gameOver', {
 							win: false,
 							score: ecs.getResource('score').value,
 						});
 					} else {
-						// Spawn respawn timer entity with event-based completion
-						ecs.spawn({
-							...createTimer<Events>(1.0, { onComplete: 'playerRespawn' }),
-						});
-					}
-				},
-			},
-
-			// Handle out of bounds events (projectile cleanup)
-			entityOutOfBounds: {
-				handler(data, ecs) {
-					// Only destroy projectiles that go out of bounds
-					const projectile = ecs.entityManager.getComponent(data.entityId, 'projectile');
-					if (projectile) {
-						ecs.eventBus.publish('entityDestroyed', { entityId: data.entityId });
+						ecs.spawn(createTimer<Events>(1.0, { onComplete: 'playerRespawn' }));
 					}
 				},
 			},
