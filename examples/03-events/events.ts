@@ -7,6 +7,7 @@ import {
 	type PixiEventTypes,
 	type PixiResourceTypes,
 } from "../../src/bundles/renderers/pixi";
+import { createTransformBundle } from "../../src/bundles/utils/transform";
 import {
 	createTimerBundle,
 	createRepeatingTimer,
@@ -36,6 +37,7 @@ interface ActiveKeyMap {
 
 const ecs = ECSpresso
 	.create<Components, Events, Resources>()
+	.withBundle(createTransformBundle())
 	.withBundle(createPixiBundle({
 		init: { background: '#1099bb', resizeTo: window },
 		container: document.body,

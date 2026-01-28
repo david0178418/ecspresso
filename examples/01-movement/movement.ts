@@ -7,6 +7,7 @@ import {
 	type PixiEventTypes,
 	type PixiResourceTypes,
 } from "../../src/bundles/renderers/pixi";
+import { createTransformBundle } from "../../src/bundles/utils/transform";
 
 interface Components extends PixiComponentTypes {
 	velocity: { x: number; y: number };
@@ -14,6 +15,7 @@ interface Components extends PixiComponentTypes {
 }
 
 const ecs = ECSpresso.create<Components, PixiEventTypes, PixiResourceTypes>()
+	.withBundle(createTransformBundle())
 	.withBundle(createPixiBundle({
 		init: { background: '#1099bb', resizeTo: window },
 		container: document.body,
