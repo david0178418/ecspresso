@@ -1,11 +1,14 @@
 import { Container, Sprite, Text } from 'pixi.js';
 import type { Application } from 'pixi.js';
 import type { TimerComponentTypes, TimerEventData } from '../../src/bundles/utils/timers';
+import type { MovementComponentTypes } from '../../src/bundles/utils/movement';
+import type { BoundsComponentTypes, BoundsEventTypes, BoundsResourceTypes } from '../../src/bundles/utils/bounds';
+import type { CollisionComponentTypes, CollisionEventTypes } from '../../src/bundles/utils/collision';
 
 /**
  * All event types used in the Space Invaders game
  */
-export interface Events {
+export interface Events extends BoundsEventTypes, CollisionEventTypes {
 	// Game state events
 	gameInit: true;
 	gameStart: true;
@@ -56,17 +59,11 @@ export interface Events {
 /**
  * All component types used in the Space Invaders game
  */
-export interface Components extends TimerComponentTypes<Events> {
-	// Position and movement
-	position: {
-		x: number;
-		y: number;
-	};
-	velocity: {
-		x: number;
-		y: number;
-	};
-
+export interface Components
+	extends TimerComponentTypes<Events>,
+	        MovementComponentTypes,
+	        BoundsComponentTypes,
+	        CollisionComponentTypes {
 	// Rendering
 	sprite: Sprite;
 
@@ -81,18 +78,12 @@ export interface Components extends TimerComponentTypes<Events> {
 		owner: 'player' | 'enemy';
 		damage: number;
 	};
-
-	// Collision
-	collider: {
-		width: number;
-		height: number;
-	};
 }
 
 /**
  * All resource types used in the Space Invaders game
  */
-export interface Resources {
+export interface Resources extends BoundsResourceTypes {
 	// PIXI resources
 	pixi: Application;
 	gameContainer: Container;

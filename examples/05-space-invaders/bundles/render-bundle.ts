@@ -1,7 +1,17 @@
 import Bundle from '../../../src/bundle';
 import { createTimer } from '../../../src/bundles/utils/timers';
+import { createAABBCollider, defineCollisionLayers } from '../../../src/bundles/utils/collision';
+import { createDestroyOutOfBounds } from '../../../src/bundles/utils/bounds';
 import type { Components, Events, Resources } from '../types';
 import { spawnPlayer, createProjectileSprite } from '../utils';
+
+// Define collision layers locally to avoid circular import with index.ts
+const layers = defineCollisionLayers({
+	player: ['enemyProjectile'],
+	playerProjectile: ['enemy'],
+	enemy: ['playerProjectile'],
+	enemyProjectile: ['player'],
+});
 
 export default function createRenderBundle() {
 	return new Bundle<Components, Events, Resources>('render-bundle')
@@ -59,10 +69,9 @@ export default function createRenderBundle() {
 							owner: 'player',
 							damage: 1
 						},
-						collider: {
-							width: projectileSprite.width,
-							height: projectileSprite.height
-						},
+						...createAABBCollider(projectileSprite.width, projectileSprite.height),
+						...layers.playerProjectile(),
+						...createDestroyOutOfBounds(20),
 					});
 				}
 			},
@@ -97,10 +106,9 @@ export default function createRenderBundle() {
 							owner: 'enemy',
 							damage: 1
 						},
-						collider: {
-							width: projectileSprite.width,
-							height: projectileSprite.height
-						},
+						...createAABBCollider(projectileSprite.width, projectileSprite.height),
+						...layers.enemyProjectile(),
+						...createDestroyOutOfBounds(20),
 					});
 				}
 			},

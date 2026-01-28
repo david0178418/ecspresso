@@ -1,5 +1,6 @@
 import { Application, Container } from "pixi.js";
 import Bundle from "../../../src/bundle";
+import { createBounds } from "../../../src/bundles/utils/bounds";
 import type { Components, Events, Resources } from "../types";
 
 export default async function createInitBundle() {
@@ -26,10 +27,14 @@ export default async function createInitBundle() {
 
 			document.getElementById('game-container')?.appendChild(pixi.canvas);
 
+			// Update bounds to match actual screen size
+			const bounds = createBounds(pixi.screen.width, pixi.screen.height);
+
 			ecs
 				.addResource('gameContainer', gameContainer)
 				.addResource('entityContainer', entityContainer)
-				.addResource('uiContainer', uiContainer);
+				.addResource('uiContainer', uiContainer)
+				.addResource('bounds', bounds);
 		})
 		.setEventHandlers({
 			// Initialize the game

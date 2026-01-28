@@ -1,33 +1,16 @@
 import { Graphics, Sprite } from "pixi.js";
 import ECSpresso from "../../src";
+import { createAABBCollider, defineCollisionLayers } from "../../src/bundles/utils/collision";
+import { createClampToBounds } from "../../src/bundles/utils/bounds";
 import { Components, Events, Resources } from "./types";
 
-/**
- * Simple AABB collision detection
- */
-export function isColliding(
-	x1: number,
-	y1: number,
-	width1: number,
-	height1: number,
-	x2: number,
-	y2: number,
-	width2: number,
-	height2: number,
-): boolean {
-	// Calculate half-widths and half-heights
-	const halfWidth1 = width1 / 2;
-	const halfHeight1 = height1 / 2;
-	const halfWidth2 = width2 / 2;
-	const halfHeight2 = height2 / 2;
-
-	// Calculate the distance between centers
-	const dx = Math.abs(x1 - x2);
-	const dy = Math.abs(y1 - y2);
-
-	// Check if the rectangles overlap
-	return dx < (halfWidth1 + halfWidth2) && dy < (halfHeight1 + halfHeight2);
-}
+// Define collision layers locally to avoid circular import with index.ts
+const layers = defineCollisionLayers({
+	player: ['enemyProjectile'],
+	playerProjectile: ['enemy'],
+	enemy: ['playerProjectile'],
+	enemyProjectile: ['player'],
+});
 
 
 /**
@@ -77,10 +60,8 @@ export function spawnEnemyFormation(ecs: ECSpresso<Components, Events, Resources
 				sprite: enemySprite,
 				position: { x, y },
 				velocity: { x: config.enemySpeed, y: 0 },
-				collider: {
-					width: enemySprite.width,
-					height: enemySprite.height
-				}
+				...createAABBCollider(enemySprite.width, enemySprite.height),
+				...layers.enemy(),
 			});
 		}
 	}
@@ -195,10 +176,9 @@ export function spawnPlayer(ecs: ECSpresso<Components, Events, Resources>): numb
 			x: 0,
 			y: 0,
 		},
-		collider: {
-			width: playerSprite.width,
-			height: playerSprite.height,
-		},
+		...createAABBCollider(playerSprite.width, playerSprite.height),
+		...layers.player(),
+		...createClampToBounds(30),
 	});
 
 	return player.id;

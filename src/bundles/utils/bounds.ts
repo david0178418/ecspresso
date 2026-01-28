@@ -1,0 +1,361 @@
+/**
+ * Bounds Bundle for ECSpresso
+ *
+ * Provides screen bounds enforcement for entities with position components.
+ * Supports destroy, clamp, and wrap behaviors.
+ */
+
+import Bundle from '../../bundle';
+import type { MovementComponentTypes } from './movement';
+
+// ==================== Component Types ====================
+
+/**
+ * Component that marks an entity for destruction when outside bounds.
+ */
+export interface DestroyOutOfBounds {
+	/** Extra padding beyond bounds before destruction (default: 0) */
+	padding?: number;
+}
+
+/**
+ * Component that clamps an entity's position to stay within bounds.
+ */
+export interface ClampToBounds {
+	/** Margin to shrink the valid area (default: 0) */
+	margin?: number;
+}
+
+/**
+ * Component that wraps an entity's position to the opposite edge.
+ */
+export interface WrapAtBounds {
+	/** Padding beyond bounds before wrapping (default: 0) */
+	padding?: number;
+}
+
+/**
+ * Component types provided by the bounds bundle.
+ * Extend your component types with this interface.
+ *
+ * @example
+ * ```typescript
+ * interface GameComponents extends MovementComponentTypes, BoundsComponentTypes {
+ *   sprite: Sprite;
+ * }
+ * ```
+ */
+export interface BoundsComponentTypes {
+	destroyOutOfBounds: DestroyOutOfBounds;
+	clampToBounds: ClampToBounds;
+	wrapAtBounds: WrapAtBounds;
+}
+
+// ==================== Resource Types ====================
+
+/**
+ * Bounds rectangle definition.
+ */
+export interface BoundsRect {
+	/** Left edge x coordinate (default: 0) */
+	x?: number;
+	/** Top edge y coordinate (default: 0) */
+	y?: number;
+	/** Width of the bounds area */
+	width: number;
+	/** Height of the bounds area */
+	height: number;
+}
+
+/**
+ * Resource types provided by the bounds bundle.
+ */
+export interface BoundsResourceTypes {
+	bounds: BoundsRect;
+}
+
+// ==================== Event Types ====================
+
+/**
+ * Event fired when an entity exits bounds.
+ */
+export interface EntityOutOfBoundsEvent {
+	/** The entity that exited bounds */
+	entityId: number;
+	/** The edge the entity exited through */
+	exitEdge: 'top' | 'bottom' | 'left' | 'right';
+}
+
+/**
+ * Event types provided by the bounds bundle.
+ */
+export interface BoundsEventTypes {
+	entityOutOfBounds: EntityOutOfBoundsEvent;
+}
+
+// ==================== Bundle Options ====================
+
+/**
+ * Configuration options for the bounds bundle.
+ */
+export interface BoundsBundleOptions {
+	/** System group name (default: 'physics') */
+	systemGroup?: string;
+	/** Priority for bounds systems (default: 50) */
+	priority?: number;
+	/** Resource key for bounds rectangle (default: 'bounds') */
+	boundsResourceKey?: string;
+	/** Whether to auto-remove entities when out of bounds (default: true) */
+	autoRemove?: boolean;
+}
+
+// ==================== Helper Functions ====================
+
+/**
+ * Create a bounds rectangle resource.
+ *
+ * @param width The width of the bounds area
+ * @param height The height of the bounds area
+ * @param x The left edge x coordinate (default: 0)
+ * @param y The top edge y coordinate (default: 0)
+ * @returns Bounds rectangle suitable for use as a resource
+ *
+ * @example
+ * ```typescript
+ * ECSpresso.create()
+ *   .withResource('bounds', createBounds(800, 600))
+ *   .build();
+ * ```
+ */
+export function createBounds(width: number, height: number, x?: number, y?: number): BoundsRect {
+	const bounds: BoundsRect = { width, height };
+	if (x !== undefined) bounds.x = x;
+	if (y !== undefined) bounds.y = y;
+	return bounds;
+}
+
+/**
+ * Create a destroyOutOfBounds component.
+ *
+ * @param padding Extra padding beyond bounds before destruction
+ * @returns Component object suitable for spreading into spawn()
+ *
+ * @example
+ * ```typescript
+ * ecs.spawn({
+ *   ...createPosition(100, 200),
+ *   ...createDestroyOutOfBounds(20),
+ * });
+ * ```
+ */
+export function createDestroyOutOfBounds(padding?: number): Pick<BoundsComponentTypes, 'destroyOutOfBounds'> {
+	return {
+		destroyOutOfBounds: padding !== undefined ? { padding } : {},
+	};
+}
+
+/**
+ * Create a clampToBounds component.
+ *
+ * @param margin Margin to shrink the valid area
+ * @returns Component object suitable for spreading into spawn()
+ *
+ * @example
+ * ```typescript
+ * ecs.spawn({
+ *   ...createPosition(100, 200),
+ *   ...createClampToBounds(30),
+ * });
+ * ```
+ */
+export function createClampToBounds(margin?: number): Pick<BoundsComponentTypes, 'clampToBounds'> {
+	return {
+		clampToBounds: margin !== undefined ? { margin } : {},
+	};
+}
+
+/**
+ * Create a wrapAtBounds component.
+ *
+ * @param padding Padding beyond bounds before wrapping
+ * @returns Component object suitable for spreading into spawn()
+ *
+ * @example
+ * ```typescript
+ * ecs.spawn({
+ *   ...createPosition(100, 200),
+ *   ...createWrapAtBounds(10),
+ * });
+ * ```
+ */
+export function createWrapAtBounds(padding?: number): Pick<BoundsComponentTypes, 'wrapAtBounds'> {
+	return {
+		wrapAtBounds: padding !== undefined ? { padding } : {},
+	};
+}
+
+// ==================== Internal Types ====================
+
+type CombinedComponentTypes = BoundsComponentTypes & MovementComponentTypes;
+
+// ==================== Bundle Factory ====================
+
+/**
+ * Create a bounds bundle for ECSpresso.
+ *
+ * This bundle provides:
+ * - Destroy out of bounds system - removes entities that exit bounds
+ * - Clamp to bounds system - constrains entities within bounds
+ * - Wrap at bounds system - wraps entities to opposite edge
+ *
+ * Requires entities to have a `position` component (from movement bundle or user-defined).
+ *
+ * @example
+ * ```typescript
+ * const ecs = ECSpresso
+ *   .create<Components, Events, Resources>()
+ *   .withResource('bounds', createBounds(800, 600))
+ *   .withBundle(createBoundsBundle())
+ *   .build();
+ *
+ * // Entity that gets destroyed when leaving screen
+ * ecs.spawn({
+ *   ...createPosition(100, 200),
+ *   ...createDestroyOutOfBounds(),
+ * });
+ * ```
+ */
+export function createBoundsBundle<ResourceTypes extends Record<string, any> = BoundsResourceTypes>(
+	options?: BoundsBundleOptions
+): Bundle<CombinedComponentTypes, BoundsEventTypes, ResourceTypes> {
+	const {
+		systemGroup = 'physics',
+		priority = 50,
+		boundsResourceKey = 'bounds',
+		autoRemove = true,
+	} = options ?? {};
+
+	const bundle = new Bundle<CombinedComponentTypes, BoundsEventTypes, ResourceTypes>('bounds');
+
+	// Destroy out of bounds system
+	bundle
+		.addSystem('bounds-destroy')
+		.setPriority(priority)
+		.inGroup(systemGroup)
+		.addQuery('entities', {
+			with: ['position', 'destroyOutOfBounds'] as const,
+		})
+		.setProcess((queries, _deltaTime, ecs) => {
+			const bounds = ecs.getResource(boundsResourceKey as keyof ResourceTypes) as BoundsRect;
+			const minX = bounds.x ?? 0;
+			const minY = bounds.y ?? 0;
+			const maxX = minX + bounds.width;
+			const maxY = minY + bounds.height;
+
+			for (const entity of queries.entities) {
+				const { position, destroyOutOfBounds } = entity.components;
+				const padding = destroyOutOfBounds.padding ?? 0;
+
+				const exitEdge = getExitEdge(position, minX, minY, maxX, maxY, padding);
+				if (!exitEdge) continue;
+
+				ecs.eventBus.publish('entityOutOfBounds', {
+					entityId: entity.id,
+					exitEdge,
+				});
+
+				if (autoRemove) {
+					ecs.commands.removeEntity(entity.id);
+				}
+			}
+		})
+		.and();
+
+	// Clamp to bounds system
+	bundle
+		.addSystem('bounds-clamp')
+		.setPriority(priority - 1)
+		.inGroup(systemGroup)
+		.addQuery('entities', {
+			with: ['position', 'clampToBounds'] as const,
+		})
+		.setProcess((queries, _deltaTime, ecs) => {
+			const bounds = ecs.getResource(boundsResourceKey as keyof ResourceTypes) as BoundsRect;
+			const minX = bounds.x ?? 0;
+			const minY = bounds.y ?? 0;
+			const maxX = minX + bounds.width;
+			const maxY = minY + bounds.height;
+
+			for (const entity of queries.entities) {
+				const { position, clampToBounds } = entity.components;
+				const margin = clampToBounds.margin ?? 0;
+
+				const clampedMinX = minX + margin;
+				const clampedMinY = minY + margin;
+				const clampedMaxX = maxX - margin;
+				const clampedMaxY = maxY - margin;
+
+				if (position.x < clampedMinX) position.x = clampedMinX;
+				if (position.x > clampedMaxX) position.x = clampedMaxX;
+				if (position.y < clampedMinY) position.y = clampedMinY;
+				if (position.y > clampedMaxY) position.y = clampedMaxY;
+			}
+		})
+		.and();
+
+	// Wrap at bounds system
+	bundle
+		.addSystem('bounds-wrap')
+		.setPriority(priority - 2)
+		.inGroup(systemGroup)
+		.addQuery('entities', {
+			with: ['position', 'wrapAtBounds'] as const,
+		})
+		.setProcess((queries, _deltaTime, ecs) => {
+			const bounds = ecs.getResource(boundsResourceKey as keyof ResourceTypes) as BoundsRect;
+			const minX = bounds.x ?? 0;
+			const minY = bounds.y ?? 0;
+			const maxX = minX + bounds.width;
+			const maxY = minY + bounds.height;
+
+			for (const entity of queries.entities) {
+				const { position, wrapAtBounds } = entity.components;
+				const padding = wrapAtBounds.padding ?? 0;
+
+				// Wrap horizontally
+				if (position.x > maxX + padding) {
+					position.x = minX + (position.x - maxX - padding);
+				} else if (position.x < minX - padding) {
+					position.x = maxX + (position.x - minX + padding);
+				}
+
+				// Wrap vertically
+				if (position.y > maxY + padding) {
+					position.y = minY + (position.y - maxY - padding);
+				} else if (position.y < minY - padding) {
+					position.y = maxY + (position.y - minY + padding);
+				}
+			}
+		})
+		.and();
+
+	return bundle;
+}
+
+/**
+ * Determine which edge an entity has exited through, if any.
+ */
+function getExitEdge(
+	position: { x: number; y: number },
+	minX: number,
+	minY: number,
+	maxX: number,
+	maxY: number,
+	padding: number
+): 'top' | 'bottom' | 'left' | 'right' | null {
+	if (position.x > maxX + padding) return 'right';
+	if (position.x < minX - padding) return 'left';
+	if (position.y > maxY + padding) return 'bottom';
+	if (position.y < minY - padding) return 'top';
+	return null;
+}

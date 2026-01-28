@@ -1,101 +1,66 @@
 import Bundle from '../../../src/bundle';
 import { createTimer } from '../../../src/bundles/utils/timers';
 import type { Components, Events, Resources } from '../types';
-import { isColliding } from '../utils';
 
 /**
- * Creates a bundle for handling collisions in the Space Invaders game
+ * Creates a bundle for handling game-specific collision responses in Space Invaders.
+ * The actual collision detection is handled by the collision bundle.
  */
-export default function createCollisionBundle(): Bundle<Components, Events, Resources> {
-	return new Bundle<Components, Events, Resources>('collision-bundle')
-		.addSystem('collision-detection')
+export default function createGameCollisionBundle(): Bundle<Components, Events, Resources> {
+	return new Bundle<Components, Events, Resources>('game-collision-bundle')
+		.addSystem('collision-response')
 		.inGroup('gameplay')
-		.addQuery('projectiles', {
-			with: ['projectile', 'position', 'collider'],
-		})
-		.addQuery('players', {
-			with: ['player', 'position', 'collider'],
-		})
-		.addQuery('enemies', {
-			with: ['enemy', 'position', 'collider'],
-		})
-		.setProcess(({ projectiles, players, enemies }, _deltaTime, ecs) => {
-			// Process projectile collisions
-			for (const projectile of projectiles) {
-				const projectileData = projectile.components['projectile'];
-				const projectilePos = projectile.components['position'];
-				const projectileCollider = projectile.components['collider'];
+		.setEventHandlers({
+			// Handle collision events from the collision bundle
+			collision: {
+				handler(data, ecs) {
+					const { entityA, entityB, layerA, layerB } = data;
 
-				if (!projectileData || !projectilePos || !projectileCollider) continue;
+					// Player projectile hits enemy
+					if (
+						(layerA === 'playerProjectile' && layerB === 'enemy') ||
+						(layerA === 'enemy' && layerB === 'playerProjectile')
+					) {
+						const projectileId = layerA === 'playerProjectile' ? entityA : entityB;
+						const enemyId = layerA === 'enemy' ? entityA : entityB;
 
-				// Check for collisions based on projectile owner
-				if (projectileData.owner === 'player') {
-					// Player projectiles can hit enemies
-					for (const enemy of enemies) {
-						const enemyPos = enemy.components['position'];
-						const enemyCollider = enemy.components['collider'];
-
-						if (!enemyPos || !enemyCollider) continue;
-
-						// Check if collision occurred
-						if (!isColliding(
-							projectilePos.x, projectilePos.y, projectileCollider.width, projectileCollider.height,
-							enemyPos.x, enemyPos.y, enemyCollider.width, enemyCollider.height
-						)) continue;
-
-						// Handle projectile and enemy collision
 						// Destroy the projectile
-						ecs.eventBus.publish('entityDestroyed', { entityId: projectile.id });
+						ecs.eventBus.publish('entityDestroyed', { entityId: projectileId });
 
 						// Damage the enemy
-						const enemyData = enemy.components['enemy'];
+						const enemyData = ecs.entityManager.getComponent(enemyId, 'enemy');
 						if (!enemyData) return;
 
-						// Reduce enemy health
 						enemyData.health -= 1;
 
-						// Check if enemy is destroyed
-						if (enemyData.health > 0) continue;
-
-						// Destroy the enemy
-						ecs.eventBus.publish('entityDestroyed', {
-							entityId: enemy.id,
-							wasEnemy: true,
-							points: enemyData.points
-						});
-
-						// Stop checking this projectile, it's been destroyed
-						break;
+						if (enemyData.health <= 0) {
+							ecs.eventBus.publish('entityDestroyed', {
+								entityId: enemyId,
+								wasEnemy: true,
+								points: enemyData.points,
+							});
+						}
+						return;
 					}
-				} else {
-					// Enemy projectiles can hit the player
-					for (const player of players) {
-						const playerPos = player.components['position'];
-						const playerCollider = player.components['collider'];
 
-						if (!playerPos || !playerCollider) continue;
-
-						if (!isColliding(
-							projectilePos.x, projectilePos.y, projectileCollider.width, projectileCollider.height,
-							playerPos.x, playerPos.y, playerCollider.width, playerCollider.height
-						)) continue;
+					// Enemy projectile hits player
+					if (
+						(layerA === 'enemyProjectile' && layerB === 'player') ||
+						(layerA === 'player' && layerB === 'enemyProjectile')
+					) {
+						const projectileId = layerA === 'enemyProjectile' ? entityA : entityB;
+						const playerId = layerA === 'player' ? entityA : entityB;
 
 						// Destroy the projectile
-						ecs.eventBus.publish('entityDestroyed', { entityId: projectile.id });
+						ecs.eventBus.publish('entityDestroyed', { entityId: projectileId });
 
 						// Kill the player
-						ecs.eventBus.publish('entityDestroyed', { entityId: player.id });
-
-						// Trigger player death event
+						ecs.eventBus.publish('entityDestroyed', { entityId: playerId });
 						ecs.eventBus.publish('playerDeath');
-
-						// Stop checking this projectile, it's been destroyed
-						break;
 					}
-				}
-			}
-		})
-		.setEventHandlers({
+				},
+			},
+
 			// Handle player death
 			playerDeath: {
 				handler(_data, ecs) {
@@ -109,7 +74,7 @@ export default function createCollisionBundle(): Bundle<Components, Events, Reso
 						// Game over
 						ecs.eventBus.publish('gameOver', {
 							win: false,
-							score: ecs.getResource('score').value
+							score: ecs.getResource('score').value,
 						});
 					} else {
 						// Spawn respawn timer entity with event-based completion
@@ -117,46 +82,19 @@ export default function createCollisionBundle(): Bundle<Components, Events, Reso
 							...createTimer<Events>(1.0, { onComplete: 'playerRespawn' }),
 						});
 					}
-				}
-			}
-		})
-		.bundle
-		.addSystem('movement')
-		.inGroup('gameplay')
-		.addQuery('movingEntities', {
-			with: ['position', 'velocity']
-		})
-		.setProcess(({ movingEntities }, deltaTime, ecs) => {
-			const pixi = ecs.getResource('pixi');
-			const screenWidth = pixi.screen.width;
-			const screenHeight = pixi.screen.height;
+				},
+			},
 
-			// Update positions based on velocity
-			for (const entity of movingEntities) {
-				const position = entity.components['position'];
-				const velocity = entity.components['velocity'];
-
-				if (!position || !velocity) continue;
-
-				// Apply velocity
-				position.x += velocity.x * deltaTime;
-				position.y += velocity.y * deltaTime;
-
-				// Handle player boundaries
-				if (entity.components.player) {
-					// Keep player within screen bounds
-					position.x = Math.max(30, Math.min(screenWidth - 30, position.x));
-				}
-
-				// Handle projectile boundaries
-				if (entity.components.projectile) {
-					// Destroy projectiles that go off-screen
-					if (position.y < -20 || position.y > screenHeight + 20 ||
-							position.x < -20 || position.x > screenWidth + 20) {
-						ecs.eventBus.publish('entityDestroyed', { entityId: entity.id });
+			// Handle out of bounds events (projectile cleanup)
+			entityOutOfBounds: {
+				handler(data, ecs) {
+					// Only destroy projectiles that go out of bounds
+					const projectile = ecs.entityManager.getComponent(data.entityId, 'projectile');
+					if (projectile) {
+						ecs.eventBus.publish('entityDestroyed', { entityId: data.entityId });
 					}
-				}
-			}
+				},
+			},
 		})
 		.bundle;
 }

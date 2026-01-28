@@ -264,29 +264,21 @@ export default function createGameLogicBundle() {
 			}
 		})
 		.bundle
-		// Player movement system - in gameplay group
-		.addSystem('player-movement')
+		// Player input system - sets velocity based on input
+		// Bounds clamping is handled by the bounds bundle via clampToBounds component
+		.addSystem('player-input')
 		.inGroup('gameplay')
 		.addQuery('players', {
-			with: ['player', 'position', 'velocity', 'collider']
+			with: ['player', 'velocity']
 		})
 		.setProcess(({ players }, _deltaTime, ecs) => {
 			const input = ecs.getResource('input');
 			const config = ecs.getResource('config');
-			const pixi = ecs.getResource('pixi');
 
 			// Update player velocity based on input
 			for (const player of players) {
 				const velocity = player.components.velocity;
-				const position = player.components.position;
-				const collider = player.components.collider;
-
-				// Update velocity based on input
 				velocity.x = input.left ? -config.playerSpeed : input.right ? config.playerSpeed : 0;
-
-				// Keep player within screen bounds
-				const halfWidth = collider.width / 2;
-				position.x = Math.max(halfWidth, Math.min(pixi.screen.width - halfWidth, position.x));
 			}
 		})
 		.bundle;
