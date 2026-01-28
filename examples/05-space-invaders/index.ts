@@ -26,6 +26,11 @@ const game = ECSpresso
 	.withResource('score', {
 		value: 0
 	})
+	.withResource('enemyMovementState', {
+		isMovingDown: false,
+		currentDirection: 'right' as const,
+		lastEdgeHit: null as 'left' | 'right' | null
+	})
 	.withBundle(createTimerBundle<Events>())
 	.withBundle(await createInitBundle())
 	.withBundle(createInputBundle())

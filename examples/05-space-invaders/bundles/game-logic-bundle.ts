@@ -136,8 +136,8 @@ export default function createGameLogicBundle() {
 
 			for (const entity of transitionTimers) {
 				if (entity.components.timer.justFinished) {
-					// Remove the timer entity using command buffer
-					ecs.commands.removeEntity(entity.id);
+					// Remove the timer entity
+					ecs.removeEntity(entity.id);
 
 					// Spawn new enemy formation if game is still playing
 					if (gameState.status === 'playing') {
@@ -177,8 +177,8 @@ export default function createGameLogicBundle() {
 						}
 					}
 
-					// Remove the timer entity using command buffer
-					ecs.commands.removeEntity(entity.id);
+					// Remove the timer entity
+					ecs.removeEntity(entity.id);
 
 					// Change horizontal direction based on which edge was hit
 					movementState.isMovingDown = false;
@@ -193,14 +193,6 @@ export default function createGameLogicBundle() {
 		.inGroup('gameplay')
 		.addQuery('enemies', {
 			with: ['enemy', 'position']
-		})
-		.setOnInitialize((ecs) => {
-			// Add a resource to track movement state
-			ecs.addResource('enemyMovementState', {
-				isMovingDown: false,
-				currentDirection: 'right' as 'left' | 'right',
-				lastEdgeHit: null as 'left' | 'right' | null
-			});
 		})
 		.setProcess(({ enemies }, deltaTime, ecs) => {
 			if (enemies.length === 0) return;

@@ -115,7 +115,10 @@ export default function createRenderBundle() {
 
 			playerRespawn: {
 				handler(_data, ecs) {
-					spawnPlayer(ecs);
+					const gameState = ecs.getResource('gameState');
+					if (gameState.status === 'playing') {
+						spawnPlayer(ecs);
+					}
 				}
 			}
 		})

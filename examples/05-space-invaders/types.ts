@@ -1,6 +1,6 @@
 import { Container, Sprite, Text } from 'pixi.js';
 import type { Application } from 'pixi.js';
-import type { TimerComponentTypes } from '../../src/bundles/utils/timers';
+import type { TimerComponentTypes, TimerEventData } from '../../src/bundles/utils/timers';
 
 /**
  * All event types used in the Space Invaders game
@@ -39,7 +39,8 @@ export interface Events {
 		wasEnemy?: boolean;
 		points?: number;
 	};
-	playerRespawn: {};
+	playerRespawn: TimerEventData;
+	messageHide: TimerEventData;
 
 	// UI events
 	updateScore: {
@@ -56,9 +57,7 @@ export interface Events {
 export interface Components extends TimerComponentTypes<Events> {
 	// Timer tags
 	levelTransitionTimer: true;
-	respawnTimer: true;
 	descentTimer: true;
-	messageHideTimer: true;
 	// Formation entity
 	enemyFormation: {
 		level: number;

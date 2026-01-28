@@ -139,27 +139,15 @@ export default function createUIBundle() {
 					uiElements.messageText.y = pixi.screen.height / 2 - 50;
 					uiElements.messageText.visible = true;
 
-					// Spawn timer to hide message after delay
+					// Spawn timer to hide message after delay with event-based completion
 					ecs.spawn({
-						...createTimer<Events>(1.5),
-						messageHideTimer: true as const,
+						...createTimer<Events>(1.5, { onComplete: 'messageHide' }),
 					});
 				}
-			}
-		})
-		.bundle
-		// Message hide timer system
-		.addSystem('message-hide-timer')
-		.addQuery('messageHideTimers', {
-			with: ['timer', 'messageHideTimer'] as const,
-		})
-		.setProcess(({ messageHideTimers }, _deltaTime, ecs) => {
-			for (const entity of messageHideTimers) {
-				if (entity.components.timer.justFinished) {
-					// Remove the timer entity
-					ecs.removeEntity(entity.id);
+			},
 
-					// Hide message if game is still playing
+			messageHide: {
+				handler(_data, ecs) {
 					const gameState = ecs.getResource('gameState');
 					if (gameState.status === 'playing') {
 						const uiElements = ecs.getResource('uiElements');
