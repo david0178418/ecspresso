@@ -1020,6 +1020,19 @@ ecs.commands.clear(); // Discard all queued commands
 
 Commands execute in FIFO order. If a command fails (e.g., entity doesn't exist), it logs a warning and continues with remaining commands.
 
+## Built-in Bundles
+
+ECSpresso provides optional utility bundles for common game development needs:
+
+| Bundle | Import | Description |
+|--------|--------|-------------|
+| **Transform** | `ecspresso/bundles/utils/transform` | Hierarchical transform propagation (local/world transforms) |
+| **Movement** | `ecspresso/bundles/utils/movement` | Velocity-based movement integration |
+| **Bounds** | `ecspresso/bundles/utils/bounds` | Screen bounds enforcement (destroy, clamp, wrap) |
+| **Collision** | `ecspresso/bundles/utils/collision` | Layer-based AABB/circle collision detection with events |
+| **Timers** | `ecspresso/bundles/utils/timers` | ECS-native timers with event-based completion |
+| **PixiJS Renderer** | `ecspresso/bundles/renderers/pixi` | Automated PixiJS scene graph wiring |
+
 ## Timer Bundle
 
 The timer bundle provides ECS-native timers that follow the "data, not callbacks" philosophy. Timers are components processed each frame, with optional event-based completion notifications.

@@ -23,8 +23,14 @@ src/
 ├── type-utils.ts      # Bundle compatibility type utilities
 ├── index.ts           # Public API exports
 └── bundles/
-    └── utils/
-        └── timers.ts  # Timer bundle with event-based completion
+    ├── utils/
+    │   ├── timers.ts     # Timer bundle with event-based completion
+    │   ├── transform.ts  # Hierarchical local/world transform propagation
+    │   ├── movement.ts   # Velocity-based movement integration
+    │   ├── bounds.ts     # Screen bounds enforcement (destroy, clamp, wrap)
+    │   └── collision.ts  # Layer-based AABB/circle collision detection
+    └── renderers/
+        └── pixi.ts       # PixiJS scene graph wiring
 ```
 
 ## Core Concepts
