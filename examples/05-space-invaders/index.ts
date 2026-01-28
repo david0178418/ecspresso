@@ -1,6 +1,5 @@
 import ECSpresso from '../../src';
 import { createPixiBundle } from '../../src/bundles/renderers/pixi';
-import { createTransformBundle } from '../../src/bundles/utils/transform';
 import { createTimerBundle } from '../../src/bundles/utils/timers';
 import { createMovementBundle } from '../../src/bundles/utils/movement';
 import { createBoundsBundle, createBounds } from '../../src/bundles/utils/bounds';
@@ -32,14 +31,13 @@ const game = ECSpresso
 	})
 	.withResource('bounds', createBounds(800, 600)) // Updated dynamically in init-bundle
 	.withBundle(createTimerBundle<Events>())
-	.withBundle(createTransformBundle())
-	.withBundle(createMovementBundle({ priority: 200 }))
-	.withBundle(createBoundsBundle({ priority: 100 }))
-	.withBundle(createCollisionBundle({ priority: 50 }))
 	.withBundle(createPixiBundle({
 		init: { background: '#000000', resizeTo: window },
 		container: '#game-container',
 	}))
+	.withBundle(createMovementBundle({ priority: 200 }))
+	.withBundle(createBoundsBundle({ priority: 100 }))
+	.withBundle(createCollisionBundle({ priority: 50 }))
 	.withBundle(createInitBundle())
 	.withBundle(createInputBundle())
 	.withBundle(createSpawnerBundle())

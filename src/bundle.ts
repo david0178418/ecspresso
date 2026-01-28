@@ -2,6 +2,7 @@ import { createBundleSystemBuilder, SystemBuilderWithBundle } from './system-bui
 import type ECSpresso from './ecspresso';
 import type { AssetDefinition } from './asset-types';
 import type { ScreenDefinition } from './screen-types';
+import type { BundlesAreCompatible } from './type-utils';
 
 /**
  * Generates a unique ID for a bundle
@@ -226,38 +227,6 @@ export default class Bundle<
 }
 
 /**
- * Utility type to check if two types are exactly the same
- */
-type Exactly<T, U> = T extends U ? U extends T ? true : false : false;
-
-/**
- * Simplified type constraint for bundle compatibility
- * Ensures that overlapping keys have exactly the same types
- */
-type CompatibleBundles<
-	C1 extends Record<string, any>,
-	C2 extends Record<string, any>,
-	E1 extends Record<string, any>,
-	E2 extends Record<string, any>,
-	R1 extends Record<string, any>,
-	R2 extends Record<string, any>,
-	A1 extends Record<string, unknown> = {},
-	A2 extends Record<string, unknown> = {},
-	S1 extends Record<string, ScreenDefinition<any, any>> = {},
-	S2 extends Record<string, ScreenDefinition<any, any>> = {},
-> = {
-	[K in keyof C1 & keyof C2]: Exactly<C1[K], C2[K]> extends true ? C1[K] : never;
-} & {
-	[K in keyof E1 & keyof E2]: Exactly<E1[K], E2[K]> extends true ? E1[K] : never;
-} & {
-	[K in keyof R1 & keyof R2]: Exactly<R1[K], R2[K]> extends true ? R1[K] : never;
-} & {
-	[K in keyof A1 & keyof A2]: Exactly<A1[K], A2[K]> extends true ? A1[K] : never;
-} & {
-	[K in keyof S1 & keyof S2]: Exactly<S1[K], S2[K]> extends true ? S1[K] : never;
-};
-
-/**
  * Function that merges multiple bundles into a single bundle
  */
 export function mergeBundles<
@@ -274,7 +243,9 @@ export function mergeBundles<
 >(
 	id: string,
 	bundle1: Bundle<C1, E1, R1, A1, S1>,
-	bundle2: Bundle<C2, E2, R2, A2, S2> & CompatibleBundles<C1, C2, E1, E2, R1, R2, A1, A2, S1, S2>
+	bundle2: BundlesAreCompatible<C1, C2, E1, E2, R1, R2, A1, A2, S1, S2> extends true
+		? Bundle<C2, E2, R2, A2, S2>
+		: never
 ): Bundle<C1 & C2, E1 & E2, R1 & R2, A1 & A2, S1 & S2>;
 
 export function mergeBundles<

@@ -4,14 +4,19 @@
  * An opt-in PixiJS rendering bundle that automates scene graph wiring.
  * Import from 'ecspresso/bundles/renderers/pixi'
  *
- * Note: This bundle requires the transform bundle for transform propagation.
- * Add createTransformBundle() before this bundle.
+ * This bundle includes transform propagation automatically.
  */
 
 import type { Application, ApplicationOptions, Container, Sprite, Graphics } from 'pixi.js';
-import Bundle from '../../bundle';
+import Bundle, { mergeBundles } from '../../bundle';
 import type ECSpresso from '../../ecspresso';
-import type { LocalTransform, WorldTransform, TransformComponentTypes } from '../utils/transform';
+import {
+	createTransformBundle,
+	type LocalTransform,
+	type WorldTransform,
+	type TransformComponentTypes,
+	type TransformBundleOptions,
+} from '../utils/transform';
 
 // Re-export transform types for convenience
 export type { LocalTransform, WorldTransform, TransformComponentTypes };
@@ -112,6 +117,8 @@ interface PixiBundleCommonOptions {
 	systemGroup?: string;
 	/** Priority for render sync system (default: 500) */
 	renderSyncPriority?: number;
+	/** Options for the included transform bundle */
+	transform?: TransformBundleOptions;
 }
 
 /**
@@ -142,20 +149,20 @@ export interface PixiBundleManagedOptions extends PixiBundleCommonOptions {
  * 1. **Pre-initialized**: Pass an already-initialized Application via `app`
  * 2. **Managed**: Pass `init` options and the bundle creates the Application during `ecs.initialize()`
  *
+ * This bundle includes transform propagation automatically - no need to add createTransformBundle() separately.
+ *
  * @example Pre-initialized mode (full control)
  * ```typescript
  * const app = new Application();
  * await app.init({ resizeTo: window });
- * const ecs = ECSpresso.create<...>()
- *   .withBundle(createTransformBundle())
+ * const ecs = ECSpresso.create<GameComponents, {}, {}>()
  *   .withBundle(createPixiBundle({ app }))
  *   .build();
  * ```
  *
  * @example Managed mode (convenience)
  * ```typescript
- * const ecs = ECSpresso.create<...>()
- *   .withBundle(createTransformBundle())
+ * const ecs = ECSpresso.create<GameComponents, {}, {}>()
  *   .withBundle(createPixiBundle({
  *     init: { background: '#1099bb', resizeTo: window },
  *     container: document.body,
@@ -335,11 +342,9 @@ export function createContainerComponents(
  * Create a PixiJS rendering bundle for ECSpresso.
  *
  * This bundle provides:
+ * - Transform propagation (localTransform → worldTransform)
  * - Render sync system (updates PixiJS objects from ECS components)
  * - Scene graph management (mirrors ECS hierarchy in PixiJS scene graph)
- *
- * **Important**: This bundle requires the transform bundle for transform propagation.
- * Add `createTransformBundle()` before this bundle.
  *
  * @example Pre-initialized mode
  * ```typescript
@@ -347,7 +352,6 @@ export function createContainerComponents(
  * await app.init({ resizeTo: window });
  *
  * const ecs = ECSpresso.create<GameComponents, {}, {}>()
- *   .withBundle(createTransformBundle())
  *   .withBundle(createPixiBundle({ app }))
  *   .build();
  * ```
@@ -355,7 +359,6 @@ export function createContainerComponents(
  * @example Managed mode
  * ```typescript
  * const ecs = ECSpresso.create<GameComponents, {}, {}>()
- *   .withBundle(createTransformBundle())
  *   .withBundle(createPixiBundle({
  *     init: { background: '#1099bb', resizeTo: window },
  *     container: document.body,
@@ -371,9 +374,10 @@ export function createPixiBundle(
 		rootContainer: customRootContainer,
 		systemGroup = 'pixi-renderer',
 		renderSyncPriority = 500,
+		transform: transformOptions,
 	} = options;
 
-	const bundle = new Bundle<PixiComponentTypes, PixiEventTypes, PixiResourceTypes>('pixi-renderer');
+	const pixiBundle = new Bundle<PixiComponentTypes, PixiEventTypes, PixiResourceTypes>('pixi-renderer-internal');
 
 	// Determine mode and set up resources accordingly
 	const isManaged = 'init' in options && options.init !== undefined;
@@ -384,7 +388,7 @@ export function createPixiBundle(
 		const containerOption = options.container;
 
 		// Resource factory that creates the Application
-		bundle.addResource('pixiApp', async () => {
+		pixiBundle.addResource('pixiApp', async () => {
 			const app = await createPixiApplication(initOptions);
 
 			// Auto-append canvas if container specified
@@ -404,15 +408,15 @@ export function createPixiBundle(
 		});
 
 		// pixiRootContainer depends on pixiApp - declarative dependency
-		bundle.addResource('pixiRootContainer', {
+		pixiBundle.addResource('pixiRootContainer', {
 			dependsOn: ['pixiApp'],
 			factory: (ecs) => customRootContainer ?? ecs.getResource('pixiApp').stage,
 		});
 	} else {
 		// Pre-initialized mode: use provided Application
 		const app = options.app;
-		bundle.addResource('pixiApp', app);
-		bundle.addResource('pixiRootContainer', customRootContainer ?? app.stage);
+		pixiBundle.addResource('pixiApp', app);
+		pixiBundle.addResource('pixiRootContainer', customRootContainer ?? app.stage);
 	}
 
 	// Entity ID -> PixiJS Container mapping for scene graph management
@@ -493,7 +497,7 @@ export function createPixiBundle(
 
 	// ==================== Render Sync System ====================
 	// Updates PixiJS objects from world transforms and visibility
-	bundle
+	pixiBundle
 		.addSystem('pixi-render-sync')
 		.setPriority(renderSyncPriority)
 		.inGroup(systemGroup)
@@ -573,7 +577,7 @@ export function createPixiBundle(
 	// ==================== Scene Graph Manager System ====================
 	// Sets up reactive queries to manage scene graph on entity create/destroy
 	// High priority ensures this runs before user systems' onInitialize
-	bundle
+	pixiBundle
 		.addSystem('pixi-scene-graph-manager')
 		.setPriority(9999)
 		.inGroup(systemGroup)
@@ -624,5 +628,7 @@ export function createPixiBundle(
 		})
 		.and();
 
-	return bundle;
+	// Merge transform bundle (runs first) with pixi bundle
+	const transformBundle = createTransformBundle(transformOptions);
+	return mergeBundles('pixi-renderer', transformBundle, pixiBundle);
 }
