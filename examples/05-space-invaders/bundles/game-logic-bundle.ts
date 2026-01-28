@@ -112,58 +112,34 @@ export default function createGameLogicBundle() {
 			levelComplete: {
 				handler(_data, ecs) {
 					const gameState = ecs.getResource('gameState');
-
-					// Increase level
 					gameState.level += 1;
 
-					// Spawn timer entity for level transition delay
-					ecs.spawn({
-						...createTimer<Events>(1.5),
-						levelTransitionTimer: true as const,
-					});
+					// Spawn timer for level transition delay
+					ecs.spawn(createTimer<Events>(1.5, { onComplete: 'levelTransitionComplete' }));
 				}
-			}
-		})
-		.bundle
-		// Level transition timer system
-		.addSystem('level-transition-timer')
-		.inGroup('gameplay')
-		.addQuery('transitionTimers', {
-			with: ['timer', 'levelTransitionTimer'] as const,
-		})
-		.setProcess(({ transitionTimers }, _deltaTime, ecs) => {
-			const gameState = ecs.getResource('gameState');
+			},
 
-			for (const entity of transitionTimers) {
-				if (entity.components.timer.justFinished) {
-					// Remove the timer entity
-					ecs.removeEntity(entity.id);
+			// Handle level transition timer completion
+			levelTransitionComplete: {
+				handler(_data, ecs) {
+					const gameState = ecs.getResource('gameState');
+					if (gameState.status !== 'playing') return;
 
-					// Spawn new enemy formation if game is still playing
-					if (gameState.status === 'playing') {
-						// Reset movement state for new level
-						const movementState = ecs.getResource('enemyMovementState');
-						movementState.isMovingDown = false;
-						movementState.currentDirection = 'right';
-						movementState.lastEdgeHit = null;
+					// Reset movement state for new level
+					const movementState = ecs.getResource('enemyMovementState');
+					movementState.isMovingDown = false;
+					movementState.currentDirection = 'right';
+					movementState.lastEdgeHit = null;
 
-						// Spawn enemies and start them moving right
-						spawnEnemyFormation(ecs);
-						ecs.eventBus.publish('enemyMove', { direction: 'right' });
-					}
+					// Spawn enemies and start them moving right
+					spawnEnemyFormation(ecs);
+					ecs.eventBus.publish('enemyMove', { direction: 'right' });
 				}
-			}
-		})
-		.bundle
-		// Descent timer system - handles horizontal direction change after descent
-		.addSystem('descent-timer')
-		.inGroup('gameplay')
-		.addQuery('descentTimers', {
-			with: ['timer', 'descentTimer'] as const,
-		})
-		.setProcess(({ descentTimers }, _deltaTime, ecs) => {
-			for (const entity of descentTimers) {
-				if (entity.components.timer.justFinished) {
+			},
+
+			// Handle descent timer completion
+			descentComplete: {
+				handler(_data, ecs) {
 					const movementState = ecs.getResource('enemyMovementState');
 
 					// Get current formation boundaries to determine new direction
@@ -176,9 +152,6 @@ export default function createGameLogicBundle() {
 							minX = Math.min(minX, position.x);
 						}
 					}
-
-					// Remove the timer entity
-					ecs.removeEntity(entity.id);
 
 					// Change horizontal direction based on which edge was hit
 					movementState.isMovingDown = false;
@@ -236,21 +209,14 @@ export default function createGameLogicBundle() {
 				!movementState.isMovingDown;
 
 			if (shouldDescend) {
-				// Check if a descent timer already exists
-				const existingTimers = ecs.getEntitiesWithQuery(['descentTimer']);
-				if (existingTimers.length === 0) {
-					// Track which edge triggered this descent
-					movementState.lastEdgeHit = currentEdge;
-					// Start moving down
-					movementState.isMovingDown = true;
-					ecs.eventBus.publish('enemyMove', { direction: 'down' });
+				// Track which edge triggered this descent
+				movementState.lastEdgeHit = currentEdge;
+				// Start moving down
+				movementState.isMovingDown = true;
+				ecs.eventBus.publish('enemyMove', { direction: 'down' });
 
-					// Spawn descent timer (500ms)
-					ecs.spawn({
-						...createTimer<Events>(0.5),
-						descentTimer: true as const,
-					});
-				}
+				// Spawn descent timer (500ms)
+				ecs.spawn(createTimer<Events>(0.5, { onComplete: 'descentComplete' }));
 			}
 
 			// Random enemy shooting

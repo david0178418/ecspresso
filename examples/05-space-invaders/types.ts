@@ -41,6 +41,8 @@ export interface Events {
 	};
 	playerRespawn: TimerEventData;
 	messageHide: TimerEventData;
+	levelTransitionComplete: TimerEventData;
+	descentComplete: TimerEventData;
 
 	// UI events
 	updateScore: {
@@ -55,9 +57,6 @@ export interface Events {
  * All component types used in the Space Invaders game
  */
 export interface Components extends TimerComponentTypes<Events> {
-	// Timer tags
-	levelTransitionTimer: true;
-	descentTimer: true;
 	// Formation entity
 	enemyFormation: {
 		level: number;

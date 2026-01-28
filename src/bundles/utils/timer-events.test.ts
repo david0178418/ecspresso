@@ -267,10 +267,8 @@ describe('Timer Events', () => {
 			// Should not throw
 			expect(() => ecs.update(1.5)).not.toThrow();
 
-			// Timer should still complete normally
-			const timerComponent = ecs.entityManager.getComponent(timer.id, 'timer');
-			expect(timerComponent?.justFinished).toBe(true);
-			expect(timerComponent?.active).toBe(false);
+			// One-shot timer entity should be auto-removed after completion
+			expect(ecs.entityManager.getEntity(timer.id)).toBeUndefined();
 		});
 
 		test('should work with createTimer helper without event', () => {
@@ -288,8 +286,8 @@ describe('Timer Events', () => {
 
 			ecs.update(1.5);
 
-			const timerComponent = ecs.entityManager.getComponent(timer.id, 'timer');
-			expect(timerComponent?.justFinished).toBe(true);
+			// One-shot timer entity should be auto-removed after completion
+			expect(ecs.entityManager.getEntity(timer.id)).toBeUndefined();
 		});
 	});
 
@@ -353,6 +351,124 @@ describe('Timer Events', () => {
 				ecs.spawn({ ...createTimer(1.0) });
 				ecs.spawn({ ...createRepeatingTimer(1.0) });
 			}).not.toThrow();
+		});
+	});
+
+	describe('Auto-Remove Behavior', () => {
+		test('should auto-remove one-shot timer entity after completion', () => {
+			const ecs = ECSpresso
+				.create<TestComponents, TestEvents, TestResources>()
+				.withBundle(createTimerBundle())
+				.build();
+
+			const timer = ecs.spawn({
+				timer: {
+					elapsed: 0,
+					duration: 0.5,
+					repeat: false,
+					active: true,
+					justFinished: false,
+					onComplete: 'timerComplete'
+				}
+			});
+
+			// Entity should exist before completion
+			expect(ecs.entityManager.getEntity(timer.id)).toBeDefined();
+
+			// Update past timer duration
+			ecs.update(0.6);
+
+			// Entity should be removed after completion
+			expect(ecs.entityManager.getEntity(timer.id)).toBeUndefined();
+		});
+
+		test('should NOT auto-remove repeating timer entities', () => {
+			const ecs = ECSpresso
+				.create<TestComponents, TestEvents, TestResources>()
+				.withBundle(createTimerBundle())
+				.build();
+
+			const timer = ecs.spawn({
+				timer: {
+					elapsed: 0,
+					duration: 0.5,
+					repeat: true,
+					active: true,
+					justFinished: false,
+					onComplete: 'repeatingTimer'
+				}
+			});
+
+			// Entity should exist before any cycles
+			expect(ecs.entityManager.getEntity(timer.id)).toBeDefined();
+
+			// Update through multiple cycles
+			ecs.update(0.6);
+			expect(ecs.entityManager.getEntity(timer.id)).toBeDefined();
+
+			ecs.update(0.6);
+			expect(ecs.entityManager.getEntity(timer.id)).toBeDefined();
+
+			ecs.update(0.6);
+			expect(ecs.entityManager.getEntity(timer.id)).toBeDefined();
+		});
+
+		test('should auto-remove one-shot timer even without onComplete event', () => {
+			const ecs = ECSpresso
+				.create<TestComponents, TestEvents, TestResources>()
+				.withBundle(createTimerBundle())
+				.build();
+
+			const timer = ecs.spawn({
+				timer: {
+					elapsed: 0,
+					duration: 0.5,
+					repeat: false,
+					active: true,
+					justFinished: false
+					// No onComplete
+				}
+			});
+
+			expect(ecs.entityManager.getEntity(timer.id)).toBeDefined();
+
+			ecs.update(0.6);
+
+			expect(ecs.entityManager.getEntity(timer.id)).toBeUndefined();
+		});
+
+		test('should fire event before entity is removed', () => {
+			const ecs = ECSpresso
+				.create<TestComponents, TestEvents, TestResources>()
+				.withBundle(createTimerBundle())
+				.build();
+
+			let receivedEntityId = -1;
+			let entityExistedDuringEvent = false;
+
+			ecs.eventBus.subscribe('timerComplete', (data) => {
+				receivedEntityId = data.entityId;
+				// Check if entity still exists when event fires
+				entityExistedDuringEvent = ecs.entityManager.getEntity(data.entityId) !== undefined;
+			});
+
+			const timer = ecs.spawn({
+				timer: {
+					elapsed: 0,
+					duration: 0.5,
+					repeat: false,
+					active: true,
+					justFinished: false,
+					onComplete: 'timerComplete'
+				}
+			});
+
+			ecs.update(0.6);
+
+			expect(receivedEntityId).toBe(timer.id);
+			expect(entityExistedDuringEvent).toBe(true);
+			// But entity should be gone after update completes
+			expect(ecs.entityManager.getEntity(timer.id)).toBeUndefined();
 		});
 	});
 

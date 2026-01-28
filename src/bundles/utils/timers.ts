@@ -260,6 +260,9 @@ export function createTimerBundle<EventTypes extends Record<string, any>>(
 					timer.justFinished = true;
 					publishTimerEvent(ecs, entity.id, timer);
 					timer.active = false;
+					// Auto-remove one-shot timer entities after completion.
+					// If configurability is needed in the future, add an autoRemove option to TimerOptions.
+					ecs.commands.removeEntity(entity.id);
 				}
 			}
 		})
