@@ -1,4 +1,4 @@
-import { describe, test, expect } from 'bun:test';
+import { describe, test, expect, spyOn } from 'bun:test';
 import ECSpresso from './ecspresso';
 import CommandBuffer from './command-buffer';
 
@@ -318,8 +318,10 @@ describe('CommandBuffer', () => {
 			buffer.removeComponent(999, 'position');
 			buffer.removeEntity(999);
 
-			// Should not throw
+			// Should not throw — suppress expected warnings from catch-and-log in playback
+			const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
 			expect(() => buffer.playback(ecs)).not.toThrow();
+			warnSpy.mockRestore();
 		});
 	});
 
