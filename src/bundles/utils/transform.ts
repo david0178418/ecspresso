@@ -76,7 +76,7 @@ export const DEFAULT_LOCAL_TRANSFORM: Readonly<LocalTransform> = {
 	rotation: 0,
 	scaleX: 1,
 	scaleY: 1,
-} as const;
+};
 
 /**
  * Default world transform values.
@@ -87,7 +87,7 @@ export const DEFAULT_WORLD_TRANSFORM: Readonly<WorldTransform> = {
 	rotation: 0,
 	scaleX: 1,
 	scaleY: 1,
-} as const;
+};
 
 // ==================== Helper Functions ====================
 

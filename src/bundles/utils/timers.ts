@@ -229,7 +229,7 @@ export function createTimerBundle<EventTypes extends Record<string, any>>(
 		.setPriority(priority)
 		.inGroup(systemGroup)
 		.addQuery('timers', {
-			with: ['timer'] as const,
+			with: ['timer'],
 		})
 		.setProcess((queries, deltaTime, ecs) => {
 			for (const entity of queries.timers) {

@@ -99,7 +99,7 @@ const SOLAR_SYSTEM = {
 			],
 		},
 	],
-} as const;
+};
 
 // ==================== ECS Setup ====================
 

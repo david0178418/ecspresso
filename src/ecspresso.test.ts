@@ -1648,7 +1648,7 @@ describe('ECSpresso', () => {
 				.create<{}, {}, { base: number; derived: number }>()
 				.withResource('base', 10)
 				.withResource('derived', {
-					dependsOn: ['base'] as const,
+					dependsOn: ['base'],
 					factory: (ecs) => ecs.getResource('base') * 2
 				})
 				.build();
@@ -1747,12 +1747,12 @@ describe('ECSpresso', () => {
 					onDispose: () => { order.push('a'); }
 				})
 				.withResource('b', {
-					dependsOn: ['a'] as const,
+					dependsOn: ['a'],
 					factory: () => 2,
 					onDispose: () => { order.push('b'); }
 				})
 				.withResource('c', {
-					dependsOn: ['b'] as const,
+					dependsOn: ['b'],
 					factory: () => 3,
 					onDispose: () => { order.push('c'); }
 				})

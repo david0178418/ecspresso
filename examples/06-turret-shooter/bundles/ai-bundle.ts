@@ -59,7 +59,7 @@ export default function createAIBundle() {
 
 						// Add timer for pending destruction (visual effect delay)
 						ecs.entityManager.addComponent(enemy.id, 'timer', createTimer<Events>(0.5).timer);
-						ecs.entityManager.addComponent(enemy.id, 'pendingDestroy', true as const);
+						ecs.entityManager.addComponent(enemy.id, 'pendingDestroy', true);
 					}
 				} else {
 					// Normalize direction
@@ -91,7 +91,7 @@ export default function createAIBundle() {
 		.addSystem('pending-destroy')
 		.inGroup('gameplay')
 		.addQuery('pendingDestroys', {
-			with: ['timer', 'pendingDestroy'] as const,
+			with: ['timer', 'pendingDestroy'],
 		})
 		.setProcess(({ pendingDestroys }, _deltaTime, ecs) => {
 			for (const entity of pendingDestroys) {
@@ -107,7 +107,7 @@ export default function createAIBundle() {
 		.addSystem('spawn-timer')
 		.inGroup('gameplay')
 		.addQuery('spawners', {
-			with: ['timer', 'enemySpawner'] as const,
+			with: ['timer', 'enemySpawner'],
 		})
 		.setProcess(({ spawners }, _deltaTime, ecs) => {
 			const waveManager = ecs.getResource('waveManager');

@@ -39,7 +39,7 @@ export default function createGameStateBundle() {
 					const spawnInterval = 1 / config.enemySpawnRate;
 					ecs.spawn({
 						...createRepeatingTimer<Events>(spawnInterval),
-						enemySpawner: true as const,
+						enemySpawner: true,
 					});
 
 					// Show wave start message and create timer to hide it
@@ -50,7 +50,7 @@ export default function createGameStateBundle() {
 						uiElements.messageElement.style.top = '25%';
 						ecs.spawn({
 							...createTimer<Events>(2),
-							messageTimer: true as const,
+							messageTimer: true,
 						});
 					}
 
@@ -186,7 +186,7 @@ export default function createGameStateBundle() {
 						uiElements.messageElement.style.top = '25%';
 						ecs.spawn({
 							...createTimer<Events>(2),
-							messageTimer: true as const,
+							messageTimer: true,
 						});
 					}
 
@@ -246,7 +246,7 @@ export default function createGameStateBundle() {
 						// (enemies reaching player already have pendingDestroy from ai-bundle)
 						if (!entity.components.pendingDestroy) {
 							ecs.entityManager.addComponent(data.entityId, 'timer', createTimer<Events>(0.2).timer);
-							ecs.entityManager.addComponent(data.entityId, 'pendingDestroy', true as const);
+							ecs.entityManager.addComponent(data.entityId, 'pendingDestroy', true);
 						}
 
 						// Update score
@@ -272,7 +272,7 @@ export default function createGameStateBundle() {
 		// Message timer system - hides messages after their timer finishes
 		.addSystem('message-timer')
 		.addQuery('messageTimers', {
-			with: ['timer', 'messageTimer'] as const,
+			with: ['timer', 'messageTimer'],
 		})
 		.setProcess(({ messageTimers }, _deltaTime, ecs) => {
 			const uiElements = ecs.getResource('uiElements');

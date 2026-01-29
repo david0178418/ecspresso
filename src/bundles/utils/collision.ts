@@ -286,7 +286,7 @@ export function createCollisionBundle(
 		.setPriority(priority)
 		.inGroup(systemGroup)
 		.addQuery('collidables', {
-			with: ['worldTransform', 'collisionLayer'] as const,
+			with: ['worldTransform', 'collisionLayer'],
 		})
 		.setProcess((queries, _deltaTime, ecs) => {
 			// Build list of collidable entities with their computed positions

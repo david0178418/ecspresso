@@ -178,8 +178,8 @@ import { createQueryDefinition, QueryResultEntity } from 'ecspresso';
 
 // Create reusable query definitions
 const movingQuery = createQueryDefinition<Components>({
-  with: ['position', 'velocity'] as const,
-  without: ['frozen'] as const
+  with: ['position', 'velocity'],
+  without: ['frozen']
 });
 
 // Extract entity type for helper functions

@@ -172,7 +172,7 @@ export const DEFAULT_LOCAL_TRANSFORM: Readonly<LocalTransform> = {
 	rotation: 0,
 	scaleX: 1,
 	scaleY: 1,
-} as const;
+};
 
 /**
  * Default world transform values
@@ -183,7 +183,7 @@ export const DEFAULT_WORLD_TRANSFORM: Readonly<WorldTransform> = {
 	rotation: 0,
 	scaleX: 1,
 	scaleY: 1,
-} as const;
+};
 
 // ==================== Helper Utilities ====================
 
@@ -538,13 +538,13 @@ export function createRenderer2DBundle(
 		.setPriority(renderSyncPriority)
 		.inGroup(systemGroup)
 		.addQuery('sprites', {
-			with: ['sprite', 'worldTransform'] as const,
+			with: ['sprite', 'worldTransform'],
 		})
 		.addQuery('graphics', {
-			with: ['graphics', 'worldTransform'] as const,
+			with: ['graphics', 'worldTransform'],
 		})
 		.addQuery('containers', {
-			with: ['container', 'worldTransform'] as const,
+			with: ['container', 'worldTransform'],
 		})
 		.setProcess((queries, _deltaTime, ecs) => {
 			// Process sprites
@@ -631,7 +631,7 @@ export function createRenderer2DBundle(
 
 			// Reactive query for sprites
 			ecs.addReactiveQuery('renderer2d-sprites', {
-				with: ['sprite'] as const,
+				with: ['sprite'],
 				onEnter: (entity) => {
 					const pixiObject = entity.components.sprite;
 					entityToPixiObject.set(entity.id, pixiObject);
@@ -644,7 +644,7 @@ export function createRenderer2DBundle(
 
 			// Reactive query for graphics
 			ecs.addReactiveQuery('renderer2d-graphics', {
-				with: ['graphics'] as const,
+				with: ['graphics'],
 				onEnter: (entity) => {
 					const pixiObject = entity.components.graphics;
 					entityToPixiObject.set(entity.id, pixiObject);
@@ -657,7 +657,7 @@ export function createRenderer2DBundle(
 
 			// Reactive query for containers
 			ecs.addReactiveQuery('renderer2d-containers', {
-				with: ['container'] as const,
+				with: ['container'],
 				onEnter: (entity) => {
 					const pixiObject = entity.components.container;
 					entityToPixiObject.set(entity.id, pixiObject);

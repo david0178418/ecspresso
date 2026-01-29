@@ -247,7 +247,7 @@ export function createBoundsBundle<ResourceTypes extends BoundsResourceTypes = B
 		.setPriority(priority)
 		.inGroup(systemGroup)
 		.addQuery('entities', {
-			with: ['worldTransform', 'destroyOutOfBounds'] as const,
+			with: ['worldTransform', 'destroyOutOfBounds'],
 		})
 		.setProcess((queries, _deltaTime, ecs) => {
 			const bounds = ecs.getResource(boundsResourceKey as keyof ResourceTypes) as BoundsRect;
@@ -281,7 +281,7 @@ export function createBoundsBundle<ResourceTypes extends BoundsResourceTypes = B
 		.setPriority(priority - 1)
 		.inGroup(systemGroup)
 		.addQuery('entities', {
-			with: ['localTransform', 'worldTransform', 'clampToBounds'] as const,
+			with: ['localTransform', 'worldTransform', 'clampToBounds'],
 		})
 		.setProcess((queries, _deltaTime, ecs) => {
 			const bounds = ecs.getResource(boundsResourceKey as keyof ResourceTypes) as BoundsRect;
@@ -321,7 +321,7 @@ export function createBoundsBundle<ResourceTypes extends BoundsResourceTypes = B
 		.setPriority(priority - 2)
 		.inGroup(systemGroup)
 		.addQuery('entities', {
-			with: ['localTransform', 'worldTransform', 'wrapAtBounds'] as const,
+			with: ['localTransform', 'worldTransform', 'wrapAtBounds'],
 		})
 		.setProcess((queries, _deltaTime, ecs) => {
 			const bounds = ecs.getResource(boundsResourceKey as keyof ResourceTypes) as BoundsRect;

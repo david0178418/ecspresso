@@ -113,7 +113,7 @@ export function createMovementBundle(
 		.setPriority(priority)
 		.inGroup(systemGroup)
 		.addQuery('movingEntities', {
-			with: ['localTransform', 'velocity'] as const,
+			with: ['localTransform', 'velocity'],
 		})
 		.setProcess((queries, deltaTime) => {
 			for (const entity of queries.movingEntities) {
