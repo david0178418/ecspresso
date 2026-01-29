@@ -156,8 +156,6 @@ ecs
 // Initialize ECS and resources
 await ecs.initialize();
 
-const pixiApp = ecs.getResource('pixiApp');
-
 // Spawn player - sprite is automatically added to scene graph by pixi bundle
 const playerSprite = createCircleSprite(0x0000FF);
 ecs.spawn({
@@ -178,9 +176,6 @@ const spawnerEntity = ecs.getEntitiesWithQuery(['enemySpawner', 'timer'])[0];
 if (spawnerEntity) {
 	spawnerEntity.components.timer.justFinished = true;
 }
-
-// Start game loop
-pixiApp.ticker.add(ticker => ecs.update(ticker.deltaMS / 1_000));
 
 function createCircleSprite(color: number): Sprite {
 	const texture = ecs.getResource('pixiApp').renderer.generateTexture(

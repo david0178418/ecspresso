@@ -1,4 +1,4 @@
-import { Container, Graphics, Sprite } from 'pixi.js';
+import { Graphics, Sprite } from 'pixi.js';
 import ECSpresso, { Bundle, QueryResultEntity, createQueryDefinition } from "../../src";
 import {
 	createPixiBundle,
@@ -28,7 +28,6 @@ interface Components extends PixiComponentTypes, TimerComponentTypes<Events> {
 }
 
 interface Resources extends PixiResourceTypes {
-	worldContainer: Container;
 	controlMap: ActiveKeyMap;
 }
 
@@ -138,22 +137,14 @@ function createGameInitBundle() {
 			initializeGame: {
 				handler(data, ecs) {
 					console.log(`initializing at ${data.someRandomData.toLocaleDateString()}`);
-
-					const pixiApp = ecs.getResource('pixiApp');
-					const worldContainer = new Container();
-					pixiApp.stage.addChild(worldContainer);
-					ecs.addResource('worldContainer', worldContainer);
-
 					ecs.eventBus.publish('initializeMap');
 				},
 			},
 			initializeMap: {
 				handler(_eventData, ecs) {
 					console.log('initializing map triggered');
-					const worldContainer = ecs.getResource('worldContainer');
 
 					const sprite = createCircleSprite(0x0000FF);
-					worldContainer.addChild(sprite);
 
 					ecs.spawn({
 						...createSpriteComponents(sprite, { x: 100, y: 100 }),
@@ -167,8 +158,6 @@ function createGameInitBundle() {
 			},
 			startGame: {
 				handler(_eventData, ecs) {
-					const pixiApp = ecs.getResource('pixiApp');
-
 					// Spawn enemy spawner entity with a repeating 5-second timer
 					const spawnerEntity = ecs.spawn({
 						...createRepeatingTimer<Events>(5),
@@ -180,10 +169,6 @@ function createGameInitBundle() {
 					if (spawner) {
 						spawner.justFinished = true;
 					}
-
-					pixiApp.ticker.add(ticker => {
-						ecs.update(ticker.deltaMS / 1_000);
-					});
 				}
 			},
 		})
@@ -246,11 +231,8 @@ function createEnemyControllerBundle() {
 
 				console.log('spawning enemy triggered');
 				const pixiApp = ecs.getResource('pixiApp');
-				const worldContainer = ecs.getResource('worldContainer');
 
 				const sprite = createCircleSprite(0xFF0000);
-				worldContainer.addChild(sprite);
-
 				const speed = randomInt(300, 550);
 
 				ecs.spawn({

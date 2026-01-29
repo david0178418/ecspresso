@@ -2,7 +2,7 @@ import { Container, Text } from 'pixi.js';
 import type { TimerComponentTypes, TimerEventData } from '../../src/bundles/utils/timers';
 import type { TransformComponentTypes } from '../../src/bundles/utils/transform';
 import type { MovementComponentTypes } from '../../src/bundles/utils/movement';
-import type { BoundsComponentTypes, BoundsResourceTypes } from '../../src/bundles/utils/bounds';
+import type { BoundsComponentTypes } from '../../src/bundles/utils/bounds';
 import type { CollisionComponentTypes, CollisionEventTypes } from '../../src/bundles/utils/collision';
 import type { PixiComponentTypes, PixiResourceTypes } from '../../src/bundles/renderers/pixi';
 
@@ -56,9 +56,7 @@ export interface Components
 /**
  * All resource types used in the Space Invaders game
  */
-export interface Resources extends BoundsResourceTypes, PixiResourceTypes {
-	gameContainer: Container;
-	entityContainer: Container;
+export interface Resources extends PixiResourceTypes {
 	uiContainer: Container;
 
 	gameState: {

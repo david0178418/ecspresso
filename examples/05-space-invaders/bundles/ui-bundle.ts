@@ -1,4 +1,4 @@
-import { Text, TextStyle } from 'pixi.js';
+import { Container, Text, TextStyle } from 'pixi.js';
 import Bundle from '../../../src/bundle';
 import { createTimer } from '../../../src/bundles/utils/timers';
 import type { Components, Events, Resources } from '../types';
@@ -7,8 +7,12 @@ export default function createUIBundle() {
 	return new Bundle<Components, Events, Resources>('ui-bundle')
 		.addSystem('ui-manager')
 		.setOnInitialize((ecs) => {
-			const uiContainer = ecs.getResource('uiContainer');
 			const pixi = ecs.getResource('pixiApp');
+
+			// Create UI container (renders above game layer)
+			const uiContainer = new Container();
+			pixi.stage.addChild(uiContainer);
+			ecs.addResource('uiContainer', uiContainer);
 
 			const scoreText = new Text({
 				x: 0,

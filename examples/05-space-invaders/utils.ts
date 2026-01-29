@@ -41,6 +41,7 @@ export function spawnEnemyFormation(ecs: ECSpresso<Components, Events, Resources
 				...createVelocity(config.enemySpeed, 0),
 				...createAABBCollider(enemySprite.width, enemySprite.height),
 				...layers.enemy(),
+				pixiRenderLayer: 'game',
 			});
 		}
 	}
@@ -121,6 +122,7 @@ export function spawnPlayer(ecs: ECSpresso<Components, Events, Resources>): numb
 		...createAABBCollider(playerSprite.width, playerSprite.height),
 		...layers.player(),
 		...createClampToBounds(30),
+		pixiRenderLayer: 'game',
 	});
 
 	return player.id;

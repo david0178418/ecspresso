@@ -37,6 +37,7 @@ export default function createSpawnerBundle() {
 						...createAABBCollider(projectileSprite.width, projectileSprite.height),
 						...layers.playerProjectile(),
 						...createDestroyOutOfBounds(20),
+						pixiRenderLayer: 'game',
 					});
 				}
 			},
@@ -61,6 +62,7 @@ export default function createSpawnerBundle() {
 						...createAABBCollider(projectileSprite.width, projectileSprite.height),
 						...layers.enemyProjectile(),
 						...createDestroyOutOfBounds(20),
+						pixiRenderLayer: 'game',
 					});
 				}
 			},

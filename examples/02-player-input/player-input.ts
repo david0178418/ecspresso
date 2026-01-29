@@ -84,8 +84,6 @@ ecs.spawn({
 	velocity: { x: 0, y: 0 },
 });
 
-pixiApp.ticker.add(ticker => ecs.update(ticker.deltaMS / 1000));
-
 function createActiveKeyMap() {
 	const keyToControl: Record<string, keyof ActiveKeyMap> = {
 		'w': 'up',

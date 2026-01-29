@@ -70,5 +70,3 @@ ecs.spawn({
 	radius: ballRadius,
 });
 
-// Game loop
-pixiApp.ticker.add(ticker => ecs.update(ticker.deltaMS / 1000));
