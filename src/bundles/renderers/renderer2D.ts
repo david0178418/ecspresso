@@ -1,8 +1,8 @@
 /**
- * PixiJS Renderer Bundle for ECSpresso
+ * 2D Renderer Bundle for ECSpresso
  *
- * An opt-in PixiJS rendering bundle that automates scene graph wiring.
- * Import from 'ecspresso/bundles/renderers/pixi'
+ * An opt-in PixiJS-based 2D rendering bundle that automates scene graph wiring.
+ * Import from 'ecspresso/bundles/renderers/renderer2D'
  *
  * This bundle includes transform propagation automatically.
  */
@@ -36,62 +36,40 @@ async function createPixiApplication(options: Partial<ApplicationOptions>): Prom
 // ==================== Component Types ====================
 
 /**
- * PixiJS Sprite component
- */
-export interface PixiSprite {
-	sprite: Sprite;
-	anchor?: { x: number; y: number };
-}
-
-/**
- * PixiJS Graphics component
- */
-export interface PixiGraphics {
-	graphics: Graphics;
-}
-
-/**
- * PixiJS Container component
- */
-export interface PixiContainer {
-	container: Container;
-}
-
-/**
  * Visibility and alpha component
  */
-export interface PixiVisible {
+export interface Visible {
 	visible: boolean;
 	alpha?: number;
 }
 
 /**
- * Aggregate component types for PixiJS bundle.
+ * Aggregate component types for the 2D renderer bundle.
  * Users should extend this interface with their own component types.
  *
  * @example
  * ```typescript
- * interface GameComponents extends PixiComponentTypes {
+ * interface GameComponents extends Renderer2DComponentTypes {
  *   velocity: { x: number; y: number };
  *   player: true;
  * }
  * ```
  */
-export interface PixiComponentTypes extends TransformComponentTypes {
-	pixiSprite: PixiSprite;
-	pixiGraphics: PixiGraphics;
-	pixiContainer: PixiContainer;
-	pixiVisible: PixiVisible;
+export interface Renderer2DComponentTypes extends TransformComponentTypes {
+	sprite: Sprite;
+	graphics: Graphics;
+	container: Container;
+	visible: Visible;
 	/** Assigns the entity to a named render layer for z-ordering */
-	pixiRenderLayer: string;
+	renderLayer: string;
 }
 
 // ==================== Event Types ====================
 
 /**
- * Events emitted by the PixiJS bundle
+ * Events emitted by the 2D renderer bundle
  */
-export interface PixiEventTypes {
+export interface Renderer2DEventTypes {
 	hierarchyChanged: {
 		entityId: number;
 		oldParent: number | null;
@@ -102,11 +80,11 @@ export interface PixiEventTypes {
 // ==================== Resource Types ====================
 
 /**
- * Resources provided by the PixiJS bundle
+ * Resources provided by the 2D renderer bundle
  */
-export interface PixiResourceTypes {
+export interface Renderer2DResourceTypes {
 	pixiApp: Application;
-	pixiRootContainer: Container;
+	rootContainer: Container;
 	/** Screen bounds derived from PixiJS screen dimensions, updated on resize */
 	bounds: BoundsRect;
 }
@@ -116,10 +94,10 @@ export interface PixiResourceTypes {
 /**
  * Common options shared between both initialization modes
  */
-interface PixiBundleCommonOptions {
+interface Renderer2DBundleCommonOptions {
 	/** Optional custom root container (defaults to app.stage) */
 	rootContainer?: Container;
-	/** System group name (default: 'pixi-renderer') */
+	/** System group name (default: 'renderer2d') */
 	systemGroup?: string;
 	/** Priority for render sync system (default: 500) */
 	renderSyncPriority?: number;
@@ -127,14 +105,14 @@ interface PixiBundleCommonOptions {
 	transform?: TransformBundleOptions;
 	/** When true, wires up pixiApp.ticker to drive ecs.update() automatically (default: true) */
 	startLoop?: boolean;
-	/** Ordered render layer names (back-to-front). Entities with a pixiRenderLayer component are placed in the corresponding container. */
+	/** Ordered render layer names (back-to-front). Entities with a renderLayer component are placed in the corresponding container. */
 	renderLayers?: string[];
 }
 
 /**
  * Options when providing a pre-initialized PixiJS Application
  */
-export interface PixiBundleAppOptions extends PixiBundleCommonOptions {
+export interface Renderer2DBundleAppOptions extends Renderer2DBundleCommonOptions {
 	/** The PixiJS Application instance (already initialized) */
 	app: Application;
 	init?: never;
@@ -144,7 +122,7 @@ export interface PixiBundleAppOptions extends PixiBundleCommonOptions {
 /**
  * Options when letting the bundle create and manage the PixiJS Application
  */
-export interface PixiBundleManagedOptions extends PixiBundleCommonOptions {
+export interface Renderer2DBundleManagedOptions extends Renderer2DBundleCommonOptions {
 	app?: never;
 	/** PixiJS ApplicationOptions - bundle will create and initialize the Application */
 	init: Partial<ApplicationOptions>;
@@ -153,7 +131,7 @@ export interface PixiBundleManagedOptions extends PixiBundleCommonOptions {
 }
 
 /**
- * Configuration options for the PixiJS bundle.
+ * Configuration options for the 2D renderer bundle.
  *
  * Supports two modes:
  * 1. **Pre-initialized**: Pass an already-initialized Application via `app`
@@ -166,14 +144,14 @@ export interface PixiBundleManagedOptions extends PixiBundleCommonOptions {
  * const app = new Application();
  * await app.init({ resizeTo: window });
  * const ecs = ECSpresso.create<GameComponents, {}, {}>()
- *   .withBundle(createPixiBundle({ app }))
+ *   .withBundle(createRenderer2DBundle({ app }))
  *   .build();
  * ```
  *
  * @example Managed mode (convenience)
  * ```typescript
  * const ecs = ECSpresso.create<GameComponents, {}, {}>()
- *   .withBundle(createPixiBundle({
+ *   .withBundle(createRenderer2DBundle({
  *     init: { background: '#1099bb', resizeTo: window },
  *     container: document.body,
  *   }))
@@ -181,7 +159,7 @@ export interface PixiBundleManagedOptions extends PixiBundleCommonOptions {
  * await ecs.initialize(); // Application created here
  * ```
  */
-export type PixiBundleOptions = PixiBundleAppOptions | PixiBundleManagedOptions;
+export type Renderer2DBundleOptions = Renderer2DBundleAppOptions | Renderer2DBundleManagedOptions;
 
 // ==================== Default Values ====================
 
@@ -263,7 +241,7 @@ function createWorldTransformInternal(
 	};
 }
 
-function createVisibleComponent(options?: TransformOptions): PixiVisible {
+function createVisibleComponent(options?: TransformOptions): Visible {
 	return {
 		visible: options?.visible ?? true,
 		alpha: options?.alpha,
@@ -286,15 +264,15 @@ export function createSpriteComponents(
 	sprite: Sprite,
 	position?: PositionOption,
 	options?: TransformOptions & { anchor?: { x: number; y: number } }
-): Pick<PixiComponentTypes, 'pixiSprite' | 'localTransform' | 'worldTransform' | 'pixiVisible'> {
+): Pick<Renderer2DComponentTypes, 'sprite' | 'localTransform' | 'worldTransform' | 'visible'> {
+	if (options?.anchor) {
+		sprite.anchor.set(options.anchor.x, options.anchor.y);
+	}
 	return {
-		pixiSprite: {
-			sprite,
-			anchor: options?.anchor,
-		},
+		sprite,
 		localTransform: createLocalTransformInternal(position, options),
 		worldTransform: createWorldTransformInternal(position, options),
-		pixiVisible: createVisibleComponent(options),
+		visible: createVisibleComponent(options),
 	};
 }
 
@@ -313,12 +291,12 @@ export function createGraphicsComponents(
 	graphics: Graphics,
 	position?: PositionOption,
 	options?: TransformOptions
-): Pick<PixiComponentTypes, 'pixiGraphics' | 'localTransform' | 'worldTransform' | 'pixiVisible'> {
+): Pick<Renderer2DComponentTypes, 'graphics' | 'localTransform' | 'worldTransform' | 'visible'> {
 	return {
-		pixiGraphics: { graphics },
+		graphics,
 		localTransform: createLocalTransformInternal(position, options),
 		worldTransform: createWorldTransformInternal(position, options),
-		pixiVisible: createVisibleComponent(options),
+		visible: createVisibleComponent(options),
 	};
 }
 
@@ -337,22 +315,22 @@ export function createContainerComponents(
 	container: Container,
 	position?: PositionOption,
 	options?: TransformOptions
-): Pick<PixiComponentTypes, 'pixiContainer' | 'localTransform' | 'worldTransform' | 'pixiVisible'> {
+): Pick<Renderer2DComponentTypes, 'container' | 'localTransform' | 'worldTransform' | 'visible'> {
 	return {
-		pixiContainer: { container },
+		container,
 		localTransform: createLocalTransformInternal(position, options),
 		worldTransform: createWorldTransformInternal(position, options),
-		pixiVisible: createVisibleComponent(options),
+		visible: createVisibleComponent(options),
 	};
 }
 
 // ==================== Bundle Factory ====================
 
 /**
- * Create a PixiJS rendering bundle for ECSpresso.
+ * Create a 2D rendering bundle for ECSpresso.
  *
  * This bundle provides:
- * - Transform propagation (localTransform → worldTransform)
+ * - Transform propagation (localTransform -> worldTransform)
  * - Render sync system (updates PixiJS objects from ECS components)
  * - Scene graph management (mirrors ECS hierarchy in PixiJS scene graph)
  *
@@ -362,14 +340,14 @@ export function createContainerComponents(
  * await app.init({ resizeTo: window });
  *
  * const ecs = ECSpresso.create<GameComponents, {}, {}>()
- *   .withBundle(createPixiBundle({ app }))
+ *   .withBundle(createRenderer2DBundle({ app }))
  *   .build();
  * ```
  *
  * @example Managed mode
  * ```typescript
  * const ecs = ECSpresso.create<GameComponents, {}, {}>()
- *   .withBundle(createPixiBundle({
+ *   .withBundle(createRenderer2DBundle({
  *     init: { background: '#1099bb', resizeTo: window },
  *     container: document.body,
  *   }))
@@ -377,19 +355,19 @@ export function createContainerComponents(
  * await ecs.initialize();
  * ```
  */
-export function createPixiBundle(
-	options: PixiBundleOptions
-): Bundle<PixiComponentTypes, PixiEventTypes, PixiResourceTypes> {
+export function createRenderer2DBundle(
+	options: Renderer2DBundleOptions
+): Bundle<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes> {
 	const {
 		rootContainer: customRootContainer,
-		systemGroup = 'pixi-renderer',
+		systemGroup = 'renderer2d',
 		renderSyncPriority = 500,
 		transform: transformOptions,
 		startLoop = true,
 		renderLayers = [],
 	} = options;
 
-	const pixiBundle = new Bundle<PixiComponentTypes, PixiEventTypes, PixiResourceTypes>('pixi-renderer-internal');
+	const rendererBundle = new Bundle<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes>('renderer2d-internal');
 
 	// Determine mode and set up resources accordingly
 	const isManaged = 'init' in options && options.init !== undefined;
@@ -400,7 +378,7 @@ export function createPixiBundle(
 		const containerOption = options.container;
 
 		// Resource factory that creates the Application
-		pixiBundle.addResource('pixiApp', async () => {
+		rendererBundle.addResource('pixiApp', async () => {
 			const app = await createPixiApplication(initOptions);
 
 			// Auto-append canvas if container specified
@@ -412,21 +390,21 @@ export function createPixiBundle(
 				if (containerEl) {
 					containerEl.appendChild(app.canvas);
 				} else if (typeof containerOption === 'string') {
-					console.warn(`PixiJS bundle: container selector "${containerOption}" not found`);
+					console.warn(`Renderer2D bundle: container selector "${containerOption}" not found`);
 				}
 			}
 
 			return app;
 		});
 
-		// pixiRootContainer depends on pixiApp - declarative dependency
-		pixiBundle.addResource('pixiRootContainer', {
+		// rootContainer depends on pixiApp - declarative dependency
+		rendererBundle.addResource('rootContainer', {
 			dependsOn: ['pixiApp'],
 			factory: (ecs) => customRootContainer ?? ecs.getResource('pixiApp').stage,
 		});
 
 		// Bounds resource derived from screen dimensions
-		pixiBundle.addResource('bounds', {
+		rendererBundle.addResource('bounds', {
 			dependsOn: ['pixiApp'],
 			factory: (ecs) => {
 				const pixiApp = ecs.getResource('pixiApp');
@@ -436,9 +414,9 @@ export function createPixiBundle(
 	} else {
 		// Pre-initialized mode: use provided Application
 		const app = options.app;
-		pixiBundle.addResource('pixiApp', app);
-		pixiBundle.addResource('pixiRootContainer', customRootContainer ?? app.stage);
-		pixiBundle.addResource('bounds', createBounds(app.screen.width, app.screen.height));
+		rendererBundle.addResource('pixiApp', app);
+		rendererBundle.addResource('rootContainer', customRootContainer ?? app.stage);
+		rendererBundle.addResource('bounds', createBounds(app.screen.width, app.screen.height));
 	}
 
 	// Entity ID -> PixiJS Container mapping for scene graph management
@@ -452,28 +430,28 @@ export function createPixiBundle(
 	let createLayerContainer: (label: string) => Container;
 
 	// Helper to get the PixiJS display object for an entity
-	function getPixiObject(entityId: number, ecs: ECSpresso<PixiComponentTypes, PixiEventTypes, PixiResourceTypes>): Container | null {
+	function getPixiObject(entityId: number, ecs: ECSpresso<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes>): Container | null {
 		// Check cache first
 		const cached = entityToPixiObject.get(entityId);
 		if (cached) return cached;
 
 		// Try to get from components
-		const spriteComp = ecs.entityManager.getComponent(entityId, 'pixiSprite');
+		const spriteComp = ecs.entityManager.getComponent(entityId, 'sprite');
 		if (spriteComp) {
-			entityToPixiObject.set(entityId, spriteComp.sprite);
-			return spriteComp.sprite;
+			entityToPixiObject.set(entityId, spriteComp);
+			return spriteComp;
 		}
 
-		const graphicsComp = ecs.entityManager.getComponent(entityId, 'pixiGraphics');
+		const graphicsComp = ecs.entityManager.getComponent(entityId, 'graphics');
 		if (graphicsComp) {
-			entityToPixiObject.set(entityId, graphicsComp.graphics);
-			return graphicsComp.graphics;
+			entityToPixiObject.set(entityId, graphicsComp);
+			return graphicsComp;
 		}
 
-		const containerComp = ecs.entityManager.getComponent(entityId, 'pixiContainer');
+		const containerComp = ecs.entityManager.getComponent(entityId, 'container');
 		if (containerComp) {
-			entityToPixiObject.set(entityId, containerComp.container);
-			return containerComp.container;
+			entityToPixiObject.set(entityId, containerComp);
+			return containerComp;
 		}
 
 		return null;
@@ -482,24 +460,24 @@ export function createPixiBundle(
 	// Helper to get or create a render layer container
 	function getOrCreateLayerContainer(
 		layerName: string,
-		rootContainer: Container
+		rootCont: Container
 	): Container {
 		const existing = layerContainers.get(layerName);
 		if (existing) return existing;
 
 		// Lazy-create for undeclared layers, appended to end
-		const container = createLayerContainer(`layer:${layerName}`);
-		layerContainers.set(layerName, container);
-		rootContainer.addChild(container);
-		return container;
+		const cont = createLayerContainer(`layer:${layerName}`);
+		layerContainers.set(layerName, cont);
+		rootCont.addChild(cont);
+		return cont;
 	}
 
 	// Helper to resolve the target container for an entity
 	function resolveTargetContainer(
 		entityId: number,
-		ecs: ECSpresso<PixiComponentTypes, PixiEventTypes, PixiResourceTypes>
+		ecs: ECSpresso<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes>
 	): Container {
-		const rootContainer = ecs.getResource('pixiRootContainer');
+		const rootCont = ecs.getResource('rootContainer');
 
 		// 1. Check ECS parent hierarchy
 		const parentId = ecs.getParent(entityId);
@@ -507,18 +485,18 @@ export function createPixiBundle(
 		if (parentPixiObject) return parentPixiObject;
 
 		// 2. Check render layer component
-		const layerName = ecs.entityManager.getComponent(entityId, 'pixiRenderLayer');
-		if (layerName) return getOrCreateLayerContainer(layerName, rootContainer);
+		const layerName = ecs.entityManager.getComponent(entityId, 'renderLayer');
+		if (layerName) return getOrCreateLayerContainer(layerName, rootCont);
 
 		// 3. Fall back to root container
-		return rootContainer;
+		return rootCont;
 	}
 
 	// Helper to add a PixiJS object to the scene graph
 	function addToSceneGraph(
 		entityId: number,
 		pixiObject: Container,
-		ecs: ECSpresso<PixiComponentTypes, PixiEventTypes, PixiResourceTypes>
+		ecs: ECSpresso<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes>
 	): void {
 		const targetContainer = resolveTargetContainer(entityId, ecs);
 
@@ -540,7 +518,7 @@ export function createPixiBundle(
 	// Helper to update parent in scene graph
 	function updateSceneGraphParent(
 		entityId: number,
-		ecs: ECSpresso<PixiComponentTypes, PixiEventTypes, PixiResourceTypes>
+		ecs: ECSpresso<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes>
 	): void {
 		const pixiObject = entityToPixiObject.get(entityId);
 		if (!pixiObject) return;
@@ -555,77 +533,70 @@ export function createPixiBundle(
 
 	// ==================== Render Sync System ====================
 	// Updates PixiJS objects from world transforms and visibility
-	pixiBundle
-		.addSystem('pixi-render-sync')
+	rendererBundle
+		.addSystem('renderer2d-sync')
 		.setPriority(renderSyncPriority)
 		.inGroup(systemGroup)
 		.addQuery('sprites', {
-			with: ['pixiSprite', 'worldTransform'] as const,
+			with: ['sprite', 'worldTransform'] as const,
 		})
 		.addQuery('graphics', {
-			with: ['pixiGraphics', 'worldTransform'] as const,
+			with: ['graphics', 'worldTransform'] as const,
 		})
 		.addQuery('containers', {
-			with: ['pixiContainer', 'worldTransform'] as const,
+			with: ['container', 'worldTransform'] as const,
 		})
 		.setProcess((queries, _deltaTime, ecs) => {
 			// Process sprites
 			for (const entity of queries.sprites) {
-				const { pixiSprite, worldTransform } = entity.components;
-				const { sprite, anchor } = pixiSprite;
+				const { sprite, worldTransform } = entity.components;
 
 				sprite.position.set(worldTransform.x, worldTransform.y);
 				sprite.rotation = worldTransform.rotation;
 				sprite.scale.set(worldTransform.scaleX, worldTransform.scaleY);
 
-				if (anchor) {
-					sprite.anchor.set(anchor.x, anchor.y);
-				}
-
 				// Apply visibility if component exists
-				const visible = ecs.entityManager.getComponent(entity.id, 'pixiVisible');
-				if (visible) {
-					sprite.visible = visible.visible;
-					if (visible.alpha !== undefined) {
-						sprite.alpha = visible.alpha;
+				const visibleComp = ecs.entityManager.getComponent(entity.id, 'visible');
+				if (visibleComp) {
+					sprite.visible = visibleComp.visible;
+					if (visibleComp.alpha !== undefined) {
+						sprite.alpha = visibleComp.alpha;
 					}
 				}
 			}
 
 			// Process graphics
 			for (const entity of queries.graphics) {
-				const { pixiGraphics, worldTransform } = entity.components;
-				const { graphics } = pixiGraphics;
+				const { graphics, worldTransform } = entity.components;
 
 				graphics.position.set(worldTransform.x, worldTransform.y);
 				graphics.rotation = worldTransform.rotation;
 				graphics.scale.set(worldTransform.scaleX, worldTransform.scaleY);
 
 				// Apply visibility if component exists
-				const visible = ecs.entityManager.getComponent(entity.id, 'pixiVisible');
-				if (visible) {
-					graphics.visible = visible.visible;
-					if (visible.alpha !== undefined) {
-						graphics.alpha = visible.alpha;
+				const visibleComp = ecs.entityManager.getComponent(entity.id, 'visible');
+				if (visibleComp) {
+					graphics.visible = visibleComp.visible;
+					if (visibleComp.alpha !== undefined) {
+						graphics.alpha = visibleComp.alpha;
 					}
 				}
 			}
 
 			// Process containers
 			for (const entity of queries.containers) {
-				const { pixiContainer, worldTransform } = entity.components;
-				const { container } = pixiContainer;
+				const { container, worldTransform } = entity.components;
 
 				container.position.set(worldTransform.x, worldTransform.y);
 				container.rotation = worldTransform.rotation;
 				container.scale.set(worldTransform.scaleX, worldTransform.scaleY);
 
 				// Apply visibility if component exists
-				const visible = ecs.entityManager.getComponent(entity.id, 'pixiVisible');
-				if (visible) {
-					container.visible = visible.visible;
-					if (visible.alpha !== undefined) {
-						container.alpha = visible.alpha;
+				const visibleComp = ecs.entityManager.getComponent(entity.id, 'visible');
+				if (visibleComp) {
+					container.visible = visibleComp.visible;
+					if (visibleComp.alpha !== undefined) {
+						container.alpha = visibleComp.alpha;
 					}
 				}
 			}
@@ -635,34 +606,34 @@ export function createPixiBundle(
 	// ==================== Scene Graph Manager System ====================
 	// Sets up reactive queries to manage scene graph on entity create/destroy
 	// High priority ensures this runs before user systems' onInitialize
-	pixiBundle
-		.addSystem('pixi-scene-graph-manager')
+	rendererBundle
+		.addSystem('renderer2d-scene-graph')
 		.setPriority(9999)
 		.inGroup(systemGroup)
 		.setOnInitialize(async (ecs) => {
 			const pixiApp = ecs.getResource('pixiApp');
-			const rootContainer = ecs.getResource('pixiRootContainer');
+			const rootCont = ecs.getResource('rootContainer');
 
 			// Capture Container constructor via dynamic import (same module instance as pixi.js internals)
 			const { Container: ContainerClass } = await import('pixi.js');
 			createLayerContainer = (label: string) => {
-				const container = new ContainerClass();
-				container.label = label;
-				return container;
+				const cont = new ContainerClass();
+				cont.label = label;
+				return cont;
 			};
 
 			// Create declared render layer containers in order (back-to-front)
 			for (const layerName of renderLayers) {
-				const container = createLayerContainer(`layer:${layerName}`);
-				layerContainers.set(layerName, container);
-				rootContainer.addChild(container);
+				const cont = createLayerContainer(`layer:${layerName}`);
+				layerContainers.set(layerName, cont);
+				rootCont.addChild(cont);
 			}
 
 			// Reactive query for sprites
-			ecs.addReactiveQuery('pixi-sprites', {
-				with: ['pixiSprite'] as const,
+			ecs.addReactiveQuery('renderer2d-sprites', {
+				with: ['sprite'] as const,
 				onEnter: (entity) => {
-					const pixiObject = entity.components.pixiSprite.sprite;
+					const pixiObject = entity.components.sprite;
 					entityToPixiObject.set(entity.id, pixiObject);
 					addToSceneGraph(entity.id, pixiObject, ecs);
 				},
@@ -672,10 +643,10 @@ export function createPixiBundle(
 			});
 
 			// Reactive query for graphics
-			ecs.addReactiveQuery('pixi-graphics', {
-				with: ['pixiGraphics'] as const,
+			ecs.addReactiveQuery('renderer2d-graphics', {
+				with: ['graphics'] as const,
 				onEnter: (entity) => {
-					const pixiObject = entity.components.pixiGraphics.graphics;
+					const pixiObject = entity.components.graphics;
 					entityToPixiObject.set(entity.id, pixiObject);
 					addToSceneGraph(entity.id, pixiObject, ecs);
 				},
@@ -685,10 +656,10 @@ export function createPixiBundle(
 			});
 
 			// Reactive query for containers
-			ecs.addReactiveQuery('pixi-containers', {
-				with: ['pixiContainer'] as const,
+			ecs.addReactiveQuery('renderer2d-containers', {
+				with: ['container'] as const,
 				onEnter: (entity) => {
-					const pixiObject = entity.components.pixiContainer.container;
+					const pixiObject = entity.components.container;
 					entityToPixiObject.set(entity.id, pixiObject);
 					addToSceneGraph(entity.id, pixiObject, ecs);
 				},
@@ -703,12 +674,12 @@ export function createPixiBundle(
 			});
 
 			// Re-parent entity when render layer is added or changed
-			ecs.onComponentAdded('pixiRenderLayer', (_layerName, entity) => {
+			ecs.onComponentAdded('renderLayer', (_layerName, entity) => {
 				updateSceneGraphParent(entity.id, ecs);
 			});
 
 			// Re-parent entity when render layer is removed
-			ecs.onComponentRemoved('pixiRenderLayer', (_oldLayerName, entity) => {
+			ecs.onComponentRemoved('renderLayer', (_oldLayerName, entity) => {
 				updateSceneGraphParent(entity.id, ecs);
 			});
 
@@ -728,7 +699,7 @@ export function createPixiBundle(
 		})
 		.and();
 
-	// Merge transform bundle (runs first) with pixi bundle
+	// Merge transform bundle (runs first) with renderer bundle
 	const transformBundle = createTransformBundle(transformOptions);
-	return mergeBundles('pixi-renderer', transformBundle, pixiBundle);
+	return mergeBundles('renderer2d', transformBundle, rendererBundle);
 }

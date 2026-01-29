@@ -4,7 +4,7 @@ import type { TransformComponentTypes } from '../../src/bundles/utils/transform'
 import type { MovementComponentTypes } from '../../src/bundles/utils/movement';
 import type { BoundsComponentTypes } from '../../src/bundles/utils/bounds';
 import type { CollisionComponentTypes, CollisionEventTypes } from '../../src/bundles/utils/collision';
-import type { PixiComponentTypes, PixiResourceTypes } from '../../src/bundles/renderers/pixi';
+import type { Renderer2DComponentTypes, Renderer2DResourceTypes } from '../../src/bundles/renderers/renderer2D';
 
 /**
  * All event types used in the Space Invaders game
@@ -47,7 +47,7 @@ export interface Components
 	        MovementComponentTypes,
 	        BoundsComponentTypes,
 	        CollisionComponentTypes,
-	        PixiComponentTypes {
+	        Renderer2DComponentTypes {
 	player: boolean;
 	enemy: { type: 'grunt' | 'elite' | 'boss'; points: number; health: number };
 	projectile: { owner: 'player' | 'enemy'; damage: number };
@@ -56,7 +56,7 @@ export interface Components
 /**
  * All resource types used in the Space Invaders game
  */
-export interface Resources extends PixiResourceTypes {
+export interface Resources extends Renderer2DResourceTypes {
 	uiContainer: Container;
 
 	gameState: {

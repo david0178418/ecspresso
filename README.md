@@ -1031,7 +1031,7 @@ ECSpresso provides optional utility bundles for common game development needs:
 | **Bounds** | `ecspresso/bundles/utils/bounds` | Screen bounds enforcement (destroy, clamp, wrap) |
 | **Collision** | `ecspresso/bundles/utils/collision` | Layer-based AABB/circle collision detection with events |
 | **Timers** | `ecspresso/bundles/utils/timers` | ECS-native timers with event-based completion |
-| **PixiJS Renderer** | `ecspresso/bundles/renderers/pixi` | Automated PixiJS scene graph wiring |
+| **2D Renderer** | `ecspresso/bundles/renderers/renderer2D` | Automated PixiJS scene graph wiring |
 
 ## Timer Bundle
 

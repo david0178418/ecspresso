@@ -1,5 +1,5 @@
 import ECSpresso from '../../src';
-import { createPixiBundle } from '../../src/bundles/renderers/pixi';
+import { createRenderer2DBundle } from '../../src/bundles/renderers/renderer2D';
 import { createTimerBundle } from '../../src/bundles/utils/timers';
 import { createMovementBundle } from '../../src/bundles/utils/movement';
 import { createBoundsBundle } from '../../src/bundles/utils/bounds';
@@ -29,7 +29,7 @@ const game = ECSpresso
 		lastEdgeHit: null,
 	})
 	.withBundle(createTimerBundle<Events>())
-	.withBundle(createPixiBundle({
+	.withBundle(createRenderer2DBundle({
 		init: { background: '#000000', resizeTo: window },
 		container: '#game-container',
 		renderLayers: ['game'],

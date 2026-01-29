@@ -1,6 +1,6 @@
 import { Graphics, Sprite } from "pixi.js";
 import ECSpresso from "../../src";
-import { createSpriteComponents } from "../../src/bundles/renderers/pixi";
+import { createSpriteComponents } from "../../src/bundles/renderers/renderer2D";
 import { createVelocity } from "../../src/bundles/utils/movement";
 import { createAABBCollider } from "../../src/bundles/utils/collision";
 import { createClampToBounds } from "../../src/bundles/utils/bounds";
@@ -41,7 +41,7 @@ export function spawnEnemyFormation(ecs: ECSpresso<Components, Events, Resources
 				...createVelocity(config.enemySpeed, 0),
 				...createAABBCollider(enemySprite.width, enemySprite.height),
 				...layers.enemy(),
-				pixiRenderLayer: 'game',
+				renderLayer: 'game',
 			});
 		}
 	}
@@ -122,7 +122,7 @@ export function spawnPlayer(ecs: ECSpresso<Components, Events, Resources>): numb
 		...createAABBCollider(playerSprite.width, playerSprite.height),
 		...layers.player(),
 		...createClampToBounds(30),
-		pixiRenderLayer: 'game',
+		renderLayer: 'game',
 	});
 
 	return player.id;

@@ -30,7 +30,7 @@ src/
     │   ├── bounds.ts     # Screen bounds enforcement (destroy, clamp, wrap)
     │   └── collision.ts  # Layer-based AABB/circle collision detection
     └── renderers/
-        └── pixi.ts       # PixiJS scene graph wiring
+        └── renderer2D.ts  # PixiJS scene graph wiring
 ```
 
 ## Core Concepts

@@ -1,21 +1,21 @@
 import { Graphics, Sprite } from 'pixi.js';
 import ECSpresso from "../../src";
 import {
-	createPixiBundle,
+	createRenderer2DBundle,
 	createSpriteComponents,
-	type PixiComponentTypes,
-	type PixiEventTypes,
-	type PixiResourceTypes,
-} from "../../src/bundles/renderers/pixi";
+	type Renderer2DComponentTypes,
+	type Renderer2DEventTypes,
+	type Renderer2DResourceTypes,
+} from "../../src/bundles/renderers/renderer2D";
 import {
 	createTimerBundle,
 	createRepeatingTimer,
 	type TimerComponentTypes,
 } from "../../src/bundles/utils/timers";
 
-interface Events extends PixiEventTypes {}
+interface Events extends Renderer2DEventTypes {}
 
-interface Components extends PixiComponentTypes, TimerComponentTypes<Events> {
+interface Components extends Renderer2DComponentTypes, TimerComponentTypes<Events> {
 	player: true;
 	speed: number;
 	velocity: { x: number; y: number };
@@ -23,7 +23,7 @@ interface Components extends PixiComponentTypes, TimerComponentTypes<Events> {
 	enemy: true;
 }
 
-interface Resources extends PixiResourceTypes {
+interface Resources extends Renderer2DResourceTypes {
 	controlMap: ActiveKeyMap;
 }
 
@@ -36,7 +36,7 @@ interface ActiveKeyMap {
 
 const ecs = ECSpresso
 	.create<Components, Events, Resources>()
-	.withBundle(createPixiBundle({
+	.withBundle(createRenderer2DBundle({
 		init: { background: '#1099bb', resizeTo: window },
 		container: document.body,
 	}))
@@ -126,18 +126,18 @@ ecs
 	.and()
 	.addSystem('collision-detection')
 	.addQuery('players', {
-		with: ['localTransform', 'pixiSprite', 'player'],
+		with: ['localTransform', 'sprite', 'player'],
 	})
 	.addQuery('enemies', {
-		with: ['localTransform', 'pixiSprite', 'enemy'],
+		with: ['localTransform', 'sprite', 'enemy'],
 	})
 	.setProcess((queries, _deltaTimeMs, ecs) => {
 		const [player] = queries.players;
 		if (!player) return;
 
 		for (const enemy of queries.enemies) {
-			const playerBounds = player.components.pixiSprite.sprite.getBounds();
-			const enemyBounds = enemy.components.pixiSprite.sprite.getBounds();
+			const playerBounds = player.components.sprite.getBounds();
+			const enemyBounds = enemy.components.sprite.getBounds();
 
 			const isColliding =
 				playerBounds.x < enemyBounds.x + enemyBounds.width &&

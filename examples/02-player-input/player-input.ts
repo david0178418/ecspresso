@@ -1,19 +1,19 @@
 import { Graphics, Sprite } from 'pixi.js';
 import ECSpresso from "../../src";
 import {
-	createPixiBundle,
+	createRenderer2DBundle,
 	createSpriteComponents,
-	type PixiComponentTypes,
-	type PixiEventTypes,
-	type PixiResourceTypes,
-} from "../../src/bundles/renderers/pixi";
+	type Renderer2DComponentTypes,
+	type Renderer2DEventTypes,
+	type Renderer2DResourceTypes,
+} from "../../src/bundles/renderers/renderer2D";
 
-interface Components extends PixiComponentTypes {
+interface Components extends Renderer2DComponentTypes {
 	speed: number;
 	velocity: { x: number; y: number };
 }
 
-interface Resources extends PixiResourceTypes {
+interface Resources extends Renderer2DResourceTypes {
 	controlMap: ActiveKeyMap;
 }
 
@@ -25,8 +25,8 @@ interface ActiveKeyMap {
 }
 
 const ecs = ECSpresso
-	.create<Components, PixiEventTypes, Resources>()
-	.withBundle(createPixiBundle({
+	.create<Components, Renderer2DEventTypes, Resources>()
+	.withBundle(createRenderer2DBundle({
 		init: { background: '#1099bb', resizeTo: window },
 		container: document.body,
 	}))

@@ -1,5 +1,5 @@
 import Bundle from '../../../src/bundle';
-import { createSpriteComponents } from '../../../src/bundles/renderers/pixi';
+import { createSpriteComponents } from '../../../src/bundles/renderers/renderer2D';
 import { createVelocity } from '../../../src/bundles/utils/movement';
 import { createAABBCollider } from '../../../src/bundles/utils/collision';
 import { createDestroyOutOfBounds } from '../../../src/bundles/utils/bounds';
@@ -37,7 +37,7 @@ export default function createSpawnerBundle() {
 						...createAABBCollider(projectileSprite.width, projectileSprite.height),
 						...layers.playerProjectile(),
 						...createDestroyOutOfBounds(20),
-						pixiRenderLayer: 'game',
+						renderLayer: 'game',
 					});
 				}
 			},
@@ -62,7 +62,7 @@ export default function createSpawnerBundle() {
 						...createAABBCollider(projectileSprite.width, projectileSprite.height),
 						...layers.enemyProjectile(),
 						...createDestroyOutOfBounds(20),
-						pixiRenderLayer: 'game',
+						renderLayer: 'game',
 					});
 				}
 			},
