@@ -29,6 +29,31 @@ A type-safe, modular, and extensible Entity Component System (ECS) framework for
 npm install ecspresso
 ```
 
+## Table of Contents
+
+- [Quick Start](#quick-start)
+- [Core Concepts](#core-concepts)
+  - [Entities and Components](#entities-and-components) -- [Component Callbacks](#component-callbacks), [Reactive Queries](#reactive-queries)
+  - [Systems and Queries](#systems-and-queries)
+  - [Resources](#resources)
+- [Systems in Depth](#systems-in-depth)
+  - [Method Chaining](#method-chaining)
+  - [Query Type Utilities](#query-type-utilities)
+  - [System Phases](#system-phases)
+  - [System Priority](#system-priority)
+  - [System Groups](#system-groups)
+  - [System Lifecycle](#system-lifecycle)
+- [Events](#events)
+- [Entity Hierarchy](#entity-hierarchy) -- [Traversal](#traversal), [Parent-First Traversal](#parent-first-traversal), [Cascade Deletion](#cascade-deletion)
+- [Change Detection](#change-detection) -- [Marking Changes](#marking-changes), [Changed Query Filter](#changed-query-filter), [Sequence Timing](#sequence-timing)
+- [Command Buffer](#command-buffer) -- [Available Commands](#available-commands)
+- [Bundles](#bundles) -- [Built-in Bundles](#built-in-bundles), [Timer Bundle](#timer-bundle)
+- [Asset Management](#asset-management)
+- [Screen Management](#screen-management) -- [Screen-Scoped Systems](#screen-scoped-systems), [Screen Resource](#screen-resource)
+- [Type Safety](#type-safety)
+- [Error Handling](#error-handling)
+- [Performance Tips](#performance-tips)
+
 ## Quick Start
 
 ```typescript
@@ -90,21 +115,72 @@ world.entityManager.removeComponent(entity.id, 'velocity');
 world.entityManager.removeEntity(entity.id);
 ```
 
+#### Component Callbacks
+
+React to component additions and removals. Both methods return an unsubscribe function:
+
+```typescript
+const unsubAdd = world.onComponentAdded('health', (value, entity) => {
+  console.log(`Health added to entity ${entity.id}:`, value);
+});
+
+const unsubRemove = world.onComponentRemoved('health', (oldValue, entity) => {
+  console.log(`Health removed from entity ${entity.id}:`, oldValue);
+});
+
+// Unsubscribe when done
+unsubAdd();
+unsubRemove();
+```
+
+Also available on `world.entityManager.onComponentAdded()` / `onComponentRemoved()`.
+
+#### Reactive Queries
+
+Get callbacks when entities enter or exit a query match. Unlike regular queries that you poll during `update()`, reactive queries push notifications when the entity's components change:
+
+```typescript
+world.addReactiveQuery('enemies', {
+  with: ['position', 'enemy'],
+  without: ['dead'],
+  onEnter: (entity) => {
+    console.log(`Enemy ${entity.id} appeared at`, entity.components.position);
+    spawnHealthBar(entity.id);
+  },
+  onExit: (entityId) => {
+    // Receives ID since entity may already be removed
+    console.log(`Enemy ${entityId} gone`);
+    removeHealthBar(entityId);
+  },
+});
+
+// Triggers onEnter: spawning matching entity, adding required component, removing excluded component
+const enemy = world.spawn({ position: { x: 0, y: 0 }, enemy: true }); // onEnter fires
+
+// Triggers onExit: removing required component, adding excluded component, removing entity
+world.entityManager.addComponent(enemy.id, 'dead', true); // onExit fires
+
+// Existing matching entities trigger onEnter when query is added
+// Component replacement does NOT trigger enter/exit (match status unchanged)
+
+// Remove reactive query when no longer needed
+world.removeReactiveQuery('enemies'); // returns true if existed
+```
+
 ### Systems and Queries
 
 Systems process entities that match specific component patterns:
 
 ```typescript
 world.addSystem('combat')
-  .addQuery('fighters', { 
-    with: ['position', 'health'], 
-    without: ['dead'] 
+  .addQuery('fighters', {
+    with: ['position', 'health'],
+    without: ['dead']
   })
-  .addQuery('projectiles', { 
-    with: ['position', 'damage'] 
+  .addQuery('projectiles', {
+    with: ['position', 'damage']
   })
   .setProcess((queries, deltaTime) => {
-    // Process fighters and projectiles
     for (const fighter of queries.fighters) {
       for (const projectile of queries.projectiles) {
         // Combat logic here
@@ -116,7 +192,7 @@ world.addSystem('combat')
 
 ### Resources
 
-Resources provide global state accessible to all systems:
+Resources provide global state accessible to all systems.
 
 ```typescript
 interface Resources {
@@ -126,9 +202,21 @@ interface Resources {
 
 const world = new ECSpresso<Components, {}, Resources>();
 
-// Add resources
+// Direct values
 world.addResource('score', { value: 0 });
-world.addResource('settings', { difficulty: 'easy' });
+
+// Sync or async factories (lazy initialization)
+world.addResource('config', () => ({ difficulty: 'normal', soundEnabled: true }));
+world.addResource('database', async () => await connectToDatabase());
+
+// Factory with dependencies (initialized after dependencies are ready)
+world.addResource('cache', {
+  dependsOn: ['database'],
+  factory: (ecs) => ({ db: ecs.getResource('database') })
+});
+
+// Initialize all resources (respects dependency order, detects circular deps)
+await world.initializeResources();
 
 // Use in systems
 world.addSystem('scoring')
@@ -139,14 +227,48 @@ world.addSystem('scoring')
   .build();
 ```
 
-## Working with Systems
+**Builder pattern** -- resources chain naturally with other builder methods:
+
+```typescript
+const world = ECSpresso
+  .create<Components, Events, Resources>()
+  .withBundle(physicsBundle)
+  .withResource('config', { debug: true, maxEntities: 1000 })
+  .withResource('score', () => ({ value: 0 }))
+  .withResource('cache', {
+    dependsOn: ['database'],
+    factory: (ecs) => createCache(ecs.getResource('database'))
+  })
+  .build();
+```
+
+**Disposal** -- resources can define cleanup logic with `onDispose` callbacks:
+
+```typescript
+world.addResource('keyboard', {
+  factory: () => {
+    const handler = (e: KeyboardEvent) => { /* ... */ };
+    window.addEventListener('keydown', handler);
+    return { handler };
+  },
+  onDispose: (resource) => {
+    window.removeEventListener('keydown', resource.handler);
+  }
+});
+
+await world.disposeResource('keyboard');     // Dispose a single resource
+await world.disposeResources();              // All, in reverse dependency order
+```
+
+`onDispose` receives the resource value and the ECSpresso instance. Supports sync and async callbacks. Only initialized resources have their `onDispose` called. `removeResource()` still exists for removal without disposal.
+
+## Systems in Depth
 
 ### Method Chaining
 
-Chain multiple systems using `.and()` for cleaner code. The `.and()` method returns the parent container (ECSpresso or Bundle), enabling fluent chaining:
+Chain multiple systems using `.and()`. The `.and()` method returns the parent container (ECSpresso or Bundle), enabling fluent chaining:
 
 ```typescript
-// Chaining systems on ECSpresso
 world.addSystem('physics')
   .addQuery('moving', { with: ['position', 'velocity'] })
   .setProcess((queries, deltaTime) => {
@@ -159,16 +281,6 @@ world.addSystem('physics')
     // Rendering logic
   })
   .build();
-
-// Chaining systems in a Bundle
-const bundle = new Bundle<Components>()
-  .addSystem('movement')
-  .setProcess(() => { /* ... */ })
-  .and() // Returns Bundle for continued chaining
-  .addSystem('collision')
-  .setProcess(() => { /* ... */ })
-  .and()
-  .addResource('config', { speed: 10 });
 ```
 
 ### Query Type Utilities
@@ -187,7 +299,6 @@ const movingQuery = createQueryDefinition<Components>({
 // Extract entity type for helper functions
 type MovingEntity = QueryResultEntity<Components, typeof movingQuery>;
 
-// Create type-safe helper functions
 function updatePosition(entity: MovingEntity, deltaTime: number) {
   entity.components.position.x += entity.components.velocity.x * deltaTime;
   entity.components.position.y += entity.components.velocity.y * deltaTime;
@@ -212,14 +323,12 @@ Systems are organized into named execution phases that run in a fixed order:
 preUpdate → fixedUpdate → update → postUpdate → render
 ```
 
-Each phase's command buffer is played back before the next phase begins, so entities spawned in `preUpdate` are visible to `fixedUpdate`, and so on.
+Each phase's command buffer is played back before the next phase begins, so entities spawned in `preUpdate` are visible to `fixedUpdate`, and so on. Systems without `.inPhase()` default to `update`.
 
 ```typescript
 world.addSystem('input')
   .inPhase('preUpdate')
-  .setProcess((queries, dt, ecs) => {
-    // Read input, update timers
-  })
+  .setProcess((queries, dt, ecs) => { /* Read input, update timers */ })
   .and()
   .addSystem('physics')
   .inPhase('fixedUpdate')
@@ -229,72 +338,30 @@ world.addSystem('input')
   })
   .and()
   .addSystem('gameplay')
-  .inPhase('update')  // default phase if not specified
-  .setProcess((queries, dt, ecs) => {
-    // Game logic, AI, etc.
-  })
+  .inPhase('update')  // default phase
+  .setProcess((queries, dt, ecs) => { /* Game logic, AI */ })
   .and()
   .addSystem('transform-sync')
   .inPhase('postUpdate')
-  .setProcess((queries, dt, ecs) => {
-    // Transform propagation, bounds checking
-  })
+  .setProcess((queries, dt, ecs) => { /* Transform propagation */ })
   .and()
   .addSystem('renderer')
   .inPhase('render')
-  .setProcess((queries, dt, ecs) => {
-    // Visual output, interpolation
-  })
+  .setProcess((queries, dt, ecs) => { /* Visual output */ })
   .build();
 ```
 
-Systems without `.inPhase()` default to `update`.
-
-#### Fixed Timestep
-
-The `fixedUpdate` phase uses a time accumulator for deterministic simulation. Configure the timestep with the builder:
+**Fixed Timestep** -- The `fixedUpdate` phase uses a time accumulator for deterministic simulation. A spiral-of-death cap (8 steps) prevents runaway accumulation.
 
 ```typescript
 const world = ECSpresso.create<Components, Events, Resources>()
   .withFixedTimestep(1 / 60)  // 60Hz physics (default)
   .build();
-
-// fixedUpdate systems receive fixedDt, not the raw frame delta
-world.addSystem('movement')
-  .inPhase('fixedUpdate')
-  .addQuery('moving', { with: ['position', 'velocity'] })
-  .setProcess((queries, dt) => {
-    // dt === 1/60 regardless of frame rate
-    for (const entity of queries.moving) {
-      entity.components.position.x += entity.components.velocity.x * dt;
-    }
-  })
-  .build();
 ```
 
-A spiral-of-death cap (8 steps) prevents runaway accumulation when frames are slow. After hitting the cap, the accumulator resets.
+**Interpolation** -- Use `ecs.interpolationAlpha` (0..1) in the render phase to smooth between fixed steps.
 
-#### Interpolation
-
-Use `interpolationAlpha` in the render phase to smooth between fixed steps:
-
-```typescript
-world.addSystem('render')
-  .inPhase('render')
-  .setProcess((queries, dt, ecs) => {
-    const alpha = ecs.interpolationAlpha; // 0..1
-    // Lerp between previous and current physics state
-  })
-  .build();
-```
-
-#### Runtime Phase Changes
-
-Move systems between phases at runtime:
-
-```typescript
-world.updateSystemPhase('debug-overlay', 'render');  // returns true if found
-```
+**Runtime Phase Changes** -- Move systems between phases at runtime with `world.updateSystemPhase('debug-overlay', 'render')`.
 
 ### System Priority
 
@@ -318,7 +385,6 @@ world.addSystem('physics')
 Organize systems into groups that can be enabled/disabled at runtime:
 
 ```typescript
-// Assign systems to groups
 world.addSystem('renderSprites')
   .inGroup('rendering')
   .addQuery('sprites', { with: ['position', 'sprite'] })
@@ -330,376 +396,51 @@ world.addSystem('renderSprites')
   .setProcess(() => { /* ... */ })
   .build();
 
-// Disable/enable groups at runtime
-world.disableSystemGroup('rendering');  // All rendering systems skip
-world.enableSystemGroup('rendering');   // Resume rendering
-
-// Query group state
-world.isSystemGroupEnabled('rendering');  // true/false
-world.getSystemsInGroup('rendering');     // ['renderSprites', 'renderParticles']
+world.disableSystemGroup('rendering');              // All rendering systems skip
+world.enableSystemGroup('rendering');               // Resume rendering
+world.isSystemGroupEnabled('rendering');            // true/false
+world.getSystemsInGroup('rendering');               // ['renderSprites', 'renderParticles']
 
 // If a system belongs to multiple groups, disabling ANY group skips the system
-world.disableSystemGroup('effects');  // renderParticles won't run
 ```
 
-## Advanced Features
+### System Lifecycle
 
-### Bundles
-
-Organize related systems and resources into reusable bundles:
+Systems can have initialization, cleanup, and post-update hooks:
 
 ```typescript
-import { Bundle } from 'ecspresso';
-
-interface GameComponents {
-  position: { x: number; y: number };
-  velocity: { x: number; y: number };
-  sprite: { texture: string };
-}
-
-interface GameResources {
-  gravity: { value: number };
-}
-
-// Create a bundle with multiple systems using .and() for chaining
-const physicsBundle = new Bundle<GameComponents, {}, GameResources>('physics')
-  .addSystem('applyVelocity')
-  .addQuery('moving', { with: ['position', 'velocity'] })
-  .setProcess((queries, deltaTime) => {
-    for (const entity of queries.moving) {
-      entity.components.position.x += entity.components.velocity.x * deltaTime;
-      entity.components.position.y += entity.components.velocity.y * deltaTime;
-    }
+world.addSystem('gameSystem')
+  .setOnInitialize(async (ecs) => {
+    console.log('System starting...');
   })
-  .and()  // Returns the bundle for continued chaining
-  .addSystem('applyGravity')
-  .addQuery('falling', { with: ['velocity'] })
-  .setProcess((queries, deltaTime, ecs) => {
-    const gravity = ecs.getResource('gravity');
-    for (const entity of queries.falling) {
-      entity.components.velocity.y += gravity.value * deltaTime;
-    }
+  .setOnDetach((ecs) => {
+    console.log('System shutting down...');
   })
-  .and()
-  .addResource('gravity', { value: 9.8 });
-
-const renderBundle = new Bundle<GameComponents>('render')
-  .addSystem('renderer')
-  .addQuery('sprites', { with: ['position', 'sprite'] })
-  .setProcess((queries) => {
-    // Render sprites
-  })
-  .and();
-
-// Create world with bundles
-const game = ECSpresso.create<GameComponents, {}, GameResources>()
-  .withBundle(physicsBundle)
-  .withBundle(renderBundle)
   .build();
+
+await world.initialize();
 ```
 
-### Events
+**Post-Update Hooks** -- Register callbacks that run between the `postUpdate` and `render` phases:
 
-Use events for decoupled system communication:
+```typescript
+// Returns unsubscribe function; multiple hooks run in registration order
+const unsubscribe = world.onPostUpdate((ecs, deltaTime) => {
+  console.log(`Frame completed in ${deltaTime}s`);
+});
+
+unsubscribe();
+```
+
+## Events
+
+Use events for decoupled system communication. Events work across all features -- hierarchy changes, asset loading, timer completion, and custom game events all use the same system.
 
 ```typescript
 interface Events {
   playerDied: { playerId: number };
   levelComplete: { score: number };
-}
-
-const world = new ECSpresso<Components, Events>();
-
-// Subscribe to events with on() - returns unsubscribe function
-const unsubscribe = world.on('playerDied', (data) => {
-  console.log(`Player ${data.playerId} died`);
-});
-
-// Unsubscribe when done
-unsubscribe();
-
-// Or unsubscribe by callback reference with off()
-const handler = (data) => console.log(`Level complete! Score: ${data.score}`);
-world.on('levelComplete', handler);
-world.off('levelComplete', handler);
-
-// Handle events in systems
-world.addSystem('gameLogic')
-  .setEventHandlers({
-    playerDied: {
-      handler: (data, ecs) => {
-        console.log(`Player ${data.playerId} died`);
-        // Respawn logic here
-      }
-    }
-  })
-  .build();
-
-// Publish events from anywhere
-world.eventBus.publish('playerDied', { playerId: 1 });
-```
-
-### Resource Factories
-
-Create resources lazily with factory functions:
-
-```typescript
-interface Resources {
-  config: { difficulty: string; soundEnabled: boolean };
-  database: Database;
-  cache: { db: Database };
-}
-
-const world = new ECSpresso<Components, {}, Resources>();
-
-// Sync factory
-world.addResource('config', () => ({
-  difficulty: 'normal',
-  soundEnabled: true
-}));
-
-// Async factory
-world.addResource('database', async () => {
-  return await connectToDatabase();
-});
-
-// Factory with dependencies - initialized after dependencies are ready
-world.addResource('cache', {
-  dependsOn: ['database'],
-  factory: (ecs) => ({
-    db: ecs.getResource('database')
-  })
-});
-
-// Initialize all resources (respects dependency order)
-await world.initializeResources();
-```
-
-**Dependency Features:**
-- Resources are initialized in topological order (dependencies first)
-- Circular dependencies throw a descriptive error at initialization time
-- Existing patterns (direct values, simple factories) work unchanged
-
-### Resource Builder
-
-Add resources fluently during ECSpresso construction using `withResource()`:
-
-```typescript
-const world = ECSpresso
-  .create<Components, Events, Resources>()
-  .withBundle(physicsBundle)
-  .withResource('config', { debug: true, maxEntities: 1000 })
-  .withResource('score', () => ({ value: 0 }))
-  .withResource('cache', {
-    dependsOn: ['database'],
-    factory: (ecs) => createCache(ecs.getResource('database'))
-  })
-  .build();
-```
-
-This chains naturally with `withBundle()`, `withAssets()`, and `withScreens()`.
-
-### Resource Disposal
-
-Resources can define cleanup logic with `onDispose` callbacks, useful for removing event listeners, closing connections, or releasing resources:
-
-```typescript
-// Factory with disposal callback
-world.addResource('keyboard', {
-  factory: () => {
-    const handler = (e: KeyboardEvent) => { /* ... */ };
-    window.addEventListener('keydown', handler);
-    return { handler };
-  },
-  onDispose: (resource) => {
-    window.removeEventListener('keydown', resource.handler);
-  }
-});
-
-// Or with the builder pattern
-const world = ECSpresso
-  .create<Components, Events, Resources>()
-  .withResource('database', {
-    factory: async () => await connectToDatabase(),
-    onDispose: async (db) => await db.close()
-  })
-  .build();
-
-// Dispose a single resource
-await world.disposeResource('keyboard');
-
-// Dispose all resources in reverse dependency order
-// (dependents are disposed before their dependencies)
-await world.disposeResources();
-```
-
-**Disposal Features:**
-- `onDispose` receives the resource value and the ECSpresso instance as context
-- `disposeResources()` disposes in reverse topological order (dependents first)
-- Only initialized resources have their `onDispose` called
-- Supports both sync and async disposal callbacks
-- `removeResource()` still exists for removal without disposal
-
-### System Lifecycle
-
-Systems can have initialization and cleanup hooks:
-
-```typescript
-world.addSystem('gameSystem')
-  .setOnInitialize(async (ecs) => {
-    // One-time setup
-    console.log('System starting...');
-  })
-  .setOnDetach((ecs) => {
-    // Cleanup when system is removed
-    console.log('System shutting down...');
-  })
-  .build();
-
-// Initialize all systems
-await world.initialize();
-```
-
-### Post-Update Hooks
-
-Register callbacks that run between the `postUpdate` and `render` phases:
-
-```typescript
-// Register a post-update hook - returns unsubscribe function
-const unsubscribe = world.onPostUpdate((ecs, deltaTime) => {
-  // Runs after postUpdate, before render
-  // Useful for cleanup, state sync, or debug logging
-  console.log(`Frame completed in ${deltaTime}s`);
-});
-
-// Multiple hooks run in registration order
-world.onPostUpdate((ecs) => {
-  // First hook
-});
-world.onPostUpdate((ecs) => {
-  // Second hook
-});
-
-// Unsubscribe when no longer needed
-unsubscribe();
-```
-
-### Entity Hierarchy
-
-Create parent-child relationships between entities for scene graphs, UI trees, or skeletal hierarchies:
-
-```typescript
-const world = new ECSpresso<Components>();
-
-// Create a parent entity
-const player = world.spawn({
-  position: { x: 0, y: 0 }
-});
-
-// Create a child entity using spawnChild
-const weapon = world.spawnChild(player.id, {
-  position: { x: 10, y: 0 }  // Relative to parent
-});
-
-// Or set parent on existing entity
-const shield = world.spawn({ position: { x: -10, y: 0 } });
-world.setParent(shield.id, player.id);
-
-// Query relationships
-world.getParent(weapon.id);           // player.id
-world.getChildren(player.id);         // [weapon.id, shield.id]
-
-// Orphan an entity (remove from parent)
-world.removeParent(shield.id);
-world.getParent(shield.id);           // null
-```
-
-#### Traversal Methods
-
-Navigate the hierarchy tree with traversal utilities:
-
-```typescript
-// Build a hierarchy: root -> child -> grandchild
-const root = world.spawn({ position: { x: 0, y: 0 } });
-const child = world.spawnChild(root.id, { position: { x: 10, y: 0 } });
-const grandchild = world.spawnChild(child.id, { position: { x: 20, y: 0 } });
-
-// Ancestors (from entity up to root)
-world.getAncestors(grandchild.id);    // [child.id, root.id]
-
-// Descendants (depth-first order)
-world.getDescendants(root.id);        // [child.id, grandchild.id]
-
-// Get root of any entity
-world.getRoot(grandchild.id);         // root.id
-
-// Siblings (other children of same parent)
-const child2 = world.spawnChild(root.id, { position: { x: -10, y: 0 } });
-world.getSiblings(child.id);          // [child2.id]
-
-// Relationship checks
-world.isDescendantOf(grandchild.id, root.id);  // true
-world.isAncestorOf(root.id, grandchild.id);    // true
-
-// All root entities (entities with children but no parent)
-world.getRootEntities();              // [root.id]
-
-// Child ordering
-world.getChildAt(root.id, 0);         // child.id
-world.getChildIndex(root.id, child2.id); // 1
-```
-
-#### Parent-First Traversal
-
-Iterate the hierarchy with guaranteed parent-first order (useful for transform propagation):
-
-```typescript
-// Callback-based traversal
-world.forEachInHierarchy((entityId, parentId, depth) => {
-  // Parents are always visited before their children
-  console.log(`Entity ${entityId} at depth ${depth}, parent: ${parentId}`);
-});
-
-// Filter to specific subtrees
-world.forEachInHierarchy(
-  (entityId, parentId, depth) => {
-    // Only visits entities under root.id
-  },
-  { roots: [root.id] }
-);
-
-// Generator-based traversal (supports early termination)
-for (const { entityId, parentId, depth } of world.hierarchyIterator()) {
-  if (depth > 2) break; // Stop at depth 2
-  console.log(entityId);
-}
-```
-
-#### Cascade Deletion
-
-When removing entities, descendants are automatically removed by default:
-
-```typescript
-const parent = world.spawn({ position: { x: 0, y: 0 } });
-const child = world.spawnChild(parent.id, { position: { x: 10, y: 0 } });
-const grandchild = world.spawnChild(child.id, { position: { x: 20, y: 0 } });
-
-// Remove parent - cascades to all descendants
-world.removeEntity(parent.id);
-world.entityManager.getEntity(child.id);      // undefined
-world.entityManager.getEntity(grandchild.id); // undefined
-
-// To orphan children instead of deleting them:
-world.removeEntity(parent.id, { cascade: false });
-// Children still exist but have no parent
-```
-
-#### Hierarchy Events
-
-React to hierarchy changes with the `hierarchyChanged` event:
-
-```typescript
-interface Events {
+  // Hierarchy events (if using entity hierarchy)
   hierarchyChanged: {
     entityId: number;
     oldParent: number | null;
@@ -709,294 +450,102 @@ interface Events {
 
 const world = new ECSpresso<Components, Events>();
 
-world.on('hierarchyChanged', (data) => {
-  if (data.newParent !== null) {
-    console.log(`Entity ${data.entityId} attached to ${data.newParent}`);
-  } else {
-    console.log(`Entity ${data.entityId} detached from ${data.oldParent}`);
-  }
+// Subscribe - returns unsubscribe function
+const unsubscribe = world.on('playerDied', (data) => {
+  console.log(`Player ${data.playerId} died`);
+});
+unsubscribe();
+
+// Or unsubscribe by callback reference
+const handler = (data) => console.log(`Score: ${data.score}`);
+world.on('levelComplete', handler);
+world.off('levelComplete', handler);
+
+// Handle events in systems
+world.addSystem('gameLogic')
+  .setEventHandlers({
+    playerDied: {
+      handler: (data, ecs) => {
+        // Respawn logic
+      }
+    }
+  })
+  .build();
+
+// Publish events from anywhere
+world.eventBus.publish('playerDied', { playerId: 1 });
+```
+
+**Built-in events**: `hierarchyChanged` (entity parent changes), `assetLoaded` / `assetFailed` / `assetGroupProgress` / `assetGroupLoaded` (asset loading), and timer `onComplete` events (see [Bundles](#bundles)).
+
+## Entity Hierarchy
+
+Create parent-child relationships between entities for scene graphs, UI trees, or skeletal hierarchies:
+
+```typescript
+const player = world.spawn({ position: { x: 0, y: 0 } });
+
+// Create child entity
+const weapon = world.spawnChild(player.id, { position: { x: 10, y: 0 } });
+
+// Or set parent on existing entity
+const shield = world.spawn({ position: { x: -10, y: 0 } });
+world.setParent(shield.id, player.id);
+
+// Orphan an entity
+world.removeParent(shield.id);
+```
+
+### Traversal
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `getParent(id)` | `number \| null` | Parent entity ID |
+| `getChildren(id)` | `number[]` | Direct children |
+| `getAncestors(id)` | `number[]` | Entity up to root |
+| `getDescendants(id)` | `number[]` | Depth-first order |
+| `getRoot(id)` | `number` | Root of the hierarchy |
+| `getSiblings(id)` | `number[]` | Other children of same parent |
+| `getRootEntities()` | `number[]` | All root entities |
+| `getChildAt(id, index)` | `number` | Child at index |
+| `getChildIndex(parentId, childId)` | `number` | Index of child |
+| `isDescendantOf(id, ancestorId)` | `boolean` | Relationship check |
+| `isAncestorOf(id, descendantId)` | `boolean` | Relationship check |
+
+### Parent-First Traversal
+
+Iterate the hierarchy with guaranteed parent-first order (useful for transform propagation):
+
+```typescript
+// Callback-based traversal
+world.forEachInHierarchy((entityId, parentId, depth) => {
+  // Parents are always visited before their children
 });
 
-// Events fire on setParent, removeParent, and spawnChild
-world.setParent(child.id, parent.id);  // Emits hierarchyChanged
-```
+// Filter to specific subtrees
+world.forEachInHierarchy(callback, { roots: [root.id] });
 
-### Asset Management
-
-Manage game assets with eager/lazy loading, groups, and progress tracking:
-
-```typescript
-// Define asset types
-type Assets = {
-  playerTexture: { data: ImageBitmap };
-  enemyTexture: { data: ImageBitmap };
-  level1Music: { buffer: AudioBuffer };
-  level1Background: { data: ImageBitmap };
-};
-
-// Create world with assets using the builder pattern
-const game = ECSpresso.create<Components, Events, Resources, Assets>()
-  .withAssets(assets => assets
-    // Eager assets - loaded automatically during initialize()
-    .add('playerTexture', async () => {
-      const img = await loadImage('player.png');
-      return { data: img };
-    })
-    .add('enemyTexture', async () => {
-      const img = await loadImage('enemy.png');
-      return { data: img };
-    })
-    // Lazy asset group - loaded on demand
-    .addGroup('level1', {
-      level1Music: async () => {
-        const buffer = await loadAudio('level1.mp3');
-        return { buffer };
-      },
-      level1Background: async () => {
-        const img = await loadImage('level1-bg.png');
-        return { data: img };
-      },
-    })
-  )
-  .build();
-
-// Initialize loads eager assets automatically
-await game.initialize();
-
-// Access loaded assets
-const player = game.getAsset('playerTexture');
-
-// Check if asset is loaded
-if (game.isAssetLoaded('enemyTexture')) {
-  const enemy = game.getAsset('enemyTexture');
-}
-
-// Load asset groups on demand (e.g., when entering a level)
-await game.loadAssetGroup('level1');
-
-// Track loading progress
-const progress = game.getAssetGroupProgress('level1'); // 0-1
-
-// Check if group is fully loaded
-if (game.isAssetGroupLoaded('level1')) {
-  const music = game.getAsset('level1Music');
+// Generator-based (supports early termination)
+for (const { entityId, parentId, depth } of world.hierarchyIterator()) {
+  if (depth > 2) break;
 }
 ```
 
-#### Asset Events
+### Cascade Deletion
 
-React to asset loading with built-in events:
-
-```typescript
-game.addSystem('loadingUI')
-  .setEventHandlers({
-    assetLoaded: {
-      handler: (data) => console.log(`Loaded: ${data.key}`)
-    },
-    assetFailed: {
-      handler: (data) => console.error(`Failed: ${data.key}`, data.error)
-    },
-    assetGroupProgress: {
-      handler: (data) => {
-        console.log(`${data.group}: ${data.loaded}/${data.total}`);
-      }
-    },
-    assetGroupLoaded: {
-      handler: (data) => console.log(`Group ready: ${data.group}`)
-    }
-  })
-  .build();
-```
-
-#### Systems with Asset Requirements
-
-Systems can declare required assets and will only run when those assets are loaded:
+When removing entities, descendants are automatically removed by default:
 
 ```typescript
-game.addSystem('gameplay')
-  .requiresAssets(['playerTexture', 'enemyTexture'])
-  .setProcess((queries, dt, ecs) => {
-    // This only runs when both assets are loaded
-    const player = ecs.getAsset('playerTexture');
-  })
-  .build();
+world.removeEntity(parent.id);
+// All descendants are removed
+
+// To orphan children instead:
+world.removeEntity(parent.id, { cascade: false });
 ```
 
-### Screen Management
+Hierarchy changes emit the `hierarchyChanged` event (see [Events](#events)).
 
-Manage game states/screens with transitions and overlay support:
-
-```typescript
-import type { ScreenDefinition } from 'ecspresso';
-
-// Define screen types with config and state
-type Screens = {
-  menu: ScreenDefinition<
-    Record<string, never>,           // Config (passed when entering)
-    { selectedOption: number }       // State (mutable during screen)
-  >;
-  gameplay: ScreenDefinition<
-    { difficulty: string; level: number },  // Config
-    { score: number; isPaused: boolean }    // State
-  >;
-  pause: ScreenDefinition<
-    Record<string, never>,
-    Record<string, never>
-  >;
-};
-
-// Create world with screens
-const game = ECSpresso.create<Components, Events, Resources, {}, Screens>()
-  .withScreens(screens => screens
-    .add('menu', {
-      initialState: () => ({ selectedOption: 0 }),
-      onEnter: () => console.log('Entered menu'),
-      onExit: () => console.log('Left menu'),
-    })
-    .add('gameplay', {
-      initialState: () => ({ score: 0, isPaused: false }),
-      onEnter: (config) => console.log(`Starting level ${config.level}`),
-      onExit: () => console.log('Gameplay ended'),
-      // Require assets before screen can be entered
-      requiredAssetGroups: ['level1'],
-    })
-    .add('pause', {
-      initialState: () => ({}),
-      onEnter: () => console.log('Paused'),
-      onExit: () => console.log('Resumed'),
-    })
-  )
-  .build();
-
-await game.initialize();
-
-// Set initial screen
-await game.setScreen('menu', {});
-
-// Transition to gameplay (clears screen stack)
-await game.setScreen('gameplay', { difficulty: 'hard', level: 1 });
-
-// Push overlay screen (adds to stack, previous screen stays active)
-await game.pushScreen('pause', {});
-
-// Pop overlay (returns to previous screen)
-await game.popScreen();
-
-// Access current screen info
-const current = game.getCurrentScreen();        // 'gameplay'
-const config = game.getScreenConfig();          // { difficulty: 'hard', level: 1 }
-const state = game.getScreenState();            // { score: 0, isPaused: false }
-
-// Update screen state
-game.updateScreenState({ score: 100 });
-```
-
-#### Screen-Scoped Systems
-
-Systems can be restricted to run only in specific screens:
-
-```typescript
-// Only runs when 'menu' is the current screen
-game.addSystem('menuUI')
-  .inScreens(['menu'])
-  .setProcess((queries, dt, ecs) => {
-    const state = ecs.getScreenState();
-    renderMenu(state.selectedOption);
-  })
-  .build();
-
-// Only runs in 'gameplay' screen
-game.addSystem('scoring')
-  .inScreens(['gameplay'])
-  .setProcess((queries, dt, ecs) => {
-    const state = ecs.getScreenState();
-    ecs.updateScreenState({ score: state.score + 1 });
-  })
-  .build();
-
-// Runs in all screens EXCEPT 'pause'
-game.addSystem('animations')
-  .excludeScreens(['pause'])
-  .setProcess(() => {
-    // Animations continue except when paused
-  })
-  .build();
-```
-
-#### Screen Resource
-
-Access screen state through the `$screen` resource:
-
-```typescript
-game.addSystem('ui')
-  .setProcess((queries, dt, ecs) => {
-    const screen = ecs.getResource('$screen');
-
-    console.log(screen.current);     // Current screen name
-    console.log(screen.config);      // Current screen config
-    console.log(screen.state);       // Current screen state (mutable)
-    console.log(screen.isOverlay);   // true if screen was pushed
-    console.log(screen.stackDepth);  // Number of screens in stack
-
-    // Check screen status
-    if (screen.isCurrent('gameplay')) {
-      // ...
-    }
-    if (screen.isActive('menu')) {
-      // true if menu is current OR in the stack
-    }
-  })
-  .build();
-```
-
-## Type Safety
-
-ECSpresso provides comprehensive TypeScript support:
-
-### Component Type Safety
-```typescript
-// ✅ Valid
-world.entityManager.addComponent(entity.id, 'position', { x: 0, y: 0 });
-
-// ❌ TypeScript error - invalid component
-world.entityManager.addComponent(entity.id, 'invalid', { data: 'bad' });
-
-// ❌ TypeScript error - wrong component shape
-world.entityManager.addComponent(entity.id, 'position', { x: 0 }); // missing y
-```
-
-### Query Type Safety
-```typescript
-world.addSystem('example')
-  .addQuery('moving', { with: ['position', 'velocity'] })
-  .setProcess((queries) => {
-    for (const entity of queries.moving) {
-      // ✅ TypeScript knows these exist
-      entity.components.position.x;
-      entity.components.velocity.y;
-      
-      // ❌ TypeScript error - not guaranteed to exist
-      entity.components.health.value;
-    }
-  })
-  .build();
-```
-
-### Bundle Type Compatibility
-```typescript
-// ✅ Compatible bundles merge cleanly
-const bundle1 = new Bundle<{position: {x: number, y: number}}>('bundle1');
-const bundle2 = new Bundle<{velocity: {x: number, y: number}}>('bundle2');
-
-const world = ECSpresso.create()
-  .withBundle(bundle1)
-  .withBundle(bundle2) // Types merge successfully
-  .build();
-
-// ❌ Conflicting types error at compile time
-const conflictingBundle = new Bundle<{position: string}>('conflict');
-world.withBundle(conflictingBundle); // TypeScript prevents this
-```
+**World position pattern**: `worldPos = localPos + parent.worldPos`. A parent's world position already includes all grandparents, so each entity only needs to combine its local position with its immediate parent's world position. The Transform bundle implements this automatically.
 
 ## Change Detection
 
@@ -1007,7 +556,6 @@ ECSpresso tracks component changes using a per-system monotonic sequence. Each `
 Components are automatically marked as changed when added via `spawn()`, `addComponent()`, or `addComponents()`. For in-place mutations, call `markChanged` explicitly:
 
 ```typescript
-// In-place mutation requires explicit marking
 const position = world.entityManager.getComponent(entity.id, 'position');
 if (position) {
   position.x += 10;
@@ -1033,43 +581,17 @@ world.addSystem('render-sync')
   .build();
 ```
 
-When multiple components are listed in `changed`, entities matching **any** of them are included (OR semantics):
-
-```typescript
-.addQuery('dirty', {
-  with: ['position', 'velocity'],
-  changed: ['position', 'velocity'],  // Changed position OR velocity
-})
-```
-
-### Change Detection in Built-in Bundles
-
-The built-in bundles use change detection to skip unnecessary work:
-
-- **Movement**: Marks `localTransform` after velocity integration
-- **Transform**: Only re-propagates `worldTransform` when `localTransform` (or a parent's `worldTransform`) changed; marks `worldTransform` on recompute
-- **Bounds**: Marks `localTransform` when clamp/wrap corrections are applied
-- **2D Renderer**: Syncs only entities whose `worldTransform` changed
-
-### Deferred Marking
-
-Use the command buffer to queue `markChanged` for end-of-update execution:
-
-```typescript
-ecs.commands.markChanged(entity.id, 'position');
-```
+When multiple components are listed in `changed`, entities matching **any** of them are included (OR semantics).
 
 ### Sequence Timing
 
-Each system tracks its own last-seen sequence number. This means:
 - Marks made between updates are visible to all systems on the next update
 - Spawn auto-marks are visible on the first update
-- Marks from earlier phases are visible to later phases within the same frame (e.g. `fixedUpdate` marks are seen by `postUpdate`)
-- Within a phase, a higher-priority system's marks are visible to lower-priority systems (same frame)
+- Marks from earlier phases are visible to later phases within the same frame
+- Within a phase, a higher-priority system's marks are visible to lower-priority systems
 - Each mark is processed exactly once per system (single-update expiry)
-- Hierarchy cascades settle in one frame regardless of depth (no amplification)
 
-For manual change detection outside of system queries, use `changeThreshold`:
+For manual change detection outside of system queries:
 
 ```typescript
 const em = ecs.entityManager;
@@ -1078,95 +600,27 @@ if (em.getChangeSeq(entity.id, 'localTransform') > ecs.changeThreshold) {
 }
 ```
 
-## Component Callbacks
+**Deferred marking**: `ecs.commands.markChanged(entity.id, 'position')` queues a mark for command buffer playback.
 
-React to component changes with callbacks. Both methods return an unsubscribe function:
-
-```typescript
-// Listen for component additions - returns unsubscribe function
-const unsubAdd = world.onComponentAdded('health', (value, entity) => {
-  console.log(`Health added to entity ${entity.id}:`, value);
-});
-
-// Listen for component removals
-const unsubRemove = world.onComponentRemoved('health', (oldValue, entity) => {
-  console.log(`Health removed from entity ${entity.id}:`, oldValue);
-});
-
-// Unsubscribe when done
-unsubAdd();
-unsubRemove();
-
-// Also available on entityManager directly
-world.entityManager.onComponentAdded('position', (value, entity) => {
-  // ...
-});
-```
-
-## Reactive Queries
-
-Get callbacks when entities enter or exit a query match. Unlike regular queries that you poll during `update()`, reactive queries push notifications when the entity's components change:
-
-```typescript
-// Add a reactive query with enter/exit callbacks
-world.addReactiveQuery('enemies', {
-  with: ['position', 'enemy'],
-  without: ['dead'],
-  onEnter: (entity) => {
-    // Called when entity starts matching the query
-    console.log(`Enemy ${entity.id} appeared at`, entity.components.position);
-    spawnHealthBar(entity.id);
-  },
-  onExit: (entityId) => {
-    // Called when entity stops matching (receives ID since entity may be removed)
-    console.log(`Enemy ${entityId} gone`);
-    removeHealthBar(entityId);
-  },
-});
-
-// Triggers: spawning matching entity, adding required component,
-//           removing excluded component
-const enemy = world.spawn({ position: { x: 0, y: 0 }, enemy: true }); // onEnter fires
-
-// Triggers: removing required component, adding excluded component,
-//           removing entity
-world.entityManager.addComponent(enemy.id, 'dead', true); // onExit fires
-
-// Existing matching entities trigger onEnter when query is added
-world.spawn({ position: { x: 10, y: 10 }, enemy: true });
-world.addReactiveQuery('positioned', {
-  with: ['position'],
-  onEnter: (entity) => { /* Called for all existing entities with position */ },
-});
-
-// Remove reactive query when no longer needed
-const removed = world.removeReactiveQuery('enemies'); // returns true if existed
-```
-
-**Note:** Component replacement (calling `addComponent` with a component that already exists) does NOT trigger enter/exit callbacks since the entity's query match status doesn't change.
+**Built-in bundle usage**: Movement marks `localTransform` (fixedUpdate) → Transform propagation reads `localTransform` changed, writes+marks `worldTransform` (postUpdate) → Renderer reads `worldTransform` changed (render).
 
 ## Command Buffer
 
-The command buffer allows you to queue structural changes (entity creation, removal, component changes) that execute at the end of the update cycle. This prevents issues when modifying entities during system iteration.
+Queue structural changes during system execution that execute between phases. This prevents issues when modifying entities during iteration.
 
 ```typescript
-// Queue commands during system execution
 world.addSystem('combat')
   .addQuery('enemies', { with: ['enemy', 'health'] })
   .setProcess((queries, dt, ecs) => {
     for (const entity of queries.enemies) {
       if (entity.components.health.value <= 0) {
-        // Queue removal - doesn't execute immediately
         ecs.commands.removeEntity(entity.id);
-
-        // Queue spawning an explosion
         ecs.commands.spawn({
           position: entity.components.position,
           explosion: true,
         });
       }
     }
-    // Commands execute automatically at end of update()
   })
   .build();
 ```
@@ -1178,7 +632,7 @@ world.addSystem('combat')
 ecs.commands.spawn({ position: { x: 0, y: 0 } });
 ecs.commands.spawnChild(parentId, { position: { x: 10, y: 0 } });
 ecs.commands.removeEntity(entityId);
-ecs.commands.removeEntity(entityId, { cascade: false }); // Orphan children
+ecs.commands.removeEntity(entityId, { cascade: false });
 
 // Component operations
 ecs.commands.addComponent(entityId, 'velocity', { x: 5, y: 0 });
@@ -1189,6 +643,9 @@ ecs.commands.removeComponent(entityId, 'velocity');
 ecs.commands.setParent(childId, parentId);
 ecs.commands.removeParent(childId);
 
+// Change detection
+ecs.commands.markChanged(entityId, 'position');
+
 // Utility
 ecs.commands.length;  // Number of queued commands
 ecs.commands.clear(); // Discard all queued commands
@@ -1196,9 +653,41 @@ ecs.commands.clear(); // Discard all queued commands
 
 Commands execute in FIFO order. If a command fails (e.g., entity doesn't exist), it logs a warning and continues with remaining commands.
 
-## Built-in Bundles
+## Bundles
 
-ECSpresso provides optional utility bundles for common game development needs:
+Organize related systems and resources into reusable bundles:
+
+```typescript
+import { Bundle } from 'ecspresso';
+
+const physicsBundle = new Bundle<GameComponents, {}, GameResources>('physics')
+  .addSystem('applyVelocity')
+  .addQuery('moving', { with: ['position', 'velocity'] })
+  .setProcess((queries, deltaTime) => {
+    for (const entity of queries.moving) {
+      entity.components.position.x += entity.components.velocity.x * deltaTime;
+      entity.components.position.y += entity.components.velocity.y * deltaTime;
+    }
+  })
+  .and()
+  .addSystem('applyGravity')
+  .addQuery('falling', { with: ['velocity'] })
+  .setProcess((queries, deltaTime, ecs) => {
+    const gravity = ecs.getResource('gravity');
+    for (const entity of queries.falling) {
+      entity.components.velocity.y += gravity.value * deltaTime;
+    }
+  })
+  .and()
+  .addResource('gravity', { value: 9.8 });
+
+// Register bundles with the world
+const game = ECSpresso.create<GameComponents, {}, GameResources>()
+  .withBundle(physicsBundle)
+  .build();
+```
+
+### Built-in Bundles
 
 | Bundle | Import | Default Phase | Description |
 |--------|--------|---------------|-------------|
@@ -1211,153 +700,221 @@ ECSpresso provides optional utility bundles for common game development needs:
 
 Each bundle accepts a `phase` option to override its default.
 
-## Timer Bundle
+### Timer Bundle
 
 The timer bundle provides ECS-native timers that follow the "data, not callbacks" philosophy. Timers are components processed each frame, with optional event-based completion notifications.
 
 ```typescript
 import {
-  createTimerBundle,
-  createTimer,
-  createRepeatingTimer,
-  type TimerComponentTypes,
-  type TimerEventData
+  createTimerBundle, createTimer, createRepeatingTimer,
+  type TimerComponentTypes, type TimerEventData
 } from 'ecspresso/bundles/utils/timers';
 
-// Define events that use TimerEventData payload
+// Events used with onComplete must have TimerEventData payload
 interface Events {
-  hideMessage: TimerEventData;
+  hideMessage: TimerEventData;   // { entityId, duration, elapsed }
   spawnWave: TimerEventData;
 }
 
-// Extend components with timer support
 interface Components extends TimerComponentTypes<Events> {
   position: { x: number; y: number };
-  messageDisplay: true;
-  spawner: true;
 }
 
-// Create world with timer bundle
 const world = ECSpresso
-  .create<Components, Events, Resources>()
+  .create<Components, Events>()
   .withBundle(createTimerBundle<Events>())
   .build();
 
-// One-shot timer without event (poll justFinished)
-world.spawn({
-  ...createTimer<Events>(2.0),
-  messageDisplay: true,
-});
+// One-shot timer (poll justFinished or use onComplete event)
+world.spawn({ ...createTimer<Events>(2.0), position: { x: 0, y: 0 } });
+world.spawn({ ...createTimer<Events>(1.5, { onComplete: 'hideMessage' }) });
 
-// One-shot timer with completion event
-world.spawn({
-  ...createTimer<Events>(1.5, { onComplete: 'hideMessage' }),
-  messageDisplay: true,
-});
-
-// Repeating timer with event
-world.spawn({
-  ...createRepeatingTimer<Events>(5.0, { onComplete: 'spawnWave' }),
-  spawner: true,
-});
-
-// Subscribe to timer events
-world.on('hideMessage', (data) => {
-  console.log(`Timer on entity ${data.entityId} completed after ${data.elapsed}s`);
-});
+// Repeating timer
+world.spawn({ ...createRepeatingTimer<Events>(5.0, { onComplete: 'spawnWave' }) });
 ```
 
-### Timer Event Data
+Timer components expose `elapsed`, `duration`, `repeat`, `active`, `justFinished`, and optional `onComplete` for runtime control.
 
-Events used with timer `onComplete` must have `TimerEventData` as their payload type:
+## Asset Management
+
+Manage game assets with eager/lazy loading, groups, and progress tracking:
 
 ```typescript
-interface TimerEventData {
-  entityId: number;  // Entity the timer belongs to
-  duration: number;  // Timer's configured duration
-  elapsed: number;   // Actual elapsed time (may exceed duration slightly)
-}
+type Assets = {
+  playerTexture: { data: ImageBitmap };
+  level1Music: { buffer: AudioBuffer };
+  level1Background: { data: ImageBitmap };
+};
+
+const game = ECSpresso.create<Components, Events, Resources, Assets>()
+  .withAssets(assets => assets
+    // Eager assets - loaded automatically during initialize()
+    .add('playerTexture', async () => {
+      const img = await loadImage('player.png');
+      return { data: img };
+    })
+    // Lazy asset group - loaded on demand
+    .addGroup('level1', {
+      level1Music: async () => ({ buffer: await loadAudio('level1.mp3') }),
+      level1Background: async () => ({ data: await loadImage('level1-bg.png') }),
+    })
+  )
+  .build();
+
+await game.initialize();                          // Loads eager assets
+const player = game.getAsset('playerTexture');    // Access loaded asset
+game.isAssetLoaded('playerTexture');              // Check if loaded
+
+await game.loadAssetGroup('level1');              // Load group on demand
+game.getAssetGroupProgress('level1');             // 0-1 progress
+game.isAssetGroupLoaded('level1');                // Check if group is ready
 ```
 
-### Polling vs Events
-
-You can use timers in two ways:
+Systems can declare required assets and will only run when those assets are loaded:
 
 ```typescript
-// 1. Polling with justFinished flag
-world.addSystem('timerPolling')
-  .addQuery('timers', { with: ['timer', 'messageDisplay'] })
+game.addSystem('gameplay')
+  .requiresAssets(['playerTexture'])
+  .setProcess((queries, dt, ecs) => {
+    const player = ecs.getAsset('playerTexture');
+  })
+  .build();
+```
+
+Asset events (`assetLoaded`, `assetFailed`, `assetGroupProgress`, `assetGroupLoaded`) are available through the event system -- see [Events](#events).
+
+## Screen Management
+
+Manage game states/screens with transitions and overlay support:
+
+```typescript
+import type { ScreenDefinition } from 'ecspresso';
+
+type Screens = {
+  menu: ScreenDefinition<
+    Record<string, never>,           // Config (passed when entering)
+    { selectedOption: number }       // State (mutable during screen)
+  >;
+  gameplay: ScreenDefinition<
+    { difficulty: string; level: number },
+    { score: number; isPaused: boolean }
+  >;
+  pause: ScreenDefinition<Record<string, never>, Record<string, never>>;
+};
+
+const game = ECSpresso.create<Components, Events, Resources, {}, Screens>()
+  .withScreens(screens => screens
+    .add('menu', {
+      initialState: () => ({ selectedOption: 0 }),
+      onEnter: () => console.log('Entered menu'),
+      onExit: () => console.log('Left menu'),
+    })
+    .add('gameplay', {
+      initialState: () => ({ score: 0, isPaused: false }),
+      onEnter: (config) => console.log(`Starting level ${config.level}`),
+      onExit: () => console.log('Gameplay ended'),
+      requiredAssetGroups: ['level1'],
+    })
+    .add('pause', {
+      initialState: () => ({}),
+    })
+  )
+  .build();
+
+await game.initialize();
+await game.setScreen('menu', {});                     // Set initial screen
+await game.setScreen('gameplay', { difficulty: 'hard', level: 1 }); // Transition
+await game.pushScreen('pause', {});                   // Push overlay
+await game.popScreen();                               // Pop overlay
+
+const current = game.getCurrentScreen();              // 'gameplay'
+const config = game.getScreenConfig();                // { difficulty: 'hard', level: 1 }
+const state = game.getScreenState();                  // { score: 0, isPaused: false }
+game.updateScreenState({ score: 100 });
+```
+
+### Screen-Scoped Systems
+
+```typescript
+game.addSystem('menuUI')
+  .inScreens(['menu'])                         // Only runs in 'menu'
+  .setProcess((queries, dt, ecs) => {
+    renderMenu(ecs.getScreenState().selectedOption);
+  })
+  .build();
+
+game.addSystem('animations')
+  .excludeScreens(['pause'])                   // Runs in all screens except 'pause'
+  .setProcess(() => { /* ... */ })
+  .build();
+```
+
+### Screen Resource
+
+Access screen state through the `$screen` resource:
+
+```typescript
+game.addSystem('ui')
+  .setProcess((queries, dt, ecs) => {
+    const screen = ecs.getResource('$screen');
+    screen.current;        // Current screen name
+    screen.config;         // Current screen config
+    screen.state;          // Current screen state (mutable)
+    screen.isOverlay;      // true if screen was pushed
+    screen.stackDepth;     // Number of screens in stack
+    screen.isCurrent('gameplay');   // Check current screen
+    screen.isActive('menu');        // true if in current or stack
+  })
+  .build();
+```
+
+## Type Safety
+
+ECSpresso provides comprehensive TypeScript support:
+
+```typescript
+// ✅ Valid
+world.entityManager.addComponent(entity.id, 'position', { x: 0, y: 0 });
+
+// ❌ TypeScript error - invalid component name
+world.entityManager.addComponent(entity.id, 'invalid', { data: 'bad' });
+
+// ❌ TypeScript error - wrong component shape
+world.entityManager.addComponent(entity.id, 'position', { x: 0 }); // missing y
+
+// Query type safety - TypeScript knows which components exist
+world.addSystem('example')
+  .addQuery('moving', { with: ['position', 'velocity'] })
   .setProcess((queries) => {
-    for (const entity of queries.timers) {
-      if (entity.components.timer.justFinished) {
-        // Timer just completed this frame
-        hideMessage(entity.id);
-      }
+    for (const entity of queries.moving) {
+      entity.components.position.x;   // ✅ guaranteed
+      entity.components.health.value; // ❌ not in query
     }
   })
   .build();
 
-// 2. Event-based (decoupled)
-world.addSystem('timerEvents')
-  .setEventHandlers({
-    hideMessage: {
-      handler: (data, ecs) => {
-        // React to timer completion
-        ecs.commands.removeEntity(data.entityId);
-      }
-    }
-  })
+// Bundle type compatibility - conflicting types error at compile time
+const bundle1 = new Bundle<{position: {x: number, y: number}}>('b1');
+const bundle2 = new Bundle<{velocity: {x: number, y: number}}>('b2');
+const world = ECSpresso.create()
+  .withBundle(bundle1)
+  .withBundle(bundle2)  // Types merge successfully
   .build();
-```
-
-### Timer Properties
-
-```typescript
-interface Timer {
-  elapsed: number;      // Time accumulated (seconds)
-  duration: number;     // Target duration (seconds)
-  repeat: boolean;      // Whether timer repeats
-  active: boolean;      // Whether timer is running
-  justFinished: boolean; // True for one frame after completion
-  onComplete?: string;  // Event name to publish (optional)
-}
-
-// Control timer at runtime
-const entity = world.spawn({ ...createTimer<Events>(5.0), myTimer: true });
-const timer = entity.components.timer;
-
-timer.active = false;  // Pause
-timer.active = true;   // Resume
-timer.elapsed = 0;     // Reset
-timer.duration = 10;   // Change duration
 ```
 
 ## Error Handling
 
-ECSpresso provides clear, contextual error messages for common issues:
+ECSpresso provides clear, contextual error messages:
 
 ```typescript
-// Resource not found with helpful context
-try {
-  const missing = world.getResource('nonexistent');
-} catch (error) {
-  console.error(error.message); 
-  // "Resource 'nonexistent' not found. Available resources: [config, score, settings]"
-}
+world.getResource('nonexistent');
+// → "Resource 'nonexistent' not found. Available resources: [config, score, settings]"
 
-// Entity operations with detailed context
-try {
-  world.entityManager.addComponent(999, 'position', { x: 0, y: 0 });
-} catch (error) {
-  console.error(error.message);
-  // "Cannot add component 'position': Entity with ID 999 does not exist"
-}
+world.entityManager.addComponent(999, 'position', { x: 0, y: 0 });
+// → "Cannot add component 'position': Entity with ID 999 does not exist"
 
-// Component not found returns null
-const component = world.entityManager.getComponent(123, 'position');
-if (component === null) {
-  console.log('Component not found');
-}
+// Component not found returns null (no throw)
+world.entityManager.getComponent(123, 'position'); // null
 ```
 
 ## Performance Tips
