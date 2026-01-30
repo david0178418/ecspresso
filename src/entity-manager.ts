@@ -18,6 +18,16 @@ class EntityManager<ComponentTypes> {
 	 * Hierarchy manager for parent-child relationships
 	 */
 	private hierarchyManager: HierarchyManager = new HierarchyManager();
+	/**
+	 * Per-entity per-component change sequence tracking.
+	 * Maps entityId -> (componentName -> sequence number when last changed)
+	 */
+	private changeSeqs: Map<number, Map<keyof ComponentTypes, number>> = new Map();
+	/**
+	 * Monotonic sequence counter for change detection.
+	 * Each markChanged call increments this and stamps the new value.
+	 */
+	private _changeSeq: number = 0;
 
 	createEntity(): Entity<ComponentTypes> {
 		const id = this.nextId++;
@@ -134,17 +144,29 @@ class EntityManager<ComponentTypes> {
 	>(
 		required: ReadonlyArray<WithComponents> = [],
 		excluded: ReadonlyArray<WithoutComponents> = [],
+		changed?: ReadonlyArray<keyof ComponentTypes>,
+		changeThreshold?: number,
 	): Array<FilteredEntity<ComponentTypes, WithComponents extends never ? never : WithComponents, WithoutComponents extends never ? never : WithoutComponents>> {
+		const hasChangedFilter = changed !== undefined && changed.length > 0 && changeThreshold !== undefined;
+
 		// Use the smallest component set as base for better performance
 		if (required.length === 0) {
-			if (excluded.length === 0) {
+			if (excluded.length === 0 && !hasChangedFilter) {
 				return Array.from(this.entities.values()) as any;
 			}
 
 			return Array
 				.from(this.entities.values())
 				.filter((entity) => {
-					return excluded.every(comp => !(comp in entity.components));
+					if (excluded.length > 0 && !excluded.every(comp => !(comp in entity.components))) {
+						return false;
+					}
+					if (hasChangedFilter) {
+						const entitySeqs = this.changeSeqs.get(entity.id);
+						if (!entitySeqs) return false;
+						return changed.some(comp => (entitySeqs.get(comp) ?? -1) > changeThreshold!);
+					}
+					return true;
 				}) as any;
 		}
 
@@ -164,7 +186,7 @@ class EntityManager<ComponentTypes> {
 		// Return full entity objects, not just IDs
 		const result: Array<FilteredEntity<ComponentTypes, WithComponents extends never ? never : WithComponents, WithoutComponents extends never ? never : WithoutComponents>> = [];
 		const hasExclusions = excluded.length > 0;
-		
+
 		for (const id of candidateSet) {
 			const entity = this.entities.get(id);
 			if (
@@ -172,10 +194,16 @@ class EntityManager<ComponentTypes> {
 				required.every(comp => comp in entity.components) &&
 				(!hasExclusions || excluded.every(comp => !(comp in entity.components)))
 			) {
+				if (hasChangedFilter) {
+					const entitySeqs = this.changeSeqs.get(id);
+					if (!entitySeqs || !changed.some(comp => (entitySeqs.get(comp) ?? -1) > changeThreshold!)) {
+						continue;
+					}
+				}
 				result.push(entity as any);
 			}
 		}
-		
+
 		return result;
 	}
 
@@ -228,6 +256,9 @@ class EntityManager<ComponentTypes> {
 			this.componentIndices.get(componentName)?.delete(entity.id);
 		}
 
+		// Clean up change sequences
+		this.changeSeqs.delete(entity.id);
+
 		// Remove the entity itself
 		return this.entities.delete(entity.id);
 	}
@@ -272,6 +303,49 @@ class EntityManager<ComponentTypes> {
 		return () => {
 			this.removedCallbacks.get(componentName)?.delete(handler as any);
 		};
+	}
+
+	// ==================== Change Detection Methods ====================
+
+	/**
+	 * The current monotonic change sequence value.
+	 * Each markChanged call increments this before stamping.
+	 */
+	get changeSeq(): number {
+		return this._changeSeq;
+	}
+
+	/**
+	 * Mark a component as changed on an entity, stamping the next sequence number.
+	 * @param entityId The entity ID
+	 * @param componentName The component that changed
+	 */
+	markChanged<K extends keyof ComponentTypes>(entityId: number, componentName: K): void {
+		const seq = ++this._changeSeq;
+		let entitySeqs = this.changeSeqs.get(entityId);
+		if (!entitySeqs) {
+			entitySeqs = new Map();
+			this.changeSeqs.set(entityId, entitySeqs);
+		}
+		entitySeqs.set(componentName, seq);
+	}
+
+	/**
+	 * Get the sequence number at which a component was last changed on an entity
+	 * @param entityId The entity ID
+	 * @param componentName The component to check
+	 * @returns The sequence number when last changed, or -1 if never changed
+	 */
+	getChangeSeq<K extends keyof ComponentTypes>(entityId: number, componentName: K): number {
+		return this.changeSeqs.get(entityId)?.get(componentName) ?? -1;
+	}
+
+	/**
+	 * Clear all change sequences for an entity
+	 * @param entityId The entity ID
+	 */
+	clearChangeSeqs(entityId: number): void {
+		this.changeSeqs.delete(entityId);
 	}
 
 	// ==================== Hierarchy Methods ====================

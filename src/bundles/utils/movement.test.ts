@@ -230,6 +230,46 @@ describe('Movement Bundle', () => {
 		});
 	});
 
+	describe('Change detection', () => {
+		test('should mark localTransform as changed after velocity integration', () => {
+			const ecs = ECSpresso
+				.create<TestComponents, TestEvents, TestResources>()
+				.withBundle(createTransformBundle())
+				.withBundle(createMovementBundle())
+				.build();
+
+			const entity = ecs.spawn({
+				...createTransform(100, 100),
+				...createVelocity(50, -25),
+			});
+
+			const seqBefore = ecs.entityManager.changeSeq;
+			ecs.update(0.5);
+
+			const changeSeq = ecs.entityManager.getChangeSeq(entity.id, 'localTransform');
+			expect(changeSeq).toBeGreaterThan(seqBefore);
+		});
+
+		test('should mark localTransform even with zero velocity', () => {
+			const ecs = ECSpresso
+				.create<TestComponents, TestEvents, TestResources>()
+				.withBundle(createTransformBundle())
+				.withBundle(createMovementBundle())
+				.build();
+
+			const entity = ecs.spawn({
+				...createTransform(50, 75),
+				...createVelocity(0, 0),
+			});
+
+			const seqBefore = ecs.entityManager.changeSeq;
+			ecs.update(1.0);
+
+			const changeSeq = ecs.entityManager.getChangeSeq(entity.id, 'localTransform');
+			expect(changeSeq).toBeGreaterThan(seqBefore);
+		});
+	});
+
 	describe('Integration with transform propagation', () => {
 		test('should update worldTransform after movement', () => {
 			const ecs = ECSpresso

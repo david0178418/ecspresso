@@ -69,6 +69,11 @@ src/
 - **Command Buffer**: `ecs.commands.removeEntity(id)`, `ecs.commands.spawn({...})` for deferred execution
 - **Timer Bundle**: `createTimerBundle<Events>()`, `createTimer<Events>(duration, { onComplete: 'eventName' })`
 - **Timer Event Data**: Events used with timer `onComplete` must have `TimerEventData` payload type
+- **Change Detection**: `markChanged(entityId, componentName)` increments a global monotonic sequence; `changed: ['component']` in query filters to only match changed entities. Each system tracks its last-seen sequence so marks are processed exactly once.
+- **Auto-Marking**: `spawn()`, `addComponent()`, `addComponents()` auto-mark components as changed
+- **Single-Update Expiry**: Marks expire after one update cycle (per-system sequence tracking eliminates the old 2-tick window)
+- **Change Threshold**: `ecs.changeThreshold` returns the active threshold. During system execution it's the system's last-seen sequence; between updates it's the global sequence after command buffer playback. Manual checks: `em.getChangeSeq(id, comp) > ecs.changeThreshold`
+- **Bundle Change Flow**: Movement marks `localTransform` → Transform propagation reads `localTransform` changed, writes+marks `worldTransform` → Renderer reads `worldTransform` changed
 
 ## Commands
 

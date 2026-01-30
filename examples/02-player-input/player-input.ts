@@ -54,11 +54,12 @@ ecs
 	.addQuery('movingEntities', {
 		with: ['localTransform', 'velocity'],
 	})
-	.setProcess((queries, deltaTime) => {
+	.setProcess((queries, deltaTime, ecs) => {
 		for (const entity of queries.movingEntities) {
 			const { localTransform, velocity } = entity.components;
 			localTransform.x += velocity.x * deltaTime;
 			localTransform.y += velocity.y * deltaTime;
+			ecs.markChanged(entity.id, 'localTransform');
 		}
 	})
 	.build();

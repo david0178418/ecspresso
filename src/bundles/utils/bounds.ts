@@ -309,8 +309,11 @@ export function createBoundsBundle<ResourceTypes extends BoundsResourceTypes = B
 				if (worldTransform.y < clampedMinY) deltaY = clampedMinY - worldTransform.y;
 				if (worldTransform.y > clampedMaxY) deltaY = clampedMaxY - worldTransform.y;
 
-				localTransform.x += deltaX;
-				localTransform.y += deltaY;
+				if (deltaX !== 0 || deltaY !== 0) {
+					localTransform.x += deltaX;
+					localTransform.y += deltaY;
+					ecs.markChanged(entity.id, 'localTransform');
+				}
 			}
 		})
 		.and();
@@ -353,8 +356,11 @@ export function createBoundsBundle<ResourceTypes extends BoundsResourceTypes = B
 					deltaY = boundsHeight + 2 * padding;
 				}
 
-				localTransform.x += deltaX;
-				localTransform.y += deltaY;
+				if (deltaX !== 0 || deltaY !== 0) {
+					localTransform.x += deltaX;
+					localTransform.y += deltaY;
+					ecs.markChanged(entity.id, 'localTransform');
+				}
 			}
 		})
 		.and();

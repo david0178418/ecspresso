@@ -185,6 +185,7 @@ function createPhysicsBundle() {
 			for (const entity of queries.movingEntities) {
 				updatePosition(entity, deltaTimeMs);
 				screenWrap(entity, pixiApp.renderer.width, pixiApp.renderer.height);
+				ecs.markChanged(entity.id, 'localTransform');
 			}
 		})
 		.and()

@@ -246,21 +246,34 @@ export function createTransformBundle(
 /**
  * Propagate transforms through the hierarchy.
  * Parent-first traversal ensures parents are computed before children.
+ *
+ * Only recomputes entities whose localTransform changed since this system
+ * last ran, or whose parent's worldTransform changed (cascade).
+ * Uses per-system monotonic sequence threshold for change detection.
  */
 function propagateTransforms(ecs: ECSpresso<TransformComponentTypes, {}, {}>): void {
+	const threshold = ecs.changeThreshold;
+	const em = ecs.entityManager;
+
 	// Use parent-first traversal for entities in hierarchy
 	ecs.forEachInHierarchy((entityId, parentId) => {
-		const localTransform = ecs.entityManager.getComponent(entityId, 'localTransform');
-		const worldTransform = ecs.entityManager.getComponent(entityId, 'worldTransform');
+		const localTransform = em.getComponent(entityId, 'localTransform');
+		const worldTransform = em.getComponent(entityId, 'worldTransform');
 
 		if (!localTransform || !worldTransform) return;
+
+		const localChanged = em.getChangeSeq(entityId, 'localTransform') > threshold;
+		const parentWorldChanged = parentId !== null
+			&& em.getChangeSeq(parentId, 'worldTransform') > threshold;
+
+		if (!localChanged && !parentWorldChanged) return;
 
 		if (parentId === null) {
 			// Root entity: world transform equals local transform
 			copyTransform(localTransform, worldTransform);
 		} else {
 			// Child entity: combine with parent's world transform
-			const parentWorld = ecs.entityManager.getComponent(parentId, 'worldTransform');
+			const parentWorld = em.getComponent(parentId, 'worldTransform');
 			if (parentWorld) {
 				combineTransforms(parentWorld, localTransform, worldTransform);
 			} else {
@@ -268,6 +281,8 @@ function propagateTransforms(ecs: ECSpresso<TransformComponentTypes, {}, {}>): v
 				copyTransform(localTransform, worldTransform);
 			}
 		}
+
+		ecs.markChanged(entityId, 'worldTransform');
 	});
 
 	// Process orphaned entities (not in hierarchy but have transforms)
@@ -276,8 +291,12 @@ function propagateTransforms(ecs: ECSpresso<TransformComponentTypes, {}, {}>): v
 		const parentId = ecs.getParent(entity.id);
 		// Only process if truly orphaned (no parent and not a root with children)
 		if (parentId === null && ecs.getChildren(entity.id).length === 0) {
+			const localChanged = em.getChangeSeq(entity.id, 'localTransform') > threshold;
+			if (!localChanged) continue;
+
 			const { localTransform, worldTransform } = entity.components;
 			copyTransform(localTransform, worldTransform);
+			ecs.markChanged(entity.id, 'worldTransform');
 		}
 	}
 }

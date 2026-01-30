@@ -62,6 +62,8 @@ ecs
 			if (localTransform.x > pixiApp.renderer.width) localTransform.x = 0;
 			if (localTransform.y < 0) localTransform.y = pixiApp.renderer.height;
 			if (localTransform.y > pixiApp.renderer.height) localTransform.y = 0;
+
+			ecs.markChanged(entity.id, 'localTransform');
 		}
 	})
 	.and()

@@ -539,12 +539,15 @@ export function createRenderer2DBundle(
 		.inGroup(systemGroup)
 		.addQuery('sprites', {
 			with: ['sprite', 'worldTransform'],
+			changed: ['worldTransform'],
 		})
 		.addQuery('graphics', {
 			with: ['graphics', 'worldTransform'],
+			changed: ['worldTransform'],
 		})
 		.addQuery('containers', {
 			with: ['container', 'worldTransform'],
+			changed: ['worldTransform'],
 		})
 		.setProcess((queries, _deltaTime, ecs) => {
 			// Process sprites

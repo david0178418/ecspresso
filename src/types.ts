@@ -78,6 +78,7 @@ interface QueryConfig<
 > {
 	with: ReadonlyArray<WithComponents>;
 	without?: ReadonlyArray<WithoutComponents>;
+	changed?: ReadonlyArray<WithComponents>;
 }
 
 /**
@@ -106,6 +107,7 @@ export type QueryResultEntity<
 	QueryDef extends {
 		with: ReadonlyArray<keyof ComponentTypes>;
 		without?: ReadonlyArray<keyof ComponentTypes>;
+		changed?: ReadonlyArray<keyof ComponentTypes>;
 	}
 > = FilteredEntity<
 	ComponentTypes,
@@ -123,6 +125,7 @@ export type QueryDefinition<
 > = {
 	with: ReadonlyArray<WithComponents>;
 	without?: ReadonlyArray<WithoutComponents>;
+	changed?: ReadonlyArray<WithComponents>;
 };
 
 /**
@@ -157,6 +160,7 @@ export function createQueryDefinition<
 	const QueryDef extends {
 		with: ReadonlyArray<keyof ComponentTypes>;
 		without?: ReadonlyArray<keyof ComponentTypes>;
+		changed?: ReadonlyArray<keyof ComponentTypes>;
 	}
 >(queryDef: QueryDef): QueryDef {
 	return queryDef;

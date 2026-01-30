@@ -71,6 +71,12 @@ export default class ECSpresso<
 	private _reactiveQueryManager: ReactiveQueryManager<ComponentTypes>;
 	/** Post-update hooks to be called after all systems in update() */
 	private _postUpdateHooks: Array<(ecs: ECSpresso<ComponentTypes, EventTypes, ResourceTypes>, deltaTime: number) => void> = [];
+	/** Global tick counter, incremented at the end of each update() */
+	private _currentTick: number = 0;
+	/** Per-system last-seen change sequence for change detection */
+	private _systemLastSeqs: Map<object, number> = new Map();
+	/** Change threshold used for public getEntitiesWithQuery and between-system resolution */
+	private _changeThreshold: number = 0;
 
 	/**
 		* Creates a new ECSpresso instance.
@@ -117,6 +123,9 @@ export default class ECSpresso<
 		) => {
 			const result = originalAddComponent(entityOrId, componentName, data);
 			const entityId = typeof entityOrId === 'number' ? entityOrId : entityOrId.id;
+
+			// Auto-mark component as changed (always, regardless of batching)
+			this._entityManager.markChanged(entityId, componentName);
 
 			if (batchingDepth > 0) {
 				// During batching, just track that this entity needs checking
@@ -267,6 +276,10 @@ export default class ECSpresso<
 				if (!assetsReady) continue;
 			}
 
+			// Set per-system change threshold from its last-seen sequence
+			const systemThreshold = this._systemLastSeqs.get(system) ?? 0;
+			this._changeThreshold = systemThreshold;
+
 			// Prepare query results for each defined query in the system
 			const queryResults: Record<string, any> = {};
 			let hasResults = false;
@@ -281,7 +294,9 @@ export default class ECSpresso<
 					if (query) {
 						queryResults[queryName] = this._entityManager.getEntitiesWithQuery(
 							query.with,
-							query.without || []
+							query.without || [],
+							query.changed,
+							query.changed ? this._changeThreshold : undefined
 						);
 
 						if(queryResults[queryName].length) {
@@ -297,6 +312,9 @@ export default class ECSpresso<
 			} else if(!hasQueries) {
 				system.process(EmptyQueryResults, deltaTime, this);
 			}
+
+			// Record this system's last-seen sequence so it won't re-process these marks
+			this._systemLastSeqs.set(system, this._entityManager.changeSeq);
 		}
 
 		// Call post-update hooks
@@ -306,6 +324,14 @@ export default class ECSpresso<
 
 		// Execute queued commands (automatic playback)
 		this._commandBuffer.playback(this);
+
+		// Set change threshold to current sequence so that public
+		// getEntitiesWithQuery (called between updates) sees command
+		// buffer marks but not stale ones.
+		this._changeThreshold = this._entityManager.changeSeq;
+
+		// Increment tick counter (frame counter only)
+		this._currentTick++;
 	}
 
 	/**
@@ -446,8 +472,9 @@ export default class ECSpresso<
 			system.onDetach(this);
 		}
 
-		// Remove system
+		// Remove system and clean up per-system sequence tracking
 		this._systems.splice(index, 1);
+		this._systemLastSeqs.delete(system);
 
 		// Re-sort systems
 		this._sortSystems();
@@ -461,6 +488,11 @@ export default class ECSpresso<
 	*/
 	_registerSystem(system: System<ComponentTypes, any, any, EventTypes, ResourceTypes, AssetTypes, ScreenStates>): void {
 		this._systems.push(system);
+		// Initialize the system's last-seen sequence to the current change threshold.
+		// Before any update this is 0, so newly added systems see spawn marks.
+		// After updates, the threshold is advanced past consumed marks, so
+		// systems added later don't see stale marks.
+		this._systemLastSeqs.set(system, this._changeThreshold);
 		this._sortSystems();
 
 		// Set up event handlers if they exist
@@ -605,11 +637,14 @@ export default class ECSpresso<
 		WithoutComponents extends keyof ComponentTypes = never
 	>(
 		withComponents: ReadonlyArray<WithComponents>,
-		withoutComponents: ReadonlyArray<WithoutComponents> = []
+		withoutComponents: ReadonlyArray<WithoutComponents> = [],
+		changedComponents?: ReadonlyArray<keyof ComponentTypes>,
 	): Array<FilteredEntity<ComponentTypes, WithComponents, WithoutComponents>> {
 		return this._entityManager.getEntitiesWithQuery(
 			withComponents,
-			withoutComponents
+			withoutComponents,
+			changedComponents,
+			changedComponents ? this._changeThreshold : undefined
 		);
 	}
 
@@ -830,6 +865,34 @@ export default class ECSpresso<
 	 */
 	get commands() {
 		return this._commandBuffer;
+	}
+
+	/**
+	 * The current tick number, incremented at the end of each update()
+	 */
+	get currentTick(): number {
+		return this._currentTick;
+	}
+
+	/**
+	 * The current change detection threshold.
+	 * During system execution, this is the system's last-seen sequence.
+	 * Between updates, this is the global sequence after command buffer playback.
+	 * Manual change detection should compare: getChangeSeq(...) > changeThreshold
+	 */
+	get changeThreshold(): number {
+		return this._changeThreshold;
+	}
+
+	/**
+	 * Mark a component as changed on an entity.
+	 * Each call increments a global monotonic sequence; systems with changed
+	 * queries will see the mark exactly once (on their next execution).
+	 * @param entityId The entity ID
+	 * @param componentName The component that was changed
+	 */
+	markChanged<K extends keyof ComponentTypes>(entityId: number, componentName: K): void {
+		this._entityManager.markChanged(entityId, componentName);
 	}
 
 	// ==================== Component Lifecycle Hooks ====================

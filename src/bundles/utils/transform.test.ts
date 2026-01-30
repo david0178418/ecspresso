@@ -209,22 +209,179 @@ describe('Transform Bundle', () => {
 			// Disable the custom group
 			ecs.disableSystemGroup('custom-transform');
 
-			// Modify local transform
+			// Modify local transform and mark changed
 			const local = ecs.entityManager.getComponent(entity.id, 'localTransform');
 			if (local) local.x = 200;
+			ecs.markChanged(entity.id, 'localTransform');
 
 			ecs.update(0.016);
 
-			// World should not be updated
+			// World should not be updated (group is disabled)
 			const world = ecs.entityManager.getComponent(entity.id, 'worldTransform');
 			expect(world?.x).toBe(100);
 
-			// Enable and update
+			// Enable and update — mark again so propagation sees it
+			ecs.markChanged(entity.id, 'localTransform');
 			ecs.enableSystemGroup('custom-transform');
 			ecs.update(0.016);
 
 			const updatedWorld = ecs.entityManager.getComponent(entity.id, 'worldTransform');
 			expect(updatedWorld?.x).toBe(200);
+		});
+	});
+
+	describe('Change detection', () => {
+		test('should propagate worldTransform when localTransform changed between updates', () => {
+			const ecs = ECSpresso
+				.create<TestComponents, TestEvents, TestResources>()
+				.withBundle(createTransformBundle())
+				.build();
+
+			const entity = ecs.spawn({
+				...createTransform(100, 200),
+			});
+
+			// First update: propagates spawn
+			ecs.update(0.016);
+			const world = ecs.entityManager.getComponent(entity.id, 'worldTransform');
+			expect(world?.x).toBe(100);
+
+			// Mutate localTransform between updates and mark changed
+			const local = ecs.entityManager.getComponent(entity.id, 'localTransform');
+			if (!local) throw new Error('localTransform missing');
+			local.x = 300;
+			ecs.markChanged(entity.id, 'localTransform');
+
+			ecs.update(0.016);
+			expect(world?.x).toBe(300);
+		});
+
+		test('should skip propagation when localTransform unchanged', () => {
+			const ecs = ECSpresso
+				.create<TestComponents, TestEvents, TestResources>()
+				.withBundle(createTransformBundle())
+				.build();
+
+			const entity = ecs.spawn({
+				...createTransform(100, 200),
+			});
+
+			// Flush spawn marks (single update expires them)
+			ecs.update(0.016);
+
+			// Manually set worldTransform to a sentinel without marking anything
+			const world = ecs.entityManager.getComponent(entity.id, 'worldTransform');
+			if (!world) throw new Error('worldTransform missing');
+			world.x = 999;
+
+			// Next update: no localTransform change → propagation should skip
+			ecs.update(0.016);
+
+			// Sentinel value should persist (propagation didn't overwrite)
+			expect(world.x).toBe(999);
+		});
+
+		test('should propagate entities spawned before first update', () => {
+			const ecs = ECSpresso
+				.create<TestComponents, TestEvents, TestResources>()
+				.withBundle(createTransformBundle())
+				.build();
+
+			// Spawn before any update — auto-marks at tick 0
+			const entity = ecs.spawn({
+				...createTransform(50, 75),
+			});
+
+			// First update: spawn marks match current tick → propagated
+			ecs.update(0.016);
+
+			const world = ecs.entityManager.getComponent(entity.id, 'worldTransform');
+			expect(world?.x).toBe(50);
+			expect(world?.y).toBe(75);
+		});
+
+		test('should cascade: parent moved → child worldTransform updated', () => {
+			const ecs = ECSpresso
+				.create<TestComponents, TestEvents, TestResources>()
+				.withBundle(createTransformBundle())
+				.build();
+
+			const parent = ecs.spawn({ ...createTransform(100, 0) });
+			const child = ecs.spawnChild(parent.id, { ...createTransform(50, 0) });
+
+			// First update: propagates spawn
+			ecs.update(0.016);
+
+			// Move parent between updates
+			const parentLocal = ecs.entityManager.getComponent(parent.id, 'localTransform');
+			if (!parentLocal) throw new Error('parent localTransform missing');
+			parentLocal.x = 200;
+			ecs.markChanged(parent.id, 'localTransform');
+
+			ecs.update(0.016);
+
+			// Child world position should reflect parent movement
+			const childWorld = ecs.entityManager.getComponent(child.id, 'worldTransform');
+			expect(childWorld?.x).toBe(250); // 200 + 50
+		});
+
+		test('should NOT cascade: parent NOT moved → child NOT re-propagated', () => {
+			const ecs = ECSpresso
+				.create<TestComponents, TestEvents, TestResources>()
+				.withBundle(createTransformBundle())
+				.build();
+
+			const parent = ecs.spawn({ ...createTransform(100, 0) });
+			const child = ecs.spawnChild(parent.id, { ...createTransform(50, 0) });
+
+			// Single update settles hierarchy — no cascade amplification
+			ecs.update(0.016);
+
+			// Set sentinel on child worldTransform without marking anything
+			const childWorld = ecs.entityManager.getComponent(child.id, 'worldTransform');
+			if (!childWorld) throw new Error('child worldTransform missing');
+			childWorld.x = 999;
+
+			// Next update: neither parent nor child changed → propagation skipped
+			ecs.update(0.016);
+
+			// Sentinel should persist
+			expect(childWorld.x).toBe(999);
+		});
+	});
+
+	describe('Cross-priority change detection', () => {
+		test('should propagate localTransform marked by lower-priority system', () => {
+			const ecs = ECSpresso
+				.create<TestComponents, TestEvents, TestResources>()
+				.withBundle(createTransformBundle())
+				.build();
+
+			const entity = ecs.spawn({
+				...createTransform(100, 100),
+			});
+
+			// Low-priority system mutates + marks localTransform (priority 0 < propagation's 500)
+			ecs.addSystem('custom-movement')
+				.setPriority(0)
+				.addQuery('entities', { with: ['localTransform'] as const })
+				.setProcess((queries, _dt, ecs) => {
+					for (const e of queries.entities) {
+						e.components.localTransform.x += 50;
+						ecs.markChanged(e.id, 'localTransform');
+					}
+				})
+				.and();
+
+			// First update: propagation sees spawn, movement mutates after
+			ecs.update(0.016);
+
+			// Second update: propagation should catch movement's mark
+			ecs.update(0.016);
+
+			const world = ecs.entityManager.getComponent(entity.id, 'worldTransform');
+			// worldTransform should reflect movement's first mutation (150), not be stuck at 100
+			expect(world?.x).toBe(150);
 		});
 	});
 

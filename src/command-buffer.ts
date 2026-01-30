@@ -118,6 +118,17 @@ export default class CommandBuffer<
 	}
 
 	/**
+	 * Queue a markChanged command
+	 * @param entityId The ID of the entity
+	 * @param componentName The component to mark as changed
+	 */
+	markChanged<K extends keyof ComponentTypes>(entityId: number, componentName: K): void {
+		this.commands.push((ecs) => {
+			ecs.markChanged(entityId, componentName);
+		});
+	}
+
+	/**
 	 * Queue a parent removal command
 	 * @param childId The ID of the child entity
 	 */

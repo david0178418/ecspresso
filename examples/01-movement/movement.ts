@@ -44,6 +44,8 @@ ecs
 				localTransform.y = Math.max(radius, Math.min(maxY, localTransform.y));
 				velocity.y *= -1;
 			}
+
+			ecs.markChanged(entity.id, 'localTransform');
 		}
 	})
 	.build();

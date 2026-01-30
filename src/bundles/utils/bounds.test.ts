@@ -75,9 +75,10 @@ describe('Bounds Bundle', () => {
 			ecs.update(0.016);
 			expect(ecs.entityManager.getEntity(entity.id)).toBeDefined();
 
-			// Move beyond threshold
+			// Move beyond threshold between updates
 			const localTransform = ecs.entityManager.getComponent(entity.id, 'localTransform');
 			if (localTransform) localTransform.x = 860;
+			ecs.markChanged(entity.id, 'localTransform');
 			ecs.update(0.016);
 			expect(ecs.entityManager.getEntity(entity.id)).toBeUndefined();
 		});
@@ -396,6 +397,74 @@ describe('Bounds Bundle', () => {
 		test('createWrapAtBounds should include padding', () => {
 			const result = createWrapAtBounds(10);
 			expect(result).toEqual({ wrapAtBounds: { padding: 10 } });
+		});
+	});
+
+	describe('Change detection', () => {
+		test('should mark localTransform when clamped', () => {
+			const ecs = ECSpresso
+				.create<TestComponents, TestEvents, TestResources>()
+				.withResource('bounds', createBounds(800, 600))
+				.withBundle(createTransformBundle())
+				.withBundle(createBoundsBundle())
+				.build();
+
+			const entity = ecs.spawn({
+				...createTransform(850, 650),
+				...createClampToBounds(),
+			});
+
+			const seqBefore = ecs.entityManager.changeSeq;
+			ecs.update(0.016);
+
+			const changeSeq = ecs.entityManager.getChangeSeq(entity.id, 'localTransform');
+			expect(changeSeq).toBeGreaterThan(seqBefore);
+		});
+
+		test('should NOT mark localTransform when entity is within bounds', () => {
+			const ecs = ECSpresso
+				.create<TestComponents, TestEvents, TestResources>()
+				.withResource('bounds', createBounds(800, 600))
+				.withBundle(createTransformBundle())
+				.withBundle(createBoundsBundle())
+				.build();
+
+			const entity = ecs.spawn({
+				...createTransform(400, 300),
+				...createClampToBounds(),
+			});
+
+			// First update: spawn marks + no correction needed
+			ecs.update(0.016);
+
+			// After first update, capture the sequence
+			const seqAfterFirstUpdate = ecs.entityManager.changeSeq;
+
+			// Second update: no correction needed, bounds should not re-mark
+			ecs.update(0.016);
+
+			const changeSeq = ecs.entityManager.getChangeSeq(entity.id, 'localTransform');
+			expect(changeSeq).toBeLessThanOrEqual(seqAfterFirstUpdate);
+		});
+
+		test('should mark localTransform when wrapped', () => {
+			const ecs = ECSpresso
+				.create<TestComponents, TestEvents, TestResources>()
+				.withResource('bounds', createBounds(800, 600))
+				.withBundle(createTransformBundle())
+				.withBundle(createBoundsBundle())
+				.build();
+
+			const entity = ecs.spawn({
+				...createTransform(850, 300),
+				...createWrapAtBounds(),
+			});
+
+			const seqBefore = ecs.entityManager.changeSeq;
+			ecs.update(0.016);
+
+			const changeSeq = ecs.entityManager.getChangeSeq(entity.id, 'localTransform');
+			expect(changeSeq).toBeGreaterThan(seqBefore);
 		});
 	});
 

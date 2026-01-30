@@ -200,6 +200,7 @@ export class SystemBuilder<
 		definition: {
 			with: ReadonlyArray<WithComponents>;
 			without?: ReadonlyArray<WithoutComponents>;
+			changed?: ReadonlyArray<WithComponents>;
 		}
 	): this extends SystemBuilderWithEcspresso<ComponentTypes, EventTypes, ResourceTypes, Queries>
 		? SystemBuilderWithEcspresso<ComponentTypes, EventTypes, ResourceTypes, NewQueries>
@@ -350,6 +351,7 @@ type QueryDefinition<
 > = {
 	with: ReadonlyArray<WithComponents>;
 	without?: ReadonlyArray<WithoutComponents>;
+	changed?: ReadonlyArray<WithComponents>;
 };
 
 type QueryResults<
