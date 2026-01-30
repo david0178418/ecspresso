@@ -46,6 +46,7 @@ const ecs = ECSpresso
 
 ecs
 	.addSystem('apply-velocity')
+	.inPhase('fixedUpdate')
 	.addQuery('movingEntities', {
 		with: ['localTransform', 'velocity'],
 	})
@@ -111,6 +112,7 @@ ecs
 	})
 	.and()
 	.addSystem('player-control')
+	.inPhase('preUpdate')
 	.addQuery('players', {
 		with: ['speed', 'localTransform', 'velocity'],
 	})
@@ -127,6 +129,7 @@ ecs
 	})
 	.and()
 	.addSystem('collision-detection')
+	.inPhase('postUpdate')
 	.addQuery('players', {
 		with: ['localTransform', 'sprite', 'player'],
 	})

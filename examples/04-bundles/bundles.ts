@@ -178,6 +178,7 @@ function createGameInitBundle() {
 function createPhysicsBundle() {
 	return new Bundle<Components, Events, Resources>()
 		.addSystem('apply-velocity')
+		.inPhase('fixedUpdate')
 		.addQuery('movingEntities', movingEntitiesQuery)
 		.setProcess((queries, deltaTimeMs, ecs) => {
 			const pixiApp = ecs.getResource('pixiApp');
@@ -190,6 +191,7 @@ function createPhysicsBundle() {
 		})
 		.and()
 		.addSystem('collision-detection')
+		.inPhase('postUpdate')
 		.addQuery('players', {
 			with: ['localTransform', 'sprite', 'player'],
 		})
@@ -270,6 +272,7 @@ function createEnemyControllerBundle() {
 function createPlayerControllerBundle() {
 	return new Bundle<Components, Events, Resources>()
 		.addSystem('player-control')
+		.inPhase('preUpdate')
 		.addQuery('players', {
 			with: ['speed', 'localTransform', 'velocity'],
 		})

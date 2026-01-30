@@ -23,6 +23,7 @@ const ecs = ECSpresso.create<Components, Renderer2DEventTypes, Renderer2DResourc
 // Movement system
 ecs
 	.addSystem('move-entities')
+	.inPhase('fixedUpdate')
 	.addQuery('movingEntities', {
 		with: ['localTransform', 'velocity', 'radius'],
 	})

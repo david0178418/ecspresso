@@ -25,6 +25,7 @@ export default function createGameplayBundle() {
 		// Collision system - in gameplay group with separate queries for type safety
 		.addSystem('collision')
 		.inGroup('gameplay')
+		.inPhase('postUpdate')
 		.addQuery('players', {
 			with: ['player', 'position', 'collider']
 		})

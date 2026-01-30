@@ -35,6 +35,7 @@ const ecs = ECSpresso
 
 ecs
 	.addSystem('player-input')
+	.inPhase('preUpdate')
 	.addQuery('playerInputEntities', {
 		with: ['localTransform', 'velocity', 'speed'],
 	})
@@ -51,6 +52,7 @@ ecs
 	})
 	.and()
 	.addSystem('move-entities')
+	.inPhase('fixedUpdate')
 	.addQuery('movingEntities', {
 		with: ['localTransform', 'velocity'],
 	})

@@ -106,6 +106,7 @@ export default function createAIBundle() {
 		// Spawn timer system - handles enemy spawning via spawner entity
 		.addSystem('spawn-timer')
 		.inGroup('gameplay')
+		.inPhase('preUpdate')
 		.addQuery('spawners', {
 			with: ['timer', 'enemySpawner'],
 		})

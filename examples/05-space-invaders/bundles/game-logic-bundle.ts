@@ -181,6 +181,7 @@ export default function createGameLogicBundle() {
 
 		.addSystem('player-input')
 		.inGroup('gameplay')
+		.inPhase('preUpdate')
 		.addQuery('players', { with: ['player', 'velocity'] })
 		.setProcess(({ players }, _deltaTime, ecs) => {
 			const input = ecs.getResource('input');

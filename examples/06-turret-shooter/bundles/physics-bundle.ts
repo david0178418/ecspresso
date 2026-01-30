@@ -6,6 +6,7 @@ export default function createPhysicsBundle() {
 		// Movement system - in gameplay group so it pauses automatically
 		.addSystem('movement')
 		.inGroup('gameplay')
+		.inPhase('fixedUpdate')
 		.addQuery('movables', {
 			with: ['position', 'velocity']
 		})

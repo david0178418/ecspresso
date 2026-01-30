@@ -117,6 +117,7 @@ ecs
 	// ==================== Orbit System ====================
 	// Updates localPosition based on orbital angle and radius
 	.addSystem('orbit')
+	.inPhase('fixedUpdate')
 	.addQuery('orbitingBodies', {
 		with: ['orbit', 'localPosition'],
 	})
@@ -136,6 +137,7 @@ ecs
 	// ==================== World Position System ====================
 	// Computes world position from parent's world position + local position
 	.addSystem('world-position')
+	.inPhase('postUpdate')
 	.addQuery('positionedBodies', {
 		with: ['position', 'localPosition'],
 	})
@@ -166,6 +168,7 @@ ecs
 	// ==================== Render System ====================
 	// Updates graphics positions from world positions
 	.addSystem('render')
+	.inPhase('render')
 	.addQuery('renderableBodies', {
 		with: ['graphics', 'position'],
 	})
@@ -179,6 +182,7 @@ ecs
 	// ==================== Camera System ====================
 	// Scrolls the view based on keyboard input
 	.addSystem('camera')
+	.inPhase('preUpdate')
 	.setProcess((_queries, deltaTime, ecs) => {
 		const keys = ecs.getResource('keys');
 		const camera = ecs.getResource('camera');

@@ -13,6 +13,7 @@ export default function createRenderBundle() {
 	return new Bundle<Components, Events, Resources>('render-bundle')
 		// Main renderer system
 		.addSystem('renderer')
+		.inPhase('render')
 		.addQuery('renderables', {
 			with: [
 				'position',
