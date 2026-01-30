@@ -7,6 +7,7 @@
  */
 
 import Bundle from '../../bundle';
+import type { SystemPhase } from '../../types';
 import type { TransformComponentTypes } from './transform';
 
 // ==================== Component Types ====================
@@ -100,6 +101,8 @@ export interface CollisionBundleOptions {
 	priority?: number;
 	/** Name of the collision event (default: 'collision') */
 	collisionEventName?: string;
+	/** Execution phase (default: 'postUpdate') */
+	phase?: SystemPhase;
 }
 
 // ==================== Helper Functions ====================
@@ -277,6 +280,7 @@ export function createCollisionBundle(
 	const {
 		systemGroup = 'physics',
 		priority = 0,
+		phase = 'postUpdate',
 	} = options ?? {};
 
 	const bundle = new Bundle<CombinedComponentTypes, CollisionEventTypes, {}>('collision');
@@ -284,6 +288,7 @@ export function createCollisionBundle(
 	bundle
 		.addSystem('collision-detection')
 		.setPriority(priority)
+		.inPhase(phase)
 		.inGroup(systemGroup)
 		.addQuery('collidables', {
 			with: ['worldTransform', 'collisionLayer'],

@@ -470,24 +470,29 @@ describe('Bounds Bundle', () => {
 
 	describe('Integration with movement', () => {
 		test('should work with movement bundle', () => {
+			const fixedDt = 1 / 60;
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
 				.withResource('bounds', createBounds(800, 600))
 				.withBundle(createTransformBundle())
 				.withBundle(createMovementBundle())
 				.withBundle(createBoundsBundle())
+				.withFixedTimestep(fixedDt)
 				.build();
 
 			const entity = ecs.spawn({
 				...createTransform(780, 300),
-				...createVelocity(100, 0),
+				// High velocity: 6000/s → 100 per fixedDt step (6000 * 1/60)
+				...createVelocity(6000, 0),
 				...createClampToBounds(),
 			});
 
-			// After 1 second, position would be 880 but should clamp to 800
-			ecs.update(1.0);
+			// Movement in fixedUpdate pushes past 800; bounds clamp in postUpdate brings it back.
+			// Multiple steps ensure the entity exceeds bounds.
+			ecs.update(3 * fixedDt);
 
 			const localTransform = ecs.entityManager.getComponent(entity.id, 'localTransform');
+			// Should be clamped to 800 regardless of how far past it went
 			expect(localTransform?.x).toBe(800);
 		});
 	});

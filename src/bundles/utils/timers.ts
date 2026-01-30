@@ -6,6 +6,7 @@
  */
 
 import Bundle from '../../bundle';
+import type { SystemPhase } from '../../types';
 
 // ==================== Event Types ====================
 
@@ -89,6 +90,8 @@ export interface TimerBundleOptions {
 	systemGroup?: string;
 	/** Priority for timer update system (default: 0) */
 	priority?: number;
+	/** Execution phase (default: 'preUpdate') */
+	phase?: SystemPhase;
 }
 
 // ==================== Helper Functions ====================
@@ -220,6 +223,7 @@ export function createTimerBundle<EventTypes extends Record<string, any>>(
 	const {
 		systemGroup = 'timers',
 		priority = 0,
+		phase = 'preUpdate',
 	} = options ?? {};
 
 	const bundle = new Bundle<TimerComponentTypes<EventTypes>, EventTypes, {}>('timers');
@@ -227,6 +231,7 @@ export function createTimerBundle<EventTypes extends Record<string, any>>(
 	bundle
 		.addSystem('timer-update')
 		.setPriority(priority)
+		.inPhase(phase)
 		.inGroup(systemGroup)
 		.addQuery('timers', {
 			with: ['timer'],

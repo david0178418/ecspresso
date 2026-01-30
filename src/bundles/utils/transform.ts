@@ -8,6 +8,7 @@
  */
 
 import Bundle from '../../bundle';
+import type { SystemPhase } from '../../types';
 import type ECSpresso from '../../ecspresso';
 
 // ==================== Component Types ====================
@@ -63,6 +64,8 @@ export interface TransformBundleOptions {
 	systemGroup?: string;
 	/** Priority for transform propagation (default: 500, runs after physics/movement) */
 	priority?: number;
+	/** Execution phase (default: 'postUpdate') */
+	phase?: SystemPhase;
 }
 
 // ==================== Default Values ====================
@@ -227,6 +230,7 @@ export function createTransformBundle(
 	const {
 		systemGroup = 'transform',
 		priority = 500,
+		phase = 'postUpdate',
 	} = options ?? {};
 
 	const bundle = new Bundle<TransformComponentTypes, {}, {}>('transform');
@@ -234,6 +238,7 @@ export function createTransformBundle(
 	bundle
 		.addSystem('transform-propagation')
 		.setPriority(priority)
+		.inPhase(phase)
 		.inGroup(systemGroup)
 		.setProcess((_queries, _deltaTime, ecs) => {
 			propagateTransforms(ecs as ECSpresso<TransformComponentTypes, {}, {}>);

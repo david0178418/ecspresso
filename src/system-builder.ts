@@ -1,6 +1,6 @@
 import Bundle from "./bundle";
 import ECSpresso from "./ecspresso";
-import type { FilteredEntity, System } from "./types";
+import type { FilteredEntity, System, SystemPhase } from "./types";
 
 /**
  * Builder class for creating type-safe ECS Systems with proper query inference
@@ -28,6 +28,7 @@ export class SystemBuilder<
 		};
 	};
 	private _priority = 0; // Default priority is 0
+	private _phase: SystemPhase = 'update'; // Default phase is 'update'
 	private _isRegistered = false; // Track if system has been auto-registered
 	private _groups: string[] = [];
 	private _inScreens?: string[];
@@ -87,6 +88,7 @@ export class SystemBuilder<
 			label: this._label,
 			entityQueries: this.queries,
 			priority: this._priority,
+			phase: this._phase,
 		};
 
 		if (this.processFunction) {
@@ -134,6 +136,18 @@ export class SystemBuilder<
 	 */
 	setPriority(priority: number): this {
 		this._priority = priority;
+		return this;
+	}
+
+	/**
+	 * Set the execution phase for this system.
+	 * Systems are grouped by phase and executed in order:
+	 * preUpdate -> fixedUpdate -> update -> postUpdate -> render
+	 * @param phase The phase to assign this system to (default: 'update')
+	 * @returns This SystemBuilder instance for method chaining
+	 */
+	inPhase(phase: SystemPhase): this {
+		this._phase = phase;
 		return this;
 	}
 

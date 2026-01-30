@@ -536,6 +536,7 @@ export function createRenderer2DBundle(
 	rendererBundle
 		.addSystem('renderer2d-sync')
 		.setPriority(renderSyncPriority)
+		.inPhase('render')
 		.inGroup(systemGroup)
 		.addQuery('sprites', {
 			with: ['sprite', 'worldTransform'],

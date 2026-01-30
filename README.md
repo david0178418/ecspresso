@@ -15,6 +15,7 @@ A type-safe, modular, and extensible Entity Component System (ECS) framework for
 - **Screen Management**: Game state/screen transitions with overlay support
 - **Entity Hierarchy**: Parent-child relationships with traversal and cascade deletion
 - **Query System**: Powerful entity filtering with helper type utilities
+- **System Phases**: Named execution phases (preUpdate → fixedUpdate → update → postUpdate → render) with fixed-timestep simulation
 - **Change Detection**: Per-system monotonic sequence change tracking with `changed` query filters
 - **Reactive Queries**: Enter/exit callbacks when entities match or unmatch queries
 - **System Groups**: Enable/disable groups of systems at runtime
@@ -203,18 +204,112 @@ world.addSystem('movement')
   .build();
 ```
 
+### System Phases
+
+Systems are organized into named execution phases that run in a fixed order:
+
+```
+preUpdate → fixedUpdate → update → postUpdate → render
+```
+
+Each phase's command buffer is played back before the next phase begins, so entities spawned in `preUpdate` are visible to `fixedUpdate`, and so on.
+
+```typescript
+world.addSystem('input')
+  .inPhase('preUpdate')
+  .setProcess((queries, dt, ecs) => {
+    // Read input, update timers
+  })
+  .and()
+  .addSystem('physics')
+  .inPhase('fixedUpdate')
+  .setProcess((queries, dt, ecs) => {
+    // dt is always fixedDt here (e.g. 1/60)
+    // Runs 0..N times per frame based on accumulated time
+  })
+  .and()
+  .addSystem('gameplay')
+  .inPhase('update')  // default phase if not specified
+  .setProcess((queries, dt, ecs) => {
+    // Game logic, AI, etc.
+  })
+  .and()
+  .addSystem('transform-sync')
+  .inPhase('postUpdate')
+  .setProcess((queries, dt, ecs) => {
+    // Transform propagation, bounds checking
+  })
+  .and()
+  .addSystem('renderer')
+  .inPhase('render')
+  .setProcess((queries, dt, ecs) => {
+    // Visual output, interpolation
+  })
+  .build();
+```
+
+Systems without `.inPhase()` default to `update`.
+
+#### Fixed Timestep
+
+The `fixedUpdate` phase uses a time accumulator for deterministic simulation. Configure the timestep with the builder:
+
+```typescript
+const world = ECSpresso.create<Components, Events, Resources>()
+  .withFixedTimestep(1 / 60)  // 60Hz physics (default)
+  .build();
+
+// fixedUpdate systems receive fixedDt, not the raw frame delta
+world.addSystem('movement')
+  .inPhase('fixedUpdate')
+  .addQuery('moving', { with: ['position', 'velocity'] })
+  .setProcess((queries, dt) => {
+    // dt === 1/60 regardless of frame rate
+    for (const entity of queries.moving) {
+      entity.components.position.x += entity.components.velocity.x * dt;
+    }
+  })
+  .build();
+```
+
+A spiral-of-death cap (8 steps) prevents runaway accumulation when frames are slow. After hitting the cap, the accumulator resets.
+
+#### Interpolation
+
+Use `interpolationAlpha` in the render phase to smooth between fixed steps:
+
+```typescript
+world.addSystem('render')
+  .inPhase('render')
+  .setProcess((queries, dt, ecs) => {
+    const alpha = ecs.interpolationAlpha; // 0..1
+    // Lerp between previous and current physics state
+  })
+  .build();
+```
+
+#### Runtime Phase Changes
+
+Move systems between phases at runtime:
+
+```typescript
+world.updateSystemPhase('debug-overlay', 'render');  // returns true if found
+```
+
 ### System Priority
 
-Control execution order with priorities (higher numbers execute first):
+Within each phase, systems execute in priority order (higher numbers first). Systems with the same priority execute in registration order:
 
 ```typescript
 world.addSystem('physics')
-  .setPriority(100) // Runs first
+  .inPhase('fixedUpdate')
+  .setPriority(100) // Runs first within fixedUpdate
   .setProcess(() => { /* physics */ })
   .and()
-  .addSystem('rendering')
-  .setPriority(50)  // Runs second
-  .setProcess(() => { /* rendering */ })
+  .addSystem('constraints')
+  .inPhase('fixedUpdate')
+  .setPriority(50)  // Runs second within fixedUpdate
+  .setProcess(() => { /* constraints */ })
   .build();
 ```
 
@@ -467,12 +562,12 @@ await world.initialize();
 
 ### Post-Update Hooks
 
-Register callbacks that run after all systems have processed during `update()`:
+Register callbacks that run between the `postUpdate` and `render` phases:
 
 ```typescript
 // Register a post-update hook - returns unsubscribe function
 const unsubscribe = world.onPostUpdate((ecs, deltaTime) => {
-  // Runs after all systems in update()
+  // Runs after postUpdate, before render
   // Useful for cleanup, state sync, or debug logging
   console.log(`Frame completed in ${deltaTime}s`);
 });
@@ -969,8 +1064,8 @@ ecs.commands.markChanged(entity.id, 'position');
 Each system tracks its own last-seen sequence number. This means:
 - Marks made between updates are visible to all systems on the next update
 - Spawn auto-marks are visible on the first update
-- Within a single update, a higher-priority system's marks are visible to lower-priority systems (same frame)
-- A lower-priority system's marks are visible to higher-priority systems on the next frame
+- Marks from earlier phases are visible to later phases within the same frame (e.g. `fixedUpdate` marks are seen by `postUpdate`)
+- Within a phase, a higher-priority system's marks are visible to lower-priority systems (same frame)
 - Each mark is processed exactly once per system (single-update expiry)
 - Hierarchy cascades settle in one frame regardless of depth (no amplification)
 
@@ -1105,14 +1200,16 @@ Commands execute in FIFO order. If a command fails (e.g., entity doesn't exist),
 
 ECSpresso provides optional utility bundles for common game development needs:
 
-| Bundle | Import | Description |
-|--------|--------|-------------|
-| **Transform** | `ecspresso/bundles/utils/transform` | Hierarchical transform propagation (local/world transforms) |
-| **Movement** | `ecspresso/bundles/utils/movement` | Velocity-based movement integration |
-| **Bounds** | `ecspresso/bundles/utils/bounds` | Screen bounds enforcement (destroy, clamp, wrap) |
-| **Collision** | `ecspresso/bundles/utils/collision` | Layer-based AABB/circle collision detection with events |
-| **Timers** | `ecspresso/bundles/utils/timers` | ECS-native timers with event-based completion |
-| **2D Renderer** | `ecspresso/bundles/renderers/renderer2D` | Automated PixiJS scene graph wiring |
+| Bundle | Import | Default Phase | Description |
+|--------|--------|---------------|-------------|
+| **Timers** | `ecspresso/bundles/utils/timers` | `preUpdate` | ECS-native timers with event-based completion |
+| **Movement** | `ecspresso/bundles/utils/movement` | `fixedUpdate` | Velocity-based movement integration |
+| **Transform** | `ecspresso/bundles/utils/transform` | `postUpdate` | Hierarchical transform propagation (local/world transforms) |
+| **Bounds** | `ecspresso/bundles/utils/bounds` | `postUpdate` | Screen bounds enforcement (destroy, clamp, wrap) |
+| **Collision** | `ecspresso/bundles/utils/collision` | `postUpdate` | Layer-based AABB/circle collision detection with events |
+| **2D Renderer** | `ecspresso/bundles/renderers/renderer2D` | `render` | Automated PixiJS scene graph wiring |
+
+Each bundle accepts a `phase` option to override its default.
 
 ## Timer Bundle
 
@@ -1269,7 +1366,7 @@ if (component === null) {
 - Call `markChanged` after in-place mutations so downstream systems can detect the change
 - Extract business logic into testable helper functions using query type utilities
 - Bundle related systems for better organization and reusability
-- Use system priorities to control execution order
+- Use system phases to separate concerns (physics in `fixedUpdate`, rendering in `render`) and priorities for ordering within a phase
 - Use resource factories for expensive initialization (textures, audio, etc.)
 - Consider component callbacks for immediate reactions to state changes
 - Minimize the number of components in queries when possible to leverage indexing

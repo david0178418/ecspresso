@@ -40,7 +40,8 @@ src/
 - **Resources**: Global singleton state accessible to systems
 - **Events**: Decoupled pub/sub for inter-system communication
 - **Bundles**: Group related systems/resources for reusability
-- **Command Buffer**: Deferred structural changes executed at end of update cycle
+- **Command Buffer**: Deferred structural changes executed between phases
+- **System Phases**: Named execution phases (preUpdate → fixedUpdate → update → postUpdate → render) with fixed-timestep simulation
 - **Assets**: Eager/lazy loaded resources with groups and progress tracking
 - **Screens**: Game state management with transitions and overlay stack
 - **Entity Hierarchy**: Parent-child relationships with traversal and cascade deletion
@@ -56,6 +57,9 @@ src/
 - **Screen Builder**: `ECSpresso.create().withScreens(s => s.add()).build()`
 - **Screen-Scoped Systems**: `.inScreens(['menu'])`, `.excludeScreens(['pause'])`
 - **Asset-Required Systems**: `.requiresAssets(['playerTexture'])`
+- **System Phases**: `.inPhase('fixedUpdate')`, phases execute in order: `preUpdate` → `fixedUpdate` → `update` → `postUpdate` → `render`
+- **Fixed Timestep**: `ECSpresso.create().withFixedTimestep(1/60).build()`, `ecs.fixedDt`, `ecs.interpolationAlpha`
+- **Runtime Phase Change**: `updateSystemPhase(label, phase)` moves a system between phases
 - **System Groups**: `.inGroup('rendering')`, `disableSystemGroup()`, `enableSystemGroup()`
 - **Entity Hierarchy**: `spawnChild(parentId, components)`, `getParent()`, `getChildren()`, `getAncestors()`, `getDescendants()`
 - **Hierarchy Traversal**: `forEachInHierarchy()`, `hierarchyIterator()` for parent-first iteration
@@ -73,7 +77,9 @@ src/
 - **Auto-Marking**: `spawn()`, `addComponent()`, `addComponents()` auto-mark components as changed
 - **Single-Update Expiry**: Marks expire after one update cycle (per-system sequence tracking eliminates the old 2-tick window)
 - **Change Threshold**: `ecs.changeThreshold` returns the active threshold. During system execution it's the system's last-seen sequence; between updates it's the global sequence after command buffer playback. Manual checks: `em.getChangeSeq(id, comp) > ecs.changeThreshold`
-- **Bundle Change Flow**: Movement marks `localTransform` → Transform propagation reads `localTransform` changed, writes+marks `worldTransform` → Renderer reads `worldTransform` changed
+- **Cross-Phase Visibility**: Marks from earlier phases (e.g. fixedUpdate) are visible to later phases (e.g. postUpdate) within the same frame
+- **Bundle Phase Flow**: Movement marks `localTransform` (fixedUpdate) → Transform propagation reads `localTransform` changed, writes+marks `worldTransform` (postUpdate) → Renderer reads `worldTransform` changed (render)
+- **Per-Phase Command Buffer**: Commands are played back between each phase, so entities spawned in preUpdate are visible to fixedUpdate, etc.
 
 ## Commands
 

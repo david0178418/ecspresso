@@ -6,6 +6,7 @@
  */
 
 import Bundle from '../../bundle';
+import type { SystemPhase } from '../../types';
 import type { TransformComponentTypes } from './transform';
 
 // ==================== Component Types ====================
@@ -44,6 +45,8 @@ export interface MovementBundleOptions {
 	systemGroup?: string;
 	/** Priority for movement update system (default: 1000, runs early before transform propagation) */
 	priority?: number;
+	/** Execution phase (default: 'fixedUpdate') */
+	phase?: SystemPhase;
 }
 
 // ==================== Helper Functions ====================
@@ -104,6 +107,7 @@ export function createMovementBundle(
 	const {
 		systemGroup = 'physics',
 		priority = 1000,
+		phase = 'fixedUpdate',
 	} = options ?? {};
 
 	const bundle = new Bundle<MovementComponentTypes, {}, {}>('movement');
@@ -111,6 +115,7 @@ export function createMovementBundle(
 	bundle
 		.addSystem('movement')
 		.setPriority(priority)
+		.inPhase(phase)
 		.inGroup(systemGroup)
 		.addQuery('movingEntities', {
 			with: ['localTransform', 'velocity'],

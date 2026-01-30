@@ -1108,10 +1108,10 @@ describe('ECSpresso', () => {
 					.build();
 			}
 
-			// Replace the internal _sortSystems method temporarily with a spy
+			// Replace the internal _rebuildPhaseSystems method temporarily with a spy
 			let sortCallCount = 0;
-			const originalSortMethod = world['_sortSystems'];
-			world['_sortSystems'] = function() {
+			const originalSortMethod = world['_rebuildPhaseSystems'];
+			world['_rebuildPhaseSystems'] = function() {
 				sortCallCount++;
 				return originalSortMethod.call(this);
 			};
@@ -1136,7 +1136,7 @@ describe('ECSpresso', () => {
 			expect(sortCallCount).toBe(1);
 
 			// Restore original method
-			world['_sortSystems'] = originalSortMethod;
+			world['_rebuildPhaseSystems'] = originalSortMethod;
 		});
 	});
 

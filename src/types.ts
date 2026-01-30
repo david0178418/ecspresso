@@ -1,5 +1,12 @@
 import ECSpresso from "./ecspresso";
 
+/**
+ * Execution phase for systems. Systems are grouped by phase and executed
+ * in this fixed order: preUpdate -> fixedUpdate -> update -> postUpdate -> render.
+ * Within each phase, systems are sorted by priority (higher first).
+ */
+export type SystemPhase = 'preUpdate' | 'fixedUpdate' | 'update' | 'postUpdate' | 'render';
+
 export
 interface Entity<ComponentTypes> {
 	id: number;
@@ -182,6 +189,12 @@ interface System<
 	 * When systems have the same priority, they execute in registration order
 	 */
 	priority?: number;
+	/**
+	 * Execution phase for this system (default: 'update')
+	 * Systems are grouped by phase and executed in order:
+	 * preUpdate -> fixedUpdate -> update -> postUpdate -> render
+	 */
+	phase?: SystemPhase;
 	/**
 	 * Groups this system belongs to. If any group is disabled, the system will be skipped.
 	 */

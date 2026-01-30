@@ -350,8 +350,8 @@ describe('Transform Bundle', () => {
 		});
 	});
 
-	describe('Cross-priority change detection', () => {
-		test('should propagate localTransform marked by lower-priority system', () => {
+	describe('Cross-phase change detection', () => {
+		test('should propagate localTransform marked in update phase to postUpdate phase', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
 				.withBundle(createTransformBundle())
@@ -361,9 +361,10 @@ describe('Transform Bundle', () => {
 				...createTransform(100, 100),
 			});
 
-			// Low-priority system mutates + marks localTransform (priority 0 < propagation's 500)
+			// System in update phase mutates + marks localTransform
+			// Transform propagation runs in postUpdate phase and should see the mark
 			ecs.addSystem('custom-movement')
-				.setPriority(0)
+				.inPhase('update')
 				.addQuery('entities', { with: ['localTransform'] as const })
 				.setProcess((queries, _dt, ecs) => {
 					for (const e of queries.entities) {
@@ -373,14 +374,11 @@ describe('Transform Bundle', () => {
 				})
 				.and();
 
-			// First update: propagation sees spawn, movement mutates after
-			ecs.update(0.016);
-
-			// Second update: propagation should catch movement's mark
+			// Single update: movement marks in update, propagation catches in postUpdate
 			ecs.update(0.016);
 
 			const world = ecs.entityManager.getComponent(entity.id, 'worldTransform');
-			// worldTransform should reflect movement's first mutation (150), not be stuck at 100
+			// worldTransform should reflect movement's mutation within the same frame
 			expect(world?.x).toBe(150);
 		});
 	});

@@ -5,7 +5,7 @@ import AssetManager, { AssetConfiguratorImpl, createAssetConfigurator } from "./
 import ScreenManager, { ScreenConfiguratorImpl, createScreenConfigurator } from "./screen-manager";
 import ReactiveQueryManager, { type ReactiveQueryDefinition } from "./reactive-query-manager";
 import CommandBuffer from "./command-buffer";
-import type { System, FilteredEntity, Entity, RemoveEntityOptions, HierarchyEntry, HierarchyIteratorOptions } from "./types";
+import type { System, SystemPhase, FilteredEntity, Entity, RemoveEntityOptions, HierarchyEntry, HierarchyIteratorOptions } from "./types";
 import type Bundle from "./bundle";
 import { createEcspressoSystemBuilder } from "./system-builder";
 import { version } from "../package.json";
@@ -29,6 +29,10 @@ export default interface ECSpresso<
 	*/
 	new(): ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>;
 }
+
+const PHASE_ORDER: readonly SystemPhase[] = [
+	'preUpdate', 'fixedUpdate', 'update', 'postUpdate', 'render',
+];
 
 const EmptyQueryResults = {};
 
@@ -57,8 +61,10 @@ export default class ECSpresso<
 
 	/** Registered systems that will be updated in order*/
 	private _systems: Array<System<ComponentTypes, any, any, EventTypes, ResourceTypes, AssetTypes, ScreenStates>> = [];
-	/** Cached sorted systems for efficient updates */
-	private _sortedSystems: Array<System<ComponentTypes, any, any, EventTypes, ResourceTypes, AssetTypes, ScreenStates>> = [];
+	/** Systems grouped by execution phase, each sorted by priority */
+	private _phaseSystems: Record<SystemPhase, Array<System<ComponentTypes, any, any, EventTypes, ResourceTypes, AssetTypes, ScreenStates>>> = {
+		preUpdate: [], fixedUpdate: [], update: [], postUpdate: [], render: [],
+	};
 	/** Track installed bundles to prevent duplicates*/
 	private _installedBundles: Set<string> = new Set();
 	/** Disabled system groups */
@@ -77,6 +83,14 @@ export default class ECSpresso<
 	private _systemLastSeqs: Map<object, number> = new Map();
 	/** Change threshold used for public getEntitiesWithQuery and between-system resolution */
 	private _changeThreshold: number = 0;
+	/** Fixed timestep interval in seconds (default: 1/60) */
+	private _fixedDt: number = 1 / 60;
+	/** Accumulated time for fixed update steps */
+	private _fixedAccumulator: number = 0;
+	/** Interpolation alpha between fixed steps (accumulator / fixedDt) */
+	private _interpolationAlpha: number = 0;
+	/** Maximum fixed update steps per frame (spiral-of-death protection) */
+	private _maxFixedSteps: number = 8;
 
 	/**
 		* Creates a new ECSpresso instance.
@@ -87,7 +101,6 @@ export default class ECSpresso<
 		this._resourceManager = new ResourceManager<ResourceTypes>();
 		this._reactiveQueryManager = new ReactiveQueryManager<ComponentTypes>(this._entityManager);
 		this._commandBuffer = new CommandBuffer<ComponentTypes, EventTypes, ResourceTypes>();
-		this._sortedSystems = []; // Initialize the sorted systems array
 
 		// Wire up component lifecycle hooks for reactive queries
 		this._setupReactiveQueryHooks();
@@ -228,17 +241,73 @@ export default class ECSpresso<
 	}
 
 	/**
-		* Update all systems, passing deltaTime and query results to each system's process function
-		* @param deltaTime Time elapsed since the last update (in seconds)
-	*/
+	 * Update all systems across execution phases.
+	 * Phases run in order: preUpdate -> fixedUpdate -> update -> postUpdate -> render.
+	 * The fixedUpdate phase uses a time accumulator for deterministic fixed-timestep simulation.
+	 * @param deltaTime Time elapsed since the last update (in seconds)
+	 */
 	update(deltaTime: number) {
-		const currentScreen = this._screenManager?.getCurrentScreen() ?? null;
+		const currentScreen = (this._screenManager?.getCurrentScreen() ?? null) as string | null;
 
-		// Use the cached sorted systems array instead of re-sorting on every update
-		for (const system of this._sortedSystems) {
+		// 1. preUpdate phase
+		this._executePhase(this._phaseSystems.preUpdate, deltaTime, currentScreen);
+		this._commandBuffer.playback(this);
+
+		// 2. fixedUpdate phase — accumulate time and step N times
+		this._fixedAccumulator += deltaTime;
+		let steps = 0;
+		while (this._fixedAccumulator >= this._fixedDt && steps < this._maxFixedSteps) {
+			this._executePhase(this._phaseSystems.fixedUpdate, this._fixedDt, currentScreen);
+			this._commandBuffer.playback(this);
+			this._fixedAccumulator -= this._fixedDt;
+			steps++;
+		}
+		// Clamp accumulator if we hit the spiral-of-death cap
+		if (this._fixedAccumulator >= this._fixedDt) {
+			this._fixedAccumulator = 0;
+		}
+		// Compute interpolation alpha for render-phase smoothing
+		this._interpolationAlpha = this._fixedAccumulator / this._fixedDt;
+
+		// 3. update phase
+		this._executePhase(this._phaseSystems.update, deltaTime, currentScreen);
+		this._commandBuffer.playback(this);
+
+		// 4. postUpdate phase
+		this._executePhase(this._phaseSystems.postUpdate, deltaTime, currentScreen);
+		this._commandBuffer.playback(this);
+
+		// 5. Post-update hooks (between postUpdate and render, preserving existing behavior)
+		for (const hook of this._postUpdateHooks) {
+			hook(this as unknown as ECSpresso<ComponentTypes, EventTypes, ResourceTypes>, deltaTime);
+		}
+
+		// 6. render phase
+		this._executePhase(this._phaseSystems.render, deltaTime, currentScreen);
+		this._commandBuffer.playback(this);
+
+		// Set change threshold to current sequence so that public
+		// getEntitiesWithQuery (called between updates) sees command
+		// buffer marks but not stale ones.
+		this._changeThreshold = this._entityManager.changeSeq;
+
+		// Increment tick counter (frame counter only)
+		this._currentTick++;
+	}
+
+	/**
+	 * Execute all systems in a single phase.
+	 * @private
+	 */
+	private _executePhase(
+		systems: ReadonlyArray<System<ComponentTypes, any, any, EventTypes, ResourceTypes, AssetTypes, ScreenStates>>,
+		deltaTime: number,
+		currentScreen: string | null
+	): void {
+		for (const system of systems) {
 			if (!system.process) continue;
 
-			// Group filtering - skip if any of the system's groups is disabled (check first for efficiency)
+			// Group filtering - skip if any of the system's groups is disabled
 			if (system.groups?.length) {
 				let anyDisabled = false;
 				for (const group of system.groups) {
@@ -316,22 +385,6 @@ export default class ECSpresso<
 			// Record this system's last-seen sequence so it won't re-process these marks
 			this._systemLastSeqs.set(system, this._entityManager.changeSeq);
 		}
-
-		// Call post-update hooks
-		for (const hook of this._postUpdateHooks) {
-			hook(this as unknown as ECSpresso<ComponentTypes, EventTypes, ResourceTypes>, deltaTime);
-		}
-
-		// Execute queued commands (automatic playback)
-		this._commandBuffer.playback(this);
-
-		// Set change threshold to current sequence so that public
-		// getEntitiesWithQuery (called between updates) sees command
-		// buffer marks but not stale ones.
-		this._changeThreshold = this._entityManager.changeSeq;
-
-		// Increment tick counter (frame counter only)
-		this._currentTick++;
 	}
 
 	/**
@@ -384,16 +437,26 @@ export default class ECSpresso<
 	}
 
 	/**
-		* Sort the systems array by priority (higher priority first)
-		* Called internally when system list changes
-		* @private
-	*/
-	private _sortSystems(): void {
-		this._sortedSystems = [...this._systems].sort((a, b) => {
-			const priorityA = a.priority ?? 0;
-			const priorityB = b.priority ?? 0;
-			return priorityB - priorityA; // Higher priority executes first
-		});
+	 * Rebuild per-phase system arrays from the flat _systems list.
+	 * Each phase array is sorted by priority (higher first), with
+	 * registration order as tiebreaker.
+	 * @private
+	 */
+	private _rebuildPhaseSystems(): void {
+		for (const phase of PHASE_ORDER) {
+			this._phaseSystems[phase] = [];
+		}
+		for (const system of this._systems) {
+			const phase = system.phase ?? 'update';
+			this._phaseSystems[phase].push(system);
+		}
+		for (const phase of PHASE_ORDER) {
+			this._phaseSystems[phase].sort((a, b) => {
+				const priorityA = a.priority ?? 0;
+				const priorityB = b.priority ?? 0;
+				return priorityB - priorityA; // Higher priority executes first
+			});
+		}
 	}
 
 	/**
@@ -410,9 +473,42 @@ export default class ECSpresso<
 		system.priority = priority;
 
 		// Re-sort the systems array
-		this._sortSystems();
+		this._rebuildPhaseSystems();
 
 		return true;
+	}
+
+	/**
+	 * Move a system to a different execution phase at runtime.
+	 * @param label The unique label of the system to move
+	 * @param phase The target phase
+	 * @returns true if the system was found and updated, false otherwise
+	 */
+	updateSystemPhase(label: string, phase: SystemPhase): boolean {
+		const system = this._systems.find(system => system.label === label);
+		if (!system) return false;
+
+		system.phase = phase;
+		this._rebuildPhaseSystems();
+
+		return true;
+	}
+
+	/**
+	 * The interpolation alpha between fixed update steps.
+	 * Ranges from 0 to <1, representing how far into the next
+	 * fixed step the current frame is. Use in the render phase
+	 * for smooth visual interpolation.
+	 */
+	get interpolationAlpha(): number {
+		return this._interpolationAlpha;
+	}
+
+	/**
+	 * The configured fixed timestep interval in seconds.
+	 */
+	get fixedDt(): number {
+		return this._fixedDt;
 	}
 
 	// ==================== System Group Control ====================
@@ -477,7 +573,7 @@ export default class ECSpresso<
 		this._systemLastSeqs.delete(system);
 
 		// Re-sort systems
-		this._sortSystems();
+		this._rebuildPhaseSystems();
 
 		return true;
 	}
@@ -493,7 +589,7 @@ export default class ECSpresso<
 		// After updates, the threshold is advanced past consumed marks, so
 		// systems added later don't see stale marks.
 		this._systemLastSeqs.set(system, this._changeThreshold);
-		this._sortSystems();
+		this._rebuildPhaseSystems();
 
 		// Set up event handlers if they exist
 		if (!system.eventHandlers) return;
@@ -1196,6 +1292,14 @@ export default class ECSpresso<
 	}
 
 	/**
+	 * Internal method to set the fixed timestep interval
+	 * @internal Used by ECSpressoBuilder
+	 */
+	_setFixedDt(dt: number): void {
+		this._fixedDt = dt;
+	}
+
+	/**
 		* Internal method to install a bundle into this ECSpresso instance.
 		* Called by the ECSpressoBuilder during the build process.
 		* The type safety is guaranteed by the builder's type system.
@@ -1276,6 +1380,8 @@ export class ECSpressoBuilder<
 	private screenConfigurator: ScreenConfiguratorImpl<S> | null = null;
 	/** Pending resources to add during build */
 	private pendingResources: Array<{ key: string; value: unknown }> = [];
+	/** Fixed timestep interval (null means use default 1/60) */
+	private _fixedDt: number | null = null;
 
 	constructor() {
 		this.ecspresso = new ECSpresso<C, E, R, A, S>();
@@ -1412,6 +1518,16 @@ export class ECSpressoBuilder<
 	}
 
 	/**
+	 * Configure the fixed timestep interval for the fixedUpdate phase.
+	 * @param dt The fixed timestep in seconds (e.g., 1/60 for 60Hz physics)
+	 * @returns This builder for method chaining
+	 */
+	withFixedTimestep(dt: number): this {
+		this._fixedDt = dt;
+		return this;
+	}
+
+	/**
 		* Complete the build process and return the built ECSpresso instance
 	*/
 	build(): ECSpresso<C, E, R, A, S> {
@@ -1428,6 +1544,11 @@ export class ECSpressoBuilder<
 		// Set up screen manager if configured
 		if (this.screenConfigurator) {
 			this.ecspresso._setScreenManager(this.screenConfigurator.getManager() as unknown as ScreenManager<S>);
+		}
+
+		// Set fixed timestep if configured
+		if (this._fixedDt !== null) {
+			this.ecspresso._setFixedDt(this._fixedDt);
 		}
 
 		return this.ecspresso;

@@ -7,6 +7,7 @@
  */
 
 import Bundle from '../../bundle';
+import type { SystemPhase } from '../../types';
 import type { TransformComponentTypes } from './transform';
 
 // ==================== Component Types ====================
@@ -108,6 +109,8 @@ export interface BoundsBundleOptions {
 	boundsResourceKey?: string;
 	/** Whether to auto-remove entities when out of bounds (default: true) */
 	autoRemove?: boolean;
+	/** Execution phase (default: 'postUpdate') */
+	phase?: SystemPhase;
 }
 
 // ==================== Helper Functions ====================
@@ -237,6 +240,7 @@ export function createBoundsBundle<ResourceTypes extends BoundsResourceTypes = B
 		priority = 50,
 		boundsResourceKey = 'bounds',
 		autoRemove = true,
+		phase = 'postUpdate',
 	} = options ?? {};
 
 	const bundle = new Bundle<CombinedComponentTypes, BoundsEventTypes, ResourceTypes>('bounds');
@@ -245,6 +249,7 @@ export function createBoundsBundle<ResourceTypes extends BoundsResourceTypes = B
 	bundle
 		.addSystem('bounds-destroy')
 		.setPriority(priority)
+		.inPhase(phase)
 		.inGroup(systemGroup)
 		.addQuery('entities', {
 			with: ['worldTransform', 'destroyOutOfBounds'],
@@ -279,6 +284,7 @@ export function createBoundsBundle<ResourceTypes extends BoundsResourceTypes = B
 	bundle
 		.addSystem('bounds-clamp')
 		.setPriority(priority - 1)
+		.inPhase(phase)
 		.inGroup(systemGroup)
 		.addQuery('entities', {
 			with: ['localTransform', 'worldTransform', 'clampToBounds'],
@@ -322,6 +328,7 @@ export function createBoundsBundle<ResourceTypes extends BoundsResourceTypes = B
 	bundle
 		.addSystem('bounds-wrap')
 		.setPriority(priority - 2)
+		.inPhase(phase)
 		.inGroup(systemGroup)
 		.addQuery('entities', {
 			with: ['localTransform', 'worldTransform', 'wrapAtBounds'],
