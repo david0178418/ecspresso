@@ -268,7 +268,7 @@ export default function createGameStateBundle() {
 				}
 			}
 		})
-		.bundle
+		.and()
 		// Message timer system - hides messages after their timer finishes
 		.addSystem('message-timer')
 		.addQuery('messageTimers', {

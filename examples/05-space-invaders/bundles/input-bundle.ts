@@ -34,7 +34,7 @@ export default function createInputProcessingBundle(): Bundle<Components, Events
 				ecs.eventBus.publish('playerShoot', {});
 			}
 		})
-		.bundle
+		.and()
 
 		.addSystem('pause-handling')
 		.inPhase('preUpdate')

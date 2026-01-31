@@ -86,7 +86,7 @@ export default function createAIBundle() {
 			// Add playerInitialRotation resource to track initial player facing direction
 			ecs.addResource('playerInitialRotation', { y: 0 });
 		})
-		.bundle
+		.and()
 		// Pending destroy system - destroys entities after their timer finishes
 		.addSystem('pending-destroy')
 		.inGroup('gameplay')
@@ -102,7 +102,7 @@ export default function createAIBundle() {
 				}
 			}
 		})
-		.bundle
+		.and()
 		// Spawn timer system - handles enemy spawning via spawner entity
 		.addSystem('spawn-timer')
 		.inGroup('gameplay')

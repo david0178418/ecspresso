@@ -21,7 +21,7 @@ export default function createGameplayBundle() {
 				}
 			}
 		})
-		.bundle
+		.and()
 		// Collision system - in gameplay group with separate queries for type safety
 		.addSystem('collision')
 		.inGroup('gameplay')

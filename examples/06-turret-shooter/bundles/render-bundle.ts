@@ -65,7 +65,7 @@ export default function createRenderBundle() {
 				}
 			}
 		})
-		.bundle
+		.and()
 		// 3D object factory system
 		.addSystem('model-factory')
 		.setEventHandlers({

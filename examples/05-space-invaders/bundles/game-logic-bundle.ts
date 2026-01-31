@@ -124,7 +124,7 @@ export default function createGameLogicBundle() {
 				}
 			}
 		})
-		.bundle
+		.and()
 
 		.addSystem('enemy-controller')
 		.inGroup('gameplay')
@@ -177,7 +177,7 @@ export default function createGameLogicBundle() {
 				}
 			}
 		})
-		.bundle
+		.and()
 
 		.addSystem('player-input')
 		.inGroup('gameplay')
