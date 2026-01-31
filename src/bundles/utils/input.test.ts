@@ -233,19 +233,19 @@ describe('Input Bundle', () => {
 	describe('Action mapping', () => {
 		test('isActive when bound key is down', async () => {
 			const { ecs, target } = createWorld({
-				actions: { jump: { keys: ['Space'] } },
+				actions: { jump: { keys: [' '] } },
 			});
 			await initAndUpdate(ecs);
 
 			const input = ecs.getResource('inputState');
 			expect(input.actions.isActive('jump')).toBe(false);
 
-			dispatchKeyDown(target, 'Space');
+			dispatchKeyDown(target, ' ');
 			ecs.update(0.016);
 
 			expect(input.actions.isActive('jump')).toBe(true);
 
-			dispatchKeyUp(target, 'Space');
+			dispatchKeyUp(target, ' ');
 			ecs.update(0.016);
 
 			expect(input.actions.isActive('jump')).toBe(false);
@@ -270,13 +270,13 @@ describe('Input Bundle', () => {
 
 		test('justActivated/justDeactivated edge detection', async () => {
 			const { ecs, target } = createWorld({
-				actions: { jump: { keys: ['Space'] } },
+				actions: { jump: { keys: [' '] } },
 			});
 			await initAndUpdate(ecs);
 
 			const input = ecs.getResource('inputState');
 
-			dispatchKeyDown(target, 'Space');
+			dispatchKeyDown(target, ' ');
 			ecs.update(0.016);
 			expect(input.actions.justActivated('jump')).toBe(true);
 
@@ -284,7 +284,7 @@ describe('Input Bundle', () => {
 			expect(input.actions.justActivated('jump')).toBe(false);
 			expect(input.actions.isActive('jump')).toBe(true);
 
-			dispatchKeyUp(target, 'Space');
+			dispatchKeyUp(target, ' ');
 			ecs.update(0.016);
 			expect(input.actions.justDeactivated('jump')).toBe(true);
 
@@ -294,7 +294,7 @@ describe('Input Bundle', () => {
 
 		test('action bound to multiple keys (any activates)', async () => {
 			const { ecs, target } = createWorld({
-				actions: { jump: { keys: ['Space', 'ArrowUp'] } },
+				actions: { jump: { keys: [' ', 'ArrowUp'] } },
 			});
 			await initAndUpdate(ecs);
 
@@ -305,7 +305,7 @@ describe('Input Bundle', () => {
 			expect(input.actions.isActive('jump')).toBe(true);
 
 			dispatchKeyUp(target, 'ArrowUp');
-			dispatchKeyDown(target, 'Space');
+			dispatchKeyDown(target, ' ');
 			ecs.update(0.016);
 			expect(input.actions.isActive('jump')).toBe(true);
 		});
@@ -335,7 +335,7 @@ describe('Input Bundle', () => {
 	describe('Action map mutation', () => {
 		test('setActionMap applies new mappings', async () => {
 			const { ecs, target } = createWorld({
-				actions: { jump: { keys: ['Space'] } },
+				actions: { jump: { keys: [' '] } },
 			});
 			await initAndUpdate(ecs);
 
@@ -349,20 +349,20 @@ describe('Input Bundle', () => {
 
 			// Old binding should no longer work
 			dispatchKeyUp(target, 'w');
-			dispatchKeyDown(target, 'Space');
+			dispatchKeyDown(target, ' ');
 			ecs.update(0.016);
 			expect(input.actions.isActive('jump')).toBe(false);
 		});
 
 		test('getActionMap returns current map', async () => {
 			const { ecs } = createWorld({
-				actions: { jump: { keys: ['Space'] } },
+				actions: { jump: { keys: [' '] } },
 			});
 			await initAndUpdate(ecs);
 
 			const input = ecs.getResource('inputState');
 			const map = input.getActionMap();
-			expect(map).toEqual({ jump: { keys: ['Space'] } });
+			expect(map).toEqual({ jump: { keys: [' '] } });
 		});
 	});
 
@@ -477,10 +477,10 @@ describe('Input Bundle', () => {
 	describe('Helper functions', () => {
 		test('defineActionMap returns action map', () => {
 			const map = defineActionMap({
-				jump: { keys: ['Space', 'ArrowUp'] },
+				jump: { keys: [' ', 'ArrowUp'] },
 				shoot: { keys: ['z'], buttons: [0] },
 			});
-			expect(map.jump.keys).toEqual(['Space', 'ArrowUp']);
+			expect(map.jump.keys).toEqual([' ', 'ArrowUp']);
 			expect(map.shoot.buttons).toEqual([0]);
 		});
 

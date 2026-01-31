@@ -19,10 +19,138 @@ export interface Vec2 {
 	y: number;
 }
 
+// Key codes per the UI Events spec (KeyboardEvent.key values)
+// https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_key_values
+
+type LowercaseLetter =
+	| 'a' | 'b' | 'c' | 'd' | 'e' | 'f' | 'g' | 'h' | 'i' | 'j' | 'k' | 'l' | 'm'
+	| 'n' | 'o' | 'p' | 'q' | 'r' | 's' | 't' | 'u' | 'v' | 'w' | 'x' | 'y' | 'z';
+
+type Digit = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9';
+
+type Punctuation =
+	| '`' | '~' | '!' | '@' | '#' | '$' | '%' | '^' | '&' | '*' | '(' | ')'
+	| '-' | '_' | '=' | '+' | '[' | '{' | ']' | '}' | '\\' | '|'
+	| ';' | ':' | "'" | '"' | ',' | '<' | '.' | '>' | '/' | '?';
+
+type ModifierKey =
+	| 'Alt' | 'AltGraph' | 'CapsLock' | 'Control' | 'Fn' | 'FnLock'
+	| 'Hyper' | 'Meta' | 'NumLock' | 'ScrollLock' | 'Shift'
+	| 'Super' | 'Symbol' | 'SymbolLock';
+
+type WhitespaceKey = 'Enter' | 'Tab' | ' ';
+
+type NavigationKey =
+	| `Arrow${'Down' | 'Left' | 'Right' | 'Up'}`
+	| 'End' | 'Home' | 'PageDown' | 'PageUp';
+
+type EditingKey =
+	| 'Backspace' | 'Clear' | 'Copy' | 'CrSel' | 'Cut' | 'Delete'
+	| 'EraseEof' | 'ExSel' | 'Insert' | 'Paste' | 'Redo' | 'Undo';
+
+type UIKey =
+	| 'Accept' | 'Again' | 'Attn' | 'Cancel' | 'ContextMenu' | 'Escape'
+	| 'Execute' | 'Find' | 'Finish' | 'Help' | 'Pause' | 'Play'
+	| 'Props' | 'Select' | 'ZoomIn' | 'ZoomOut';
+
+type DeviceKey =
+	| 'BrightnessDown' | 'BrightnessUp' | 'Eject' | 'Hibernate'
+	| 'LogOff' | 'Power' | 'PowerOff' | 'PrintScreen' | 'Standby' | 'WakeUp';
+
+type IMEKey =
+	| 'AllCandidates' | 'Alphanumeric' | 'CodeInput' | 'Compose' | 'Convert'
+	| 'FinalMode' | 'GroupFirst' | 'GroupLast' | 'GroupNext' | 'GroupPrevious'
+	| 'ModeChange' | 'NextCandidate' | 'NonConvert' | 'PreviousCandidate'
+	| 'Process' | 'SingleCandidate'
+	| 'HangulMode' | 'HanjaMode' | 'JunjaMode'
+	| 'Eisu' | 'Hankaku' | 'Hiragana' | 'HiraganaKatakana' | 'KanaMode'
+	| 'KanjiMode' | 'Katakana' | 'Romaji' | 'Zenkaku' | 'ZenkakuHankaku';
+
+type FunctionKey =
+	| `F${1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20 | 21 | 22 | 23 | 24}`
+	| 'Soft1' | 'Soft2' | 'Soft3' | 'Soft4';
+
+type PhoneKey =
+	| 'AppSwitch' | 'Call' | 'Camera' | 'CameraFocus' | 'EndCall'
+	| 'GoBack' | 'GoHome' | 'HeadsetHook' | 'LastNumberRedial'
+	| 'Notification' | 'MannerMode' | 'VoiceDial';
+
+type MultimediaKey =
+	| 'ChannelDown' | 'ChannelUp'
+	| `Media${
+		'FastForward' | 'Pause' | 'Play' | 'PlayPause'
+		| 'Record' | 'Rewind' | 'Stop' | 'TrackNext' | 'TrackPrevious'
+	}`;
+
+type AudioKey =
+	| `Audio${
+		'BalanceLeft' | 'BalanceRight' | 'BassDown' | 'BassBoostDown'
+		| 'BassBoostToggle' | 'BassBoostUp' | 'BassUp' | 'FaderFront' | 'FaderRear'
+		| 'SurroundModeNext' | 'TrebleDown' | 'TrebleUp'
+		| 'VolumeDown' | 'VolumeMute' | 'VolumeUp'
+	}`
+	| `Microphone${'Toggle' | 'VolumeDown' | 'VolumeMute' | 'VolumeUp'}`;
+
+type TVKey =
+	| 'TV'
+	| `TV${
+		'3DMode' | 'AntennaCable' | 'AudioDescription' | 'AudioDescriptionMixDown'
+		| 'AudioDescriptionMixUp' | 'ContentsMenu' | 'DataService' | 'Input'
+		| 'InputComponent1' | 'InputComponent2' | 'InputComposite1' | 'InputComposite2'
+		| 'InputHDMI1' | 'InputHDMI2' | 'InputHDMI3' | 'InputHDMI4' | 'InputVGA1'
+		| 'MediaContext' | 'Network' | 'NumberEntry' | 'Power' | 'RadioService'
+		| 'Satellite' | 'SatelliteBS' | 'SatelliteCS' | 'SatelliteToggle'
+		| 'TerrestrialAnalog' | 'TerrestrialDigital' | 'Timer'
+	}`;
+
+type MediaControllerKey =
+	| 'AVRInput' | 'AVRPower'
+	| `Color${'F0Red' | 'F1Green' | 'F2Yellow' | 'F3Blue' | 'F4Grey' | 'F5Brown'}`
+	| 'ClosedCaptionToggle' | 'Dimmer' | 'DisplaySwap' | 'DVR' | 'Exit'
+	| `Favorite${'Clear' | 'Recall' | 'Store'}${0 | 1 | 2 | 3}`
+	| 'Guide' | 'GuideNextDay' | 'GuidePreviousDay' | 'Info' | 'InstantReplay'
+	| 'Link' | 'ListProgram' | 'LiveContent' | 'Lock'
+	| `Media${
+		'Apps' | 'AudioTrack' | 'Last' | 'SkipBackward'
+		| 'SkipForward' | 'StepBackward' | 'StepForward' | 'TopMenu'
+	}`
+	| `Navigate${'In' | 'Next' | 'Out' | 'Previous'}`
+	| 'NextFavoriteChannel' | 'NextUserProfile' | 'OnDemand' | 'Pairing'
+	| `PinP${'Down' | 'Move' | 'Toggle' | 'Up'}`
+	| `PlaySpeed${'Down' | 'Reset' | 'Up'}`
+	| 'RandomToggle' | 'RcLowBattery' | 'RecordSpeedNext' | 'RfBypass'
+	| 'ScanChannelsToggle' | 'ScreenModeNext' | 'Settings' | 'SplitScreenToggle'
+	| 'STBInput' | 'STBPower' | 'Subtitle' | 'Teletext'
+	| 'VideoModeNext' | 'Wink' | 'ZoomToggle';
+
+type SpeechKey = 'SpeechCorrectionList' | 'SpeechInputToggle';
+
+type DocumentKey =
+	| 'Close' | 'New' | 'Open' | 'Print' | 'Save' | 'SpellCheck'
+	| 'MailForward' | 'MailReply' | 'MailSend';
+
+type LaunchKey = `Launch${
+	| 'Calculator' | 'Calendar' | 'Contacts' | 'Mail' | 'MediaPlayer'
+	| 'MusicPlayer' | 'MyComputer' | 'Phone' | 'ScreenSaver' | 'Spreadsheet'
+	| 'WebBrowser' | 'WebCam' | 'WordProcessor'
+	| `Application${1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16}`
+}`;
+
+type BrowserKey = `Browser${'Back' | 'Favorites' | 'Forward' | 'Home' | 'Refresh' | 'Search' | 'Stop'}`;
+
+type NumpadKey = 'Decimal' | 'Key11' | 'Key12' | 'Multiply' | 'Add' | 'Divide' | 'Subtract' | 'Separator';
+
+export type KeyCode =
+	| LowercaseLetter | Uppercase<LowercaseLetter> | Digit | Punctuation
+	| ModifierKey | WhitespaceKey | NavigationKey | EditingKey | UIKey | DeviceKey
+	| IMEKey | FunctionKey | PhoneKey | MultimediaKey | AudioKey | TVKey
+	| MediaControllerKey | SpeechKey | DocumentKey | LaunchKey | BrowserKey | NumpadKey
+	| 'Unidentified' | 'Dead';
+
 export interface KeyboardState {
-	isDown(key: string): boolean;
-	justPressed(key: string): boolean;
-	justReleased(key: string): boolean;
+	isDown(key: KeyCode): boolean;
+	justPressed(key: KeyCode): boolean;
+	justReleased(key: KeyCode): boolean;
 }
 
 export interface PointerState {
@@ -48,7 +176,7 @@ export interface InputState {
 }
 
 export interface ActionBinding {
-	keys?: string[];
+	keys?: KeyCode[];
 	buttons?: number[];
 }
 
@@ -82,7 +210,7 @@ export interface InputBundleOptions {
  * @example
  * ```typescript
  * const actions = defineActionMap({
- *   jump: { keys: ['Space', 'ArrowUp'] },
+ *   jump: { keys: [' ', 'ArrowUp'] },
  *   shoot: { keys: ['z'], buttons: [0] },
  * });
  * ```
@@ -245,7 +373,7 @@ function snapshotRaw(raw: RawInputState, prevActionsActive: ReadonlySet<string>,
  *   .create<Components, Events, Resources>()
  *   .withBundle(createInputBundle({
  *     actions: {
- *       jump: { keys: ['Space', 'ArrowUp'] },
+ *       jump: { keys: [' ', 'ArrowUp'] },
  *       shoot: { keys: ['z'], buttons: [0] },
  *     },
  *   }))
