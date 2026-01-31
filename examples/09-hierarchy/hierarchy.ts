@@ -1,31 +1,33 @@
-import { Application, Container, Graphics } from 'pixi.js';
+import { Graphics } from 'pixi.js';
 import ECSpresso from "../../src";
+import {
+	createRenderer2DBundle,
+	createGraphicsComponents,
+	type Renderer2DComponentTypes,
+	type Renderer2DEventTypes,
+	type Renderer2DResourceTypes,
+} from "../../src/bundles/renderers/renderer2D";
+import {
+	createInputBundle,
+	defineActionMap,
+	type InputResourceTypes,
+} from "../../src/bundles/utils/input";
 
 // ==================== Type Definitions ====================
 
-interface Components {
-	/** World position (computed from parent chain + localPosition) */
-	position: { x: number; y: number };
-	/** Position relative to parent (or world if no parent) */
-	localPosition: { x: number; y: number };
+interface Components extends Renderer2DComponentTypes {
 	/** Orbital parameters for bodies that orbit a parent */
 	orbit: { radius: number; speed: number; angle: number };
 	/** Visual properties of the celestial body */
 	celestialBody: { name: string; color: number; radius: number };
-	/** PixiJS graphics object for rendering */
-	graphics: Graphics;
 }
 
-interface Events {
-	hierarchyChanged: { entityId: number; oldParent: number | null; newParent: number | null };
+interface Events extends Renderer2DEventTypes {
 	bodyDestroyed: { name: string; childCount: number };
 }
 
-interface Resources {
-	pixi: Application;
-	worldContainer: Container;
+interface Resources extends Renderer2DResourceTypes, InputResourceTypes {
 	camera: { x: number; y: number };
-	keys: { up: boolean; down: boolean; left: boolean; right: boolean };
 }
 
 // ==================== Solar System Data ====================
@@ -101,120 +103,73 @@ const SOLAR_SYSTEM = {
 	],
 };
 
+// ==================== Input Setup ====================
+
+const actions = defineActionMap({
+	panUp: { keys: ['w', 'ArrowUp'] },
+	panDown: { keys: ['s', 'ArrowDown'] },
+	panLeft: { keys: ['a', 'ArrowLeft'] },
+	panRight: { keys: ['d', 'ArrowRight'] },
+});
+
 // ==================== ECS Setup ====================
 
-const ecs = ECSpresso.create<Components, Events, Resources>().build();
+const ecs = ECSpresso.create<Components, Events, Resources>()
+	.withBundle(createRenderer2DBundle({
+		init: { background: 0x000011, resizeTo: window },
+		container: document.body,
+		startLoop: true,
+	}))
+	.withBundle(createInputBundle({ actions }))
+	.withResource('camera', { x: 0, y: 0 })
+	.build();
 
 ecs
-	.addResource('pixi', async () => {
-		const pixi = new Application();
-		await pixi.init({
-			background: 0x000011,
-			resizeTo: window,
-		});
-		return pixi;
-	})
 	// ==================== Orbit System ====================
-	// Updates localPosition based on orbital angle and radius
+	// Updates localTransform based on orbital angle and radius
 	.addSystem('orbit')
 	.inPhase('fixedUpdate')
 	.addQuery('orbitingBodies', {
-		with: ['orbit', 'localPosition'],
+		with: ['orbit', 'localTransform'],
 	})
-	.setProcess((queries, deltaTime) => {
+	.setProcess((queries, deltaTime, ecs) => {
 		for (const entity of queries.orbitingBodies) {
-			const { orbit, localPosition } = entity.components;
+			const { orbit, localTransform } = entity.components;
 
 			// Update orbital angle
 			orbit.angle += orbit.speed * deltaTime;
 
 			// Compute local position from orbit
-			localPosition.x = Math.cos(orbit.angle) * orbit.radius;
-			localPosition.y = Math.sin(orbit.angle) * orbit.radius;
-		}
-	})
-	.and()
-	// ==================== World Position System ====================
-	// Computes world position from parent's world position + local position
-	.addSystem('world-position')
-	.inPhase('postUpdate')
-	.addQuery('positionedBodies', {
-		with: ['position', 'localPosition'],
-	})
-	.setProcess((queries, _deltaTime, ecs) => {
-		for (const entity of queries.positionedBodies) {
-			const { position, localPosition } = entity.components;
+			localTransform.x = Math.cos(orbit.angle) * orbit.radius;
+			localTransform.y = Math.sin(orbit.angle) * orbit.radius;
 
-			// Start with local position
-			let worldX = localPosition.x;
-			let worldY = localPosition.y;
-
-			// Add parent's world position (which already includes all grandparent positions)
-			const parentId = ecs.getParent(entity.id);
-			if (parentId !== null) {
-				const parentPos = ecs.entityManager.getComponent(parentId, 'position');
-				if (parentPos) {
-					worldX += parentPos.x;
-					worldY += parentPos.y;
-				}
-			}
-
-			// Update world position
-			position.x = worldX;
-			position.y = worldY;
-		}
-	})
-	.and()
-	// ==================== Render System ====================
-	// Updates graphics positions from world positions
-	.addSystem('render')
-	.inPhase('render')
-	.addQuery('renderableBodies', {
-		with: ['graphics', 'position'],
-	})
-	.setProcess((queries) => {
-		for (const entity of queries.renderableBodies) {
-			const { graphics, position } = entity.components;
-			graphics.position.set(position.x, position.y);
+			ecs.markChanged(entity.id, 'localTransform');
 		}
 	})
 	.and()
 	// ==================== Camera System ====================
-	// Scrolls the view based on keyboard input
+	// Scrolls the view based on input actions
 	.addSystem('camera')
 	.inPhase('preUpdate')
 	.setProcess((_queries, deltaTime, ecs) => {
-		const keys = ecs.getResource('keys');
+		const input = ecs.getResource('inputState');
 		const camera = ecs.getResource('camera');
-		const worldContainer = ecs.getResource('worldContainer');
+		const rootContainer = ecs.getResource('rootContainer');
 
 		const scrollSpeed = 400;
 
-		if (keys.up) camera.y += scrollSpeed * deltaTime;
-		if (keys.down) camera.y -= scrollSpeed * deltaTime;
-		if (keys.left) camera.x += scrollSpeed * deltaTime;
-		if (keys.right) camera.x -= scrollSpeed * deltaTime;
+		if (input.actions.isActive('panUp')) camera.y += scrollSpeed * deltaTime;
+		if (input.actions.isActive('panDown')) camera.y -= scrollSpeed * deltaTime;
+		if (input.actions.isActive('panLeft')) camera.x += scrollSpeed * deltaTime;
+		if (input.actions.isActive('panRight')) camera.x -= scrollSpeed * deltaTime;
 
-		worldContainer.position.set(camera.x, camera.y);
+		rootContainer.position.set(camera.x, camera.y);
 	})
 	.and()
 	// ==================== Initialize System ====================
 	.addSystem('initialize')
-	.setOnInitialize(async (ecs) => {
-		const pixi = ecs.getResource('pixi');
-
-		// Create world container now that pixi is ready
-		const worldContainer = new Container();
-		pixi.stage.addChild(worldContainer);
-		ecs.addResource('worldContainer', worldContainer);
-
-		// Initialize camera at origin
-		ecs.addResource('camera', { x: 0, y: 0 });
-
-		// Set up keyboard input
-		const keys = { up: false, down: false, left: false, right: false };
-		ecs.addResource('keys', keys);
-		setupKeyboardInput(keys);
+	.setOnInitialize((ecs) => {
+		const pixiApp = ecs.getResource('pixiApp');
 
 		// Add reactive query to auto-update hierarchy display
 		ecs.addReactiveQuery('celestialBodies', {
@@ -223,21 +178,15 @@ ecs
 			onExit: () => updateHierarchyDisplay(ecs),
 		});
 
-		// Append canvas to body
-		document.body.appendChild(pixi.canvas);
-
-		const centerX = pixi.screen.width / 2;
-		const centerY = pixi.screen.height / 2;
+		const centerX = pixiApp.screen.width / 2;
+		const centerY = pixiApp.screen.height / 2;
 
 		// Create the sun (root entity)
 		const sunGraphics = createCelestialGraphics(SOLAR_SYSTEM.sun.color, SOLAR_SYSTEM.sun.radius);
-		worldContainer.addChild(sunGraphics);
 
 		const sun = ecs.spawn({
-			position: { x: centerX, y: centerY },
-			localPosition: { x: centerX, y: centerY },
+			...createGraphicsComponents(sunGraphics, { x: centerX, y: centerY }),
 			celestialBody: { ...SOLAR_SYSTEM.sun },
-			graphics: sunGraphics,
 		});
 
 		// Register click handler for sun
@@ -246,11 +195,9 @@ ecs
 		// Create planets as children of sun
 		for (const planetData of SOLAR_SYSTEM.planets) {
 			const planetGraphics = createCelestialGraphics(planetData.color, planetData.radius);
-			worldContainer.addChild(planetGraphics);
 
 			const planet = ecs.spawnChild(sun.id, {
-				position: { x: 0, y: 0 },
-				localPosition: { x: 0, y: 0 },
+				...createGraphicsComponents(planetGraphics),
 				orbit: {
 					radius: planetData.orbitRadius,
 					speed: planetData.orbitSpeed,
@@ -261,7 +208,6 @@ ecs
 					color: planetData.color,
 					radius: planetData.radius,
 				},
-				graphics: planetGraphics,
 			});
 
 			registerClickHandler(planetGraphics, planet.id, ecs);
@@ -269,11 +215,9 @@ ecs
 			// Create moons as children of planet
 			for (const moonData of planetData.moons) {
 				const moonGraphics = createCelestialGraphics(moonData.color, moonData.radius);
-				worldContainer.addChild(moonGraphics);
 
 				const moon = ecs.spawnChild(planet.id, {
-					position: { x: 0, y: 0 },
-					localPosition: { x: 0, y: 0 },
+					...createGraphicsComponents(moonGraphics),
 					orbit: {
 						radius: moonData.orbitRadius,
 						speed: moonData.orbitSpeed,
@@ -284,50 +228,15 @@ ecs
 						color: moonData.color,
 						radius: moonData.radius,
 					},
-					graphics: moonGraphics,
 				});
 
 				registerClickHandler(moonGraphics, moon.id, ecs);
 			}
 		}
-
-		// Start the game loop
-		pixi.ticker.add((ticker) => {
-			ecs.update(ticker.deltaMS / 1000);
-		});
 	})
 	.build();
 
 // ==================== Helper Functions ====================
-
-type KeyDirection = 'up' | 'down' | 'left' | 'right';
-
-const keyToDirection: Record<string, KeyDirection> = {
-	'ArrowUp': 'up',
-	'w': 'up',
-	'W': 'up',
-	'ArrowDown': 'down',
-	's': 'down',
-	'S': 'down',
-	'ArrowLeft': 'left',
-	'a': 'left',
-	'A': 'left',
-	'ArrowRight': 'right',
-	'd': 'right',
-	'D': 'right',
-};
-
-function setupKeyboardInput(keys: { up: boolean; down: boolean; left: boolean; right: boolean }): void {
-	window.addEventListener('keydown', (e) => {
-		const direction = keyToDirection[e.key];
-		if (direction) keys[direction] = true;
-	});
-
-	window.addEventListener('keyup', (e) => {
-		const direction = keyToDirection[e.key];
-		if (direction) keys[direction] = false;
-	});
-}
 
 function createCelestialGraphics(color: number, radius: number): Graphics {
 	const graphics = new Graphics();
@@ -372,15 +281,6 @@ function registerClickHandler(
 			childCount: descendants.length,
 		});
 
-		// Destroy graphics for this entity and all descendants
-		const entitiesToDestroy = [entityId, ...descendants];
-		for (const id of entitiesToDestroy) {
-			const g = ecs.entityManager.getComponent(id, 'graphics');
-			if (g) {
-				g.destroy();
-			}
-		}
-
 		// Remove entity (cascade: true by default removes all children)
 		ecs.removeEntity(entityId);
 
@@ -389,15 +289,15 @@ function registerClickHandler(
 }
 
 function centerOnEntity(entityId: number, ecs: ECSpresso<Components, Events, Resources>): void {
-	const position = ecs.entityManager.getComponent(entityId, 'position');
-	if (!position) return;
+	const worldTransform = ecs.entityManager.getComponent(entityId, 'worldTransform');
+	if (!worldTransform) return;
 
-	const pixi = ecs.getResource('pixi');
+	const pixiApp = ecs.getResource('pixiApp');
 	const camera = ecs.getResource('camera');
 
 	// Center the camera on the entity
-	camera.x = pixi.screen.width / 2 - position.x;
-	camera.y = pixi.screen.height / 2 - position.y;
+	camera.x = pixiApp.screen.width / 2 - worldTransform.x;
+	camera.y = pixiApp.screen.height / 2 - worldTransform.y;
 }
 
 function updateHierarchyDisplay(ecs: ECSpresso<Components, Events, Resources>): void {

@@ -7,9 +7,12 @@ import {
 	type Renderer2DEventTypes,
 	type Renderer2DResourceTypes,
 } from "../../src/bundles/renderers/renderer2D";
+import {
+	createMovementBundle,
+	type MovementComponentTypes,
+} from "../../src/bundles/utils/movement";
 
-interface Components extends Renderer2DComponentTypes {
-	velocity: { x: number; y: number };
+interface Components extends Renderer2DComponentTypes, MovementComponentTypes {
 	radius: number;
 }
 
@@ -18,35 +21,30 @@ const ecs = ECSpresso.create<Components, Renderer2DEventTypes, Renderer2DResourc
 		init: { background: '#1099bb', resizeTo: window },
 		container: document.body,
 	}))
+	.withBundle(createMovementBundle())
 	.build();
 
-// Movement system
+// Bounce system — runs after movement bundle integrates velocity
 ecs
-	.addSystem('move-entities')
-	.inPhase('fixedUpdate')
-	.addQuery('movingEntities', {
-		with: ['localTransform', 'velocity', 'radius'],
+	.addSystem('bounce')
+	.inPhase('postUpdate')
+	.addQuery('bouncingEntities', {
+		with: ['worldTransform', 'velocity', 'radius'],
 	})
-	.setProcess((queries, deltaTime, ecs) => {
-		const pixiApp = ecs.getResource('pixiApp');
-		for (const entity of queries.movingEntities) {
-			const { localTransform, velocity, radius } = entity.components;
-			localTransform.x += velocity.x * deltaTime;
-			localTransform.y += velocity.y * deltaTime;
+	.setProcess((queries, _deltaTime, ecs) => {
+		const bounds = ecs.getResource('bounds');
+		for (const entity of queries.bouncingEntities) {
+			const { worldTransform, velocity, radius } = entity.components;
 
-			// Bounce off edges
-			const maxX = pixiApp.screen.width - radius;
-			const maxY = pixiApp.screen.height - radius;
-			if (localTransform.x > maxX || localTransform.x < radius) {
-				localTransform.x = Math.max(radius, Math.min(maxX, localTransform.x));
+			const maxX = bounds.width - radius;
+			const maxY = bounds.height - radius;
+
+			if (worldTransform.x > maxX || worldTransform.x < radius) {
 				velocity.x *= -1;
 			}
-			if (localTransform.y > maxY || localTransform.y < radius) {
-				localTransform.y = Math.max(radius, Math.min(maxY, localTransform.y));
+			if (worldTransform.y > maxY || worldTransform.y < radius) {
 				velocity.y *= -1;
 			}
-
-			ecs.markChanged(entity.id, 'localTransform');
 		}
 	})
 	.build();
@@ -72,4 +70,3 @@ ecs.spawn({
 	velocity: { x: 300, y: 250 },
 	radius: ballRadius,
 });
-

@@ -17,13 +17,34 @@ import {
 	createRepeatingTimer,
 	type TimerComponentTypes,
 } from "../../src/bundles/utils/timers";
+import {
+	createMovementBundle,
+	type MovementComponentTypes,
+} from "../../src/bundles/utils/movement";
+import {
+	createBoundsBundle,
+	createWrapAtBounds,
+	type BoundsComponentTypes,
+	type BoundsEventTypes,
+} from "../../src/bundles/utils/bounds";
+import {
+	createCollisionBundle,
+	createCircleCollider,
+	createCollisionLayer,
+	type CollisionComponentTypes,
+	type CollisionEventTypes,
+} from "../../src/bundles/utils/collision";
 
-interface Events extends Renderer2DEventTypes {}
+interface Events extends Renderer2DEventTypes, BoundsEventTypes, CollisionEventTypes {}
 
-interface Components extends Renderer2DComponentTypes, TimerComponentTypes<Events> {
+interface Components extends
+	Renderer2DComponentTypes,
+	TimerComponentTypes<Events>,
+	MovementComponentTypes,
+	BoundsComponentTypes,
+	CollisionComponentTypes {
 	player: true;
 	speed: number;
-	velocity: { x: number; y: number };
 	enemySpawner: true;
 	enemy: true;
 }
@@ -37,6 +58,8 @@ const actions = defineActionMap({
 	moveRight: { keys: ['d', 'ArrowRight'] },
 });
 
+const BALL_RADIUS = 30;
+
 const ecs = ECSpresso
 	.create<Components, Events, Resources>()
 	.withBundle(createRenderer2DBundle({
@@ -45,32 +68,12 @@ const ecs = ECSpresso
 	}))
 	.withBundle(createTimerBundle<Events>())
 	.withBundle(createInputBundle({ actions }))
+	.withBundle(createMovementBundle())
+	.withBundle(createBoundsBundle())
+	.withBundle(createCollisionBundle())
 	.build();
 
 ecs
-	.addSystem('apply-velocity')
-	.inPhase('fixedUpdate')
-	.addQuery('movingEntities', {
-		with: ['localTransform', 'velocity'],
-	})
-	.setProcess((queries, deltaTimeMs, ecs) => {
-		const pixiApp = ecs.getResource('pixiApp');
-
-		for (const entity of queries.movingEntities) {
-			const { localTransform, velocity } = entity.components;
-			localTransform.x += velocity.x * deltaTimeMs;
-			localTransform.y += velocity.y * deltaTimeMs;
-
-			// wrap around the screen
-			if (localTransform.x < 0) localTransform.x = pixiApp.renderer.width;
-			if (localTransform.x > pixiApp.renderer.width) localTransform.x = 0;
-			if (localTransform.y < 0) localTransform.y = pixiApp.renderer.height;
-			if (localTransform.y > pixiApp.renderer.height) localTransform.y = 0;
-
-			ecs.markChanged(entity.id, 'localTransform');
-		}
-	})
-	.and()
 	.addSystem('enemy-spawner')
 	.addQuery('spawners', {
 		with: ['timer', 'enemySpawner'],
@@ -84,13 +87,15 @@ ecs
 			const sprite = createCircleSprite(0xFF0000);
 			const speed = randomInt(300, 550);
 
-			// Sprite is automatically added to scene graph by pixi bundle
 			ecs.spawn({
 				...createSpriteComponents(sprite, {
 					x: randomInt(pixiApp.renderer.width),
 					y: randomInt(pixiApp.renderer.height),
 				}),
 				...createRepeatingTimer<Events>(randomInt(3, 8)),
+				...createWrapAtBounds(),
+				...createCircleCollider(BALL_RADIUS),
+				...createCollisionLayer('enemy', ['player']),
 				speed,
 				velocity: {
 					x: randomInt(-speed, speed),
@@ -131,43 +136,37 @@ ecs
 		velocity.x = input.actions.isActive('moveLeft') ? -speed : input.actions.isActive('moveRight') ? speed : 0;
 	})
 	.and()
-	.addSystem('collision-detection')
-	.inPhase('postUpdate')
-	.addQuery('players', {
-		with: ['localTransform', 'sprite', 'player'],
-	})
-	.addQuery('enemies', {
-		with: ['localTransform', 'sprite', 'enemy'],
-	})
-	.setProcess((queries, _deltaTimeMs, ecs) => {
-		const [player] = queries.players;
-		if (!player) return;
+	.addSystem('collision-handler')
+	.setEventHandlers({
+		collision: {
+			handler(data, ecs) {
+				// Determine which entity is the enemy and remove it
+				const entityA = ecs.entityManager.getComponent(data.entityA, 'enemy');
+				const entityB = ecs.entityManager.getComponent(data.entityB, 'enemy');
 
-		for (const enemy of queries.enemies) {
-			const playerBounds = player.components.sprite.getBounds();
-			const enemyBounds = enemy.components.sprite.getBounds();
-
-			const isColliding =
-				playerBounds.x < enemyBounds.x + enemyBounds.width &&
-				playerBounds.x + playerBounds.width > enemyBounds.x &&
-				playerBounds.y < enemyBounds.y + enemyBounds.height &&
-				playerBounds.y + playerBounds.height > enemyBounds.y;
-
-			if (isColliding) {
-				console.log('collision detected');
-				ecs.removeEntity(enemy.id);
-			}
-		}
+				if (entityA) {
+					console.log('collision detected');
+					ecs.removeEntity(data.entityA);
+				}
+				if (entityB) {
+					console.log('collision detected');
+					ecs.removeEntity(data.entityB);
+				}
+			},
+		},
 	})
 	.build();
 
 // Initialize ECS and resources
 await ecs.initialize();
 
-// Spawn player - sprite is automatically added to scene graph by pixi bundle
+// Spawn player
 const playerSprite = createCircleSprite(0x0000FF);
 ecs.spawn({
 	...createSpriteComponents(playerSprite, { x: 100, y: 100 }),
+	...createWrapAtBounds(),
+	...createCircleCollider(BALL_RADIUS),
+	...createCollisionLayer('player', ['enemy']),
 	player: true,
 	speed: 500,
 	velocity: { x: 0, y: 0 },
@@ -187,7 +186,7 @@ if (spawnerEntity) {
 
 function createCircleSprite(color: number): Sprite {
 	const texture = ecs.getResource('pixiApp').renderer.generateTexture(
-		new Graphics().circle(0, 0, 30).fill(color)
+		new Graphics().circle(0, 0, BALL_RADIUS).fill(color)
 	);
 	return new Sprite(texture);
 }

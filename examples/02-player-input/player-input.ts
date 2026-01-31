@@ -12,10 +12,13 @@ import {
 	type Renderer2DEventTypes,
 	type Renderer2DResourceTypes,
 } from "../../src/bundles/renderers/renderer2D";
+import {
+	createMovementBundle,
+	type MovementComponentTypes,
+} from "../../src/bundles/utils/movement";
 
-interface Components extends Renderer2DComponentTypes {
+interface Components extends Renderer2DComponentTypes, MovementComponentTypes {
 	speed: number;
-	velocity: { x: number; y: number };
 }
 
 interface Resources extends Renderer2DResourceTypes, InputResourceTypes {}
@@ -33,6 +36,7 @@ const ecs = ECSpresso
 		init: { background: '#1099bb', resizeTo: window },
 		container: document.body,
 	}))
+	.withBundle(createMovementBundle())
 	.withBundle(createInputBundle({ actions }))
 	.build();
 
@@ -52,20 +56,6 @@ ecs
 
 		velocity.y = input.actions.isActive('moveUp') ? -speed : input.actions.isActive('moveDown') ? speed : 0;
 		velocity.x = input.actions.isActive('moveLeft') ? -speed : input.actions.isActive('moveRight') ? speed : 0;
-	})
-	.and()
-	.addSystem('move-entities')
-	.inPhase('fixedUpdate')
-	.addQuery('movingEntities', {
-		with: ['localTransform', 'velocity'],
-	})
-	.setProcess((queries, deltaTime, ecs) => {
-		for (const entity of queries.movingEntities) {
-			const { localTransform, velocity } = entity.components;
-			localTransform.x += velocity.x * deltaTime;
-			localTransform.y += velocity.y * deltaTime;
-			ecs.markChanged(entity.id, 'localTransform');
-		}
 	})
 	.build();
 

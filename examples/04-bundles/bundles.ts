@@ -1,5 +1,5 @@
 import { Graphics, Sprite } from 'pixi.js';
-import ECSpresso, { Bundle, QueryResultEntity, createQueryDefinition } from "../../src";
+import ECSpresso, { Bundle } from "../../src";
 import {
 	createInputBundle,
 	defineActionMap,
@@ -17,46 +17,45 @@ import {
 	createRepeatingTimer,
 	type TimerComponentTypes,
 } from "../../src/bundles/utils/timers";
+import {
+	createMovementBundle,
+	type MovementComponentTypes,
+} from "../../src/bundles/utils/movement";
+import {
+	createBoundsBundle,
+	createWrapAtBounds,
+	type BoundsComponentTypes,
+	type BoundsEventTypes,
+} from "../../src/bundles/utils/bounds";
+import {
+	createCollisionBundle,
+	createCircleCollider,
+	createCollisionLayer,
+	type CollisionComponentTypes,
+	type CollisionEventTypes,
+} from "../../src/bundles/utils/collision";
 
-interface Events extends Renderer2DEventTypes {
+interface Events extends Renderer2DEventTypes, BoundsEventTypes, CollisionEventTypes {
 	initializeGame: { someRandomData: Date };
 	initializeMap: void;
 	startGame: void;
 }
 
-interface Components extends Renderer2DComponentTypes, TimerComponentTypes<Events> {
+interface Components extends
+	Renderer2DComponentTypes,
+	TimerComponentTypes<Events>,
+	MovementComponentTypes,
+	BoundsComponentTypes,
+	CollisionComponentTypes {
 	player: true;
 	speed: number;
-	velocity: { x: number; y: number };
 	enemySpawner: true;
 	enemy: true;
 }
 
 interface Resources extends Renderer2DResourceTypes, InputResourceTypes {}
 
-// Create reusable query definitions for better type extraction
-const movingEntitiesQuery = createQueryDefinition({
-	with: ['localTransform', 'velocity'],
-});
-
-// Extract entity types from query definitions for helper functions
-type MovingEntity = QueryResultEntity<Components, typeof movingEntitiesQuery>;
-
-// Helper functions with proper typing - these can be tested independently!
-function updatePosition(entity: MovingEntity, deltaTime: number): void {
-	const { localTransform, velocity } = entity.components;
-	localTransform.x += velocity.x * deltaTime;
-	localTransform.y += velocity.y * deltaTime;
-}
-
-function screenWrap(entity: MovingEntity, screenWidth: number, screenHeight: number): void {
-	const { localTransform } = entity.components;
-
-	if (localTransform.x < 0) localTransform.x = screenWidth;
-	if (localTransform.x > screenWidth) localTransform.x = 0;
-	if (localTransform.y < 0) localTransform.y = screenHeight;
-	if (localTransform.y > screenHeight) localTransform.y = 0;
-}
+const BALL_RADIUS = 30;
 
 const actions = defineActionMap({
 	moveUp: { keys: ['w', 'ArrowUp'] },
@@ -74,8 +73,11 @@ const ecs = ECSpresso
 	}))
 	.withBundle(createTimerBundle<Events>())
 	.withBundle(createInputBundle({ actions }))
+	.withBundle(createMovementBundle())
+	.withBundle(createBoundsBundle())
+	.withBundle(createCollisionBundle())
 	.withBundle(createGameInitBundle())
-	.withBundle(createPhysicsBundle())
+	.withBundle(createCollisionHandlerBundle())
 	.withBundle(createEnemyControllerBundle())
 	.withBundle(createPlayerControllerBundle())
 	.build();
@@ -87,7 +89,7 @@ ecs.eventBus.publish('initializeGame', { someRandomData: new Date() });
 
 function createCircleSprite(color: number): Sprite {
 	const texture = ecs.getResource('pixiApp').renderer.generateTexture(
-		new Graphics().circle(0, 0, 30).fill(color)
+		new Graphics().circle(0, 0, BALL_RADIUS).fill(color)
 	);
 	return new Sprite(texture);
 }
@@ -118,6 +120,9 @@ function createGameInitBundle() {
 
 					ecs.spawn({
 						...createSpriteComponents(sprite, { x: 100, y: 100 }),
+						...createWrapAtBounds(),
+						...createCircleCollider(BALL_RADIUS),
+						...createCollisionLayer('player', ['enemy']),
 						player: true,
 						speed: 500,
 						velocity: { x: 0, y: 0 },
@@ -145,49 +150,25 @@ function createGameInitBundle() {
 		.and();
 }
 
-function createPhysicsBundle() {
+function createCollisionHandlerBundle() {
 	return new Bundle<Components, Events, Resources>()
-		.addSystem('apply-velocity')
-		.inPhase('fixedUpdate')
-		.addQuery('movingEntities', movingEntitiesQuery)
-		.setProcess((queries, deltaTimeMs, ecs) => {
-			const pixiApp = ecs.getResource('pixiApp');
+		.addSystem('collision-handler')
+		.setEventHandlers({
+			collision: {
+				handler(data, ecs) {
+					const entityA = ecs.entityManager.getComponent(data.entityA, 'enemy');
+					const entityB = ecs.entityManager.getComponent(data.entityB, 'enemy');
 
-			for (const entity of queries.movingEntities) {
-				updatePosition(entity, deltaTimeMs);
-				screenWrap(entity, pixiApp.renderer.width, pixiApp.renderer.height);
-				ecs.markChanged(entity.id, 'localTransform');
-			}
-		})
-		.and()
-		.addSystem('collision-detection')
-		.inPhase('postUpdate')
-		.addQuery('players', {
-			with: ['localTransform', 'sprite', 'player'],
-		})
-		.addQuery('enemies', {
-			with: ['localTransform', 'sprite', 'enemy'],
-		})
-		.setProcess((queries, _deltaTimeMs, ecs) => {
-			const [player] = queries.players;
-			if (!player) return;
-
-			for (const enemy of queries.enemies) {
-				const playerBounds = player.components.sprite.getBounds();
-				const enemyBounds = enemy.components.sprite.getBounds();
-
-				const isColliding =
-					playerBounds.x < enemyBounds.x + enemyBounds.width &&
-					playerBounds.x + playerBounds.width > enemyBounds.x &&
-					playerBounds.y < enemyBounds.y + enemyBounds.height &&
-					playerBounds.y + playerBounds.height > enemyBounds.y;
-
-				if (isColliding) {
-					console.log('collision detected');
-					enemy.components.sprite.destroy();
-					ecs.removeEntity(enemy.id);
-				}
-			}
+					if (entityA) {
+						console.log('collision detected');
+						ecs.removeEntity(data.entityA);
+					}
+					if (entityB) {
+						console.log('collision detected');
+						ecs.removeEntity(data.entityB);
+					}
+				},
+			},
 		})
 		.and();
 }
@@ -214,6 +195,9 @@ function createEnemyControllerBundle() {
 						y: randomInt(pixiApp.renderer.height),
 					}),
 					...createRepeatingTimer<Events>(randomInt(3, 8)),
+					...createWrapAtBounds(),
+					...createCircleCollider(BALL_RADIUS),
+					...createCollisionLayer('enemy', ['player']),
 					speed,
 					velocity: {
 						x: randomInt(-speed, speed),
