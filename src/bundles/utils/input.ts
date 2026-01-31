@@ -9,8 +9,8 @@
  * in the system's process step, so all systems see consistent state.
  */
 
-import Bundle from '../../bundle';
-import type { SystemPhase } from '../../types';
+import { Bundle } from 'ecspresso';
+import type { SystemPhase } from 'ecspresso';
 
 // ==================== Public Types ====================
 

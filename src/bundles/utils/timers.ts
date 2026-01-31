@@ -5,8 +5,8 @@
  * Timers are components processed each frame, automatically cleaned up when entities are removed.
  */
 
-import Bundle from '../../bundle';
-import type { SystemPhase } from '../../types';
+import { Bundle } from 'ecspresso';
+import type { SystemPhase } from 'ecspresso';
 
 // ==================== Event Types ====================
 

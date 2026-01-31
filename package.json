@@ -18,6 +18,26 @@
 		"./bundles/utils/timers": {
 			"import": "./dist/bundles/utils/timers.js",
 			"types": "./dist/bundles/utils/timers.d.ts"
+		},
+		"./bundles/utils/transform": {
+			"import": "./dist/bundles/utils/transform.js",
+			"types": "./dist/bundles/utils/transform.d.ts"
+		},
+		"./bundles/utils/movement": {
+			"import": "./dist/bundles/utils/movement.js",
+			"types": "./dist/bundles/utils/movement.d.ts"
+		},
+		"./bundles/utils/bounds": {
+			"import": "./dist/bundles/utils/bounds.js",
+			"types": "./dist/bundles/utils/bounds.d.ts"
+		},
+		"./bundles/utils/collision": {
+			"import": "./dist/bundles/utils/collision.js",
+			"types": "./dist/bundles/utils/collision.d.ts"
+		},
+		"./bundles/utils/input": {
+			"import": "./dist/bundles/utils/input.js",
+			"types": "./dist/bundles/utils/input.d.ts"
 		}
 	},
 	"publishConfig": {
@@ -58,7 +78,7 @@
 	"scripts": {
 		"build:clean": "rm -rf dist",
 		"build:ts": "bun tsc -p tsconfig.build.json",
-		"build:js": "bun build --target=browser --sourcemap=linked --minify --external=pixi.js --outdir=dist src/index.ts src/bundles/renderers/renderer2D.ts src/bundles/utils/timers.ts",
+		"build:js": "bun scripts/build.ts",
 		"build": "bun build:clean && bun build:ts && bun build:js",
 		"check:types": "bun tsc --noEmit --skipLibCheck",
 		"check": "bun run check:types && bun test",

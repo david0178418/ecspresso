@@ -7,9 +7,9 @@
  * @see https://docs.rs/bevy/latest/bevy/transform/components/struct.GlobalTransform.html
  */
 
-import Bundle from '../../bundle';
-import type { SystemPhase } from '../../types';
-import type ECSpresso from '../../ecspresso';
+import { Bundle } from 'ecspresso';
+import type { SystemPhase } from 'ecspresso';
+import type ECSpresso from 'ecspresso';
 
 // ==================== Component Types ====================
 

@@ -8,21 +8,21 @@
  */
 
 import type { Application, ApplicationOptions, Container, Sprite, Graphics } from 'pixi.js';
-import Bundle, { mergeBundles } from '../../bundle';
-import type ECSpresso from '../../ecspresso';
+import { Bundle, mergeBundles } from 'ecspresso';
+import type ECSpresso from 'ecspresso';
 import {
 	createTransformBundle,
 	type LocalTransform,
 	type WorldTransform,
 	type TransformComponentTypes,
 	type TransformBundleOptions,
-} from '../utils/transform';
-import { createBounds, type BoundsRect } from '../utils/bounds';
+} from 'ecspresso/bundles/utils/transform';
+import { createBounds, type BoundsRect } from 'ecspresso/bundles/utils/bounds';
 
 // Re-export transform and bounds types for convenience
 export type { LocalTransform, WorldTransform, TransformComponentTypes };
 export type { BoundsRect };
-export { createTransform, createLocalTransform, createWorldTransform } from '../utils/transform';
+export { createTransform, createLocalTransform, createWorldTransform } from 'ecspresso/bundles/utils/transform';
 
 // Dynamic import for Application to avoid requiring pixi.js at bundle creation time
 // when using managed mode (init options instead of pre-initialized app)

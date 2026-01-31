@@ -6,8 +6,8 @@
  * Supports destroy, clamp, and wrap behaviors.
  */
 
-import Bundle from '../../bundle';
-import type { SystemPhase } from '../../types';
+import { Bundle } from 'ecspresso';
+import type { SystemPhase } from 'ecspresso';
 import type { TransformComponentTypes } from './transform';
 
 // ==================== Component Types ====================
