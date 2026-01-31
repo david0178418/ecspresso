@@ -38,6 +38,10 @@
 		"./bundles/utils/input": {
 			"import": "./dist/bundles/utils/input.js",
 			"types": "./dist/bundles/utils/input.d.ts"
+		},
+		"./bundles/utils/camera": {
+			"import": "./dist/bundles/utils/camera.js",
+			"types": "./dist/bundles/utils/camera.d.ts"
 		}
 	},
 	"publishConfig": {

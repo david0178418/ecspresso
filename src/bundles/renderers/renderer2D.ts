@@ -18,6 +18,7 @@ import {
 	type TransformBundleOptions,
 } from 'ecspresso/bundles/utils/transform';
 import { createBounds, type BoundsRect } from 'ecspresso/bundles/utils/bounds';
+import type { CameraResourceTypes } from 'ecspresso/bundles/utils/camera';
 
 // Re-export transform and bounds types for convenience
 export type { LocalTransform, WorldTransform, TransformComponentTypes };
@@ -107,6 +108,9 @@ interface Renderer2DBundleCommonOptions {
 	startLoop?: boolean;
 	/** Ordered render layer names (back-to-front). Entities with a renderLayer component are placed in the corresponding container. */
 	renderLayers?: string[];
+	/** Automatically apply cameraState resource to rootContainer each frame.
+	 *  Requires the camera bundle to be installed. (default: false) */
+	camera?: boolean;
 }
 
 /**
@@ -356,8 +360,15 @@ export function createContainerComponents(
  * ```
  */
 export function createRenderer2DBundle(
+	options: Renderer2DBundleOptions & { camera: true }
+): Bundle<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes & CameraResourceTypes>;
+export function createRenderer2DBundle(
 	options: Renderer2DBundleOptions
-): Bundle<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes> {
+): Bundle<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes>;
+export function createRenderer2DBundle(
+	options: Renderer2DBundleOptions & { camera?: boolean }
+): Bundle<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes>
+| Bundle<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes & CameraResourceTypes> {
 	const {
 		rootContainer: customRootContainer,
 		systemGroup = 'renderer2d',
@@ -365,6 +376,7 @@ export function createRenderer2DBundle(
 		transform: transformOptions,
 		startLoop = true,
 		renderLayers = [],
+		camera = false,
 	} = options;
 
 	const rendererBundle = new Bundle<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes>('renderer2d-internal');
@@ -687,11 +699,24 @@ export function createRenderer2DBundle(
 				updateSceneGraphParent(entity.id, ecs);
 			});
 
+			// Set initial camera viewport dimensions from screen
+			if (camera) {
+				const cameraState = (ecs as unknown as ECSpresso<{}, {}, CameraResourceTypes>).getResource('cameraState');
+				cameraState.viewportWidth = pixiApp.screen.width;
+				cameraState.viewportHeight = pixiApp.screen.height;
+			}
+
 			// Track screen bounds on resize
 			pixiApp.renderer.on('resize', (width: number, height: number) => {
 				const bounds = ecs.getResource('bounds');
 				bounds.width = width;
 				bounds.height = height;
+
+				if (camera) {
+					const cameraState = (ecs as unknown as ECSpresso<{}, {}, CameraResourceTypes>).getResource('cameraState');
+					cameraState.viewportWidth = width;
+					cameraState.viewportHeight = height;
+				}
 			});
 
 			// Wire up the game loop if requested
@@ -702,6 +727,30 @@ export function createRenderer2DBundle(
 			}
 		})
 		.and();
+
+	// ==================== Camera Sync System (opt-in) ====================
+	if (camera) {
+		rendererBundle
+			.addSystem('renderer2d-camera-sync')
+			.setPriority(900)
+			.inPhase('render')
+			.inGroup(systemGroup)
+			.setProcess((_queries, _dt, ecs) => {
+				const state = (ecs as unknown as ECSpresso<{}, {}, CameraResourceTypes>).getResource('cameraState');
+				const root = ecs.getResource('rootContainer');
+				const pixiApp = ecs.getResource('pixiApp');
+				const screenW = pixiApp.screen.width;
+				const screenH = pixiApp.screen.height;
+
+				root.position.set(
+					screenW / 2 - (state.x + state.shakeOffsetX) * state.zoom,
+					screenH / 2 - (state.y + state.shakeOffsetY) * state.zoom,
+				);
+				root.scale.set(state.zoom);
+				root.rotation = -(state.rotation + state.shakeRotation);
+			})
+			.and();
+	}
 
 	// Merge transform bundle (runs first) with renderer bundle
 	const transformBundle = createTransformBundle(transformOptions);

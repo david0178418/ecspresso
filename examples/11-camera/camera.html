@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Camera Bundle - ECSpresso</title>
+	<link rel="stylesheet" href="../styles.css">
+	<script src="./camera.ts" type="module" defer></script>
+	<style>
+		#info-panel {
+			position: fixed;
+			top: 10px;
+			left: 10px;
+			background: rgba(0, 0, 0, 0.8);
+			color: #fff;
+			padding: 15px;
+			border-radius: 8px;
+			font-family: monospace;
+			font-size: 13px;
+			z-index: 100;
+			line-height: 1.6;
+		}
+		#info-panel kbd {
+			background: rgba(255, 255, 255, 0.15);
+			padding: 1px 5px;
+			border-radius: 3px;
+		}
+	</style>
+</head>
+<body>
+	<a class="back" href="/">Back</a>
+	<div id="info-panel">
+		<div><kbd>WASD</kbd> / <kbd>Arrows</kbd> Move</div>
+		<div><kbd>Space</kbd> Shake</div>
+		<div id="coords"></div>
+	</div>
+</body>
+</html>
