@@ -2,7 +2,6 @@ import { describe, test, expect } from 'bun:test';
 import ECSpresso from '../../ecspresso';
 import {
 	createInputBundle,
-	defineActionMap,
 	createActionBinding,
 	type InputResourceTypes,
 	type ActionMap,
@@ -475,16 +474,7 @@ describe('Input Bundle', () => {
 	});
 
 	describe('Helper functions', () => {
-		test('defineActionMap returns action map', () => {
-			const map = defineActionMap({
-				jump: { keys: [' ', 'ArrowUp'] },
-				shoot: { keys: ['z'], buttons: [0] },
-			});
-			expect(map.jump.keys).toEqual([' ', 'ArrowUp']);
-			expect(map.shoot.buttons).toEqual([0]);
-		});
-
-		test('createActionBinding creates a binding', () => {
+test('createActionBinding creates a binding', () => {
 			const binding = createActionBinding({ keys: ['a', 'b'], buttons: [0] });
 			expect(binding.keys).toEqual(['a', 'b']);
 			expect(binding.buttons).toEqual([0]);

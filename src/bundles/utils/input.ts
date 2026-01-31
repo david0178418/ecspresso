@@ -202,24 +202,6 @@ export interface InputBundleOptions {
 // ==================== Helper Functions ====================
 
 /**
- * Define an action map with proper typing.
- *
- * @param map Object mapping action names to bindings
- * @returns The same map (identity, for convenience/documentation)
- *
- * @example
- * ```typescript
- * const actions = defineActionMap({
- *   jump: { keys: [' ', 'ArrowUp'] },
- *   shoot: { keys: ['z'], buttons: [0] },
- * });
- * ```
- */
-export function defineActionMap<T extends ActionMap>(map: T): T {
-	return map;
-}
-
-/**
  * Create a single action binding.
  *
  * @param binding The binding configuration

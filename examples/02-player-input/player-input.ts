@@ -2,7 +2,6 @@ import { Graphics, Sprite } from 'pixi.js';
 import ECSpresso from "../../src";
 import {
 	createInputBundle,
-	defineActionMap,
 	type InputResourceTypes,
 } from "../../src/bundles/utils/input";
 import {
@@ -23,13 +22,6 @@ interface Components extends Renderer2DComponentTypes, MovementComponentTypes {
 
 interface Resources extends Renderer2DResourceTypes, InputResourceTypes {}
 
-const actions = defineActionMap({
-	moveUp: { keys: ['w', 'ArrowUp'] },
-	moveDown: { keys: ['s', 'ArrowDown'] },
-	moveLeft: { keys: ['a', 'ArrowLeft'] },
-	moveRight: { keys: ['d', 'ArrowRight'] },
-});
-
 const ecs = ECSpresso
 	.create<Components, Renderer2DEventTypes, Resources>()
 	.withBundle(createRenderer2DBundle({
@@ -37,7 +29,14 @@ const ecs = ECSpresso
 		container: document.body,
 	}))
 	.withBundle(createMovementBundle())
-	.withBundle(createInputBundle({ actions }))
+	.withBundle(createInputBundle({
+		actions: {
+			moveUp: { keys: ['w', 'ArrowUp'] },
+			moveDown: { keys: ['s', 'ArrowDown'] },
+			moveLeft: { keys: ['a', 'ArrowLeft'] },
+			moveRight: { keys: ['d', 'ArrowRight'] },
+		},
+	}))
 	.build();
 
 ecs

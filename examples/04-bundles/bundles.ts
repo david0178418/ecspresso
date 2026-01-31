@@ -2,7 +2,6 @@ import { Graphics, Sprite } from 'pixi.js';
 import ECSpresso, { Bundle } from "../../src";
 import {
 	createInputBundle,
-	defineActionMap,
 	type InputResourceTypes,
 } from "../../src/bundles/utils/input";
 import {
@@ -57,13 +56,6 @@ interface Resources extends Renderer2DResourceTypes, InputResourceTypes {}
 
 const BALL_RADIUS = 30;
 
-const actions = defineActionMap({
-	moveUp: { keys: ['w', 'ArrowUp'] },
-	moveDown: { keys: ['s', 'ArrowDown'] },
-	moveLeft: { keys: ['a', 'ArrowLeft'] },
-	moveRight: { keys: ['d', 'ArrowRight'] },
-});
-
 // Create an ECSpresso instance with our game bundles
 const ecs = ECSpresso
 	.create<Components, Events, Resources>()
@@ -72,7 +64,14 @@ const ecs = ECSpresso
 		container: document.body,
 	}))
 	.withBundle(createTimerBundle<Events>())
-	.withBundle(createInputBundle({ actions }))
+	.withBundle(createInputBundle({
+		actions: {
+			moveUp: { keys: ['w', 'ArrowUp'] },
+			moveDown: { keys: ['s', 'ArrowDown'] },
+			moveLeft: { keys: ['a', 'ArrowLeft'] },
+			moveRight: { keys: ['d', 'ArrowRight'] },
+		},
+	}))
 	.withBundle(createMovementBundle())
 	.withBundle(createBoundsBundle())
 	.withBundle(createCollisionBundle())

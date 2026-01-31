@@ -707,7 +707,7 @@ The input bundle provides frame-accurate keyboard, pointer (mouse + touch via Po
 
 ```typescript
 import {
-  createInputBundle, defineActionMap,
+  createInputBundle,
   type InputResourceTypes, type KeyCode
 } from 'ecspresso/bundles/utils/input';
 
@@ -715,12 +715,12 @@ interface Resources extends InputResourceTypes {}
 
 const world = ECSpresso.create<Components, Events, Resources>()
   .withBundle(createInputBundle({
-    actions: defineActionMap({
+    actions: {
       jump: { keys: [' ', 'ArrowUp'] },
       shoot: { keys: ['z'], buttons: [0] },
       moveLeft: { keys: ['a', 'ArrowLeft'] },
       moveRight: { keys: ['d', 'ArrowRight'] },
-    }),
+    },
   }))
   .build();
 

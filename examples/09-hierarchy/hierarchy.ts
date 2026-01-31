@@ -9,7 +9,6 @@ import {
 } from "../../src/bundles/renderers/renderer2D";
 import {
 	createInputBundle,
-	defineActionMap,
 	type InputResourceTypes,
 } from "../../src/bundles/utils/input";
 
@@ -105,13 +104,6 @@ const SOLAR_SYSTEM = {
 
 // ==================== Input Setup ====================
 
-const actions = defineActionMap({
-	panUp: { keys: ['w', 'ArrowUp'] },
-	panDown: { keys: ['s', 'ArrowDown'] },
-	panLeft: { keys: ['a', 'ArrowLeft'] },
-	panRight: { keys: ['d', 'ArrowRight'] },
-});
-
 // ==================== ECS Setup ====================
 
 const ecs = ECSpresso.create<Components, Events, Resources>()
@@ -120,7 +112,14 @@ const ecs = ECSpresso.create<Components, Events, Resources>()
 		container: document.body,
 		startLoop: true,
 	}))
-	.withBundle(createInputBundle({ actions }))
+	.withBundle(createInputBundle({
+		actions: {
+			panUp: { keys: ['w', 'ArrowUp'] },
+			panDown: { keys: ['s', 'ArrowDown'] },
+			panLeft: { keys: ['a', 'ArrowLeft'] },
+			panRight: { keys: ['d', 'ArrowRight'] },
+		},
+	}))
 	.withResource('camera', { x: 0, y: 0 })
 	.build();
 

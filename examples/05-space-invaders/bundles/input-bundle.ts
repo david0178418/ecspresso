@@ -1,19 +1,19 @@
-import { createInputBundle as createLibInputBundle, defineActionMap } from '../../../src/bundles/utils/input';
+import { createInputBundle as createLibInputBundle } from '../../../src/bundles/utils/input';
 import Bundle from '../../../src/bundle';
 import type { Components, Events, Resources } from '../types';
-
-const actions = defineActionMap({
-	moveLeft: { keys: ['ArrowLeft', 'a'] },
-	moveRight: { keys: ['ArrowRight', 'd'] },
-	shoot: { keys: [' '] },
-	pause: { keys: ['p'] },
-});
 
 /**
  * Returns the library input bundle pre-configured with Space Invaders key bindings.
  */
 export function createInputBundle() {
-	return createLibInputBundle({ actions });
+	return createLibInputBundle({
+		actions: {
+			moveLeft: { keys: ['ArrowLeft', 'a'] },
+			moveRight: { keys: ['ArrowRight', 'd'] },
+			shoot: { keys: [' '] },
+			pause: { keys: ['p'] },
+		},
+	});
 }
 
 /**
