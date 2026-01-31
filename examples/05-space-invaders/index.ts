@@ -5,7 +5,7 @@ import { createMovementBundle } from '../../src/bundles/utils/movement';
 import { createBoundsBundle } from '../../src/bundles/utils/bounds';
 import { createCollisionBundle } from '../../src/bundles/utils/collision';
 import createCombatBundle from './bundles/combat-bundle';
-import createInputBundle from './bundles/input-bundle';
+import createInputProcessingBundle, { createInputBundle } from './bundles/input-bundle';
 import createSpawnerBundle from './bundles/spawner-bundle';
 import createUIBundle from './bundles/ui-bundle';
 import createGameLogicBundle from './bundles/game-logic-bundle';
@@ -34,10 +34,11 @@ const game = ECSpresso
 		container: '#game-container',
 		renderLayers: ['game'],
 	}))
-	.withBundle(createMovementBundle({ priority: 200 }))
-	.withBundle(createBoundsBundle({ priority: 100 }))
-	.withBundle(createCollisionBundle({ priority: 50 }))
+	.withBundle(createMovementBundle({ priority: 200, systemGroup: 'gameplay' }))
+	.withBundle(createBoundsBundle({ priority: 100, systemGroup: 'gameplay' }))
+	.withBundle(createCollisionBundle({ priority: 50, systemGroup: 'gameplay' }))
 	.withBundle(createInputBundle())
+	.withBundle(createInputProcessingBundle())
 	.withBundle(createSpawnerBundle())
 	.withBundle(createUIBundle())
 	.withBundle(createGameLogicBundle())

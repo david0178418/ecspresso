@@ -1,84 +1,57 @@
+import { createInputBundle as createLibInputBundle, defineActionMap } from '../../../src/bundles/utils/input';
 import Bundle from '../../../src/bundle';
 import type { Components, Events, Resources } from '../types';
 
-type InputKey = 'left' | 'right' | 'shoot';
+const actions = defineActionMap({
+	moveLeft: { keys: ['ArrowLeft', 'a'] },
+	moveRight: { keys: ['ArrowRight', 'd'] },
+	shoot: { keys: [' '] },
+	pause: { keys: ['p'] },
+});
 
-const keyToInput: Record<string, InputKey> = {
-	'ArrowLeft': 'left',
-	'KeyA': 'left',
-	'ArrowRight': 'right',
-	'KeyD': 'right',
-	'Space': 'shoot',
-};
+/**
+ * Returns the library input bundle pre-configured with Space Invaders key bindings.
+ */
+export function createInputBundle() {
+	return createLibInputBundle({ actions });
+}
 
-export default function createInputBundle(): Bundle<Components, Events, Resources> {
-	return new Bundle<Components, Events, Resources>('input-bundle')
-		.addResource('input', {
-			left: false,
-			right: false,
-			shoot: false,
-			pause: false,
-		})
-		.addSystem('input-handling')
-		.setOnInitialize(({ eventBus }) => {
-			window.addEventListener('keydown', (e: KeyboardEvent) => {
-				if (e.repeat) return;
+/**
+ * Game-specific input processing bundle.
+ * Polls inputState each frame and publishes game events (shoot, pause/resume/start).
+ */
+export default function createInputProcessingBundle(): Bundle<Components, Events, Resources> {
+	return new Bundle<Components, Events, Resources>('input-processing-bundle')
+		.addSystem('input-actions')
+		.inPhase('preUpdate')
+		.inGroup('gameplay')
+		.setPriority(90)
+		.setProcess((_queries, _dt, ecs) => {
+			const input = ecs.getResource('inputState');
+			const gameState = ecs.getResource('gameState');
 
-				eventBus.publish('inputUpdate', {
-					key: e.code,
-					pressed: true,
-				});
-			});
-			window.addEventListener('keyup', (e: KeyboardEvent) => {
-				eventBus.publish('inputUpdate', {
-					key: e.code,
-					pressed: false,
-				});
-			});
-		})
-		.setEventHandlers({
-			inputUpdate: {
-				handler(data, ecs) {
-					const input = ecs.getResource('input');
-					const gameState = ecs.getResource('gameState');
-
-					// Handle movement and shoot keys
-					const inputKey = keyToInput[data.key];
-					if (inputKey) {
-						input[inputKey] = data.pressed;
-
-						// Fire on shoot press during gameplay
-						if (inputKey === 'shoot' && data.pressed && gameState.status === 'playing') {
-							ecs.eventBus.publish('playerShoot', {});
-						}
-						return;
-					}
-
-					// Handle pause key
-					if (data.key === 'KeyP' && data.pressed) {
-						input.pause = !input.pause;
-
-						const statusToEvent: Record<string, () => void> = {
-							'playing': () => ecs.eventBus.publish('gamePause'),
-							'paused': () => ecs.eventBus.publish('gameResume'),
-							'ready': () => ecs.eventBus.publish('gameStart'),
-						};
-
-						statusToEvent[gameState.status]?.();
-					}
-				}
-			},
-
-			// Reset input state on game init
-			gameInit: {
-				handler(_data, ecs) {
-					const input = ecs.getResource('input');
-					input.left = false;
-					input.right = false;
-					input.shoot = false;
-					input.pause = false;
-				}
+			if (input.actions.justActivated('shoot') && gameState.status === 'playing') {
+				ecs.eventBus.publish('playerShoot', {});
 			}
+		})
+		.bundle
+
+		.addSystem('pause-handling')
+		.inPhase('preUpdate')
+		.setPriority(90)
+		.setProcess((_queries, _dt, ecs) => {
+			const input = ecs.getResource('inputState');
+			const gameState = ecs.getResource('gameState');
+
+			if (!input.actions.justActivated('pause')) return;
+
+			const statusToEvent: Record<string, () => void> = {
+				'playing': () => ecs.eventBus.publish('gamePause'),
+				'paused': () => ecs.eventBus.publish('gameResume'),
+				'ready': () => ecs.eventBus.publish('gameStart'),
+			};
+
+			statusToEvent[gameState.status]?.();
 		})
 		.bundle;
 }

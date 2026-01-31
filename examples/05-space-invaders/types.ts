@@ -5,6 +5,7 @@ import type { MovementComponentTypes } from '../../src/bundles/utils/movement';
 import type { BoundsComponentTypes } from '../../src/bundles/utils/bounds';
 import type { CollisionComponentTypes, CollisionEventTypes } from '../../src/bundles/utils/collision';
 import type { Renderer2DComponentTypes, Renderer2DResourceTypes } from '../../src/bundles/renderers/renderer2D';
+import type { InputResourceTypes } from '../../src/bundles/utils/input';
 
 /**
  * All event types used in the Space Invaders game
@@ -17,9 +18,6 @@ export interface Events extends CollisionEventTypes {
 	gameResume: true;
 	gameOver: { win: boolean; score: number };
 	levelComplete: { level: number };
-
-	// Input
-	inputUpdate: { key: string; pressed: boolean };
 
 	// Gameplay
 	playerShoot: {};
@@ -56,20 +54,13 @@ export interface Components
 /**
  * All resource types used in the Space Invaders game
  */
-export interface Resources extends Renderer2DResourceTypes {
+export interface Resources extends Renderer2DResourceTypes, InputResourceTypes {
 	uiContainer: Container;
 
 	gameState: {
 		status: 'ready' | 'playing' | 'paused' | 'gameOver';
 		level: number;
 		lives: number;
-	};
-
-	input: {
-		left: boolean;
-		right: boolean;
-		shoot: boolean;
-		pause: boolean;
 	};
 
 	config: {

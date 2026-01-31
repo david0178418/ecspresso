@@ -1,6 +1,11 @@
 import { Graphics, Sprite } from 'pixi.js';
 import ECSpresso from "../../src";
 import {
+	createInputBundle,
+	defineActionMap,
+	type InputResourceTypes,
+} from "../../src/bundles/utils/input";
+import {
 	createRenderer2DBundle,
 	createSpriteComponents,
 	type Renderer2DComponentTypes,
@@ -23,16 +28,14 @@ interface Components extends Renderer2DComponentTypes, TimerComponentTypes<Event
 	enemy: true;
 }
 
-interface Resources extends Renderer2DResourceTypes {
-	controlMap: ActiveKeyMap;
-}
+interface Resources extends Renderer2DResourceTypes, InputResourceTypes {}
 
-interface ActiveKeyMap {
-	left: boolean;
-	right: boolean;
-	up: boolean;
-	down: boolean;
-}
+const actions = defineActionMap({
+	moveUp: { keys: ['w', 'ArrowUp'] },
+	moveDown: { keys: ['s', 'ArrowDown'] },
+	moveLeft: { keys: ['a', 'ArrowLeft'] },
+	moveRight: { keys: ['d', 'ArrowRight'] },
+});
 
 const ecs = ECSpresso
 	.create<Components, Events, Resources>()
@@ -41,7 +44,7 @@ const ecs = ECSpresso
 		container: document.body,
 	}))
 	.withBundle(createTimerBundle<Events>())
-	.withResource('controlMap', createActiveKeyMap)
+	.withBundle(createInputBundle({ actions }))
 	.build();
 
 ecs
@@ -117,15 +120,15 @@ ecs
 		with: ['speed', 'localTransform', 'velocity'],
 	})
 	.setProcess((queries, _deltaTimeMs, ecs) => {
-		const controlMap = ecs.getResource('controlMap');
+		const input = ecs.getResource('inputState');
 		const [player] = queries.players;
 
 		if (!player) return;
 
 		const { velocity, speed } = player.components;
 
-		velocity.y = controlMap.up ? -speed : controlMap.down ? speed : 0;
-		velocity.x = controlMap.left ? -speed : controlMap.right ? speed : 0;
+		velocity.y = input.actions.isActive('moveUp') ? -speed : input.actions.isActive('moveDown') ? speed : 0;
+		velocity.x = input.actions.isActive('moveLeft') ? -speed : input.actions.isActive('moveRight') ? speed : 0;
 	})
 	.and()
 	.addSystem('collision-detection')
@@ -187,38 +190,6 @@ function createCircleSprite(color: number): Sprite {
 		new Graphics().circle(0, 0, 30).fill(color)
 	);
 	return new Sprite(texture);
-}
-
-function createActiveKeyMap(): ActiveKeyMap {
-	const controlMap: ActiveKeyMap = {
-		up: false,
-		down: false,
-		left: false,
-		right: false,
-	};
-
-	const keyToControl: Record<string, keyof ActiveKeyMap> = {
-		'w': 'up',
-		'ArrowUp': 'up',
-		's': 'down',
-		'ArrowDown': 'down',
-		'a': 'left',
-		'ArrowLeft': 'left',
-		'd': 'right',
-		'ArrowRight': 'right',
-	};
-
-	window.addEventListener('keydown', (event) => {
-		const control = keyToControl[event.key];
-		if (control) controlMap[control] = true;
-	});
-
-	window.addEventListener('keyup', (event) => {
-		const control = keyToControl[event.key];
-		if (control) controlMap[control] = false;
-	});
-
-	return controlMap;
 }
 
 function randomInt(min: number, max?: number): number {

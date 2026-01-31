@@ -1,6 +1,11 @@
 import { Graphics, Sprite } from 'pixi.js';
 import ECSpresso from "../../src";
 import {
+	createInputBundle,
+	defineActionMap,
+	type InputResourceTypes,
+} from "../../src/bundles/utils/input";
+import {
 	createRenderer2DBundle,
 	createSpriteComponents,
 	type Renderer2DComponentTypes,
@@ -13,16 +18,14 @@ interface Components extends Renderer2DComponentTypes {
 	velocity: { x: number; y: number };
 }
 
-interface Resources extends Renderer2DResourceTypes {
-	controlMap: ActiveKeyMap;
-}
+interface Resources extends Renderer2DResourceTypes, InputResourceTypes {}
 
-interface ActiveKeyMap {
-	left: boolean;
-	right: boolean;
-	up: boolean;
-	down: boolean;
-}
+const actions = defineActionMap({
+	moveUp: { keys: ['w', 'ArrowUp'] },
+	moveDown: { keys: ['s', 'ArrowDown'] },
+	moveLeft: { keys: ['a', 'ArrowLeft'] },
+	moveRight: { keys: ['d', 'ArrowRight'] },
+});
 
 const ecs = ECSpresso
 	.create<Components, Renderer2DEventTypes, Resources>()
@@ -30,7 +33,7 @@ const ecs = ECSpresso
 		init: { background: '#1099bb', resizeTo: window },
 		container: document.body,
 	}))
-	.withResource('controlMap', createActiveKeyMap())
+	.withBundle(createInputBundle({ actions }))
 	.build();
 
 ecs
@@ -40,15 +43,15 @@ ecs
 		with: ['localTransform', 'velocity', 'speed'],
 	})
 	.setProcess((queries, _deltaTime, ecs) => {
-		const controlMap = ecs.getResource('controlMap');
+		const input = ecs.getResource('inputState');
 		const [player] = queries.playerInputEntities;
 
 		if (!player) return;
 
 		const { velocity, speed } = player.components;
 
-		velocity.y = controlMap.up ? -speed : controlMap.down ? speed : 0;
-		velocity.x = controlMap.left ? -speed : controlMap.right ? speed : 0;
+		velocity.y = input.actions.isActive('moveUp') ? -speed : input.actions.isActive('moveDown') ? speed : 0;
+		velocity.x = input.actions.isActive('moveLeft') ? -speed : input.actions.isActive('moveRight') ? speed : 0;
 	})
 	.and()
 	.addSystem('move-entities')
@@ -86,50 +89,3 @@ ecs.spawn({
 	speed: 500,
 	velocity: { x: 0, y: 0 },
 });
-
-function createActiveKeyMap() {
-	const keyToControl: Record<string, keyof ActiveKeyMap> = {
-		'w': 'up',
-		'ArrowUp': 'up',
-		's': 'down',
-		'ArrowDown': 'down',
-		'a': 'left',
-		'ArrowLeft': 'left',
-		'd': 'right',
-		'ArrowRight': 'right',
-	};
-
-	// Store handler references for cleanup
-	let onKeyDown: (event: KeyboardEvent) => void;
-	let onKeyUp: (event: KeyboardEvent) => void;
-
-	return {
-		factory: (): ActiveKeyMap => {
-			const controlMap: ActiveKeyMap = {
-				up: false,
-				down: false,
-				left: false,
-				right: false,
-			};
-
-			onKeyDown = (event) => {
-				const control = keyToControl[event.key];
-				if (control) controlMap[control] = true;
-			};
-
-			onKeyUp = (event) => {
-				const control = keyToControl[event.key];
-				if (control) controlMap[control] = false;
-			};
-
-			window.addEventListener('keydown', onKeyDown);
-			window.addEventListener('keyup', onKeyUp);
-
-			return controlMap;
-		},
-		onDispose: () => {
-			window.removeEventListener('keydown', onKeyDown);
-			window.removeEventListener('keyup', onKeyUp);
-		}
-	};
-}

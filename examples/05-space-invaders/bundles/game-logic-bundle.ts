@@ -184,11 +184,13 @@ export default function createGameLogicBundle() {
 		.inPhase('preUpdate')
 		.addQuery('players', { with: ['player', 'velocity'] })
 		.setProcess(({ players }, _deltaTime, ecs) => {
-			const input = ecs.getResource('input');
+			const input = ecs.getResource('inputState');
 			const config = ecs.getResource('config');
 
 			for (const player of players) {
-				player.components.velocity.x = input.left ? -config.playerSpeed : input.right ? config.playerSpeed : 0;
+				player.components.velocity.x = input.actions.isActive('moveLeft') ? -config.playerSpeed
+					: input.actions.isActive('moveRight') ? config.playerSpeed
+					: 0;
 			}
 		})
 		.bundle;
