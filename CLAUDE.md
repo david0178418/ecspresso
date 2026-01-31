@@ -27,6 +27,7 @@ src/
     │   ├── timers.ts     # Timer bundle with event-based completion
     │   ├── transform.ts  # Hierarchical local/world transform propagation
     │   ├── movement.ts   # Velocity-based movement integration
+    │   ├── input.ts      # Frame-accurate keyboard/pointer input with action mapping
     │   ├── bounds.ts     # Screen bounds enforcement (destroy, clamp, wrap)
     │   └── collision.ts  # Layer-based AABB/circle collision detection
     └── renderers/
@@ -71,6 +72,9 @@ src/
 - **Resource Builder**: `ECSpresso.create().withResource('key', value).build()` for fluent resource addition
 - **Resource Disposal**: `onDispose` callback for cleanup, `disposeResource()`, `disposeResources()` for proper teardown
 - **Command Buffer**: `ecs.commands.removeEntity(id)`, `ecs.commands.spawn({...})` for deferred execution
+- **Input Bundle**: `createInputBundle({ actions: { jump: { keys: [' ', 'ArrowUp'] } } })`, resource-only bundle providing `inputState` resource
+- **Input Key Codes**: `KeyCode` type covers all standard `KeyboardEvent.key` values; action bindings use `KeyCode[]` for compile-time key validation
+- **Input Action Mapping**: `defineActionMap()` for typed action definitions, `inputState.setActionMap()` for runtime remapping
 - **Timer Bundle**: `createTimerBundle<Events>()`, `createTimer<Events>(duration, { onComplete: 'eventName' })`
 - **Timer Event Data**: Events used with timer `onComplete` must have `TimerEventData` payload type
 - **Change Detection**: `markChanged(entityId, componentName)` increments a global monotonic sequence; `changed: ['component']` in query filters to only match changed entities. Each system tracks its last-seen sequence so marks are processed exactly once.

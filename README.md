@@ -691,6 +691,7 @@ const game = ECSpresso.create<GameComponents, {}, GameResources>()
 
 | Bundle | Import | Default Phase | Description |
 |--------|--------|---------------|-------------|
+| **Input** | `ecspresso/bundles/utils/input` | `preUpdate` | Frame-accurate keyboard/pointer input with action mapping |
 | **Timers** | `ecspresso/bundles/utils/timers` | `preUpdate` | ECS-native timers with event-based completion |
 | **Movement** | `ecspresso/bundles/utils/movement` | `fixedUpdate` | Velocity-based movement integration |
 | **Transform** | `ecspresso/bundles/utils/transform` | `postUpdate` | Hierarchical transform propagation (local/world transforms) |
@@ -699,6 +700,41 @@ const game = ECSpresso.create<GameComponents, {}, GameResources>()
 | **2D Renderer** | `ecspresso/bundles/renderers/renderer2D` | `render` | Automated PixiJS scene graph wiring |
 
 Each bundle accepts a `phase` option to override its default.
+
+### Input Bundle
+
+The input bundle provides frame-accurate keyboard, pointer (mouse + touch via PointerEvent), and named action mapping. It's a resource-only bundle — input is polled via the `inputState` resource. DOM events are accumulated between frames and snapshotted once per frame, so all systems see consistent state.
+
+```typescript
+import {
+  createInputBundle, defineActionMap,
+  type InputResourceTypes, type KeyCode
+} from 'ecspresso/bundles/utils/input';
+
+interface Resources extends InputResourceTypes {}
+
+const world = ECSpresso.create<Components, Events, Resources>()
+  .withBundle(createInputBundle({
+    actions: defineActionMap({
+      jump: { keys: [' ', 'ArrowUp'] },
+      shoot: { keys: ['z'], buttons: [0] },
+      moveLeft: { keys: ['a', 'ArrowLeft'] },
+      moveRight: { keys: ['d', 'ArrowRight'] },
+    }),
+  }))
+  .build();
+
+// In a system:
+const input = ecs.getResource('inputState');
+if (input.actions.justActivated('jump')) { /* ... */ }
+if (input.keyboard.isDown('ArrowRight')) { /* ... */ }
+if (input.pointer.justPressed(0)) { /* ... */ }
+
+// Runtime remapping
+input.setActionMap({ jump: { keys: ['w'] } });
+```
+
+Key values use the `KeyCode` type — a union of all standard `KeyboardEvent.key` values — providing autocomplete and compile-time validation. Note that the space bar key is `' '` (a space character), not `'Space'`.
 
 ### Timer Bundle
 
