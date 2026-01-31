@@ -5,7 +5,7 @@ import { createAABBCollider } from '../../../src/bundles/utils/collision';
 import { createDestroyOutOfBounds } from '../../../src/bundles/utils/bounds';
 import type { Components, Events, Resources } from '../types';
 import { spawnPlayer, createProjectileSprite } from '../utils';
-import { layers } from '../layers';
+import collisionLayers from '../collision-layers';
 
 /**
  * Handles entity spawning in response to game events.
@@ -35,7 +35,7 @@ export default function createSpawnerBundle() {
 						...createVelocity(0, -400),
 						projectile: { owner: 'player', damage: 1 },
 						...createAABBCollider(projectileSprite.width, projectileSprite.height),
-						...layers.playerProjectile(),
+						...collisionLayers.playerProjectile(),
 						...createDestroyOutOfBounds(20),
 						renderLayer: 'game',
 					});
@@ -60,7 +60,7 @@ export default function createSpawnerBundle() {
 						...createVelocity(0, 400),
 						projectile: { owner: 'enemy', damage: 1 },
 						...createAABBCollider(projectileSprite.width, projectileSprite.height),
-						...layers.enemyProjectile(),
+						...collisionLayers.enemyProjectile(),
 						...createDestroyOutOfBounds(20),
 						renderLayer: 'game',
 					});

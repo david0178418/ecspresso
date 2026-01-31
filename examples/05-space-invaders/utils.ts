@@ -4,7 +4,7 @@ import { createSpriteComponents } from "../../src/bundles/renderers/renderer2D";
 import { createVelocity } from "../../src/bundles/utils/movement";
 import { createAABBCollider } from "../../src/bundles/utils/collision";
 import { createClampToBounds } from "../../src/bundles/utils/bounds";
-import { layers } from "./layers";
+import collisionLayers from "./collision-layers";
 import { Components, Events, Resources } from "./types";
 
 /**
@@ -40,7 +40,7 @@ export function spawnEnemyFormation(ecs: ECSpresso<Components, Events, Resources
 				...createSpriteComponents(enemySprite, { x: startX + col * spacing, y: startY + row * spacing }),
 				...createVelocity(config.enemySpeed, 0),
 				...createAABBCollider(enemySprite.width, enemySprite.height),
-				...layers.enemy(),
+				...collisionLayers.enemy(),
 				renderLayer: 'game',
 			});
 		}
@@ -120,7 +120,7 @@ export function spawnPlayer(ecs: ECSpresso<Components, Events, Resources>): numb
 		player: true,
 		...createVelocity(0, 0),
 		...createAABBCollider(playerSprite.width, playerSprite.height),
-		...layers.player(),
+		...collisionLayers.player(),
 		...createClampToBounds(30),
 		renderLayer: 'game',
 	});
