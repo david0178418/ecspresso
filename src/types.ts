@@ -70,10 +70,13 @@ interface FilteredEntity<
 	ComponentTypes,
 	WithComponents extends keyof ComponentTypes = never,
 	WithoutComponents extends keyof ComponentTypes = never,
+	OptionalComponents extends keyof ComponentTypes = never,
 > {
 	id: number;
-	components: Omit<Partial<ComponentTypes>, WithoutComponents> & {
+	components: Omit<Partial<ComponentTypes>, WithoutComponents | OptionalComponents> & {
 		[K in WithComponents]: ComponentTypes[K]
+	} & {
+		[K in OptionalComponents]: ComponentTypes[K] | undefined
 	};
 }
 
@@ -82,10 +85,13 @@ interface QueryConfig<
 	ComponentTypes,
 	WithComponents extends keyof ComponentTypes,
 	WithoutComponents extends keyof ComponentTypes,
+	OptionalComponents extends keyof ComponentTypes = WithComponents,
 > {
 	with: ReadonlyArray<WithComponents>;
 	without?: ReadonlyArray<WithoutComponents>;
 	changed?: ReadonlyArray<WithComponents>;
+	optional?: ReadonlyArray<OptionalComponents>;
+	parentHas?: ReadonlyArray<keyof ComponentTypes>;
 }
 
 /**
@@ -115,11 +121,14 @@ export type QueryResultEntity<
 		with: ReadonlyArray<keyof ComponentTypes>;
 		without?: ReadonlyArray<keyof ComponentTypes>;
 		changed?: ReadonlyArray<keyof ComponentTypes>;
+		optional?: ReadonlyArray<keyof ComponentTypes>;
+		parentHas?: ReadonlyArray<keyof ComponentTypes>;
 	}
 > = FilteredEntity<
 	ComponentTypes,
 	QueryDef['with'][number],
-	QueryDef['without'] extends ReadonlyArray<any> ? QueryDef['without'][number] : never
+	QueryDef['without'] extends ReadonlyArray<any> ? QueryDef['without'][number] : never,
+	QueryDef['optional'] extends ReadonlyArray<any> ? QueryDef['optional'][number] : never
 >;
 
 /**
@@ -129,10 +138,13 @@ export type QueryDefinition<
 	ComponentTypes extends Record<string, any>,
 	WithComponents extends keyof ComponentTypes = keyof ComponentTypes,
 	WithoutComponents extends keyof ComponentTypes = keyof ComponentTypes,
+	OptionalComponents extends keyof ComponentTypes = keyof ComponentTypes,
 > = {
 	with: ReadonlyArray<WithComponents>;
 	without?: ReadonlyArray<WithoutComponents>;
 	changed?: ReadonlyArray<WithComponents>;
+	optional?: ReadonlyArray<OptionalComponents>;
+	parentHas?: ReadonlyArray<keyof ComponentTypes>;
 };
 
 /**
@@ -168,6 +180,8 @@ export function createQueryDefinition<
 		with: ReadonlyArray<keyof ComponentTypes>;
 		without?: ReadonlyArray<keyof ComponentTypes>;
 		changed?: ReadonlyArray<keyof ComponentTypes>;
+		optional?: ReadonlyArray<keyof ComponentTypes>;
+		parentHas?: ReadonlyArray<keyof ComponentTypes>;
 	}
 >(queryDef: QueryDef): QueryDef {
 	return queryDef;

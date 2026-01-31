@@ -84,6 +84,10 @@ src/
 - **Cross-Phase Visibility**: Marks from earlier phases (e.g. fixedUpdate) are visible to later phases (e.g. postUpdate) within the same frame
 - **Bundle Phase Flow**: Movement marks `localTransform` (fixedUpdate) → Transform propagation reads `localTransform` changed, writes+marks `worldTransform` (postUpdate) → Renderer reads `worldTransform` changed (render)
 - **Per-Phase Command Buffer**: Commands are played back between each phase, so entities spawned in preUpdate are visible to fixedUpdate, etc.
+- **Optional Components**: `{ with: ['position'], optional: ['health'] }` — optional components appear as `T | undefined` in the entity type, don't affect query matching
+- **Singleton Queries**: `getSingleton(['player'])` throws on 0 or >1 match; `tryGetSingleton(['player'])` returns `undefined` on 0, throws on >1
+- **Relationship Queries**: `{ with: ['child'], parentHas: ['container'] }` — filters entities to those whose direct parent has specified components. Works in system queries, `getEntitiesWithQuery`, and reactive queries
+- **Reactive parentHas**: Reactive queries with `parentHas` recheck children on `setParent`/`removeParent` and when parent gains/loses required components
 
 ## Commands
 

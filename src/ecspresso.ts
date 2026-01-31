@@ -183,6 +183,31 @@ export default class ECSpresso<
 			return result;
 		};
 
+		// Track hierarchy changes for parentHas reactive queries
+		const originalSetParent = this._entityManager.setParent.bind(this._entityManager);
+		this._entityManager.setParent = (childId: number, parentId: number) => {
+			const result = originalSetParent(childId, parentId);
+			if (this._reactiveQueryManager.hasParentHasQueries) {
+				const childEntity = this._entityManager.getEntity(childId);
+				if (childEntity) {
+					this._reactiveQueryManager.recheckEntity(childEntity);
+				}
+			}
+			return result;
+		};
+
+		const originalRemoveParent = this._entityManager.removeParent.bind(this._entityManager);
+		this._entityManager.removeParent = (childId: number) => {
+			const result = originalRemoveParent(childId);
+			if (this._reactiveQueryManager.hasParentHasQueries) {
+				const childEntity = this._entityManager.getEntity(childId);
+				if (childEntity) {
+					this._reactiveQueryManager.recheckEntity(childEntity);
+				}
+			}
+			return result;
+		};
+
 		// Track entity removal for reactive queries
 		const originalRemoveEntity = this._entityManager.removeEntity.bind(this._entityManager);
 		this._entityManager.removeEntity = (entityOrId, options?) => {
@@ -365,7 +390,8 @@ export default class ECSpresso<
 							query.with,
 							query.without || [],
 							query.changed,
-							query.changed ? this._changeThreshold : undefined
+							query.changed ? this._changeThreshold : undefined,
+							query.parentHas,
 						);
 
 						if(queryResults[queryName].length) {
@@ -735,13 +761,62 @@ export default class ECSpresso<
 		withComponents: ReadonlyArray<WithComponents>,
 		withoutComponents: ReadonlyArray<WithoutComponents> = [],
 		changedComponents?: ReadonlyArray<keyof ComponentTypes>,
+		parentHas?: ReadonlyArray<keyof ComponentTypes>,
 	): Array<FilteredEntity<ComponentTypes, WithComponents, WithoutComponents>> {
 		return this._entityManager.getEntitiesWithQuery(
 			withComponents,
 			withoutComponents,
 			changedComponents,
-			changedComponents ? this._changeThreshold : undefined
+			changedComponents ? this._changeThreshold : undefined,
+			parentHas,
 		);
+	}
+
+	/**
+	 * Get the single entity matching a query. Throws if zero or more than one match.
+	 * @param withComponents Components the entity must have
+	 * @param withoutComponents Components the entity must not have
+	 * @returns The single matching entity
+	 * @throws If zero or more than one entity matches
+	 */
+	getSingleton<
+		WithComponents extends keyof ComponentTypes,
+		WithoutComponents extends keyof ComponentTypes = never
+	>(
+		withComponents: ReadonlyArray<WithComponents>,
+		withoutComponents: ReadonlyArray<WithoutComponents> = [] as unknown as ReadonlyArray<WithoutComponents>,
+	): FilteredEntity<ComponentTypes, WithComponents, WithoutComponents> {
+		const results = this._entityManager.getEntitiesWithQuery(withComponents, withoutComponents);
+		if (results.length === 0) {
+			throw new Error(`getSingleton: no entity matches query with=[${String(withComponents)}] without=[${String(withoutComponents)}]`);
+		}
+		if (results.length > 1) {
+			throw new Error(`getSingleton: expected 1 entity but found ${results.length} matching query with=[${String(withComponents)}] without=[${String(withoutComponents)}]`);
+		}
+		return results[0]!;
+	}
+
+	/**
+	 * Get the single entity matching a query, or undefined if none match.
+	 * Throws if more than one entity matches.
+	 * @param withComponents Components the entity must have
+	 * @param withoutComponents Components the entity must not have
+	 * @returns The single matching entity, or undefined if none match
+	 * @throws If more than one entity matches
+	 */
+	tryGetSingleton<
+		WithComponents extends keyof ComponentTypes,
+		WithoutComponents extends keyof ComponentTypes = never
+	>(
+		withComponents: ReadonlyArray<WithComponents>,
+		withoutComponents: ReadonlyArray<WithoutComponents> = [] as unknown as ReadonlyArray<WithoutComponents>,
+	): FilteredEntity<ComponentTypes, WithComponents, WithoutComponents> | undefined {
+		const results = this._entityManager.getEntitiesWithQuery(withComponents, withoutComponents);
+		if (results.length === 0) return undefined;
+		if (results.length > 1) {
+			throw new Error(`tryGetSingleton: expected 0 or 1 entity but found ${results.length} matching query with=[${String(withComponents)}] without=[${String(withoutComponents)}]`);
+		}
+		return results[0]!;
 	}
 
 	/**
@@ -1028,10 +1103,11 @@ export default class ECSpresso<
 	 */
 	addReactiveQuery<
 		WithComponents extends keyof ComponentTypes,
-		WithoutComponents extends keyof ComponentTypes = never
+		WithoutComponents extends keyof ComponentTypes = never,
+		OptionalComponents extends keyof ComponentTypes = never,
 	>(
 		name: string,
-		definition: ReactiveQueryDefinition<ComponentTypes, WithComponents, WithoutComponents>
+		definition: ReactiveQueryDefinition<ComponentTypes, WithComponents, WithoutComponents, OptionalComponents>
 	): void {
 		this._reactiveQueryManager.addQuery(name, definition);
 	}

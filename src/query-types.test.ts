@@ -137,6 +137,50 @@ describe('Query Type Utilities', () => {
 		expect(typeof render).toBe('function');
 	});
 
+	test('QueryResultEntity with optional components', () => {
+		const query = {
+			with: ['position'],
+			without: ['dead'],
+			optional: ['health', 'velocity'],
+		} as const;
+
+		type Entity = QueryResultEntity<Components, typeof query>;
+
+		function process(entity: Entity) {
+			// Required: position is guaranteed
+			const pos: { x: number; y: number } = entity.components.position;
+
+			// Optional: health and velocity are T | undefined
+			const hp: { value: number } | undefined = entity.components.health;
+			const vel: { x: number; y: number } | undefined = entity.components.velocity;
+
+			// Excluded: dead is not accessible
+			// @ts-expect-error - 'dead' component should not be accessible
+			const d = entity.components.dead;
+
+			return { pos, hp, vel };
+		}
+
+		expect(typeof process).toBe('function');
+	});
+
+	test('QueryResultEntity with parentHas (no effect on return type)', () => {
+		const query = {
+			with: ['position'],
+			parentHas: ['sprite'],
+		} as const;
+
+		type Entity = QueryResultEntity<Components, typeof query>;
+
+		function process(entity: Entity) {
+			// position is guaranteed
+			const pos: { x: number; y: number } = entity.components.position;
+			return pos;
+		}
+
+		expect(typeof process).toBe('function');
+	});
+
 	test('createQueryDefinition should preserve exact types', () => {
 		const query1 = createQueryDefinition({
 			with: ['position']

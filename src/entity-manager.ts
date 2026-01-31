@@ -146,12 +146,14 @@ class EntityManager<ComponentTypes> {
 		excluded: ReadonlyArray<WithoutComponents> = [],
 		changed?: ReadonlyArray<keyof ComponentTypes>,
 		changeThreshold?: number,
+		parentHas?: ReadonlyArray<keyof ComponentTypes>,
 	): Array<FilteredEntity<ComponentTypes, WithComponents extends never ? never : WithComponents, WithoutComponents extends never ? never : WithoutComponents>> {
 		const hasChangedFilter = changed !== undefined && changed.length > 0 && changeThreshold !== undefined;
+		const hasParentHasFilter = parentHas !== undefined && parentHas.length > 0;
 
 		// Use the smallest component set as base for better performance
 		if (required.length === 0) {
-			if (excluded.length === 0 && !hasChangedFilter) {
+			if (excluded.length === 0 && !hasChangedFilter && !hasParentHasFilter) {
 				return Array.from(this.entities.values()) as any;
 			}
 
@@ -164,7 +166,10 @@ class EntityManager<ComponentTypes> {
 					if (hasChangedFilter) {
 						const entitySeqs = this.changeSeqs.get(entity.id);
 						if (!entitySeqs) return false;
-						return changed.some(comp => (entitySeqs.get(comp) ?? -1) > changeThreshold!);
+						if (!changed.some(comp => (entitySeqs.get(comp) ?? -1) > changeThreshold!)) return false;
+					}
+					if (hasParentHasFilter && !this.parentHasComponents(entity.id, parentHas)) {
+						return false;
 					}
 					return true;
 				}) as any;
@@ -200,11 +205,32 @@ class EntityManager<ComponentTypes> {
 						continue;
 					}
 				}
+				if (hasParentHasFilter && !this.parentHasComponents(id, parentHas)) {
+					continue;
+				}
 				result.push(entity as any);
 			}
 		}
 
 		return result;
+	}
+
+	/**
+	 * Check if an entity's direct parent has all specified components
+	 */
+	private parentHasComponents(entityId: number, components: ReadonlyArray<keyof ComponentTypes>): boolean {
+		const parentId = this.hierarchyManager.getParent(entityId);
+		if (parentId === null) return false;
+
+		const parentEntity = this.entities.get(parentId);
+		if (!parentEntity) return false;
+
+		for (const comp of components) {
+			if (!(comp in parentEntity.components)) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	removeEntity(entityOrId: number | Entity<ComponentTypes>, options?: RemoveEntityOptions): boolean {

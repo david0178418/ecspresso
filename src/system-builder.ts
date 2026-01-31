@@ -207,14 +207,17 @@ export class SystemBuilder<
 		QueryName extends string,
 		WithComponents extends keyof ComponentTypes,
 		WithoutComponents extends keyof ComponentTypes = never,
-		NewQueries extends Queries & Record<QueryName, QueryDefinition<ComponentTypes, WithComponents, WithoutComponents>> =
-			Queries & Record<QueryName, QueryDefinition<ComponentTypes, WithComponents, WithoutComponents>>
+		OptionalComponents extends keyof ComponentTypes = never,
+		NewQueries extends Queries & Record<QueryName, QueryDefinition<ComponentTypes, WithComponents, WithoutComponents, OptionalComponents>> =
+			Queries & Record<QueryName, QueryDefinition<ComponentTypes, WithComponents, WithoutComponents, OptionalComponents>>
 	>(
 		name: QueryName,
 		definition: {
 			with: ReadonlyArray<WithComponents>;
 			without?: ReadonlyArray<WithoutComponents>;
 			changed?: ReadonlyArray<WithComponents>;
+			optional?: ReadonlyArray<OptionalComponents>;
+			parentHas?: ReadonlyArray<keyof ComponentTypes>;
 		}
 	): this extends SystemBuilderWithEcspresso<ComponentTypes, EventTypes, ResourceTypes, Queries>
 		? SystemBuilderWithEcspresso<ComponentTypes, EventTypes, ResourceTypes, NewQueries>
@@ -362,10 +365,13 @@ type QueryDefinition<
 	ComponentTypes,
 	WithComponents extends keyof ComponentTypes = any,
 	WithoutComponents extends keyof ComponentTypes = any,
+	OptionalComponents extends keyof ComponentTypes = any,
 > = {
 	with: ReadonlyArray<WithComponents>;
 	without?: ReadonlyArray<WithoutComponents>;
 	changed?: ReadonlyArray<WithComponents>;
+	optional?: ReadonlyArray<OptionalComponents>;
+	parentHas?: ReadonlyArray<keyof ComponentTypes>;
 };
 
 type QueryResults<
@@ -375,8 +381,9 @@ type QueryResults<
 	[QueryName in keyof Queries]: QueryName extends string
 		? FilteredEntity<
 			ComponentTypes,
-			Queries[QueryName] extends QueryDefinition<ComponentTypes, infer W, any> ? W : never,
-			Queries[QueryName] extends QueryDefinition<ComponentTypes, any, infer WO> ? WO : never
+			Queries[QueryName] extends QueryDefinition<ComponentTypes, infer W, any, any> ? W : never,
+			Queries[QueryName] extends QueryDefinition<ComponentTypes, any, infer WO, any> ? WO : never,
+			Queries[QueryName] extends QueryDefinition<ComponentTypes, any, any, infer O> ? O : never
 		>[]
 		: never;
 };

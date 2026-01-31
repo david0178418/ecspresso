@@ -7,20 +7,25 @@ import type EntityManager from "./entity-manager";
 export interface ReactiveQueryDefinition<
 	ComponentTypes extends Record<string, any>,
 	WithComponents extends keyof ComponentTypes = keyof ComponentTypes,
-	WithoutComponents extends keyof ComponentTypes = never
+	WithoutComponents extends keyof ComponentTypes = never,
+	OptionalComponents extends keyof ComponentTypes = never,
 > {
 	/** Components the entity must have */
 	with: ReadonlyArray<WithComponents>;
 	/** Components the entity must not have */
 	without?: ReadonlyArray<WithoutComponents>;
+	/** Components to include in the entity type but not require for matching */
+	optional?: ReadonlyArray<OptionalComponents>;
+	/** Components the entity's direct parent must have */
+	parentHas?: ReadonlyArray<keyof ComponentTypes>;
 	/** Called when an entity starts matching the query */
-	onEnter?: (entity: FilteredEntity<ComponentTypes, WithComponents, WithoutComponents>) => void;
+	onEnter?: (entity: FilteredEntity<ComponentTypes, WithComponents, WithoutComponents, OptionalComponents>) => void;
 	/** Called when an entity stops matching the query (receives just the ID since entity may be gone) */
 	onExit?: (entityId: number) => void;
 }
 
 interface StoredQuery<ComponentTypes extends Record<string, any>> {
-	definition: ReactiveQueryDefinition<ComponentTypes, any, any>;
+	definition: ReactiveQueryDefinition<ComponentTypes, any, any, any>;
 	matchingEntities: Set<number>;
 }
 
@@ -30,9 +35,18 @@ interface StoredQuery<ComponentTypes extends Record<string, any>> {
 export default class ReactiveQueryManager<ComponentTypes extends Record<string, any>> {
 	private queries: Map<string, StoredQuery<ComponentTypes>> = new Map();
 	private entityManager: EntityManager<ComponentTypes>;
+	/** Whether any registered query uses parentHas */
+	private _hasParentHasQueries: boolean = false;
 
 	constructor(entityManager: EntityManager<ComponentTypes>) {
 		this.entityManager = entityManager;
+	}
+
+	/**
+	 * Whether any registered reactive query uses parentHas filters
+	 */
+	get hasParentHasQueries(): boolean {
+		return this._hasParentHasQueries;
 	}
 
 	/**
@@ -42,10 +56,11 @@ export default class ReactiveQueryManager<ComponentTypes extends Record<string, 
 	 */
 	addQuery<
 		WithComponents extends keyof ComponentTypes,
-		WithoutComponents extends keyof ComponentTypes = never
+		WithoutComponents extends keyof ComponentTypes = never,
+		OptionalComponents extends keyof ComponentTypes = never,
 	>(
 		name: string,
-		definition: ReactiveQueryDefinition<ComponentTypes, WithComponents, WithoutComponents>
+		definition: ReactiveQueryDefinition<ComponentTypes, WithComponents, WithoutComponents, OptionalComponents>
 	): void {
 		const storedQuery: StoredQuery<ComponentTypes> = {
 			definition,
@@ -54,6 +69,11 @@ export default class ReactiveQueryManager<ComponentTypes extends Record<string, 
 
 		this.queries.set(name, storedQuery);
 
+		// Update parentHas flag
+		if (definition.parentHas?.length) {
+			this._hasParentHasQueries = true;
+		}
+
 		// Check existing entities for initial matches
 		const existingMatches = this.entityManager.getEntitiesWithQuery(
 			definition.with as ReadonlyArray<keyof ComponentTypes>,
@@ -61,8 +81,10 @@ export default class ReactiveQueryManager<ComponentTypes extends Record<string, 
 		);
 
 		for (const entity of existingMatches) {
-			storedQuery.matchingEntities.add(entity.id);
-			definition.onEnter?.(entity as FilteredEntity<ComponentTypes, WithComponents, WithoutComponents>);
+			if (this.entityMatchesQuery(entity, storedQuery.definition)) {
+				storedQuery.matchingEntities.add(entity.id);
+				storedQuery.definition.onEnter?.(entity as FilteredEntity<ComponentTypes, any, any, any>);
+			}
 		}
 	}
 
@@ -72,7 +94,14 @@ export default class ReactiveQueryManager<ComponentTypes extends Record<string, 
 	 * @returns true if the query existed and was removed
 	 */
 	removeQuery(name: string): boolean {
-		return this.queries.delete(name);
+		const result = this.queries.delete(name);
+
+		// Recalculate parentHas flag
+		if (result) {
+			this._recalcParentHasFlag();
+		}
+
+		return result;
 	}
 
 	/**
@@ -80,7 +109,7 @@ export default class ReactiveQueryManager<ComponentTypes extends Record<string, 
 	 */
 	private entityMatchesQuery(
 		entity: Entity<ComponentTypes>,
-		definition: ReactiveQueryDefinition<ComponentTypes, any, any>
+		definition: ReactiveQueryDefinition<ComponentTypes, any, any, any>
 	): boolean {
 		// Check required components
 		for (const comp of definition.with) {
@@ -93,6 +122,21 @@ export default class ReactiveQueryManager<ComponentTypes extends Record<string, 
 		if (definition.without) {
 			for (const comp of definition.without) {
 				if (comp in entity.components) {
+					return false;
+				}
+			}
+		}
+
+		// Check parentHas
+		if (definition.parentHas?.length) {
+			const parentId = this.entityManager.getParent(entity.id);
+			if (parentId === null) return false;
+
+			const parentEntity = this.entityManager.getEntity(parentId);
+			if (!parentEntity) return false;
+
+			for (const comp of definition.parentHas) {
+				if (!(comp in parentEntity.components)) {
 					return false;
 				}
 			}
@@ -113,13 +157,18 @@ export default class ReactiveQueryManager<ComponentTypes extends Record<string, 
 			if (!wasMatching && nowMatches) {
 				// Entity started matching - trigger onEnter
 				query.matchingEntities.add(entity.id);
-				query.definition.onEnter?.(entity as FilteredEntity<ComponentTypes, any, any>);
+				query.definition.onEnter?.(entity as FilteredEntity<ComponentTypes, any, any, any>);
 			} else if (wasMatching && !nowMatches) {
 				// Entity stopped matching (added excluded component) - trigger onExit
 				query.matchingEntities.delete(entity.id);
 				query.definition.onExit?.(entity.id);
 			}
 			// If component was replaced (wasMatching && nowMatches), do nothing
+		}
+
+		// If any query uses parentHas, recheck children of this entity
+		if (this._hasParentHasQueries) {
+			this._recheckChildren(entity.id);
 		}
 	}
 
@@ -139,8 +188,13 @@ export default class ReactiveQueryManager<ComponentTypes extends Record<string, 
 			} else if (!wasMatching && nowMatches) {
 				// Entity started matching (removed excluded component) - trigger onEnter
 				query.matchingEntities.add(entity.id);
-				query.definition.onEnter?.(entity as FilteredEntity<ComponentTypes, any, any>);
+				query.definition.onEnter?.(entity as FilteredEntity<ComponentTypes, any, any, any>);
 			}
+		}
+
+		// If any query uses parentHas, recheck children of this entity
+		if (this._hasParentHasQueries) {
+			this._recheckChildren(entity.id);
 		}
 	}
 
@@ -169,11 +223,38 @@ export default class ReactiveQueryManager<ComponentTypes extends Record<string, 
 			if (!wasMatching && nowMatches) {
 				// Entity started matching - trigger onEnter
 				query.matchingEntities.add(entity.id);
-				query.definition.onEnter?.(entity as FilteredEntity<ComponentTypes, any, any>);
+				query.definition.onEnter?.(entity as FilteredEntity<ComponentTypes, any, any, any>);
 			} else if (wasMatching && !nowMatches) {
 				// Entity stopped matching - trigger onExit
 				query.matchingEntities.delete(entity.id);
 				query.definition.onExit?.(entity.id);
+			}
+		}
+	}
+
+	/**
+	 * Recheck all children of a parent entity against parentHas queries.
+	 * Called when a component is added/removed from a parent entity.
+	 */
+	private _recheckChildren(parentId: number): void {
+		const children = this.entityManager.getChildren(parentId);
+		for (const childId of children) {
+			const childEntity = this.entityManager.getEntity(childId);
+			if (childEntity) {
+				this.recheckEntity(childEntity);
+			}
+		}
+	}
+
+	/**
+	 * Recalculate the _hasParentHasQueries flag from all registered queries
+	 */
+	private _recalcParentHasFlag(): void {
+		this._hasParentHasQueries = false;
+		for (const [, query] of this.queries) {
+			if (query.definition.parentHas?.length) {
+				this._hasParentHasQueries = true;
+				return;
 			}
 		}
 	}
