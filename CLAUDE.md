@@ -97,6 +97,6 @@ src/
 
 ## Design Principles
 
-- A goal of this library is to keep as strongly typed as possible. Avoid casting in general, and with "any" in particular. Only resort to casting or "any" usage in general when absolutely necessary.
+- A goal of this library is to keep as strongly typed as possible. Avoid casting in general, and with "any" in particular. Only resort to casting or "any" usage in general when absolutely necessary. Watch for redundant casts that TypeScript can already infer from generic constraints (e.g. `K extends string` is already assignable to `keyof T` when `T extends Record<string, ...>`).
 - Avoid excessive object creation and allocation in hot paths. Prefer explicit arguments over wrapping parameters in objects, and synchronous function calls over promises. More generally, minimize any unnecessary allocations in performance-critical code paths, such as system functions that are run every tick.
 - Avoid excessive use of "as const". Use it where it's important for the purposes of deepening type-awareness.

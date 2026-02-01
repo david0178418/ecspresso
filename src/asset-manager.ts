@@ -43,14 +43,14 @@ export default class AssetManager<AssetTypes extends Record<string, unknown> = R
 		key: K,
 		definition: AssetDefinition<T>
 	): void {
-		this.assets.set(key as keyof AssetTypes, {
+		this.assets.set(key, {
 			definition,
 			status: 'pending',
 		});
 
 		if (definition.group) {
 			const groupSet = this.groups.get(definition.group) ?? new Set();
-			groupSet.add(key as keyof AssetTypes);
+			groupSet.add(key);
 			this.groups.set(definition.group, groupSet);
 		}
 	}

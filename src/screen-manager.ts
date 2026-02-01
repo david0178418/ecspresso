@@ -56,7 +56,7 @@ export default class ScreenManager<Screens extends Record<string, ScreenDefiniti
 		name: K,
 		definition: ScreenDefinition<Config, State>
 	): void {
-		this.screens.set(name as keyof Screens, { definition });
+		this.screens.set(name, { definition });
 	}
 
 	/**
