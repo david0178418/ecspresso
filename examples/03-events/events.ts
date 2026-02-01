@@ -18,6 +18,7 @@ import {
 } from "../../src/bundles/utils/timers";
 import {
 	createPhysics2DBundle,
+	createRigidBody,
 	type Physics2DComponentTypes,
 } from "../../src/bundles/utils/physics2D";
 import {
@@ -91,6 +92,7 @@ ecs
 					x: randomInt(pixiApp.renderer.width),
 					y: randomInt(pixiApp.renderer.height),
 				}),
+				...createRigidBody('kinematic'),
 				...createRepeatingTimer<Events>(randomInt(3, 8)),
 				...createWrapAtBounds(),
 				...createCircleCollider(BALL_RADIUS),
@@ -163,6 +165,7 @@ await ecs.initialize();
 const playerSprite = createCircleSprite(0x0000FF);
 ecs.spawn({
 	...createSpriteComponents(playerSprite, { x: 100, y: 100 }),
+	...createRigidBody('kinematic'),
 	...createWrapAtBounds(),
 	...createCircleCollider(BALL_RADIUS),
 	...createCollisionLayer('player', ['enemy']),

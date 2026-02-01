@@ -13,6 +13,7 @@ import {
 } from "../../src/bundles/renderers/renderer2D";
 import {
 	createPhysics2DBundle,
+	createRigidBody,
 	type Physics2DComponentTypes,
 } from "../../src/bundles/utils/physics2D";
 
@@ -75,6 +76,7 @@ ecs.spawn({
 		x: pixiApp.screen.width / 2,
 		y: pixiApp.screen.height / 2,
 	}, { anchor: { x: 0.5, y: 0.5 } }),
+	...createRigidBody('kinematic'),
 	speed: 500,
 	velocity: { x: 0, y: 0 },
 });

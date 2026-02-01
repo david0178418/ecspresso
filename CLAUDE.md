@@ -30,7 +30,8 @@ src/
     │   ├── physics2D.ts  # ECS-native 2D arcade physics (gravity, forces, drag, collision response)
     │   ├── input.ts      # Frame-accurate keyboard/pointer input with action mapping
     │   ├── bounds.ts     # Screen bounds enforcement (destroy, clamp, wrap)
-    │   └── collision.ts  # Layer-based AABB/circle collision detection
+    │   ├── collision.ts  # Layer-based AABB/circle collision detection
+    │   └── state-machine.ts # Per-entity finite state machines with guards and lifecycle hooks
     └── renderers/
         └── renderer2D.ts  # PixiJS scene graph wiring
 ```
@@ -96,6 +97,16 @@ src/
 - **Physics 2D Utilities**: `applyForce(ecs, id, fx, fy)` accumulates force, `applyImpulse(ecs, id, ix, iy)` instant velocity change (respects mass), `setVelocity(ecs, id, vx, vy)` direct velocity set
 - **Physics 2D Phase Flow**: Integration (fixedUpdate priority 1000) → Collision response (fixedUpdate priority 900) → Transform propagation (postUpdate) → Renderer (render)
 - **Physics 2D Body Types**: `'dynamic'` = fully simulated, `'kinematic'` = velocity-only movement (no gravity/forces, immovable in collisions), `'static'` = immovable (mass=Infinity, no position updates)
+- **State Machine Bundle**: `createStateMachineBundle()` — per-entity finite state machines with lifecycle hooks and guard transitions
+- **State Machine Definition**: `defineStateMachine(id, { initial, states })` — shared immutable definition, type-safe state names inferred from `states` keys
+- **State Machine Component**: `createStateMachine(definition, options?)` → `Pick<StateMachineComponentTypes, 'stateMachine'>`, spreads into `spawn()`
+- **State Machine Hooks**: `onEnter(ecs, entityId)`, `onExit(ecs, entityId)`, `onUpdate(ecs, entityId, deltaTime)` per state
+- **State Machine Guards**: `transitions: [{ target, guard }]` — evaluated each tick, first passing guard wins
+- **State Machine Events**: `sendEvent(ecs, entityId, eventName)` — checks current state's `on` handlers (string target or `{ target, guard }`)
+- **State Machine Direct Transition**: `transitionTo(ecs, entityId, targetState)` — immediate transition from any system
+- **State Machine Query**: `getStateMachineState(ecs, entityId)` → `string | null`
+- **State Machine World**: `StateMachineWorld` interface for hooks — method syntax for bivariant parameter checking under strictFunctionTypes
+- **State Transition Events**: `stateTransition` event published on every transition with `{ entityId, from, to, definitionId }`
 
 ## Commands
 

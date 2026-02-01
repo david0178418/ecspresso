@@ -43,6 +43,10 @@
 			"import": "./dist/bundles/utils/physics2D.js",
 			"types": "./dist/bundles/utils/physics2D.d.ts"
 		},
+		"./bundles/utils/state-machine": {
+			"import": "./dist/bundles/utils/state-machine.js",
+			"types": "./dist/bundles/utils/state-machine.d.ts"
+		},
 		"./math": {
 			"import": "./dist/math.js",
 			"types": "./dist/math.d.ts"

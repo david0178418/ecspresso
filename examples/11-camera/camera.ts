@@ -21,6 +21,7 @@ import {
 } from '../../src/bundles/renderers/renderer2D';
 import {
 	createPhysics2DBundle,
+	createRigidBody,
 	type Physics2DComponentTypes,
 } from '../../src/bundles/utils/physics2D';
 import {
@@ -223,6 +224,7 @@ ecs.addSystem('init')
 				x: WORLD_WIDTH / 2,
 				y: WORLD_HEIGHT / 2,
 			}),
+			...createRigidBody('kinematic'),
 			velocity: { x: 0, y: 0 },
 			player: true,
 		});

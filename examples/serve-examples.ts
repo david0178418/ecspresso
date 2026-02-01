@@ -8,6 +8,7 @@ import spaceInvaders from './05-space-invaders/space-invaders.html';
 import turretShooter from './06-turret-shooter/turret-shooter.html';
 import hierarchy from './09-hierarchy/hierarchy.html';
 import camera from './11-camera/camera.html';
+import stateMachine from './12-state-machine/state-machine.html';
 
 const server = serve({
 	port: 3000,
@@ -24,6 +25,7 @@ const server = serve({
 		'/turret-shooter/': turretShooter,
 		'/hierarchy/': hierarchy,
 		'/camera/': camera,
+		'/state-machine/': stateMachine,
 	},
 });
 
