@@ -105,20 +105,20 @@ describe('Optional Components', () => {
 				for (const entity of queries.entities) {
 					// health should be { value: number } | undefined
 					// @ts-expect-error - cannot access .value directly without narrowing, it might be undefined
-					const hp: number = entity.components.health.value;
+					const _hp: number = entity.components.health.value;
 				}
 			})
 			.build();
 	});
 
 	test('works with createQueryDefinition + QueryResultEntity', () => {
-		const query = createQueryDefinition({
+		const _query = createQueryDefinition({
 			with: ['position'],
 			without: ['dead'],
 			optional: ['health'],
 		});
 
-		type Entity = QueryResultEntity<TestComponents, typeof query>;
+		type Entity = QueryResultEntity<TestComponents, typeof _query>;
 
 		function process(entity: Entity) {
 			// position is guaranteed
@@ -127,7 +127,7 @@ describe('Optional Components', () => {
 			const hp: { value: number } | undefined = entity.components.health;
 			// dead is excluded
 			// @ts-expect-error - dead should not be accessible
-			const d = entity.components.dead;
+			const _d = entity.components.dead;
 			return { x, hp };
 		}
 

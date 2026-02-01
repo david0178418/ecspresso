@@ -103,7 +103,7 @@ export function createVelocity(x: number, y: number): Pick<MovementComponentType
  */
 export function createMovementBundle(
 	options?: MovementBundleOptions
-): Bundle<MovementComponentTypes, {}, {}> {
+): Bundle<MovementComponentTypes> {
 	const {
 		systemGroup = 'physics',
 		priority = 1000,

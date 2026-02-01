@@ -1,6 +1,6 @@
 import { describe, test, expect } from 'bun:test';
 import ECSpresso from '../../ecspresso';
-import { createTimerBundle, type TimerEventData } from './timers';
+import { createTimer, createRepeatingTimer, createTimerBundle, type TimerEventData } from './timers';
 
 interface TestComponents {
 	position: { x: number; y: number };
@@ -265,7 +265,7 @@ describe('Timer Events', () => {
 			});
 
 			// Should not throw
-			expect(() => ecs.update(1.5)).not.toThrow();
+			expect(() => { ecs.update(1.5); }).not.toThrow();
 
 			// One-shot timer entity should be auto-removed after completion
 			expect(ecs.entityManager.getEntity(timer.id)).toBeUndefined();
@@ -276,9 +276,6 @@ describe('Timer Events', () => {
 				.create<TestComponents, TestEvents, TestResources>()
 				.withBundle(createTimerBundle())
 				.build();
-
-			// Import createTimer from timers module
-			const { createTimer } = require('./timers');
 
 			const timer = ecs.spawn({
 				...createTimer(1.0)
@@ -295,10 +292,8 @@ describe('Timer Events', () => {
 		test('createTimer should accept onComplete option', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
-				.withBundle(createTimerBundle())
+				.withBundle(createTimerBundle<TestEvents>())
 				.build();
-
-			const { createTimer } = require('./timers');
 
 			let eventFired = false;
 
@@ -307,7 +302,7 @@ describe('Timer Events', () => {
 			});
 
 			ecs.spawn({
-				...createTimer(0.5, { onComplete: 'oneShotComplete' })
+				...createTimer<TestEvents>(0.5, { onComplete: 'oneShotComplete' })
 			});
 
 			ecs.update(0.6);
@@ -318,10 +313,8 @@ describe('Timer Events', () => {
 		test('createRepeatingTimer should accept onComplete option', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
-				.withBundle(createTimerBundle())
+				.withBundle(createTimerBundle<TestEvents>())
 				.build();
-
-			const { createRepeatingTimer } = require('./timers');
 
 			let fireCount = 0;
 
@@ -330,7 +323,7 @@ describe('Timer Events', () => {
 			});
 
 			ecs.spawn({
-				...createRepeatingTimer(0.3, { onComplete: 'repeatingTimer' })
+				...createRepeatingTimer<TestEvents>(0.3, { onComplete: 'repeatingTimer' })
 			});
 
 			ecs.update(1.0); // Should fire 3 times (0.3, 0.6, 0.9)
@@ -343,8 +336,6 @@ describe('Timer Events', () => {
 				.create<TestComponents, TestEvents, TestResources>()
 				.withBundle(createTimerBundle())
 				.build();
-
-			const { createTimer, createRepeatingTimer } = require('./timers');
 
 			// Should not throw without options
 			expect(() => {
@@ -527,7 +518,7 @@ describe('Timer Events', () => {
 			});
 
 			// Should not throw even though no one is listening
-			expect(() => ecs.update(1.0)).not.toThrow();
+			expect(() => { ecs.update(1.0); }).not.toThrow();
 		});
 	});
 });

@@ -166,7 +166,7 @@ export function addTrauma<
 	C extends CombinedComponentTypes,
 	R extends CameraResourceTypes,
 >(
-	ecs: ECSpresso<C, {}, R>,
+	ecs: ECSpresso<C, any, R>,
 	entityId: number,
 	amount: number,
 ): void {

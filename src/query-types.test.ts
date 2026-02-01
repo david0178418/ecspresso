@@ -35,7 +35,7 @@ describe('Query Type Utilities', () => {
 
 			// TypeScript should prevent access to excluded components
 			// @ts-expect-error - 'dead' component should not be accessible
-			const deadStatus = entity.components.dead;
+			const _deadStatus = entity.components.dead;
 		}
 
 		// Create an ECS world and test the integration
@@ -88,7 +88,7 @@ describe('Query Type Utilities', () => {
 
 			// Should not have access to excluded components
 			// @ts-expect-error - 'dead' component should not be accessible
-			const deadStatus = entity.components.dead;
+			const _deadStatus = entity.components.dead;
 
 			return { pos, sprite, isPlayer };
 		}
@@ -138,13 +138,13 @@ describe('Query Type Utilities', () => {
 	});
 
 	test('QueryResultEntity with optional components', () => {
-		const query = {
+		const _query = {
 			with: ['position'],
 			without: ['dead'],
 			optional: ['health', 'velocity'],
 		} as const;
 
-		type Entity = QueryResultEntity<Components, typeof query>;
+		type Entity = QueryResultEntity<Components, typeof _query>;
 
 		function process(entity: Entity) {
 			// Required: position is guaranteed
@@ -156,7 +156,7 @@ describe('Query Type Utilities', () => {
 
 			// Excluded: dead is not accessible
 			// @ts-expect-error - 'dead' component should not be accessible
-			const d = entity.components.dead;
+			const _d = entity.components.dead;
 
 			return { pos, hp, vel };
 		}
@@ -165,12 +165,12 @@ describe('Query Type Utilities', () => {
 	});
 
 	test('QueryResultEntity with parentHas (no effect on return type)', () => {
-		const query = {
+		const _query = {
 			with: ['position'],
 			parentHas: ['sprite'],
 		} as const;
 
-		type Entity = QueryResultEntity<Components, typeof query>;
+		type Entity = QueryResultEntity<Components, typeof _query>;
 
 		function process(entity: Entity) {
 			// position is guaranteed

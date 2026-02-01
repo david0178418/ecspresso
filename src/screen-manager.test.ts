@@ -148,7 +148,7 @@ describe('ScreenManager', () => {
 		});
 
 		test('should throw when updating state with no current screen', () => {
-			expect(() => manager.updateState({ score: 100 })).toThrow(/No current screen/);
+			expect(() => { manager.updateState({ score: 100 }); }).toThrow(/No current screen/);
 		});
 	});
 

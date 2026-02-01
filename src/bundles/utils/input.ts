@@ -459,7 +459,7 @@ export function createInputBundle(
 
 	function addListener(type: string, handler: (e: Event) => void) {
 		target.addEventListener(type, handler);
-		cleanupFns.push(() => target.removeEventListener(type, handler));
+		cleanupFns.push(() => { target.removeEventListener(type, handler); });
 	}
 
 	// Build bundle

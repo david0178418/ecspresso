@@ -166,7 +166,7 @@ class EntityManager<ComponentTypes> {
 					if (hasChangedFilter) {
 						const entitySeqs = this.changeSeqs.get(entity.id);
 						if (!entitySeqs) return false;
-						if (!changed.some(comp => (entitySeqs.get(comp) ?? -1) > changeThreshold!)) return false;
+						if (!changed.some(comp => (entitySeqs.get(comp) ?? -1) > changeThreshold)) return false;
 					}
 					if (hasParentHasFilter && !this.parentHasComponents(entity.id, parentHas)) {
 						return false;
@@ -201,7 +201,7 @@ class EntityManager<ComponentTypes> {
 			) {
 				if (hasChangedFilter) {
 					const entitySeqs = this.changeSeqs.get(id);
-					if (!entitySeqs || !changed.some(comp => (entitySeqs.get(comp) ?? -1) > changeThreshold!)) {
+					if (!entitySeqs || !changed.some(comp => (entitySeqs.get(comp) ?? -1) > changeThreshold)) {
 						continue;
 					}
 				}
@@ -385,11 +385,11 @@ class EntityManager<ComponentTypes> {
 	spawnChild<T extends { [K in keyof ComponentTypes]?: ComponentTypes[K] }>(
 		parentId: number,
 		components: T & Record<Exclude<keyof T, keyof ComponentTypes>, never>
-	): FilteredEntity<ComponentTypes, keyof T & keyof ComponentTypes, never> {
+	): FilteredEntity<ComponentTypes, keyof T & keyof ComponentTypes> {
 		const entity = this.createEntity();
 		this.addComponents(entity, components);
 		this.setParent(entity.id, parentId);
-		return entity as FilteredEntity<ComponentTypes, keyof T & keyof ComponentTypes, never>;
+		return entity as FilteredEntity<ComponentTypes, keyof T & keyof ComponentTypes>;
 	}
 
 	/**

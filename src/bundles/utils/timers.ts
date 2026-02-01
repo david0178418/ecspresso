@@ -219,7 +219,7 @@ export function createRepeatingTimer<EventTypes extends Record<string, any>>(
  */
 export function createTimerBundle<EventTypes extends Record<string, any>>(
 	options?: TimerBundleOptions
-): Bundle<TimerComponentTypes<EventTypes>, EventTypes, {}> {
+): Bundle<TimerComponentTypes<EventTypes>, EventTypes> {
 	const {
 		systemGroup = 'timers',
 		priority = 0,

@@ -37,7 +37,7 @@ export class SystemBuilder<
 
 	constructor(
 		private _label: string,
-		private _ecspresso: ECSpresso<ComponentTypes, EventTypes, ResourceTypes> | null = null,
+		private _ecspresso: ECSpresso<ComponentTypes, EventTypes, ResourceTypes, any, any> | null = null,
 		private _bundle: Bundle<ComponentTypes, EventTypes, ResourceTypes> | null = null,
 	) {}
 
@@ -251,7 +251,7 @@ export class SystemBuilder<
 	 * This enables seamless method chaining: .registerAndContinue().addSystem(...)
 	 * @returns ECSpresso instance if attached to one, otherwise throws an error
 	 */
-	registerAndContinue(): ECSpresso<ComponentTypes, EventTypes, ResourceTypes> {
+	registerAndContinue(): ECSpresso<ComponentTypes, EventTypes, ResourceTypes, any, any> {
 		if (!this._ecspresso) {
 			throw new Error(`Cannot register system '${this._label}': SystemBuilder is not attached to an ECSpresso instance. Use Bundle.addSystem() or ECSpresso.addSystem() instead.`);
 		}
@@ -266,7 +266,7 @@ export class SystemBuilder<
 	 * - For Bundle-attached builders: returns the Bundle
 	 * This method is typed via the specialized interfaces (SystemBuilderWithEcspresso, SystemBuilderWithBundle)
 	 */
-	and(): ECSpresso<ComponentTypes, EventTypes, ResourceTypes> | Bundle<ComponentTypes, EventTypes, ResourceTypes> {
+	and(): ECSpresso<ComponentTypes, EventTypes, ResourceTypes, any, any> | Bundle<ComponentTypes, EventTypes, ResourceTypes> {
 		if (this._ecspresso) {
 			this._autoRegister();
 			return this._ecspresso;
@@ -316,7 +316,7 @@ export class SystemBuilder<
 			[EventName in keyof EventTypes]?: {
 				handler(
 					data: EventTypes[EventName],
-					ecs: ECSpresso<ComponentTypes, EventTypes, ResourceTypes>
+					ecs: ECSpresso<ComponentTypes, EventTypes, ResourceTypes, any, any>
 				): void;
 			};
 		}
@@ -328,7 +328,7 @@ export class SystemBuilder<
 	/**
 	 * Build the final system object
 	 */
-	build(ecspresso?: ECSpresso<ComponentTypes, EventTypes, ResourceTypes>) {
+	build(ecspresso?: ECSpresso<ComponentTypes, EventTypes, ResourceTypes, any, any>) {
 		const system = this._createSystemObject();
 
 		if (this._ecspresso) {
@@ -354,7 +354,7 @@ export function registerSystemWithEcspresso<
 	ResourceTypes extends Record<string, any>
 >(
 	system: System<ComponentTypes, any, any, EventTypes, ResourceTypes>,
-	ecspresso: ECSpresso<ComponentTypes, EventTypes, ResourceTypes>
+	ecspresso: ECSpresso<ComponentTypes, EventTypes, ResourceTypes, any, any>
 ) {
 	// Use the new internal registration method instead of direct property access
 	ecspresso._registerSystem(system);
@@ -381,8 +381,8 @@ type QueryResults<
 	[QueryName in keyof Queries]: QueryName extends string
 		? FilteredEntity<
 			ComponentTypes,
-			Queries[QueryName] extends QueryDefinition<ComponentTypes, infer W, any, any> ? W : never,
-			Queries[QueryName] extends QueryDefinition<ComponentTypes, any, infer WO, any> ? WO : never,
+			Queries[QueryName] extends QueryDefinition<ComponentTypes, infer W> ? W : never,
+			Queries[QueryName] extends QueryDefinition<ComponentTypes, any, infer WO> ? WO : never,
 			Queries[QueryName] extends QueryDefinition<ComponentTypes, any, any, infer O> ? O : never
 		>[]
 		: never;
@@ -435,7 +435,7 @@ export function createEcspressoSystemBuilder<
 	ResourceTypes extends Record<string, any>
 >(
 	label: string,
-	ecspresso: ECSpresso<ComponentTypes, EventTypes, ResourceTypes>
+	ecspresso: ECSpresso<ComponentTypes, EventTypes, ResourceTypes, any, any>
 ): SystemBuilderWithEcspresso<ComponentTypes, EventTypes, ResourceTypes> {
 	return new SystemBuilder<ComponentTypes, EventTypes, ResourceTypes>(
 		label,
@@ -473,13 +473,13 @@ export interface SystemBuilderWithEcspresso<
 	ResourceTypes extends Record<string, any>,
 	Queries extends Record<string, QueryDefinition<ComponentTypes>> = {}
 > extends SystemBuilder<ComponentTypes, EventTypes, ResourceTypes, Queries> {
-	readonly ecspresso: ECSpresso<ComponentTypes, EventTypes, ResourceTypes>;
+	readonly ecspresso: ECSpresso<ComponentTypes, EventTypes, ResourceTypes, any, any>;
 	
 	/**
 	 * Complete this system and return ECSpresso for seamless chaining
 	 * Automatically registers the system when called
 	 */
-	and(): ECSpresso<ComponentTypes, EventTypes, ResourceTypes>;
+	and(): ECSpresso<ComponentTypes, EventTypes, ResourceTypes, any, any>;
 }
 
 /**

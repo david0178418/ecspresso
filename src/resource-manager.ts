@@ -22,15 +22,15 @@ function isFactoryWithDeps<T>(resource: unknown): resource is ResourceFactoryWit
 /**
  * Topological sort with cycle detection
  */
-function topologicalSort(
-	keys: readonly string[],
-	getDeps: (key: string) => readonly string[]
-): string[] {
-	const sorted: string[] = [];
-	const visited = new Set<string>();
-	const visiting = new Set<string>();
+function topologicalSort<K extends string>(
+	keys: readonly K[],
+	getDeps: (key: K) => readonly string[]
+): K[] {
+	const sorted: K[] = [];
+	const visited = new Set<K>();
+	const visiting = new Set<K>();
 
-	function visit(key: string, path: string[] = []): void {
+	function visit(key: K, path: K[] = []): void {
 		if (visited.has(key)) return;
 		if (visiting.has(key)) {
 			throw new Error(`Circular resource dependency: ${[...path, key].join(' -> ')}`);
@@ -38,8 +38,9 @@ function topologicalSort(
 
 		visiting.add(key);
 		for (const dep of getDeps(key)) {
-			if (keys.includes(dep)) {
-				visit(dep, [...path, key]);
+			const found = keys.find(k => k === dep);
+			if (found) {
+				visit(found, [...path, key]);
 			}
 		}
 		visiting.delete(key);
@@ -55,11 +56,11 @@ function topologicalSort(
 
 export default
 class ResourceManager<ResourceTypes extends Record<string, any> = Record<string, any>> {
-	private resources: Map<string, any> = new Map();
-	private resourceFactories: Map<string, (context?: any) => any | Promise<any>> = new Map();
-	private resourceDependencies: Map<string, readonly string[]> = new Map();
-	private resourceDisposers: Map<string, (resource: any, context?: any) => void | Promise<void>> = new Map();
-	private initializedResourceKeys: Set<string> = new Set();
+	private resources: Map<keyof ResourceTypes, any> = new Map();
+	private resourceFactories: Map<keyof ResourceTypes, (context?: any) => any | Promise<any>> = new Map();
+	private resourceDependencies: Map<keyof ResourceTypes, readonly string[]> = new Map();
+	private resourceDisposers: Map<keyof ResourceTypes, (resource: any, context?: any) => void | Promise<void>> = new Map();
+	private initializedResourceKeys: Set<keyof ResourceTypes> = new Set();
 
 	/**
 	 * Add a resource to the manager
@@ -76,20 +77,20 @@ class ResourceManager<ResourceTypes extends Record<string, any> = Record<string,
 	) {
 		if (isFactoryWithDeps<ResourceTypes[K]>(resource)) {
 			// Factory with optional dependencies and/or onDispose
-			this.resourceFactories.set(label as string, resource.factory);
-			this.resourceDependencies.set(label as string, resource.dependsOn ?? []);
+			this.resourceFactories.set(label, resource.factory);
+			this.resourceDependencies.set(label, resource.dependsOn ?? []);
 			if (resource.onDispose) {
-				this.resourceDisposers.set(label as string, resource.onDispose);
+				this.resourceDisposers.set(label, resource.onDispose);
 			}
 		} else if (this._isFactoryFunction(resource)) {
 			// Factory function (no dependencies)
-			this.resourceFactories.set(label as string, resource as (context?: any) => any | Promise<any>);
-			this.resourceDependencies.set(label as string, []);
+			this.resourceFactories.set(label, resource as (context?: any) => any | Promise<any>);
+			this.resourceDependencies.set(label, []);
 		} else {
 			// Direct resource value
-			this.resources.set(label as string, resource);
-			this.initializedResourceKeys.add(label as string);
-			this.resourceDependencies.set(label as string, []);
+			this.resources.set(label, resource);
+			this.initializedResourceKeys.add(label);
+			this.resourceDependencies.set(label, []);
 		}
 		return this;
 	}
@@ -98,7 +99,7 @@ class ResourceManager<ResourceTypes extends Record<string, any> = Record<string,
 	 * Improved detection of factory functions vs direct values/classes
 	 * @private
 	 */
-	private _isFactoryFunction(value: any): boolean {
+	private _isFactoryFunction(value: unknown): boolean {
 		if (typeof value !== 'function') {
 			return false;
 		}
@@ -129,7 +130,8 @@ class ResourceManager<ResourceTypes extends Record<string, any> = Record<string,
 
 		// Additional heuristics for constructor functions
 		// Constructor functions typically start with capital letter
-		if (value.name && value.name[0] === value.name[0].toUpperCase() && value.name.length > 1) {
+		const firstChar = value.name.charAt(0);
+		if (firstChar && firstChar === firstChar.toUpperCase() && value.name.length > 1) {
 			// But this alone isn't enough - many factory functions also start with capitals
 			// Only treat as constructor if it also has other constructor-like characteristics
 			if (funcStr.includes('this.') || funcStr.includes('new ')) {
@@ -153,13 +155,13 @@ class ResourceManager<ResourceTypes extends Record<string, any> = Record<string,
 		context?: any
 	): ResourceTypes[K] {
 		// Check if we already have the initialized resource
-		const resource = this.resources.get(label as string);
+		const resource = this.resources.get(label);
 		if (resource !== undefined) {
-			return resource as any;
+			return resource;
 		}
 
 		// Check if we have a factory for this resource
-		const factory = this.resourceFactories.get(label as string);
+		const factory = this.resourceFactories.get(label);
 		if (factory === undefined) {
 			throw new Error(`Resource ${String(label)} not found`);
 		}
@@ -169,11 +171,11 @@ class ResourceManager<ResourceTypes extends Record<string, any> = Record<string,
 
 		// If it's not a Promise, store it immediately
 		if (!(initializedResource instanceof Promise)) {
-			this.resources.set(label as string, initializedResource);
-			this.initializedResourceKeys.add(label as string);
+			this.resources.set(label, initializedResource);
+			this.initializedResourceKeys.add(label);
 		}
 
-		return initializedResource as any;
+		return initializedResource;
 	}
 
 	/**
@@ -182,7 +184,7 @@ class ResourceManager<ResourceTypes extends Record<string, any> = Record<string,
 	 * @returns True if the resource exists
 	 */
 	has<K extends keyof ResourceTypes>(label: K): boolean {
-		return this.resources.has(label as string) || this.resourceFactories.has(label as string);
+		return this.resources.has(label) || this.resourceFactories.has(label);
 	}
 
 	/**
@@ -191,11 +193,11 @@ class ResourceManager<ResourceTypes extends Record<string, any> = Record<string,
 	 * @returns True if the resource was removed
 	 */
 	remove<K extends keyof ResourceTypes>(label: K): boolean {
-		const resourceRemoved = this.resources.delete(label as string);
-		const factoryRemoved = this.resourceFactories.delete(label as string);
-		this.resourceDependencies.delete(label as string);
-		this.resourceDisposers.delete(label as string);
-		this.initializedResourceKeys.delete(label as string);
+		const resourceRemoved = this.resources.delete(label);
+		const factoryRemoved = this.resourceFactories.delete(label);
+		this.resourceDependencies.delete(label);
+		this.resourceDisposers.delete(label);
+		this.initializedResourceKeys.delete(label);
 		return resourceRemoved || factoryRemoved;
 	}
 
@@ -203,7 +205,7 @@ class ResourceManager<ResourceTypes extends Record<string, any> = Record<string,
 	 * Get all resource keys
 	 * @returns Array of resource keys
 	 */
-	getKeys(): Array<string> {
+	getKeys(): Array<keyof ResourceTypes> {
 		const keys = new Set([
 			...this.resources.keys(),
 			...this.resourceFactories.keys()
@@ -217,14 +219,14 @@ class ResourceManager<ResourceTypes extends Record<string, any> = Record<string,
 	 * @returns True if the resource needs initialization
 	 */
 	needsInitialization<K extends keyof ResourceTypes>(label: K): boolean {
-		return this.resourceFactories.has(label as string) && !this.initializedResourceKeys.has(label as string);
+		return this.resourceFactories.has(label) && !this.initializedResourceKeys.has(label);
 	}
 
 	/**
 	 * Get all resource keys that need to be initialized
 	 * @returns Array of resource keys that need initialization
 	 */
-	getPendingInitializationKeys(): Array<string> {
+	getPendingInitializationKeys(): Array<keyof ResourceTypes> {
 		return Array
 			.from(this.resourceFactories.keys())
 			.filter(key => !this.initializedResourceKeys.has(key));
@@ -240,15 +242,15 @@ class ResourceManager<ResourceTypes extends Record<string, any> = Record<string,
 		label: K,
 		context?: any
 	): Promise<void> {
-		if (!this.resourceFactories.has(label as string) || this.initializedResourceKeys.has(label as string)) {
+		if (!this.resourceFactories.has(label) || this.initializedResourceKeys.has(label)) {
 			return;
 		}
 
-		const factory = this.resourceFactories.get(label as string)!;
+		const factory = this.resourceFactories.get(label)!;
 		const initializedResource = await factory(context);
-		this.resources.set(label as string, initializedResource);
-		this.initializedResourceKeys.add(label as string);
-		this.resourceFactories.delete(label as string);
+		this.resources.set(label, initializedResource);
+		this.initializedResourceKeys.add(label);
+		this.resourceFactories.delete(label);
 	}
 
 	/**
@@ -265,15 +267,15 @@ class ResourceManager<ResourceTypes extends Record<string, any> = Record<string,
 		// Determine which keys to initialize
 		const keysToInit = keys.length === 0
 			? this.getPendingInitializationKeys()
-			: keys.map(k => k as string);
+			: keys;
 
 		// If no keys to initialize, we're done
 		if (keysToInit.length === 0) return;
 
 		// Sort keys topologically based on dependencies
 		const sortedKeys = topologicalSort(
-			keysToInit,
-			(key) => this.resourceDependencies.get(key) ?? []
+			keysToInit as readonly (keyof ResourceTypes & string)[],
+			(key) => [...(this.resourceDependencies.get(key) ?? [])]
 		);
 
 		// Initialize in order (sequentially to respect dependencies)
@@ -288,7 +290,7 @@ class ResourceManager<ResourceTypes extends Record<string, any> = Record<string,
 	 * @returns Array of resource keys that this resource depends on
 	 */
 	getDependencies<K extends keyof ResourceTypes>(label: K): readonly string[] {
-		return this.resourceDependencies.get(label as string) ?? [];
+		return this.resourceDependencies.get(label) ?? [];
 	}
 
 	/**
@@ -301,27 +303,25 @@ class ResourceManager<ResourceTypes extends Record<string, any> = Record<string,
 		label: K,
 		context?: any
 	): Promise<boolean> {
-		const key = label as string;
-
-		if (!this.resources.has(key) && !this.resourceFactories.has(key)) {
+		if (!this.resources.has(label) && !this.resourceFactories.has(label)) {
 			return false;
 		}
 
 		// Only call onDispose if the resource was initialized
-		if (this.initializedResourceKeys.has(key)) {
-			const disposer = this.resourceDisposers.get(key);
-			const resource = this.resources.get(key);
+		if (this.initializedResourceKeys.has(label)) {
+			const disposer = this.resourceDisposers.get(label);
+			const resource = this.resources.get(label);
 			if (disposer && resource !== undefined) {
 				await disposer(resource, context);
 			}
 		}
 
 		// Clean up all tracking
-		this.resources.delete(key);
-		this.resourceFactories.delete(key);
-		this.resourceDependencies.delete(key);
-		this.resourceDisposers.delete(key);
-		this.initializedResourceKeys.delete(key);
+		this.resources.delete(label);
+		this.resourceFactories.delete(label);
+		this.resourceDependencies.delete(label);
+		this.resourceDisposers.delete(label);
+		this.initializedResourceKeys.delete(label);
 
 		return true;
 	}
@@ -339,13 +339,13 @@ class ResourceManager<ResourceTypes extends Record<string, any> = Record<string,
 
 		// Sort in dependency order, then reverse for disposal
 		const sortedKeys = topologicalSort(
-			initializedKeys,
-			(key) => this.resourceDependencies.get(key) ?? []
+			initializedKeys as readonly (keyof ResourceTypes & string)[],
+			(key) => [...(this.resourceDependencies.get(key) ?? [])]
 		).reverse();
 
 		// Dispose in reverse dependency order
 		for (const key of sortedKeys) {
-			await this.disposeResource(key as keyof ResourceTypes, context);
+			await this.disposeResource(key, context);
 		}
 	}
 }

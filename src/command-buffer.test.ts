@@ -1,6 +1,7 @@
 import { describe, test, expect, spyOn } from 'bun:test';
 import ECSpresso from './ecspresso';
 import CommandBuffer from './command-buffer';
+import { createTimer, createTimerBundle, type TimerEventData } from './bundles/utils/timers';
 
 interface TestComponents {
 	position: { x: number; y: number };
@@ -320,7 +321,7 @@ describe('CommandBuffer', () => {
 
 			// Should not throw — suppress expected warnings from catch-and-log in playback
 			const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
-			expect(() => buffer.playback(ecs)).not.toThrow();
+			expect(() => { buffer.playback(ecs); }).not.toThrow();
 			warnSpy.mockRestore();
 		});
 	});
@@ -401,16 +402,14 @@ describe('CommandBuffer', () => {
 
 	describe('Integration with Timer Events', () => {
 		test('timer event handler can use command buffer to remove entities', () => {
-			const { createTimer } = require('./bundles/utils/timers');
-			const { createTimerBundle } = require('./bundles/utils/timers');
-
+			
 			interface TimerTestEvents {
-				cleanup: { entityId: number };
+				cleanup: TimerEventData;
 			}
 
 			const ecs = ECSpresso
 				.create<TestComponents, TimerTestEvents, TestResources>()
-				.withBundle(createTimerBundle())
+				.withBundle(createTimerBundle<TimerTestEvents>())
 				.build();
 
 			const targetEntity = ecs.spawn({ position: { x: 0, y: 0 }, tag: true });
@@ -422,7 +421,7 @@ describe('CommandBuffer', () => {
 
 			// Create timer that passes the entity ID in the event
 			const timerEntity = ecs.spawn({
-				...createTimer(0.5, { onComplete: 'cleanup' }),
+				...createTimer<TimerTestEvents>(0.5, { onComplete: 'cleanup' }),
 				position: { x: 1, y: 1 },
 			});
 
@@ -450,17 +449,15 @@ describe('CommandBuffer', () => {
 		});
 
 		test('multiple timers firing events that queue commands', () => {
-			const { createTimer } = require('./bundles/utils/timers');
-			const { createTimerBundle } = require('./bundles/utils/timers');
-
+			
 			interface MultiTimerEvents {
-				spawnEntity: {};
+				spawnEntity: TimerEventData;
 				modifyEntity: { id: number };
 			}
 
 			const ecs = ECSpresso
 				.create<TestComponents, MultiTimerEvents, TestResources>()
-				.withBundle(createTimerBundle())
+				.withBundle(createTimerBundle<MultiTimerEvents>())
 				.build();
 
 			// Event handler that spawns entity via commands (closure captures ecs)
@@ -469,8 +466,8 @@ describe('CommandBuffer', () => {
 			});
 
 			// Create timers
-			ecs.spawn({ ...createTimer(0.3, { onComplete: 'spawnEntity' }) });
-			ecs.spawn({ ...createTimer(0.5, { onComplete: 'spawnEntity' }) });
+			ecs.spawn({ ...createTimer<MultiTimerEvents>(0.3, { onComplete: 'spawnEntity' }) });
+			ecs.spawn({ ...createTimer<MultiTimerEvents>(0.5, { onComplete: 'spawnEntity' }) });
 
 			// Before update, no entities with health
 			expect(ecs.getEntitiesWithQuery(['health']).length).toBe(0);
@@ -483,16 +480,14 @@ describe('CommandBuffer', () => {
 		});
 
 		test('commands queued in timer event execute in same frame', () => {
-			const { createTimer } = require('./bundles/utils/timers');
-			const { createTimerBundle } = require('./bundles/utils/timers');
-
+			
 			interface Events {
-				removeAll: {};
+				removeAll: TimerEventData;
 			}
 
 			const ecs = ECSpresso
 				.create<TestComponents, Events, TestResources>()
-				.withBundle(createTimerBundle())
+				.withBundle(createTimerBundle<Events>())
 				.build();
 
 			// Create several entities
@@ -509,7 +504,7 @@ describe('CommandBuffer', () => {
 			});
 
 			// Timer that fires the event
-			ecs.spawn({ ...createTimer(1.0, { onComplete: 'removeAll' }) });
+			ecs.spawn({ ...createTimer<Events>(1.0, { onComplete: 'removeAll' }) });
 
 			// All entities exist before update
 			expect(ecs.getEntitiesWithQuery(['tag']).length).toBe(3);

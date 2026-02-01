@@ -226,7 +226,7 @@ export function createTransform(
  */
 export function createTransformBundle(
 	options?: TransformBundleOptions
-): Bundle<TransformComponentTypes, {}, {}> {
+): Bundle<TransformComponentTypes> {
 	const {
 		systemGroup = 'transform',
 		priority = 500,
@@ -241,7 +241,7 @@ export function createTransformBundle(
 		.inPhase(phase)
 		.inGroup(systemGroup)
 		.setProcess((_queries, _deltaTime, ecs) => {
-			propagateTransforms(ecs as ECSpresso<TransformComponentTypes, {}, {}>);
+			propagateTransforms(ecs);
 		})
 		.and();
 
@@ -256,7 +256,7 @@ export function createTransformBundle(
  * last ran, or whose parent's worldTransform changed (cascade).
  * Uses per-system monotonic sequence threshold for change detection.
  */
-function propagateTransforms(ecs: ECSpresso<TransformComponentTypes, {}, {}>): void {
+function propagateTransforms(ecs: ECSpresso<TransformComponentTypes>): void {
 	const threshold = ecs.changeThreshold;
 	const em = ecs.entityManager;
 

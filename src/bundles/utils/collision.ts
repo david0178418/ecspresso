@@ -276,7 +276,7 @@ interface ColliderInfo {
  */
 export function createCollisionBundle(
 	options?: CollisionBundleOptions
-): Bundle<CombinedComponentTypes, CollisionEventTypes, {}> {
+): Bundle<CombinedComponentTypes, CollisionEventTypes> {
 	const {
 		systemGroup = 'physics',
 		priority = 0,
@@ -301,8 +301,8 @@ export function createCollisionBundle(
 				const { worldTransform, collisionLayer } = entity.components;
 
 				// Get collider info
-				const aabb = ecs.entityManager.getComponent(entity.id, 'aabbCollider') as AABBCollider | null;
-				const circle = ecs.entityManager.getComponent(entity.id, 'circleCollider') as CircleCollider | null;
+				const aabb = ecs.entityManager.getComponent(entity.id, 'aabbCollider');
+				const circle = ecs.entityManager.getComponent(entity.id, 'circleCollider');
 
 				// Must have at least one collider
 				if (!aabb && !circle) continue;

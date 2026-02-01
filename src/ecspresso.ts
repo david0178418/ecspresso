@@ -346,14 +346,14 @@ export default class ECSpresso<
 
 			// Screen filtering - skip if system is restricted to specific screens
 			if (system.inScreens?.length) {
-				if (currentScreen === null || !system.inScreens.includes(currentScreen as string)) {
+				if (currentScreen === null || !system.inScreens.includes(currentScreen)) {
 					continue;
 				}
 			}
 
 			// Screen exclusion - skip if system excludes current screen
 			if (system.excludeScreens?.length) {
-				if (currentScreen !== null && system.excludeScreens.includes(currentScreen as string)) {
+				if (currentScreen !== null && system.excludeScreens.includes(currentScreen)) {
 					continue;
 				}
 			}
@@ -745,10 +745,10 @@ export default class ECSpresso<
 		*/
 	spawn<T extends { [K in keyof ComponentTypes]?: ComponentTypes[K] }>(
 		components: T & Record<Exclude<keyof T, keyof ComponentTypes>, never>
-	): FilteredEntity<ComponentTypes, keyof T & keyof ComponentTypes, never> {
+	): FilteredEntity<ComponentTypes, keyof T & keyof ComponentTypes> {
 		const entity = this._entityManager.createEntity();
 		this._entityManager.addComponents(entity, components);
-		return entity as FilteredEntity<ComponentTypes, keyof T & keyof ComponentTypes, never>;
+		return entity as FilteredEntity<ComponentTypes, keyof T & keyof ComponentTypes>;
 	}
 
 	/**
@@ -840,7 +840,7 @@ export default class ECSpresso<
 	spawnChild<T extends { [K in keyof ComponentTypes]?: ComponentTypes[K] }>(
 		parentId: number,
 		components: T & Record<Exclude<keyof T, keyof ComponentTypes>, never>
-	): FilteredEntity<ComponentTypes, keyof T & keyof ComponentTypes, never> {
+	): FilteredEntity<ComponentTypes, keyof T & keyof ComponentTypes> {
 		const entity = this._entityManager.spawnChild(parentId, components);
 		this._emitHierarchyChanged(entity.id, null, parentId);
 		return entity;

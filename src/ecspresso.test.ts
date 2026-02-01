@@ -108,7 +108,7 @@ describe('ECSpresso', () => {
 			world.entityManager.addComponent(entity.id, 'position', { x: 5, y: 10 });
 
 			// This would produce a type error in a stricter TypeScript configuration
-			// @ts-ignore
+			// @ts-expect-error - 'notAComponent' is not a valid component name
 			world.entityManager.addComponent(entity.id, 'notAComponent', { x: 5, y: 10 });
 
 			expect(true).toBe(true); // Just to ensure the test runs without errors
@@ -208,7 +208,7 @@ describe('ECSpresso', () => {
 			try {
 				// @ts-expect-error // TypeScript should because bundle is not defined on systems created from ecspresso instance
 				systemFromEcs.bundle.id;
-			} catch (error) {}
+			} catch (_error) {}
 
 			const systemFromBundle = new Bundle<TestComponents, TestEvents, TestResources>()
 				.addSystem('some-system');
@@ -218,7 +218,7 @@ describe('ECSpresso', () => {
 			try {
 				// @ts-expect-error // TypeScript should because ecspresso is not defined on systems created from bundle instance
 				systemFromBundle.ecspresso.entityManager;
-			} catch (error) {}
+			} catch (_error) {}
 
 			expect(true).toBe(true); // Just to ensure the test runs without errors
 		});
@@ -649,7 +649,7 @@ describe('ECSpresso', () => {
 			try {
 				const lifeComponent = world.entityManager.getComponent(entity1.id, 'lifetime');
 				expect(lifeComponent).toBeNull();
-			} catch (error) {
+			} catch (_error) {
 				// If an error is thrown because the entity doesn't exist, that's also acceptable
 				// The test is successful either way
 			}
@@ -1113,7 +1113,7 @@ describe('ECSpresso', () => {
 			const originalSortMethod = world['_rebuildPhaseSystems'];
 			world['_rebuildPhaseSystems'] = function() {
 				sortCallCount++;
-				return originalSortMethod.call(this);
+				originalSortMethod.call(this);
 			};
 
 			// Run multiple updates - sorting should only happen once during setup
@@ -1679,7 +1679,7 @@ describe('ECSpresso', () => {
 				.addResource('physics', { gravity: 9.8 });
 
 			const world = ECSpresso
-				.create<{}, {}, {}>()
+				.create()
 				.withBundle(bundle)
 				.withResource('config', { debug: true })
 				.build();
@@ -1708,7 +1708,7 @@ describe('ECSpresso', () => {
 
 		test('should work with withAssets() and withScreens()', () => {
 			const world = ECSpresso
-				.create<{}, {}, {}>()
+				.create()
 				.withResource('config', { debug: true })
 				.withAssets(assets => assets.add('test', () => Promise.resolve('texture')))
 				.build();

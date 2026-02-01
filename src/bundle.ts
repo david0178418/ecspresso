@@ -3,6 +3,7 @@ import type ECSpresso from './ecspresso';
 import type { AssetDefinition } from './asset-types';
 import type { ScreenDefinition } from './screen-types';
 import type { BundlesAreCompatible } from './type-utils';
+import type { QueryDefinition } from './types';
 
 /**
  * Generates a unique ID for a bundle
@@ -51,8 +52,8 @@ export default class Bundle<
 	/**
 	 * Add a system to this bundle, by label (creating a new builder) or by reusing an existing one
 	 */
-	addSystem<Q extends Record<string, any>>(builder: SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, Q>): SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, Q>;
-	addSystem(label: string): SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, {}>;
+	addSystem<Q extends Record<string, QueryDefinition<ComponentTypes>>>(builder: SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, Q>): SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, Q>;
+	addSystem(label: string): SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes>;
 	addSystem(builderOrLabel: string | SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, any>) {
 		if (typeof builderOrLabel === 'string') {
 			const system = createBundleSystemBuilder<ComponentTypes, EventTypes, ResourceTypes>(builderOrLabel, this);
@@ -73,8 +74,8 @@ export default class Bundle<
 		label: K,
 		resource:
 			| ResourceTypes[K]
-			| ((ecs: ECSpresso<ComponentTypes, EventTypes, ResourceTypes>) => ResourceTypes[K] | Promise<ResourceTypes[K]>)
-			| { dependsOn: readonly string[]; factory: (ecs: ECSpresso<ComponentTypes, EventTypes, ResourceTypes>) => ResourceTypes[K] | Promise<ResourceTypes[K]> }
+			| ((ecs: ECSpresso<ComponentTypes, EventTypes, ResourceTypes, any, any>) => ResourceTypes[K] | Promise<ResourceTypes[K]>)
+			| { dependsOn: readonly string[]; factory: (ecs: ECSpresso<ComponentTypes, EventTypes, ResourceTypes, any, any>) => ResourceTypes[K] | Promise<ResourceTypes[K]> }
 	) {
 		// We need this cast because TypeScript doesn't recognize that a value of type
 		// ResourceTypes[K] | (() => ResourceTypes[K] | Promise<ResourceTypes[K]>) | { dependsOn, factory }
@@ -187,7 +188,7 @@ export default class Bundle<
 	 * Register all systems in this bundle with an ECSpresso instance
 	 * @internal Used by ECSpresso when adding a bundle
 	 */
-	registerSystemsWithEcspresso(ecspresso: ECSpresso<ComponentTypes, EventTypes, ResourceTypes>) {
+	registerSystemsWithEcspresso(ecspresso: ECSpresso<ComponentTypes, EventTypes, ResourceTypes, any, any>) {
 		for (const systemBuilder of this._systems) {
 			systemBuilder.build(ecspresso);
 		}

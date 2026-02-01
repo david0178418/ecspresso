@@ -212,8 +212,7 @@ describe('EventSystem', () => {
 		const receivedEvents: string[] = [];
 
 		// Subscribe directly to the event bus
-		let unsubscribe: (() => void) | null = null;
-		unsubscribe = world.eventBus.subscribe('healthChanged', (data: any) => {
+		const unsubscribe = world.eventBus.subscribe('healthChanged', (data: any) => {
 			receivedEvents.push(`health:${data.oldValue}->${data.newValue}`);
 		});
 
@@ -229,9 +228,7 @@ describe('EventSystem', () => {
 
 		// Clear events and unsubscribe
 		receivedEvents.length = 0;
-		if (unsubscribe) {
-			unsubscribe();
-		}
+		unsubscribe();
 
 		// Publish another event - should NOT be received since we unsubscribed
 		world.eventBus.publish('healthChanged', {

@@ -4,7 +4,7 @@ import ResourceManager from './resource-manager';
 import Bundle from './bundle';
 
 // Test class for factory function detection tests
-class TestClass {
+class _TestClass {
 	constructor(public value: number = 42) {}
 	getValue() { return this.value; }
 }
@@ -24,7 +24,7 @@ interface TestResources {
 	logger: { log: (message: string) => void };
 	counter: { increment: () => number };
 	controlMap: { up: boolean; down: boolean; left: boolean; right: boolean };
-	objectInstance: typeof TestClass;
+	objectInstance: typeof _TestClass;
 }
 
 describe('ResourceManager', () => {

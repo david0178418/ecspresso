@@ -2,7 +2,7 @@ import type { EventHandler } from "./types";
 
 export default
 class EventBus<EventTypes> {
-	private handlers: Map<string, Array<EventHandler<any>>> = new Map();
+	private handlers: Map<keyof EventTypes, Array<EventHandler<any>>> = new Map();
 
 	/**
 	 * Subscribe to an event
@@ -32,7 +32,7 @@ class EventBus<EventTypes> {
 		eventType: E,
 		callback: (data: EventTypes[E]) => void
 	): boolean {
-		const handlers = this.handlers.get(eventType as string);
+		const handlers = this.handlers.get(eventType);
 		if (!handlers) return false;
 
 		const index = handlers.findIndex(h => h.callback === callback);
@@ -50,8 +50,8 @@ class EventBus<EventTypes> {
 		callback: (data: EventTypes[E]) => void,
 		once: boolean
 	): () => void {
-		if (!this.handlers.has(eventType as string)) {
-			this.handlers.set(eventType as string, []);
+		if (!this.handlers.has(eventType)) {
+			this.handlers.set(eventType, []);
 		}
 
 		const handler: EventHandler<any> = {
@@ -59,11 +59,11 @@ class EventBus<EventTypes> {
 			once
 		};
 
-		this.handlers.get(eventType as string)!.push(handler);
+		this.handlers.get(eventType)!.push(handler);
 
 		// Return unsubscribe function
 		return () => {
-			const handlers = this.handlers.get(eventType as string);
+			const handlers = this.handlers.get(eventType);
 			if (handlers) {
 				const index = handlers.indexOf(handler);
 				if (index !== -1) {
@@ -77,7 +77,7 @@ class EventBus<EventTypes> {
 		eventType: E,
 		data?: EventTypes[E]
 	): void {
-		const handlers = this.handlers.get(eventType as string);
+		const handlers = this.handlers.get(eventType);
 		if (!handlers) return;
 
 		// Create a copy of handlers to avoid issues with handlers that modify the array
@@ -108,6 +108,6 @@ class EventBus<EventTypes> {
 	}
 
 	clearEvent<E extends keyof EventTypes>(eventType: E): void {
-		this.handlers.delete(eventType as string);
+		this.handlers.delete(eventType);
 	}
 }

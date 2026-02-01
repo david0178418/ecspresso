@@ -24,8 +24,8 @@ interface AssetEntry<T> {
  * Manages asset loading and access for ECSpresso
  */
 export default class AssetManager<AssetTypes extends Record<string, unknown> = Record<string, never>> {
-	private readonly assets: Map<string, AssetEntry<unknown>> = new Map();
-	private readonly groups: Map<string, Set<string>> = new Map();
+	private readonly assets: Map<keyof AssetTypes, AssetEntry<unknown>> = new Map();
+	private readonly groups: Map<string, Set<keyof AssetTypes>> = new Map();
 	private eventBus: EventBus<AssetEvents> | null = null;
 
 	/**
@@ -43,14 +43,14 @@ export default class AssetManager<AssetTypes extends Record<string, unknown> = R
 		key: K,
 		definition: AssetDefinition<T>
 	): void {
-		this.assets.set(key, {
+		this.assets.set(key as keyof AssetTypes, {
 			definition,
 			status: 'pending',
 		});
 
 		if (definition.group) {
 			const groupSet = this.groups.get(definition.group) ?? new Set();
-			groupSet.add(key);
+			groupSet.add(key as keyof AssetTypes);
 			this.groups.set(definition.group, groupSet);
 		}
 	}
@@ -59,7 +59,7 @@ export default class AssetManager<AssetTypes extends Record<string, unknown> = R
 	 * Load all assets marked as eager
 	 */
 	async loadEagerAssets(): Promise<void> {
-		const eagerAssets: string[] = [];
+		const eagerAssets: (keyof AssetTypes)[] = [];
 
 		for (const [key, entry] of this.assets) {
 			if (entry.definition.eager && entry.status === 'pending') {
@@ -74,11 +74,10 @@ export default class AssetManager<AssetTypes extends Record<string, unknown> = R
 	 * Load a single asset by key
 	 */
 	async loadAsset<K extends keyof AssetTypes>(key: K): Promise<AssetTypes[K]> {
-		const keyStr = key as string;
-		const entry = this.assets.get(keyStr);
+		const entry = this.assets.get(key);
 
 		if (!entry) {
-			throw new Error(`Asset '${keyStr}' not found`);
+			throw new Error(`Asset '${String(key)}' not found`);
 		}
 
 		// Already loaded
@@ -106,7 +105,7 @@ export default class AssetManager<AssetTypes extends Record<string, unknown> = R
 			entry.status = 'loaded';
 			entry.loadPromise = undefined;
 
-			this.eventBus?.publish('assetLoaded', { key: keyStr });
+			this.eventBus?.publish('assetLoaded', { key: String(key) });
 			this.checkGroupProgress(entry.definition.group);
 
 			return value as AssetTypes[K];
@@ -116,7 +115,7 @@ export default class AssetManager<AssetTypes extends Record<string, unknown> = R
 			entry.error = error;
 			entry.loadPromise = undefined;
 
-			this.eventBus?.publish('assetFailed', { key: keyStr, error });
+			this.eventBus?.publish('assetFailed', { key: String(key), error });
 			throw error;
 		}
 	}
@@ -132,7 +131,7 @@ export default class AssetManager<AssetTypes extends Record<string, unknown> = R
 		}
 
 		await Promise.all(
-			Array.from(groupKeys).map(key => this.loadAsset(key as keyof AssetTypes))
+			Array.from(groupKeys).map(key => this.loadAsset(key))
 		);
 	}
 
@@ -140,15 +139,14 @@ export default class AssetManager<AssetTypes extends Record<string, unknown> = R
 	 * Get a loaded asset. Throws if not loaded.
 	 */
 	get<K extends keyof AssetTypes>(key: K): AssetTypes[K] {
-		const keyStr = key as string;
-		const entry = this.assets.get(keyStr);
+		const entry = this.assets.get(key);
 
 		if (!entry) {
-			throw new Error(`Asset '${keyStr}' not found`);
+			throw new Error(`Asset '${String(key)}' not found`);
 		}
 
 		if (entry.status !== 'loaded' || entry.value === undefined) {
-			throw new Error(`Asset '${keyStr}' is not loaded (status: ${entry.status})`);
+			throw new Error(`Asset '${String(key)}' is not loaded (status: ${entry.status})`);
 		}
 
 		return entry.value as AssetTypes[K];
@@ -158,8 +156,7 @@ export default class AssetManager<AssetTypes extends Record<string, unknown> = R
 	 * Get a loaded asset or undefined
 	 */
 	getOrUndefined<K extends keyof AssetTypes>(key: K): AssetTypes[K] | undefined {
-		const keyStr = key as string;
-		const entry = this.assets.get(keyStr);
+		const entry = this.assets.get(key);
 
 		if (!entry || entry.status !== 'loaded') {
 			return undefined;
@@ -172,11 +169,10 @@ export default class AssetManager<AssetTypes extends Record<string, unknown> = R
 	 * Get a handle to an asset with status information
 	 */
 	getHandle<K extends keyof AssetTypes>(key: K): AssetHandle<AssetTypes[K]> {
-		const keyStr = key as string;
-		const entry = this.assets.get(keyStr);
+		const entry = this.assets.get(key);
 
 		if (!entry) {
-			throw new Error(`Asset '${keyStr}' not found`);
+			throw new Error(`Asset '${String(key)}' not found`);
 		}
 
 		const manager = this;
@@ -200,11 +196,10 @@ export default class AssetManager<AssetTypes extends Record<string, unknown> = R
 	 * Get the status of an asset
 	 */
 	getStatus<K extends keyof AssetTypes>(key: K): AssetStatus {
-		const keyStr = key as string;
-		const entry = this.assets.get(keyStr);
+		const entry = this.assets.get(key);
 
 		if (!entry) {
-			throw new Error(`Asset '${keyStr}' not found`);
+			throw new Error(`Asset '${String(key)}' not found`);
 		}
 
 		return entry.status;
@@ -214,8 +209,7 @@ export default class AssetManager<AssetTypes extends Record<string, unknown> = R
 	 * Check if an asset is loaded
 	 */
 	isLoaded<K extends keyof AssetTypes>(key: K): boolean {
-		const keyStr = key as string;
-		const entry = this.assets.get(keyStr);
+		const entry = this.assets.get(key);
 		return entry?.status === 'loaded';
 	}
 
@@ -334,7 +328,7 @@ export default class AssetManager<AssetTypes extends Record<string, unknown> = R
 	 * Get all registered asset keys
 	 */
 	getKeys(): Array<keyof AssetTypes> {
-		return Array.from(this.assets.keys()) as Array<keyof AssetTypes>;
+		return Array.from(this.assets.keys());
 	}
 
 	/**
@@ -349,7 +343,7 @@ export default class AssetManager<AssetTypes extends Record<string, unknown> = R
 	 */
 	getGroupKeys(groupName: string): Array<keyof AssetTypes> {
 		const groupKeys = this.groups.get(groupName);
-		return groupKeys ? Array.from(groupKeys) as Array<keyof AssetTypes> : [];
+		return groupKeys ? Array.from(groupKeys) : [];
 	}
 }
 
