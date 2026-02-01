@@ -33,6 +33,7 @@ const game = ECSpresso
 		init: { background: '#000000', resizeTo: window },
 		container: '#game-container',
 		renderLayers: ['game'],
+		screenScale: { width: 800, height: 600 },
 	}))
 	.withBundle(createPhysics2DBundle({ integrationPriority: 200, systemGroup: 'gameplay' }))
 	.withBundle(createBoundsBundle({ priority: 100, systemGroup: 'gameplay' }))

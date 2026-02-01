@@ -13,12 +13,12 @@ import { Components, Events, Resources } from "./types";
 export function spawnEnemyFormation(ecs: ECSpresso<Components, Events, Resources>): void {
 	const config = ecs.getResource('config');
 	const gameState = ecs.getResource('gameState');
-	const pixi = ecs.getResource('pixiApp');
+	const bounds = ecs.getResource('bounds');
 
 	const enemiesPerRow = config.enemiesPerRow;
 	const rows = config.enemyRows;
 	const spacing = 60;
-	const startX = (pixi.screen.width - (enemiesPerRow - 1) * spacing) / 2;
+	const startX = (bounds.width - (enemiesPerRow - 1) * spacing) / 2;
 	const startY = 80;
 
 	const enemyConfigs: Record<'boss' | 'elite' | 'grunt', { points: number; health: number; color: number }> = {
@@ -113,11 +113,11 @@ export function createProjectileSprite(ecs: ECSpresso<Components, Events, Resour
 }
 
 export function spawnPlayer(ecs: ECSpresso<Components, Events, Resources>): number {
-	const pixi = ecs.getResource('pixiApp');
+	const bounds = ecs.getResource('bounds');
 	const playerSprite = createPlayerSprite(ecs);
 
 	const player = ecs.spawn({
-		...createSpriteComponents(playerSprite, { x: pixi.screen.width / 2, y: pixi.screen.height - 80 }),
+		...createSpriteComponents(playerSprite, { x: bounds.width / 2, y: bounds.height - 80 }),
 		player: true,
 		...createRigidBody('kinematic'),
 		velocity: { x: 0, y: 0 },

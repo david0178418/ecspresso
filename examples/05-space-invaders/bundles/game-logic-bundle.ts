@@ -134,7 +134,7 @@ export default function createGameLogicBundle() {
 
 			const gameState = ecs.getResource('gameState');
 			const movementState = ecs.getResource('enemyMovementState');
-			const pixi = ecs.getResource('pixiApp');
+			const bounds = ecs.getResource('bounds');
 
 			let minX = Number.MAX_VALUE;
 			let maxX = Number.MIN_VALUE;
@@ -149,14 +149,14 @@ export default function createGameLogicBundle() {
 			}
 
 			// Game over if enemies reach bottom
-			if (maxY > pixi.screen.height - 100) {
+			if (maxY > bounds.height - 100) {
 				ecs.eventBus.publish('gameOver', { win: false, score: ecs.getResource('score').value });
 				return;
 			}
 
 			// Check for edge hit and trigger descent
 			const padding = 30;
-			const currentEdge = minX < padding ? 'left' : maxX > pixi.screen.width - padding ? 'right' : null;
+			const currentEdge = minX < padding ? 'left' : maxX > bounds.width - padding ? 'right' : null;
 			const shouldDescend = currentEdge !== null &&
 				currentEdge !== movementState.lastEdgeHit &&
 				!movementState.isMovingDown;

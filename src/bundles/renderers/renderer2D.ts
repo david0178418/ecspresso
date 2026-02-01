@@ -90,6 +90,31 @@ export interface Renderer2DResourceTypes {
 	bounds: BoundsRect;
 }
 
+// ==================== Scale Mode Types ====================
+
+export type ScaleMode = 'fit' | 'cover' | 'stretch';
+
+export interface ScreenScaleOptions {
+	readonly width: number;
+	readonly height: number;
+	readonly mode?: ScaleMode;
+}
+
+export interface ViewportScale {
+	scaleX: number;
+	scaleY: number;
+	offsetX: number;
+	offsetY: number;
+	physicalWidth: number;
+	physicalHeight: number;
+	readonly designWidth: number;
+	readonly designHeight: number;
+}
+
+export interface ViewportScaleResourceTypes {
+	viewportScale: ViewportScale;
+}
+
 // ==================== Bundle Options ====================
 
 /**
@@ -111,6 +136,9 @@ interface Renderer2DBundleCommonOptions {
 	/** Automatically apply cameraState resource to rootContainer each frame.
 	 *  Requires the camera bundle to be installed. (default: false) */
 	camera?: boolean;
+	/** Enforce a logical design resolution with automatic aspect-ratio-aware scaling.
+	 *  When set, systems work in design-resolution coordinate space. */
+	screenScale?: ScreenScaleOptions;
 }
 
 /**
@@ -328,6 +356,58 @@ export function createContainerComponents(
 	};
 }
 
+// ==================== Viewport Scale Utilities ====================
+
+const scaleModeStrategy: Record<ScaleMode, (ratioX: number, ratioY: number) => { scaleX: number; scaleY: number }> = {
+	fit: (ratioX, ratioY) => {
+		const s = Math.min(ratioX, ratioY);
+		return { scaleX: s, scaleY: s };
+	},
+	cover: (ratioX, ratioY) => {
+		const s = Math.max(ratioX, ratioY);
+		return { scaleX: s, scaleY: s };
+	},
+	stretch: (ratioX, ratioY) => ({ scaleX: ratioX, scaleY: ratioY }),
+};
+
+export function computeViewportScale(
+	physicalW: number,
+	physicalH: number,
+	designW: number,
+	designH: number,
+	mode: ScaleMode,
+): ViewportScale {
+	const ratioX = physicalW / designW;
+	const ratioY = physicalH / designH;
+	const { scaleX, scaleY } = scaleModeStrategy[mode](ratioX, ratioY);
+
+	return {
+		scaleX,
+		scaleY,
+		offsetX: (physicalW - designW * scaleX) / 2,
+		offsetY: (physicalH - designH * scaleY) / 2,
+		physicalWidth: physicalW,
+		physicalHeight: physicalH,
+		designWidth: designW,
+		designHeight: designH,
+	};
+}
+
+/**
+ * Convert physical canvas pixel coordinates to design-resolution (logical) coordinates.
+ * Compose with camera `screenToWorld()` for full physical→world conversion.
+ */
+export function physicalToLogical(
+	physicalX: number,
+	physicalY: number,
+	viewport: ViewportScale,
+): { x: number; y: number } {
+	return {
+		x: (physicalX - viewport.offsetX) / viewport.scaleX,
+		y: (physicalY - viewport.offsetY) / viewport.scaleY,
+	};
+}
+
 // ==================== Bundle Factory ====================
 
 /**
@@ -360,15 +440,23 @@ export function createContainerComponents(
  * ```
  */
 export function createRenderer2DBundle(
+	options: Renderer2DBundleOptions & { screenScale: ScreenScaleOptions; camera: true }
+): Bundle<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes & ViewportScaleResourceTypes & CameraResourceTypes>;
+export function createRenderer2DBundle(
+	options: Renderer2DBundleOptions & { screenScale: ScreenScaleOptions }
+): Bundle<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes & ViewportScaleResourceTypes>;
+export function createRenderer2DBundle(
 	options: Renderer2DBundleOptions & { camera: true }
 ): Bundle<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes & CameraResourceTypes>;
 export function createRenderer2DBundle(
 	options: Renderer2DBundleOptions
 ): Bundle<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes>;
 export function createRenderer2DBundle(
-	options: Renderer2DBundleOptions & { camera?: boolean }
+	options: Renderer2DBundleOptions & { camera?: boolean; screenScale?: ScreenScaleOptions }
 ): Bundle<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes>
-| Bundle<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes & CameraResourceTypes> {
+| Bundle<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes & CameraResourceTypes>
+| Bundle<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes & ViewportScaleResourceTypes>
+| Bundle<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes & ViewportScaleResourceTypes & CameraResourceTypes> {
 	const {
 		rootContainer: customRootContainer,
 		systemGroup = 'renderer2d',
@@ -377,7 +465,13 @@ export function createRenderer2DBundle(
 		startLoop = true,
 		renderLayers = [],
 		camera = false,
+		screenScale,
 	} = options;
+
+	const hasScreenScale = screenScale !== undefined;
+	const designWidth = screenScale?.width ?? 0;
+	const designHeight = screenScale?.height ?? 0;
+	const screenScaleMode: ScaleMode = screenScale?.mode ?? 'fit';
 
 	const rendererBundle = new Bundle<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes>('renderer2d-internal');
 
@@ -415,20 +509,39 @@ export function createRenderer2DBundle(
 			factory: (ecs) => customRootContainer ?? ecs.getResource('pixiApp').stage,
 		});
 
-		// Bounds resource derived from screen dimensions
+		// Bounds resource: design resolution when scaleMode active, physical otherwise
 		rendererBundle.addResource('bounds', {
 			dependsOn: ['pixiApp'],
 			factory: (ecs) => {
+				if (hasScreenScale) return createBounds(designWidth, designHeight);
 				const pixiApp = ecs.getResource('pixiApp');
 				return createBounds(pixiApp.screen.width, pixiApp.screen.height);
 			},
 		});
+
+		// viewportScale resource (only when scaleMode active)
+		if (hasScreenScale) {
+			rendererBundle.addResource('viewportScale' as keyof Renderer2DResourceTypes, {
+				dependsOn: ['pixiApp'],
+				factory: (ecs: ECSpresso<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes>) => {
+					const pixiApp = ecs.getResource('pixiApp');
+					return computeViewportScale(pixiApp.screen.width, pixiApp.screen.height, designWidth, designHeight, screenScaleMode);
+				},
+			} as any);
+		}
 	} else {
 		// Pre-initialized mode: use provided Application
 		const app = options.app;
 		rendererBundle.addResource('pixiApp', app);
 		rendererBundle.addResource('rootContainer', customRootContainer ?? app.stage);
-		rendererBundle.addResource('bounds', createBounds(app.screen.width, app.screen.height));
+		rendererBundle.addResource('bounds', hasScreenScale
+			? createBounds(designWidth, designHeight)
+			: createBounds(app.screen.width, app.screen.height));
+
+		if (hasScreenScale) {
+			rendererBundle.addResource('viewportScale' as keyof Renderer2DResourceTypes,
+				computeViewportScale(app.screen.width, app.screen.height, designWidth, designHeight, screenScaleMode) as any);
+		}
 	}
 
 	// Entity ID -> PixiJS Container mapping for scene graph management
@@ -628,7 +741,7 @@ export function createRenderer2DBundle(
 		.inGroup(systemGroup)
 		.setOnInitialize(async (ecs) => {
 			const pixiApp = ecs.getResource('pixiApp');
-			const rootCont = ecs.getResource('rootContainer');
+			let rootCont = ecs.getResource('rootContainer');
 
 			// Capture Container constructor via dynamic import (same module instance as pixi.js internals)
 			const { Container: ContainerClass } = await import('pixi.js');
@@ -637,6 +750,30 @@ export function createRenderer2DBundle(
 				cont.label = label;
 				return cont;
 			};
+
+			// Set up viewportContainer when scaleMode is active
+			let viewportContainer: Container | undefined;
+			if (hasScreenScale) {
+				viewportContainer = new ContainerClass();
+				viewportContainer.label = 'viewportContainer';
+
+				// Apply initial scale/offset
+				const vs = (ecs as unknown as ECSpresso<{}, {}, ViewportScaleResourceTypes>).getResource('viewportScale');
+				viewportContainer.position.set(vs.offsetX, vs.offsetY);
+				viewportContainer.scale.set(vs.scaleX, vs.scaleY);
+
+				// Create a new rootContainer since app.stage can't be reparented
+				const newRoot = new ContainerClass();
+				newRoot.label = 'rootContainer';
+
+				// Wire: stage → viewportContainer → newRoot
+				pixiApp.stage.addChild(viewportContainer);
+				viewportContainer.addChild(newRoot);
+
+				// Swap the resource so all other systems see the new root
+				ecs.updateResource('rootContainer', () => newRoot);
+				rootCont = newRoot;
+			}
 
 			// Create declared render layer containers in order (back-to-front)
 			for (const layerName of renderLayers) {
@@ -699,23 +836,43 @@ export function createRenderer2DBundle(
 				updateSceneGraphParent(entity.id, ecs);
 			});
 
-			// Set initial camera viewport dimensions from screen
+			// Set initial camera viewport dimensions
 			if (camera) {
 				const cameraState = (ecs as unknown as ECSpresso<{}, {}, CameraResourceTypes>).getResource('cameraState');
-				cameraState.viewportWidth = pixiApp.screen.width;
-				cameraState.viewportHeight = pixiApp.screen.height;
+				cameraState.viewportWidth = hasScreenScale ? designWidth : pixiApp.screen.width;
+				cameraState.viewportHeight = hasScreenScale ? designHeight : pixiApp.screen.height;
 			}
 
-			// Track screen bounds on resize
+			// Track screen dimensions on resize
 			pixiApp.renderer.on('resize', (width: number, height: number) => {
-				const bounds = ecs.getResource('bounds');
-				bounds.width = width;
-				bounds.height = height;
+				if (hasScreenScale) {
+					// Recompute viewport scale and apply to viewportContainer
+					const vs = computeViewportScale(width, height, designWidth, designHeight, screenScaleMode);
+					const vpResource = (ecs as unknown as ECSpresso<{}, {}, ViewportScaleResourceTypes>).getResource('viewportScale');
+					vpResource.scaleX = vs.scaleX;
+					vpResource.scaleY = vs.scaleY;
+					vpResource.offsetX = vs.offsetX;
+					vpResource.offsetY = vs.offsetY;
+					vpResource.physicalWidth = width;
+					vpResource.physicalHeight = height;
 
-				if (camera) {
-					const cameraState = (ecs as unknown as ECSpresso<{}, {}, CameraResourceTypes>).getResource('cameraState');
-					cameraState.viewportWidth = width;
-					cameraState.viewportHeight = height;
+					if (viewportContainer) {
+						viewportContainer.position.set(vs.offsetX, vs.offsetY);
+						viewportContainer.scale.set(vs.scaleX, vs.scaleY);
+					}
+
+					// Camera viewport stays at design dimensions (no change needed)
+				} else {
+					// No scaleMode: update bounds to physical dimensions
+					const bounds = ecs.getResource('bounds');
+					bounds.width = width;
+					bounds.height = height;
+
+					if (camera) {
+						const cameraState = (ecs as unknown as ECSpresso<{}, {}, CameraResourceTypes>).getResource('cameraState');
+						cameraState.viewportWidth = width;
+						cameraState.viewportHeight = height;
+					}
 				}
 			});
 
@@ -738,13 +895,19 @@ export function createRenderer2DBundle(
 			.setProcess((_queries, _dt, ecs) => {
 				const state = (ecs as unknown as ECSpresso<{}, {}, CameraResourceTypes>).getResource('cameraState');
 				const root = ecs.getResource('rootContainer');
-				const pixiApp = ecs.getResource('pixiApp');
-				const screenW = pixiApp.screen.width;
-				const screenH = pixiApp.screen.height;
+				let centerW: number, centerH: number;
+				if (hasScreenScale) {
+					centerW = designWidth;
+					centerH = designHeight;
+				} else {
+					const screen = ecs.getResource('pixiApp').screen;
+					centerW = screen.width;
+					centerH = screen.height;
+				}
 
 				root.position.set(
-					screenW / 2 - (state.x + state.shakeOffsetX) * state.zoom,
-					screenH / 2 - (state.y + state.shakeOffsetY) * state.zoom,
+					centerW / 2 - (state.x + state.shakeOffsetX) * state.zoom,
+					centerH / 2 - (state.y + state.shakeOffsetY) * state.zoom,
 				);
 				root.scale.set(state.zoom);
 				root.rotation = -(state.rotation + state.shakeRotation);

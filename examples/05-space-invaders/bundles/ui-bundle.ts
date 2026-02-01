@@ -7,11 +7,12 @@ export default function createUIBundle() {
 	return new Bundle<Components, Events, Resources>('ui-bundle')
 		.addSystem('ui-manager')
 		.setOnInitialize((ecs) => {
-			const pixi = ecs.getResource('pixiApp');
+			const rootContainer = ecs.getResource('rootContainer');
+			const bounds = ecs.getResource('bounds');
 
-			// Create UI container (renders above game layer)
+			// Create UI container (renders above game layer, inside viewport scaling)
 			const uiContainer = new Container();
-			pixi.stage.addChild(uiContainer);
+			rootContainer.addChild(uiContainer);
 			ecs.addResource('uiContainer', uiContainer);
 
 			const scoreText = new Text({
@@ -27,7 +28,7 @@ export default function createUIBundle() {
 			});
 
 			const livesText = new Text({
-				x: pixi.screen.width - 120,
+				x: bounds.width - 120,
 				y: 20,
 				text: 'Lives: 3',
 				style: new TextStyle({
@@ -47,8 +48,8 @@ export default function createUIBundle() {
 					fill: '#FFFFFF',
 				})
 			});
-			messageText.x = (pixi.screen.width - messageText.width) / 2;
-			messageText.y = pixi.screen.height / 2 - 50;
+			messageText.x = (bounds.width - messageText.width) / 2;
+			messageText.y = bounds.height / 2 - 50;
 
 			// Add texts to the UI container
 			uiContainer.addChild(scoreText);
@@ -83,11 +84,11 @@ export default function createUIBundle() {
 			gameInit: {
 				handler(_data, ecs) {
 					const uiElements = ecs.getResource('uiElements');
-					const pixi = ecs.getResource('pixiApp');
+					const bounds = ecs.getResource('bounds');
 
 					uiElements.messageText.text = 'PRESS P TO START';
-					uiElements.messageText.x = (pixi.screen.width - uiElements.messageText.width) / 2;
-					uiElements.messageText.y = pixi.screen.height / 2 - 50;
+					uiElements.messageText.x = (bounds.width - uiElements.messageText.width) / 2;
+					uiElements.messageText.y = bounds.height / 2 - 50;
 					uiElements.messageText.visible = true;
 				}
 			},
@@ -102,11 +103,11 @@ export default function createUIBundle() {
 			gamePause: {
 				handler(_data, ecs) {
 					const uiElements = ecs.getResource('uiElements');
-					const pixi = ecs.getResource('pixiApp');
+					const bounds = ecs.getResource('bounds');
 
 					uiElements.messageText.text = 'PAUSED';
-					uiElements.messageText.x = (pixi.screen.width - uiElements.messageText.width) / 2;
-					uiElements.messageText.y = pixi.screen.height / 2 - 50;
+					uiElements.messageText.x = (bounds.width - uiElements.messageText.width) / 2;
+					uiElements.messageText.y = bounds.height / 2 - 50;
 					uiElements.messageText.visible = true;
 				}
 			},
@@ -121,14 +122,14 @@ export default function createUIBundle() {
 			gameOver: {
 				handler(data, ecs) {
 					const uiElements = ecs.getResource('uiElements');
-					const pixi = ecs.getResource('pixiApp');
+					const bounds = ecs.getResource('bounds');
 
 					uiElements.messageText.text = data.win
 						? `YOU WIN!\nFINAL SCORE: ${data.score}`
 						: `GAME OVER\nFINAL SCORE: ${data.score}`;
 
-					uiElements.messageText.x = (pixi.screen.width - uiElements.messageText.width) / 2;
-					uiElements.messageText.y = pixi.screen.height / 2 - 50;
+					uiElements.messageText.x = (bounds.width - uiElements.messageText.width) / 2;
+					uiElements.messageText.y = bounds.height / 2 - 50;
 					uiElements.messageText.visible = true;
 				}
 			},
@@ -136,11 +137,11 @@ export default function createUIBundle() {
 			levelComplete: {
 				handler(data, ecs) {
 					const uiElements = ecs.getResource('uiElements');
-					const pixi = ecs.getResource('pixiApp');
+					const bounds = ecs.getResource('bounds');
 
 					uiElements.messageText.text = `LEVEL ${data.level} COMPLETE!`;
-					uiElements.messageText.x = (pixi.screen.width - uiElements.messageText.width) / 2;
-					uiElements.messageText.y = pixi.screen.height / 2 - 50;
+					uiElements.messageText.x = (bounds.width - uiElements.messageText.width) / 2;
+					uiElements.messageText.y = bounds.height / 2 - 50;
 					uiElements.messageText.visible = true;
 
 					// Spawn timer to hide message after delay with event-based completion
