@@ -214,7 +214,7 @@ export function createTransform(
  * const ecs = ECSpresso
  *   .create<Components, Events, Resources>()
  *   .withBundle(createTransformBundle())
- *   .withBundle(createPhysicsBundle())
+ *   .withBundle(createPhysics2DBundle())
  *   .build();
  *
  * // Spawn entity with transform

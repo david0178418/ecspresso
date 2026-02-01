@@ -1,7 +1,7 @@
 import ECSpresso from '../../src';
 import { createRenderer2DBundle } from '../../src/bundles/renderers/renderer2D';
 import { createTimerBundle } from '../../src/bundles/utils/timers';
-import { createPhysicsBundle } from '../../src/bundles/utils/physics';
+import { createPhysics2DBundle } from '../../src/bundles/utils/physics2D';
 import { createBoundsBundle } from '../../src/bundles/utils/bounds';
 import { createCollisionBundle } from '../../src/bundles/utils/collision';
 import createCombatBundle from './bundles/combat-bundle';
@@ -34,7 +34,7 @@ const game = ECSpresso
 		container: '#game-container',
 		renderLayers: ['game'],
 	}))
-	.withBundle(createPhysicsBundle({ integrationPriority: 200, systemGroup: 'gameplay' }))
+	.withBundle(createPhysics2DBundle({ integrationPriority: 200, systemGroup: 'gameplay' }))
 	.withBundle(createBoundsBundle({ priority: 100, systemGroup: 'gameplay' }))
 	.withBundle(createCollisionBundle({ priority: 50, systemGroup: 'gameplay' }))
 	.withBundle(createInputBundle())

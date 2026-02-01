@@ -1,5 +1,5 @@
 /**
- * Physics Bundle for ECSpresso
+ * Physics 2D Bundle for ECSpresso
  *
  * Provides ECS-native arcade physics: gravity, forces, drag, semi-implicit Euler
  * integration, and impulse-based collision response with friction.
@@ -45,7 +45,7 @@ export interface RigidBody {
 /**
  * Component types provided by the physics bundle.
  */
-export interface PhysicsComponentTypes extends TransformComponentTypes, CollisionComponentTypes {
+export interface Physics2DComponentTypes extends TransformComponentTypes, CollisionComponentTypes {
 	rigidBody: RigidBody;
 	velocity: Vector2D;
 	force: Vector2D;
@@ -56,12 +56,12 @@ export interface PhysicsComponentTypes extends TransformComponentTypes, Collisio
 /**
  * Physics configuration resource.
  */
-export interface PhysicsConfig {
+export interface Physics2DConfig {
 	gravity: Vector2D;
 }
 
-export interface PhysicsResourceTypes {
-	physicsConfig: PhysicsConfig;
+export interface Physics2DResourceTypes {
+	physicsConfig: Physics2DConfig;
 }
 
 // ==================== Event Types ====================
@@ -69,7 +69,7 @@ export interface PhysicsResourceTypes {
 /**
  * Event emitted for each physics collision pair.
  */
-export interface PhysicsCollisionEvent {
+export interface Physics2DCollisionEvent {
 	entityA: number;
 	entityB: number;
 	/** Unit normal pointing from A toward B */
@@ -78,16 +78,16 @@ export interface PhysicsCollisionEvent {
 	depth: number;
 }
 
-export interface PhysicsEventTypes {
-	physicsCollision: PhysicsCollisionEvent;
+export interface Physics2DEventTypes {
+	physicsCollision: Physics2DCollisionEvent;
 }
 
 // ==================== Bundle Options ====================
 
-export interface PhysicsBundleOptions {
+export interface Physics2DBundleOptions {
 	/** World gravity vector (default: {x: 0, y: 0}) */
 	gravity?: Vector2D;
-	/** System group name (default: 'physics') */
+	/** System group name (default: 'physics2D') */
 	systemGroup?: string;
 	/** Priority for integration system (default: 1000) */
 	integrationPriority?: number;
@@ -114,7 +114,7 @@ export interface RigidBodyOptions {
 export function createRigidBody(
 	type: BodyType,
 	options?: RigidBodyOptions,
-): Pick<PhysicsComponentTypes, 'rigidBody' | 'force'> {
+): Pick<Physics2DComponentTypes, 'rigidBody' | 'force'> {
 	return {
 		rigidBody: {
 			type,
@@ -131,7 +131,7 @@ export function createRigidBody(
 /**
  * Create a force component with initial values.
  */
-export function createForce(x: number, y: number): Pick<PhysicsComponentTypes, 'force'> {
+export function createForce(x: number, y: number): Pick<Physics2DComponentTypes, 'force'> {
 	return { force: { x, y } };
 }
 
@@ -184,7 +184,7 @@ export function setVelocity(
 
 // ==================== Internal: Collider Info ====================
 
-interface PhysicsColliderInfo {
+interface Physics2DColliderInfo {
 	entityId: number;
 	x: number;
 	y: number;
@@ -294,7 +294,7 @@ function computeAABBvsCircle(
 	};
 }
 
-function computeContact(a: PhysicsColliderInfo, b: PhysicsColliderInfo): Contact | null {
+function computeContact(a: Physics2DColliderInfo, b: Physics2DColliderInfo): Contact | null {
 	if (a.aabb && b.aabb) {
 		return computeAABBvsAABB(
 			a.x, a.y, a.aabb.halfWidth, a.aabb.halfHeight,
@@ -336,7 +336,7 @@ function computeContact(a: PhysicsColliderInfo, b: PhysicsColliderInfo): Contact
 // ==================== Bundle Factory ====================
 
 /**
- * Create a physics bundle for ECSpresso.
+ * Create a 2D physics bundle for ECSpresso.
  *
  * Provides:
  * - Semi-implicit Euler integration (gravity, forces, drag → velocity → position)
@@ -348,7 +348,7 @@ function computeContact(a: PhysicsColliderInfo, b: PhysicsColliderInfo): Contact
  * const ecs = ECSpresso
  *   .create<Components, Events, Resources>()
  *   .withBundle(createTransformBundle())
- *   .withBundle(createPhysicsBundle({ gravity: { x: 0, y: 980 } }))
+ *   .withBundle(createPhysics2DBundle({ gravity: { x: 0, y: 980 } }))
  *   .withFixedTimestep(1/60)
  *   .build();
  *
@@ -361,25 +361,25 @@ function computeContact(a: PhysicsColliderInfo, b: PhysicsColliderInfo): Contact
  * });
  * ```
  */
-export function createPhysicsBundle(
-	options?: PhysicsBundleOptions,
-): Bundle<PhysicsComponentTypes, PhysicsEventTypes, PhysicsResourceTypes> {
+export function createPhysics2DBundle(
+	options?: Physics2DBundleOptions,
+): Bundle<Physics2DComponentTypes, Physics2DEventTypes, Physics2DResourceTypes> {
 	const {
 		gravity = { x: 0, y: 0 },
-		systemGroup = 'physics',
+		systemGroup = 'physics2D',
 		integrationPriority = 1000,
 		collisionPriority = 900,
 		phase = 'fixedUpdate',
 	} = options ?? {};
 
-	const bundle = new Bundle<PhysicsComponentTypes, PhysicsEventTypes, PhysicsResourceTypes>('physics');
+	const bundle = new Bundle<Physics2DComponentTypes, Physics2DEventTypes, Physics2DResourceTypes>('physics2D');
 
 	bundle.addResource('physicsConfig', { gravity: { x: gravity.x, y: gravity.y } });
 
 	// ==================== Integration System ====================
 
 	bundle
-		.addSystem('physics-integration')
+		.addSystem('physics2D-integration')
 		.setPriority(integrationPriority)
 		.inPhase(phase)
 		.inGroup(systemGroup)
@@ -433,7 +433,7 @@ export function createPhysicsBundle(
 	// ==================== Collision System ====================
 
 	bundle
-		.addSystem('physics-collision')
+		.addSystem('physics2D-collision')
 		.setPriority(collisionPriority)
 		.inPhase(phase)
 		.inGroup(systemGroup)
@@ -442,7 +442,7 @@ export function createPhysicsBundle(
 		})
 		.setProcess((queries, _deltaTime, ecs) => {
 			// Build collidable list
-			const colliders: PhysicsColliderInfo[] = [];
+			const colliders: Physics2DColliderInfo[] = [];
 
 			for (const entity of queries.collidables) {
 				const { localTransform, rigidBody, velocity, collisionLayer } = entity.components;
@@ -452,7 +452,7 @@ export function createPhysicsBundle(
 
 				if (!aabb && !circle) continue;
 
-				const info: PhysicsColliderInfo = {
+				const info: Physics2DColliderInfo = {
 					entityId: entity.id,
 					x: localTransform.x,
 					y: localTransform.y,

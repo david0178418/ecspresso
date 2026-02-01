@@ -11,9 +11,9 @@ import {
 	type BoundsResourceTypes,
 } from './bounds';
 import { createTransformBundle, createTransform, type TransformComponentTypes } from './transform';
-import { createPhysicsBundle, createRigidBody, type PhysicsComponentTypes } from './physics';
+import { createPhysics2DBundle, createRigidBody, type Physics2DComponentTypes } from './physics2D';
 
-interface TestComponents extends TransformComponentTypes, PhysicsComponentTypes, BoundsComponentTypes {
+interface TestComponents extends TransformComponentTypes, Physics2DComponentTypes, BoundsComponentTypes {
 	tag: string;
 }
 
@@ -475,7 +475,7 @@ describe('Bounds Bundle', () => {
 				.create<TestComponents, TestEvents, TestResources>()
 				.withResource('bounds', createBounds(800, 600))
 				.withBundle(createTransformBundle())
-				.withBundle(createPhysicsBundle())
+				.withBundle(createPhysics2DBundle())
 				.withBundle(createBoundsBundle())
 				.withFixedTimestep(fixedDt)
 				.build();

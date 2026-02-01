@@ -17,9 +17,9 @@ import {
 	type TimerComponentTypes,
 } from "../../src/bundles/utils/timers";
 import {
-	createPhysicsBundle,
-	type PhysicsComponentTypes,
-} from "../../src/bundles/utils/physics";
+	createPhysics2DBundle,
+	type Physics2DComponentTypes,
+} from "../../src/bundles/utils/physics2D";
 import {
 	createBoundsBundle,
 	createWrapAtBounds,
@@ -43,7 +43,7 @@ interface Events extends Renderer2DEventTypes, BoundsEventTypes, CollisionEventT
 interface Components extends
 	Renderer2DComponentTypes,
 	TimerComponentTypes<Events>,
-	PhysicsComponentTypes,
+	Physics2DComponentTypes,
 	BoundsComponentTypes,
 	CollisionComponentTypes {
 	player: true;
@@ -72,7 +72,7 @@ const ecs = ECSpresso
 			moveRight: { keys: ['d', 'ArrowRight'] },
 		},
 	}))
-	.withBundle(createPhysicsBundle())
+	.withBundle(createPhysics2DBundle())
 	.withBundle(createBoundsBundle())
 	.withBundle(createCollisionBundle())
 	.withBundle(createGameInitBundle())

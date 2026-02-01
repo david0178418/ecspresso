@@ -3,27 +3,27 @@ import ECSpresso from '../../ecspresso';
 import { createTransform, createTransformBundle } from './transform';
 import { createAABBCollider, createCircleCollider, createCollisionLayer } from './collision';
 import {
-	createPhysicsBundle,
+	createPhysics2DBundle,
 	createRigidBody,
 	createForce,
 	applyForce,
 	applyImpulse,
 	setVelocity,
-	type PhysicsComponentTypes,
-	type PhysicsEventTypes,
-	type PhysicsResourceTypes,
-	type PhysicsCollisionEvent,
-} from './physics';
+	type Physics2DComponentTypes,
+	type Physics2DEventTypes,
+	type Physics2DResourceTypes,
+	type Physics2DCollisionEvent,
+} from './physics2D';
 
 // ==================== Test Setup ====================
 
-interface TestComponents extends PhysicsComponentTypes {
+interface TestComponents extends Physics2DComponentTypes {
 	tag: string;
 }
 
-interface TestEvents extends PhysicsEventTypes {}
+interface TestEvents extends Physics2DEventTypes {}
 
-interface TestResources extends PhysicsResourceTypes {}
+interface TestResources extends Physics2DResourceTypes {}
 
 const FIXED_DT = 1 / 60;
 
@@ -31,14 +31,14 @@ function createEcs(options?: { gravity?: { x: number; y: number }; systemGroup?:
 	return ECSpresso
 		.create<TestComponents, TestEvents, TestResources>()
 		.withBundle(createTransformBundle())
-		.withBundle(createPhysicsBundle(options))
+		.withBundle(createPhysics2DBundle(options))
 		.withFixedTimestep(FIXED_DT)
 		.build();
 }
 
 // ==================== Helper Function Tests ====================
 
-describe('Physics Bundle', () => {
+describe('Physics 2D Bundle', () => {
 	describe('Helper Functions', () => {
 		test('createRigidBody("dynamic") returns rigidBody with defaults + force component', () => {
 			const result = createRigidBody('dynamic');
@@ -739,8 +739,8 @@ describe('Physics Bundle', () => {
 	describe('Collision — Layer Filtering', () => {
 		test('physics collision respects collisionLayer', () => {
 			const ecs = createEcs({ gravity: { x: 0, y: 0 } });
-			const collisions: PhysicsCollisionEvent[] = [];
-			ecs.eventBus.subscribe('physicsCollision', (e: PhysicsCollisionEvent) => collisions.push(e));
+			const collisions: Physics2DCollisionEvent[] = [];
+			ecs.eventBus.subscribe('physicsCollision', (e: Physics2DCollisionEvent) => collisions.push(e));
 
 			ecs.spawn({
 				...createTransform(0, 0),
@@ -765,8 +765,8 @@ describe('Physics Bundle', () => {
 
 		test('non-matching layers do not respond', () => {
 			const ecs = createEcs({ gravity: { x: 0, y: 0 } });
-			const collisions: PhysicsCollisionEvent[] = [];
-			ecs.eventBus.subscribe('physicsCollision', (e: PhysicsCollisionEvent) => collisions.push(e));
+			const collisions: Physics2DCollisionEvent[] = [];
+			ecs.eventBus.subscribe('physicsCollision', (e: Physics2DCollisionEvent) => collisions.push(e));
 
 			const a = ecs.spawn({
 				...createTransform(0, 0),
@@ -801,8 +801,8 @@ describe('Physics Bundle', () => {
 	describe('Events', () => {
 		test('physicsCollision event fires with correct contact data', () => {
 			const ecs = createEcs({ gravity: { x: 0, y: 0 } });
-			const collisions: PhysicsCollisionEvent[] = [];
-			ecs.eventBus.subscribe('physicsCollision', (e: PhysicsCollisionEvent) => collisions.push(e));
+			const collisions: Physics2DCollisionEvent[] = [];
+			ecs.eventBus.subscribe('physicsCollision', (e: Physics2DCollisionEvent) => collisions.push(e));
 
 			const a = ecs.spawn({
 				...createTransform(0, 0),
@@ -831,8 +831,8 @@ describe('Physics Bundle', () => {
 
 		test('contact normal points from A toward B', () => {
 			const ecs = createEcs({ gravity: { x: 0, y: 0 } });
-			const collisions: PhysicsCollisionEvent[] = [];
-			ecs.eventBus.subscribe('physicsCollision', (e: PhysicsCollisionEvent) => collisions.push(e));
+			const collisions: Physics2DCollisionEvent[] = [];
+			ecs.eventBus.subscribe('physicsCollision', (e: Physics2DCollisionEvent) => collisions.push(e));
 
 			ecs.spawn({
 				...createTransform(0, 0),
@@ -936,7 +936,7 @@ describe('Physics Bundle', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
 				.withBundle(createTransformBundle())
-				.withBundle(createPhysicsBundle({ gravity: { x: 0, y: 100 }, systemGroup: 'custom-physics' }))
+				.withBundle(createPhysics2DBundle({ gravity: { x: 0, y: 100 }, systemGroup: 'custom-physics' }))
 				.withFixedTimestep(FIXED_DT)
 				.build();
 
@@ -967,13 +967,13 @@ describe('Physics Bundle', () => {
 				velocity: { x: 0, y: 0 },
 			});
 
-			ecs.disableSystemGroup('physics');
+			ecs.disableSystemGroup('physics2D');
 			ecs.update(FIXED_DT);
 
 			const vel = ecs.entityManager.getComponent(entity.id, 'velocity');
 			expect(vel!.y).toBe(0);
 
-			ecs.enableSystemGroup('physics');
+			ecs.enableSystemGroup('physics2D');
 			ecs.update(FIXED_DT);
 
 			const vel2 = ecs.entityManager.getComponent(entity.id, 'velocity');

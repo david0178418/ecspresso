@@ -39,9 +39,9 @@
 			"import": "./dist/bundles/utils/camera.js",
 			"types": "./dist/bundles/utils/camera.d.ts"
 		},
-		"./bundles/utils/physics": {
-			"import": "./dist/bundles/utils/physics.js",
-			"types": "./dist/bundles/utils/physics.d.ts"
+		"./bundles/utils/physics2D": {
+			"import": "./dist/bundles/utils/physics2D.js",
+			"types": "./dist/bundles/utils/physics2D.d.ts"
 		},
 		"./math": {
 			"import": "./dist/math.js",
