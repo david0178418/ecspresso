@@ -30,13 +30,10 @@ import {
 	type InputResourceTypes,
 } from '../../src/bundles/utils/input';
 import {
-	createStateMachineBundle,
-	createStateMachine,
-	defineStateMachine,
+	createStateMachineKit,
 	getStateMachineState,
 	type StateMachineComponentTypes,
 	type StateMachineEventTypes,
-	type StateMachineWorld,
 } from '../../src/bundles/utils/state-machine';
 
 // ==================== Types ====================
@@ -69,21 +66,27 @@ const STATE_COLORS = {
 	attack: 0xff0000,
 } as const;
 
+// ==================== Types ====================
+
+type ECS = ECSpresso<Components, Events, Resources>;
+
+const { bundle: stateMachineBundle, defineStateMachine, createStateMachine } =
+	createStateMachineKit<ECS>();
+
 // ==================== Helpers ====================
 
-function getPlayerPosition(ecs: StateMachineWorld): { x: number; y: number } | null {
-	const entities = (ecs as ECS).getEntitiesWithQuery(['player', 'worldTransform']);
+function getPlayerPosition(ecs: ECS): { x: number; y: number } | null {
+	const entities = ecs.getEntitiesWithQuery(['player', 'worldTransform']);
 	const player = entities[0];
 	if (!player) return null;
 	return player.components.worldTransform;
 }
 
-function distanceToPlayer(ecs: StateMachineWorld, entityId: number): number {
+function distanceToPlayer(ecs: ECS, entityId: number): number {
 	const playerPos = getPlayerPosition(ecs);
 	if (!playerPos) return Infinity;
 
-	const em = ecs.entityManager;
-	const wt = em.getComponent(entityId, 'worldTransform') as { x: number; y: number } | null;
+	const wt = ecs.entityManager.getComponent(entityId, 'worldTransform');
 	if (!wt) return Infinity;
 
 	const dx = wt.x - playerPos.x;
@@ -101,18 +104,16 @@ const enemyFSM = defineStateMachine('enemy', {
 				updateEnemyColor(ecs, entityId, STATE_COLORS.patrol);
 			},
 			onUpdate(ecs, entityId) {
-				const em = ecs.entityManager;
-				const wt = em.getComponent(entityId, 'worldTransform') as { x: number; y: number } | null;
-				const dir = em.getComponent(entityId, 'patrolDirection') as 1 | -1 | null;
+				const wt = ecs.entityManager.getComponent(entityId, 'worldTransform');
+				const dir = ecs.entityManager.getComponent(entityId, 'patrolDirection');
 				if (!wt || dir === null) return;
 
 				// Reverse at screen edges
-				const bounds = (ecs as ECS).getResource('bounds');
+				const bounds = ecs.getResource('bounds');
 				if (wt.x < 40 || wt.x > bounds.width - 40) {
 					const newDir = dir === 1 ? -1 : 1;
-					// Use addComponent to flip direction
-					(ecs as ECS).entityManager.addComponent(entityId, 'patrolDirection', newDir as 1 | -1);
-					setVelocity(ecs as ECS, entityId, newDir * PATROL_SPEED, 0);
+					ecs.entityManager.addComponent(entityId, 'patrolDirection', newDir);
+					setVelocity(ecs, entityId, newDir * PATROL_SPEED, 0);
 				}
 			},
 			transitions: [
@@ -130,8 +131,7 @@ const enemyFSM = defineStateMachine('enemy', {
 				const playerPos = getPlayerPosition(ecs);
 				if (!playerPos) return;
 
-				const em = ecs.entityManager;
-				const wt = em.getComponent(entityId, 'worldTransform') as { x: number; y: number } | null;
+				const wt = ecs.entityManager.getComponent(entityId, 'worldTransform');
 				if (!wt) return;
 
 				const dx = playerPos.x - wt.x;
@@ -139,7 +139,7 @@ const enemyFSM = defineStateMachine('enemy', {
 				const len = Math.sqrt(dx * dx + dy * dy);
 				if (len < 0.001) return;
 
-				setVelocity(ecs as ECS, entityId, (dx / len) * CHASE_SPEED, (dy / len) * CHASE_SPEED);
+				setVelocity(ecs, entityId, (dx / len) * CHASE_SPEED, (dy / len) * CHASE_SPEED);
 			},
 			transitions: [
 				{
@@ -155,13 +155,13 @@ const enemyFSM = defineStateMachine('enemy', {
 		attack: {
 			onEnter(ecs, entityId) {
 				updateEnemyColor(ecs, entityId, STATE_COLORS.attack);
-				setVelocity(ecs as ECS, entityId, 0, 0);
+				setVelocity(ecs, entityId, 0, 0);
 			},
 			transitions: [
 				{
 					target: 'chase',
 					guard: (ecs, entityId) => {
-						const sm = ecs.entityManager.getComponent(entityId, 'stateMachine') as { stateTime: number } | null;
+						const sm = ecs.entityManager.getComponent(entityId, 'stateMachine');
 						return (sm?.stateTime ?? 0) > ATTACK_DURATION;
 					},
 				},
@@ -170,16 +170,13 @@ const enemyFSM = defineStateMachine('enemy', {
 	},
 });
 
-function updateEnemyColor(ecs: StateMachineWorld, entityId: number, color: number): void {
-	const em = ecs.entityManager;
-	const gfx = em.getComponent(entityId, 'graphics') as Graphics | null;
+function updateEnemyColor(ecs: ECS, entityId: number, color: number): void {
+	const gfx = ecs.entityManager.getComponent(entityId, 'graphics');
 	if (!gfx) return;
 	gfx.clear().circle(0, 0, 15).fill(color);
 }
 
 // ==================== Build ECS ====================
-
-type ECS = ECSpresso<Components, Events, Resources>;
 
 const ecs = ECSpresso
 	.create<Components, Events, Resources>()
@@ -196,7 +193,7 @@ const ecs = ECSpresso
 			moveRight: { keys: ['d', 'ArrowRight'] },
 		},
 	}))
-	.withBundle(createStateMachineBundle())
+	.withBundle(stateMachineBundle)
 	.build();
 
 // ==================== Systems ====================

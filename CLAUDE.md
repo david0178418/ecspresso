@@ -98,6 +98,8 @@ src/
 - **Physics 2D Phase Flow**: Integration (fixedUpdate priority 1000) → Collision response (fixedUpdate priority 900) → Transform propagation (postUpdate) → Renderer (render)
 - **Physics 2D Body Types**: `'dynamic'` = fully simulated, `'kinematic'` = velocity-only movement (no gravity/forces, immovable in collisions), `'static'` = immovable (mass=Infinity, no position updates)
 - **State Machine Bundle**: `createStateMachineBundle()` — per-entity finite state machines with lifecycle hooks and guard transitions
+- **State Machine Kit**: `createStateMachineKit<W>()` — factory that captures world type `W` once; returned helpers contextually type `ecs` as `W` in hooks/guards (no manual annotations needed)
+- **State Machine Kit API**: `const { bundle, defineStateMachine, createStateMachine } = createStateMachineKit<ECS>()` — utility functions (`transitionTo`, `sendEvent`, `getStateMachineState`) stay as standalone imports since they accept `StateMachineWorld` (wider than any concrete `W`)
 - **State Machine Definition**: `defineStateMachine(id, { initial, states })` — shared immutable definition, type-safe state names inferred from `states` keys
 - **State Machine Component**: `createStateMachine(definition, options?)` → `Pick<StateMachineComponentTypes, 'stateMachine'>`, spreads into `spawn()`
 - **State Machine Hooks**: `onEnter(ecs, entityId)`, `onExit(ecs, entityId)`, `onUpdate(ecs, entityId, deltaTime)` per state

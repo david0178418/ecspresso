@@ -43,21 +43,22 @@ export interface StateMachineWorld {
  * Configuration for a single state in a state machine definition.
  *
  * @template S - Union of state name strings
+ * @template W - World interface type for hooks/guards (default: StateMachineWorld)
  */
-export interface StateConfig<S extends string> {
+export interface StateConfig<S extends string, W extends StateMachineWorld = StateMachineWorld> {
 	/** Called when entering this state */
-	onEnter?(ecs: StateMachineWorld, entityId: number): void;
+	onEnter?(ecs: W, entityId: number): void;
 	/** Called when exiting this state */
-	onExit?(ecs: StateMachineWorld, entityId: number): void;
+	onExit?(ecs: W, entityId: number): void;
 	/** Called each tick while in this state */
-	onUpdate?(ecs: StateMachineWorld, entityId: number, deltaTime: number): void;
+	onUpdate?(ecs: W, entityId: number, deltaTime: number): void;
 	/** Guard-based transitions evaluated each tick. First passing guard wins. */
 	transitions?: ReadonlyArray<{
 		target: S;
-		guard(ecs: StateMachineWorld, entityId: number): boolean;
+		guard(ecs: W, entityId: number): boolean;
 	}>;
 	/** Event-based transition map: eventName → target state or guarded transition */
-	on?: Record<string, S | { target: S; guard(ecs: StateMachineWorld, entityId: number): boolean }>;
+	on?: Record<string, S | { target: S; guard(ecs: W, entityId: number): boolean }>;
 }
 
 // ==================== State Machine Definition ====================
@@ -200,7 +201,7 @@ export function createStateMachine<S extends string>(
  * Returns true if the target state exists, false otherwise.
  */
 function performTransition(
-	ecs: StateMachineWorld & { eventBus: { publish(eventType: string, data?: unknown): void } },
+	ecs: StateMachineWorld,
 	entityId: number,
 	sm: StateMachine,
 	targetState: string,
@@ -242,26 +243,13 @@ function performTransition(
  * @returns true if transition succeeded, false if entity has no stateMachine or target state doesn't exist
  */
 export function transitionTo(
-	ecs: {
-		entityManager: { getComponent(entityId: number, componentName: 'stateMachine'): StateMachine | null };
-		eventBus: { publish(eventType: string, data?: unknown): void };
-		markChanged(entityId: number, componentName: string): void;
-		spawn(components: Record<string, unknown>): { id: number };
-		removeEntity(entityOrId: number): boolean;
-		hasComponent(entityId: number, componentName: string): boolean;
-		getResource(key: string): unknown;
-		hasResource(key: string): boolean;
-		commands: {
-			spawn(components: Record<string, unknown>): void;
-			removeEntity(entityId: number): void;
-		};
-	},
+	ecs: StateMachineWorld,
 	entityId: number,
 	targetState: string,
 ): boolean {
-	const sm = ecs.entityManager.getComponent(entityId, 'stateMachine');
+	const sm = ecs.entityManager.getComponent(entityId, 'stateMachine') as StateMachine | null;
 	if (!sm) return false;
-	return performTransition(ecs as StateMachineWorld & { eventBus: { publish(eventType: string, data?: unknown): void } }, entityId, sm, targetState);
+	return performTransition(ecs, entityId, sm, targetState);
 }
 
 /**
@@ -274,24 +262,11 @@ export function transitionTo(
  * @returns true if a transition occurred, false otherwise
  */
 export function sendEvent(
-	ecs: {
-		entityManager: { getComponent(entityId: number, componentName: 'stateMachine'): StateMachine | null };
-		eventBus: { publish(eventType: string, data?: unknown): void };
-		markChanged(entityId: number, componentName: string): void;
-		spawn(components: Record<string, unknown>): { id: number };
-		removeEntity(entityOrId: number): boolean;
-		hasComponent(entityId: number, componentName: string): boolean;
-		getResource(key: string): unknown;
-		hasResource(key: string): boolean;
-		commands: {
-			spawn(components: Record<string, unknown>): void;
-			removeEntity(entityId: number): void;
-		};
-	},
+	ecs: StateMachineWorld,
 	entityId: number,
 	eventName: string,
 ): boolean {
-	const sm = ecs.entityManager.getComponent(entityId, 'stateMachine');
+	const sm = ecs.entityManager.getComponent(entityId, 'stateMachine') as StateMachine | null;
 	if (!sm) return false;
 
 	const states = sm.definition.states as Record<string, StateConfig<string>>;
@@ -302,11 +277,11 @@ export function sendEvent(
 	if (handler === undefined) return false;
 
 	if (typeof handler === 'string') {
-		return performTransition(ecs as StateMachineWorld & { eventBus: { publish(eventType: string, data?: unknown): void } }, entityId, sm, handler);
+		return performTransition(ecs, entityId, sm, handler);
 	}
 
-	if (!handler.guard(ecs as StateMachineWorld, entityId)) return false;
-	return performTransition(ecs as StateMachineWorld & { eventBus: { publish(eventType: string, data?: unknown): void } }, entityId, sm, handler.target);
+	if (!handler.guard(ecs, entityId)) return false;
+	return performTransition(ecs, entityId, sm, handler.target);
 }
 
 /**
@@ -317,11 +292,75 @@ export function sendEvent(
  * @returns The current state string, or null if entity has no stateMachine
  */
 export function getStateMachineState(
-	ecs: { entityManager: { getComponent(entityId: number, componentName: 'stateMachine'): StateMachine | null } },
+	ecs: StateMachineWorld,
 	entityId: number,
 ): string | null {
-	const sm = ecs.entityManager.getComponent(entityId, 'stateMachine');
+	const sm = ecs.entityManager.getComponent(entityId, 'stateMachine') as StateMachine | null;
 	return sm?.current ?? null;
+}
+
+// ==================== State Machine Kit ====================
+
+/**
+ * A typed kit that captures the world type W once, providing helpers
+ * where hooks/guards contextually receive W instead of StateMachineWorld.
+ *
+ * @template W - Concrete ECS world type
+ */
+export interface StateMachineKit<W extends StateMachineWorld> {
+	bundle: Bundle<StateMachineComponentTypes, StateMachineEventTypes>;
+	defineStateMachine: <S extends string>(
+		id: string,
+		config: { initial: NoInfer<S>; states: Record<S, StateConfig<NoInfer<S>, W>> },
+	) => StateMachineDefinition<S>;
+	createStateMachine: <S extends string>(
+		definition: StateMachineDefinition<S>,
+		options?: { initial?: S },
+	) => Pick<StateMachineComponentTypes, 'stateMachine'>;
+}
+
+/**
+ * Create a typed state machine kit that captures the world type W.
+ *
+ * Hooks and guards in definitions created via the kit's `defineStateMachine`
+ * contextually receive W as their `ecs` parameter — no manual annotations needed.
+ *
+ * @template W - Concrete ECS world type
+ * @param options - Optional bundle configuration (same as createStateMachineBundle)
+ * @returns A kit object with bundle, defineStateMachine, createStateMachine, transitionTo, sendEvent, getStateMachineState
+ *
+ * @example
+ * ```typescript
+ * type ECS = ECSpresso<Components, Events, Resources>;
+ *
+ * const { bundle, defineStateMachine, createStateMachine } =
+ *     createStateMachineKit<ECS>();
+ *
+ * const enemyFSM = defineStateMachine('enemy', {
+ *     initial: 'patrol',
+ *     states: {
+ *         patrol: {
+ *             onEnter(ecs, entityId) {
+ *                 ecs.getResource('bounds'); // fully typed
+ *             },
+ *             transitions: [{
+ *                 target: 'chase',
+ *                 guard: (ecs, entityId) => distanceToPlayer(ecs, entityId) < 180,
+ *             }],
+ *         },
+ *         chase: {},
+ *     },
+ * });
+ * ```
+ */
+export function createStateMachineKit<W extends StateMachineWorld = StateMachineWorld>(
+	options?: StateMachineBundleOptions,
+): StateMachineKit<W> {
+	return {
+		bundle: createStateMachineBundle(options),
+		defineStateMachine: defineStateMachine as StateMachineKit<W>['defineStateMachine'],
+		createStateMachine,
+	};
 }
 
 // ==================== Bundle Factory ====================
@@ -396,7 +435,7 @@ export function createStateMachineBundle(
 			for (const entity of queries.machines) {
 				const sm = entity.components.stateMachine;
 				const states = sm.definition.states as Record<string, StateConfig<string>>;
-				const ecsWorld = ecs as unknown as StateMachineWorld & { eventBus: { publish(eventType: string, data?: unknown): void } };
+				const ecsWorld = ecs as unknown as StateMachineWorld;
 
 				// Initialize: fire onEnter for initial state on first tick
 				if (!initialized.has(entity.id)) {

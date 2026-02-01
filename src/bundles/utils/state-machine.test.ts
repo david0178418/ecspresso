@@ -4,6 +4,7 @@ import {
 	defineStateMachine,
 	createStateMachine,
 	createStateMachineBundle,
+	createStateMachineKit,
 	transitionTo,
 	sendEvent,
 	getStateMachineState,
@@ -593,6 +594,128 @@ describe('State Machine Bundle', () => {
 			ecs.update(1 / 60);
 
 			expect(log).toEqual(['exit-a', 'enter-b']);
+		});
+	});
+
+	// --- createStateMachineKit ---
+
+	describe('createStateMachineKit', () => {
+		type TestECS = ECSpresso<TestComponents, TestEvents, TestResources>;
+
+		function createKitTestEcs() {
+			const kit = createStateMachineKit<TestECS>();
+			const ecs = ECSpresso
+				.create<TestComponents, TestEvents, TestResources>()
+				.withBundle(kit.bundle)
+				.withResource('playerNearby', false)
+				.build();
+			return { ecs, kit };
+		}
+
+		test('kit defineStateMachine produces valid definitions', () => {
+			const { kit } = createKitTestEcs();
+
+			const fsm = kit.defineStateMachine('enemy', {
+				initial: 'patrol',
+				states: {
+					patrol: {},
+					chase: {},
+				},
+			});
+
+			expect(fsm.id).toBe('enemy');
+			expect(fsm.initial).toBe('patrol');
+			expect(Object.keys(fsm.states)).toEqual(['patrol', 'chase']);
+			expect(Object.isFrozen(fsm)).toBe(true);
+		});
+
+		test('kit bundle installs and processes entities', () => {
+			const { ecs, kit } = createKitTestEcs();
+			const enterCalls: number[] = [];
+
+			const fsm = kit.defineStateMachine('test', {
+				initial: 'idle',
+				states: {
+					idle: {
+						onEnter: (_ecs, entityId) => { enterCalls.push(entityId); },
+					},
+				},
+			});
+
+			const entity = ecs.spawn({ ...kit.createStateMachine(fsm) });
+			ecs.update(1 / 60);
+
+			expect(enterCalls).toEqual([entity.id]);
+		});
+
+		test('kit definitions work with standalone transitionTo', () => {
+			const { ecs, kit } = createKitTestEcs();
+			const log: string[] = [];
+
+			const fsm = kit.defineStateMachine('test', {
+				initial: 'a',
+				states: {
+					a: { onExit: () => { log.push('exit-a'); } },
+					b: { onEnter: () => { log.push('enter-b'); } },
+				},
+			});
+
+			const entity = ecs.spawn({ ...kit.createStateMachine(fsm) });
+			ecs.update(1 / 60);
+
+			const result = transitionTo(ecs, entity.id, 'b');
+			expect(result).toBe(true);
+			expect(getStateMachineState(ecs, entity.id)).toBe('b');
+			expect(log).toEqual(['exit-a', 'enter-b']);
+		});
+
+		test('kit definitions work with standalone sendEvent', () => {
+			const { ecs, kit } = createKitTestEcs();
+
+			const fsm = kit.defineStateMachine('test', {
+				initial: 'idle',
+				states: {
+					idle: { on: { go: 'walking' } },
+					walking: {},
+				},
+			});
+
+			const entity = ecs.spawn({ ...kit.createStateMachine(fsm) });
+			ecs.update(1 / 60);
+
+			const result = sendEvent(ecs, entity.id, 'go');
+			expect(result).toBe(true);
+			expect(getStateMachineState(ecs, entity.id)).toBe('walking');
+		});
+
+		test('kit guard transitions receive typed ecs', () => {
+			const { ecs, kit } = createKitTestEcs();
+			let shouldTransition = false;
+
+			const fsm = kit.defineStateMachine('test', {
+				initial: 'idle',
+				states: {
+					idle: {
+						transitions: [{
+							target: 'alert',
+							guard: (ecsWorld) => {
+								// Verify typed access: ecsWorld.hasResource is available
+								ecsWorld.hasResource('playerNearby');
+								return shouldTransition;
+							},
+						}],
+					},
+					alert: {},
+				},
+			});
+
+			const entity = ecs.spawn({ ...kit.createStateMachine(fsm) });
+			ecs.update(1 / 60);
+			expect(getStateMachineState(ecs, entity.id)).toBe('idle');
+
+			shouldTransition = true;
+			ecs.update(1 / 60);
+			expect(getStateMachineState(ecs, entity.id)).toBe('alert');
 		});
 	});
 });
