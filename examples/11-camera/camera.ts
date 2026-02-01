@@ -20,9 +20,9 @@ import {
 	type Renderer2DResourceTypes,
 } from '../../src/bundles/renderers/renderer2D';
 import {
-	createMovementBundle,
-	type MovementComponentTypes,
-} from '../../src/bundles/utils/movement';
+	createPhysicsBundle,
+	type PhysicsComponentTypes,
+} from '../../src/bundles/utils/physics';
 import {
 	createInputBundle,
 	type InputResourceTypes,
@@ -43,7 +43,7 @@ import {
 
 interface Components extends
 	Renderer2DComponentTypes,
-	MovementComponentTypes,
+	PhysicsComponentTypes,
 	CameraComponentTypes {
 	player: true;
 	scenery: true;
@@ -74,7 +74,7 @@ const ecs = ECSpresso.create<Components, Events, Resources>()
 		startLoop: true,
 		camera: true,
 	}))
-	.withBundle(createMovementBundle())
+	.withBundle(createPhysicsBundle())
 	.withBundle(createInputBundle({
 		actions: {
 			moveUp:    { keys: ['w', 'ArrowUp'] },

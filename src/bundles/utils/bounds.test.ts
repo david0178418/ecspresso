@@ -11,9 +11,9 @@ import {
 	type BoundsResourceTypes,
 } from './bounds';
 import { createTransformBundle, createTransform, type TransformComponentTypes } from './transform';
-import { createMovementBundle, createVelocity, type MovementComponentTypes } from './movement';
+import { createPhysicsBundle, createRigidBody, type PhysicsComponentTypes } from './physics';
 
-interface TestComponents extends TransformComponentTypes, MovementComponentTypes, BoundsComponentTypes {
+interface TestComponents extends TransformComponentTypes, PhysicsComponentTypes, BoundsComponentTypes {
 	tag: string;
 }
 
@@ -468,26 +468,27 @@ describe('Bounds Bundle', () => {
 		});
 	});
 
-	describe('Integration with movement', () => {
-		test('should work with movement bundle', () => {
+	describe('Integration with physics', () => {
+		test('should work with physics bundle', () => {
 			const fixedDt = 1 / 60;
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
 				.withResource('bounds', createBounds(800, 600))
 				.withBundle(createTransformBundle())
-				.withBundle(createMovementBundle())
+				.withBundle(createPhysicsBundle())
 				.withBundle(createBoundsBundle())
 				.withFixedTimestep(fixedDt)
 				.build();
 
 			const entity = ecs.spawn({
 				...createTransform(780, 300),
+				...createRigidBody('kinematic'),
 				// High velocity: 6000/s → 100 per fixedDt step (6000 * 1/60)
-				...createVelocity(6000, 0),
+				velocity: { x: 6000, y: 0 },
 				...createClampToBounds(),
 			});
 
-			// Movement in fixedUpdate pushes past 800; bounds clamp in postUpdate brings it back.
+			// Physics in fixedUpdate pushes past 800; bounds clamp in postUpdate brings it back.
 			// Multiple steps ensure the entity exceeds bounds.
 			ecs.update(3 * fixedDt);
 

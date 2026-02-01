@@ -21,12 +21,13 @@ src/
 ├── reactive-query-manager.ts # Reactive queries with enter/exit callbacks
 ├── types.ts           # Core type definitions
 ├── type-utils.ts      # Bundle compatibility type utilities
+├── math.ts            # Vector2D type + pure vector math functions
 ├── index.ts           # Public API exports
 └── bundles/
     ├── utils/
     │   ├── timers.ts     # Timer bundle with event-based completion
     │   ├── transform.ts  # Hierarchical local/world transform propagation
-    │   ├── movement.ts   # Velocity-based movement integration
+    │   ├── physics.ts    # ECS-native arcade physics (gravity, forces, drag, collision response)
     │   ├── input.ts      # Frame-accurate keyboard/pointer input with action mapping
     │   ├── bounds.ts     # Screen bounds enforcement (destroy, clamp, wrap)
     │   └── collision.ts  # Layer-based AABB/circle collision detection
@@ -82,12 +83,19 @@ src/
 - **Single-Update Expiry**: Marks expire after one update cycle (per-system sequence tracking eliminates the old 2-tick window)
 - **Change Threshold**: `ecs.changeThreshold` returns the active threshold. During system execution it's the system's last-seen sequence; between updates it's the global sequence after command buffer playback. Manual checks: `em.getChangeSeq(id, comp) > ecs.changeThreshold`
 - **Cross-Phase Visibility**: Marks from earlier phases (e.g. fixedUpdate) are visible to later phases (e.g. postUpdate) within the same frame
-- **Bundle Phase Flow**: Movement marks `localTransform` (fixedUpdate) → Transform propagation reads `localTransform` changed, writes+marks `worldTransform` (postUpdate) → Renderer reads `worldTransform` changed (render)
+- **Bundle Phase Flow**: Physics marks `localTransform` (fixedUpdate) → Transform propagation reads `localTransform` changed, writes+marks `worldTransform` (postUpdate) → Renderer reads `worldTransform` changed (render)
 - **Per-Phase Command Buffer**: Commands are played back between each phase, so entities spawned in preUpdate are visible to fixedUpdate, etc.
 - **Optional Components**: `{ with: ['position'], optional: ['health'] }` — optional components appear as `T | undefined` in the entity type, don't affect query matching
 - **Singleton Queries**: `getSingleton(['player'])` throws on 0 or >1 match; `tryGetSingleton(['player'])` returns `undefined` on 0, throws on >1
 - **Relationship Queries**: `{ with: ['child'], parentHas: ['container'] }` — filters entities to those whose direct parent has specified components. Works in system queries, `getEntitiesWithQuery`, and reactive queries
 - **Reactive parentHas**: Reactive queries with `parentHas` recheck children on `setParent`/`removeParent` and when parent gains/loses required components
+- **Vector2D Math**: `vec2()`, `vec2Add()`, `vec2Sub()`, `vec2Scale()`, `vec2Normalize()`, `vec2Dot()`, `vec2Cross()`, etc. — pure functions exported from `src/math.ts`
+- **Physics Bundle**: `createPhysicsBundle({ gravity: { x: 0, y: 980 } })` — ECS-native arcade physics. Semi-implicit Euler integration with gravity, forces, drag. Impulse-based collision response with restitution and friction. Emits `physicsCollision` events with contact normal/depth.
+- **Physics Components**: `RigidBody` (dynamic/kinematic/static), `velocity: Vector2D`, `force: Vector2D`. Reuses `aabbCollider`, `circleCollider`, `collisionLayer` from collision bundle.
+- **Physics Helpers**: `createRigidBody(type, options?)` returns rigidBody + force. `createForce(x, y)` returns force component.
+- **Physics Utilities**: `applyForce(ecs, id, fx, fy)` accumulates force, `applyImpulse(ecs, id, ix, iy)` instant velocity change (respects mass), `setVelocity(ecs, id, vx, vy)` direct velocity set
+- **Physics Phase Flow**: Integration (fixedUpdate priority 1000) → Collision response (fixedUpdate priority 900) → Transform propagation (postUpdate) → Renderer (render)
+- **Physics Body Types**: `'dynamic'` = fully simulated, `'kinematic'` = velocity-only movement (no gravity/forces, immovable in collisions), `'static'` = immovable (mass=Infinity, no position updates)
 
 ## Commands
 

@@ -62,7 +62,7 @@ export interface TransformComponentTypes {
 export interface TransformBundleOptions {
 	/** System group name (default: 'transform') */
 	systemGroup?: string;
-	/** Priority for transform propagation (default: 500, runs after physics/movement) */
+	/** Priority for transform propagation (default: 500, runs after physics) */
 	priority?: number;
 	/** Execution phase (default: 'postUpdate') */
 	phase?: SystemPhase;
@@ -214,7 +214,7 @@ export function createTransform(
  * const ecs = ECSpresso
  *   .create<Components, Events, Resources>()
  *   .withBundle(createTransformBundle())
- *   .withBundle(createMovementBundle())
+ *   .withBundle(createPhysicsBundle())
  *   .build();
  *
  * // Spawn entity with transform

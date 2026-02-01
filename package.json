@@ -23,11 +23,7 @@
 			"import": "./dist/bundles/utils/transform.js",
 			"types": "./dist/bundles/utils/transform.d.ts"
 		},
-		"./bundles/utils/movement": {
-			"import": "./dist/bundles/utils/movement.js",
-			"types": "./dist/bundles/utils/movement.d.ts"
-		},
-		"./bundles/utils/bounds": {
+"./bundles/utils/bounds": {
 			"import": "./dist/bundles/utils/bounds.js",
 			"types": "./dist/bundles/utils/bounds.d.ts"
 		},
@@ -42,6 +38,14 @@
 		"./bundles/utils/camera": {
 			"import": "./dist/bundles/utils/camera.js",
 			"types": "./dist/bundles/utils/camera.d.ts"
+		},
+		"./bundles/utils/physics": {
+			"import": "./dist/bundles/utils/physics.js",
+			"types": "./dist/bundles/utils/physics.d.ts"
+		},
+		"./math": {
+			"import": "./dist/math.js",
+			"types": "./dist/math.d.ts"
 		}
 	},
 	"publishConfig": {

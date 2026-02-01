@@ -8,11 +8,11 @@ import {
 	type Renderer2DResourceTypes,
 } from "../../src/bundles/renderers/renderer2D";
 import {
-	createMovementBundle,
-	type MovementComponentTypes,
-} from "../../src/bundles/utils/movement";
+	createPhysicsBundle,
+	type PhysicsComponentTypes,
+} from "../../src/bundles/utils/physics";
 
-interface Components extends Renderer2DComponentTypes, MovementComponentTypes {
+interface Components extends Renderer2DComponentTypes, PhysicsComponentTypes {
 	radius: number;
 }
 
@@ -21,7 +21,7 @@ const ecs = ECSpresso.create<Components, Renderer2DEventTypes, Renderer2DResourc
 		init: { background: '#1099bb', resizeTo: window },
 		container: document.body,
 	}))
-	.withBundle(createMovementBundle())
+	.withBundle(createPhysicsBundle())
 	.build();
 
 // Bounce system — runs after movement bundle integrates velocity

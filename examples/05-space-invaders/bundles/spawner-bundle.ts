@@ -1,6 +1,6 @@
 import Bundle from '../../../src/bundle';
 import { createSpriteComponents } from '../../../src/bundles/renderers/renderer2D';
-import { createVelocity } from '../../../src/bundles/utils/movement';
+import { createRigidBody } from '../../../src/bundles/utils/physics';
 import { createAABBCollider } from '../../../src/bundles/utils/collision';
 import { createDestroyOutOfBounds } from '../../../src/bundles/utils/bounds';
 import type { Components, Events, Resources } from '../types';
@@ -32,7 +32,8 @@ export default function createSpawnerBundle() {
 							x: player.components.worldTransform.x,
 							y: player.components.worldTransform.y - 20
 						}),
-						...createVelocity(0, -400),
+						...createRigidBody('kinematic'),
+						velocity: { x: 0, y: -400 },
 						projectile: { owner: 'player', damage: 1 },
 						...createAABBCollider(projectileSprite.width, projectileSprite.height),
 						...collisionLayers.playerProjectile(),
@@ -57,7 +58,8 @@ export default function createSpawnerBundle() {
 							x: enemyWorldTransform.x,
 							y: enemyWorldTransform.y + 20
 						}),
-						...createVelocity(0, 400),
+						...createRigidBody('kinematic'),
+						velocity: { x: 0, y: 400 },
 						projectile: { owner: 'enemy', damage: 1 },
 						...createAABBCollider(projectileSprite.width, projectileSprite.height),
 						...collisionLayers.enemyProjectile(),

@@ -12,11 +12,11 @@ import {
 	type Renderer2DResourceTypes,
 } from "../../src/bundles/renderers/renderer2D";
 import {
-	createMovementBundle,
-	type MovementComponentTypes,
-} from "../../src/bundles/utils/movement";
+	createPhysicsBundle,
+	type PhysicsComponentTypes,
+} from "../../src/bundles/utils/physics";
 
-interface Components extends Renderer2DComponentTypes, MovementComponentTypes {
+interface Components extends Renderer2DComponentTypes, PhysicsComponentTypes {
 	speed: number;
 }
 
@@ -28,7 +28,7 @@ const ecs = ECSpresso
 		init: { background: '#1099bb', resizeTo: window },
 		container: document.body,
 	}))
-	.withBundle(createMovementBundle())
+	.withBundle(createPhysicsBundle())
 	.withBundle(createInputBundle({
 		actions: {
 			moveUp: { keys: ['w', 'ArrowUp'] },

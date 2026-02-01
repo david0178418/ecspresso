@@ -1,7 +1,7 @@
 import { Graphics, Sprite } from "pixi.js";
 import ECSpresso from "../../src";
 import { createSpriteComponents } from "../../src/bundles/renderers/renderer2D";
-import { createVelocity } from "../../src/bundles/utils/movement";
+import { createRigidBody } from "../../src/bundles/utils/physics";
 import { createAABBCollider } from "../../src/bundles/utils/collision";
 import { createClampToBounds } from "../../src/bundles/utils/bounds";
 import collisionLayers from "./collision-layers";
@@ -38,7 +38,8 @@ export function spawnEnemyFormation(ecs: ECSpresso<Components, Events, Resources
 			ecs.spawn({
 				enemy: { type: enemyType, points, health },
 				...createSpriteComponents(enemySprite, { x: startX + col * spacing, y: startY + row * spacing }),
-				...createVelocity(config.enemySpeed, 0),
+				...createRigidBody('kinematic'),
+				velocity: { x: config.enemySpeed, y: 0 },
 				...createAABBCollider(enemySprite.width, enemySprite.height),
 				...collisionLayers.enemy(),
 				renderLayer: 'game',
@@ -118,7 +119,8 @@ export function spawnPlayer(ecs: ECSpresso<Components, Events, Resources>): numb
 	const player = ecs.spawn({
 		...createSpriteComponents(playerSprite, { x: pixi.screen.width / 2, y: pixi.screen.height - 80 }),
 		player: true,
-		...createVelocity(0, 0),
+		...createRigidBody('kinematic'),
+		velocity: { x: 0, y: 0 },
 		...createAABBCollider(playerSprite.width, playerSprite.height),
 		...collisionLayers.player(),
 		...createClampToBounds(30),
