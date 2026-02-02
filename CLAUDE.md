@@ -31,7 +31,8 @@ src/
     │   ├── input.ts      # Frame-accurate keyboard/pointer input with action mapping
     │   ├── bounds.ts     # Screen bounds enforcement (destroy, clamp, wrap)
     │   ├── collision.ts  # Layer-based AABB/circle collision detection + pair handler routing
-    │   └── state-machine.ts # Per-entity finite state machines with guards and lifecycle hooks
+    │   ├── state-machine.ts # Per-entity finite state machines with guards and lifecycle hooks
+    │   └── tween.ts      # Declarative property animation with easing, sequences, and loops
     └── renderers/
         └── renderer2D.ts  # PixiJS scene graph wiring
 ```
@@ -124,6 +125,18 @@ src/
 - **Collision Pair Layer Validation**: `L` type parameter (defaults to `string`) constrains pair keys to valid `` `${L}:${L}` `` combinations. Use `LayersOf<typeof layers>` with `defineCollisionLayers` result for compile-time layer name validation: `type Layer = LayersOf<typeof layers>; createCollisionPairHandler<ECS, Layer>({...})`
 - **Collision Pair Symmetric Matching**: Registering `"a:b"` automatically handles `(layerA=b, layerB=a)` with swapped entity args. If both `"a:b"` and `"b:a"` are registered, each gets its own handler.
 - **Collision Pair Self-Collision**: `"enemy:enemy"` is supported — single entry, no implicit reverse needed.
+- **Tween Bundle**: `createTweenBundle()` — declarative property animation. Tweens are components processed each frame, automatically cleaned up on completion. Supports single-field, multi-target, and multi-step sequences.
+- **Tween Helpers**: `createTween(component, field, to, duration, options?)` — single target shorthand. `createTweenSequence(steps, options?)` — multi-step sequences with parallel targets per step. Both return `Pick<TweenComponentTypes, 'tween'>` for spreading into `spawn()`.
+- **Tween Nested Paths**: `createTween('transform', 'position.x', 100, 1)` — dot-separated field paths for nested component properties.
+- **Tween Easing**: 31 easing functions exported as named declarations: `linear`, `easeInQuad`..`easeInOutQuad`, cubic/quart/quint/sine/expo/circ/back/elastic/bounce variants. Also `easings` record for runtime lookup by name.
+- **Tween Loop Modes**: `'once'` (default, removed after single play), `'loop'` (restarts, finite count via `loops`), `'yoyo'` (reverses direction, swaps from/to). `loops: -1` for infinite.
+- **Tween Events**: `onComplete` option publishes `TweenEventData` (`{ entityId, stepCount }`) when tween finishes. Requires event type extending `TweenEventData`.
+- **Tween Event Constraint**: `TweenEventName<EventTypes>` — restricts `onComplete` to events with `TweenEventData` payload, same pattern as timer bundle.
+- **Tween justFinished**: One-frame flag observable by same-phase systems (lower priority). Tween component is removed via command buffer after the phase completes.
+- **Tween Implicit From**: `from: null` (default) captures current component value on first tick. Explicit `from` overrides.
+- **Tween Change Detection**: System calls `markChanged` for each modified component, integrating with `changed` query filters.
+- **Tween Bundle Options**: `createTweenBundle({ phase?, priority?, systemGroup? })` — defaults to `update` phase, priority 0, group `'tweens'`.
+- **Tween Sequences**: `createTweenSequence([{ targets: [...], duration, easing? }, ...], options?)` — steps execute in order with overflow time carried to next step. Each step can animate multiple targets in parallel.
 
 ## Commands
 

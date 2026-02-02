@@ -47,6 +47,10 @@
 			"import": "./dist/bundles/utils/state-machine.js",
 			"types": "./dist/bundles/utils/state-machine.d.ts"
 		},
+		"./bundles/utils/tween": {
+			"import": "./dist/bundles/utils/tween.js",
+			"types": "./dist/bundles/utils/tween.d.ts"
+		},
 		"./math": {
 			"import": "./dist/math.js",
 			"types": "./dist/math.d.ts"
