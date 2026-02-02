@@ -29,6 +29,7 @@ import {
 } from "../../src/bundles/utils/bounds";
 import {
 	createCollisionBundle,
+	createCollisionPairHandler,
 	createCircleCollider,
 	createCollisionLayer,
 	type CollisionComponentTypes,
@@ -140,20 +141,12 @@ ecs
 	.addSystem('collision-handler')
 	.setEventHandlers({
 		collision: {
-			handler(data, ecs) {
-				// Determine which entity is the enemy and remove it
-				const entityA = ecs.entityManager.getComponent(data.entityA, 'enemy');
-				const entityB = ecs.entityManager.getComponent(data.entityB, 'enemy');
-
-				if (entityA) {
+			handler: createCollisionPairHandler<typeof ecs>({
+				'player:enemy': (_playerId, enemyId, ecs) => {
 					console.log('collision detected');
-					ecs.removeEntity(data.entityA);
-				}
-				if (entityB) {
-					console.log('collision detected');
-					ecs.removeEntity(data.entityB);
-				}
-			},
+					ecs.removeEntity(enemyId);
+				},
+			}),
 		},
 	})
 	.build();

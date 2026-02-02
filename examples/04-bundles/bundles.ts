@@ -29,6 +29,7 @@ import {
 } from "../../src/bundles/utils/bounds";
 import {
 	createCollisionBundle,
+	createCollisionPairHandler,
 	createCircleCollider,
 	createCollisionLayer,
 	type CollisionComponentTypes,
@@ -156,19 +157,12 @@ function createCollisionHandlerBundle() {
 		.addSystem('collision-handler')
 		.setEventHandlers({
 			collision: {
-				handler(data, ecs) {
-					const entityA = ecs.entityManager.getComponent(data.entityA, 'enemy');
-					const entityB = ecs.entityManager.getComponent(data.entityB, 'enemy');
-
-					if (entityA) {
+				handler: createCollisionPairHandler<ECSpresso<Components, Events, Resources>>({
+					'player:enemy': (_playerId, enemyId, ecs) => {
 						console.log('collision detected');
-						ecs.removeEntity(data.entityA);
-					}
-					if (entityB) {
-						console.log('collision detected');
-						ecs.removeEntity(data.entityB);
-					}
-				},
+						ecs.removeEntity(enemyId);
+					},
+				}),
 			},
 		})
 		.and();

@@ -30,7 +30,7 @@ src/
     │   ├── physics2D.ts  # ECS-native 2D arcade physics (gravity, forces, drag, collision response)
     │   ├── input.ts      # Frame-accurate keyboard/pointer input with action mapping
     │   ├── bounds.ts     # Screen bounds enforcement (destroy, clamp, wrap)
-    │   ├── collision.ts  # Layer-based AABB/circle collision detection
+    │   ├── collision.ts  # Layer-based AABB/circle collision detection + pair handler routing
     │   └── state-machine.ts # Per-entity finite state machines with guards and lifecycle hooks
     └── renderers/
         └── renderer2D.ts  # PixiJS scene graph wiring
@@ -109,6 +109,13 @@ src/
 - **State Machine Query**: `getStateMachineState(ecs, entityId)` → `string | null`
 - **State Machine World**: `StateMachineWorld` interface for hooks — method syntax for bivariant parameter checking under strictFunctionTypes
 - **State Transition Events**: `stateTransition` event published on every transition with `{ entityId, from, to, definitionId }`
+- **Collision Bundle**: `createCollisionBundle()` — layer-based AABB/circle collision detection with deduplication. Emits `collision` events with `{ entityA, entityB, layerA, layerB }`.
+- **Collision Helpers**: `createAABBCollider(w, h)`, `createCircleCollider(r)`, `createCollisionLayer(layer, collidesWith)` — component factories for spreading into `spawn()`
+- **Collision Layer Definitions**: `defineCollisionLayers({ player: ['enemy'], enemy: ['player'] })` — returns factory functions per layer, e.g. `layers.player()`
+- **Collision Pair Handler**: `createCollisionPairHandler<W>({ 'layerA:layerB': (aId, bId, ecs) => ... })` — routes collision events to layer-pair-specific callbacks, eliminating symmetric if/else boilerplate. Returns `(event, ecs) => void` for use with `eventBus.subscribe`.
+- **Collision Pair Layer Validation**: `L` type parameter (defaults to `string`) constrains pair keys to valid `` `${L}:${L}` `` combinations. Use `LayersOf<typeof layers>` with `defineCollisionLayers` result for compile-time layer name validation: `type Layer = LayersOf<typeof layers>; createCollisionPairHandler<ECS, Layer>({...})`
+- **Collision Pair Symmetric Matching**: Registering `"a:b"` automatically handles `(layerA=b, layerB=a)` with swapped entity args. If both `"a:b"` and `"b:a"` are registered, each gets its own handler.
+- **Collision Pair Self-Collision**: `"enemy:enemy"` is supported — single entry, no implicit reverse needed.
 
 ## Commands
 

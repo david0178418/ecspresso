@@ -196,6 +196,21 @@ export type LayerFactories<T extends Record<string, readonly string[]>> = {
 };
 
 /**
+ * Extract layer names from a `defineCollisionLayers` result for use with
+ * `createCollisionPairHandler`'s `L` type parameter.
+ *
+ * @example
+ * ```typescript
+ * const layers = defineCollisionLayers({ player: ['enemy'], enemy: ['player'] });
+ * type Layer = LayersOf<typeof layers>;
+ * const handler = createCollisionPairHandler<ECS, Layer>({
+ *   'player:enemy': (playerId, enemyId, ecs) => { ... },
+ * });
+ * ```
+ */
+export type LayersOf<T> = Extract<keyof T, string>;
+
+/**
  * Define collision layer relationships and get factory functions.
  *
  * @param rules Object mapping layer names to arrays of layers they collide with
@@ -229,6 +244,119 @@ export function defineCollisionLayers<T extends Record<string, readonly string[]
 	}
 
 	return factories;
+}
+
+// ==================== Collision Pair Handler ====================
+
+/**
+ * Callback for a collision pair handler.
+ *
+ * @param firstEntityId Entity belonging to the first layer in the pair key
+ * @param secondEntityId Entity belonging to the second layer in the pair key
+ * @param ecs The ECS world instance (passed through from the subscriber)
+ */
+export type CollisionPairCallback<W = unknown> = (
+	firstEntityId: number,
+	secondEntityId: number,
+	ecs: W,
+) => void;
+
+interface PairEntry<W> {
+	callback: CollisionPairCallback<W>;
+	swapped: boolean;
+}
+
+function parsePairKey(key: string): [string, string] {
+	const colonIndex = key.indexOf(':');
+	if (colonIndex === -1) {
+		throw new Error(`Invalid collision pair key "${key}": must contain a colon separator (e.g. "player:enemy")`);
+	}
+	const layerA = key.slice(0, colonIndex);
+	const layerB = key.slice(colonIndex + 1);
+	if (layerA === '' || layerB === '') {
+		throw new Error(`Invalid collision pair key "${key}": layer names must not be empty`);
+	}
+	return [layerA, layerB];
+}
+
+/**
+ * Create a collision pair handler that routes collision events to
+ * layer-pair-specific callbacks.
+ *
+ * Registering `"a:b"` automatically handles both `(layerA=a, layerB=b)` and
+ * `(layerA=b, layerB=a)`. Entity arguments are swapped to match the declared
+ * key order. If both `"a:b"` and `"b:a"` are explicitly registered, each gets
+ * its own handler with no implicit reverse.
+ *
+ * @typeParam W - The ECS world type (e.g. `ECSpresso<C, E, R>`). Defaults to `unknown`.
+ * @typeParam L - Union of valid layer names. Defaults to `string`.
+ *   Provide specific layer names for compile-time key validation:
+ *   `createCollisionPairHandler<ECS, keyof typeof layers>({...})`
+ *
+ * @param pairs Object mapping `"layerA:layerB"` keys to callbacks
+ * @returns A dispatch function to call with collision event data and ECS instance
+ *
+ * @example
+ * ```typescript
+ * // Basic usage:
+ * const handler = createCollisionPairHandler<ECS>({
+ *   'playerProjectile:enemy': (projectileId, enemyId, ecs) => {
+ *     ecs.commands.removeEntity(projectileId);
+ *   },
+ * });
+ *
+ * // With layer name validation:
+ * const layers = defineCollisionLayers({ player: ['enemy'], enemy: ['player'] });
+ * type Layer = LayersOf<typeof layers>;
+ * const handler = createCollisionPairHandler<ECS, Layer>({
+ *   'player:enemy': (playerId, enemyId, ecs) => { ... },
+ * });
+ *
+ * ecs.eventBus.subscribe('collision', (data) => handler(data, ecs));
+ * ```
+ */
+export function createCollisionPairHandler<W = unknown, L extends string = string>(
+	pairs: { [K in `${L}:${L}`]?: CollisionPairCallback<W> }
+): (event: CollisionEvent, ecs: W) => void;
+export function createCollisionPairHandler<W = unknown>(
+	pairs: Record<string, CollisionPairCallback<W> | undefined>
+): (event: CollisionEvent, ecs: W) => void {
+	const lookup = new Map<string, PairEntry<W>>();
+	const explicitKeys = new Set<string>();
+
+	// First pass: collect all explicit keys
+	for (const key of Object.keys(pairs)) {
+		parsePairKey(key); // validate
+		explicitKeys.add(key);
+	}
+
+	// Second pass: build lookup with forward + conditional reverse entries
+	for (const key of Object.keys(pairs)) {
+		const [layerA, layerB] = parsePairKey(key);
+		const callback = pairs[key];
+		if (!callback) continue;
+
+		// Forward entry
+		lookup.set(key, { callback, swapped: false });
+
+		// Reverse entry (only if the reverse key wasn't explicitly registered
+		// and it's not a self-collision where forward === reverse)
+		const reverseKey = `${layerB}:${layerA}`;
+		if (reverseKey !== key && !explicitKeys.has(reverseKey)) {
+			lookup.set(reverseKey, { callback, swapped: true });
+		}
+	}
+
+	return function collisionPairDispatch(event: CollisionEvent, ecs: W): void {
+		const entry = lookup.get(event.layerA + ':' + event.layerB);
+		if (!entry) return;
+
+		if (entry.swapped) {
+			entry.callback(event.entityB, event.entityA, ecs);
+		} else {
+			entry.callback(event.entityA, event.entityB, ecs);
+		}
+	};
 }
 
 // ==================== Internal Types ====================

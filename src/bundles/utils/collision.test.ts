@@ -2,6 +2,7 @@ import { describe, test, expect } from 'bun:test';
 import ECSpresso from '../../ecspresso';
 import {
 	createCollisionBundle,
+	createCollisionPairHandler,
 	createAABBCollider,
 	createCircleCollider,
 	createCollisionLayer,
@@ -590,5 +591,182 @@ describe('Collision Bundle', () => {
 
 			expect(collisions.length).toBe(1);
 		});
+	});
+});
+
+describe('createCollisionPairHandler', () => {
+	test('basic pair routing — correct callback invoked with correct entity order', () => {
+		const calls: Array<{ first: number; second: number }> = [];
+
+		const handler = createCollisionPairHandler({
+			'player:enemy': (playerId, enemyId) => {
+				calls.push({ first: playerId, second: enemyId });
+			},
+		});
+
+		handler({ entityA: 1, entityB: 2, layerA: 'player', layerB: 'enemy' }, undefined);
+
+		expect(calls).toEqual([{ first: 1, second: 2 }]);
+	});
+
+	test('symmetric matching — reversed layer order still matches, entities swapped', () => {
+		const calls: Array<{ first: number; second: number }> = [];
+
+		const handler = createCollisionPairHandler({
+			'player:enemy': (playerId, enemyId) => {
+				calls.push({ first: playerId, second: enemyId });
+			},
+		});
+
+		// Event arrives with layers in reverse order
+		handler({ entityA: 10, entityB: 20, layerA: 'enemy', layerB: 'player' }, undefined);
+
+		// Entities should be swapped so player is first
+		expect(calls).toEqual([{ first: 20, second: 10 }]);
+	});
+
+	test('multiple pair handlers — each pair routes to its own callback', () => {
+		const playerEnemyCalls: Array<{ first: number; second: number }> = [];
+		const bulletWallCalls: Array<{ first: number; second: number }> = [];
+
+		const handler = createCollisionPairHandler({
+			'player:enemy': (playerId, enemyId) => {
+				playerEnemyCalls.push({ first: playerId, second: enemyId });
+			},
+			'bullet:wall': (bulletId, wallId) => {
+				bulletWallCalls.push({ first: bulletId, second: wallId });
+			},
+		});
+
+		handler({ entityA: 1, entityB: 2, layerA: 'player', layerB: 'enemy' }, undefined);
+		handler({ entityA: 3, entityB: 4, layerA: 'bullet', layerB: 'wall' }, undefined);
+
+		expect(playerEnemyCalls).toEqual([{ first: 1, second: 2 }]);
+		expect(bulletWallCalls).toEqual([{ first: 3, second: 4 }]);
+	});
+
+	test('self-collision — "enemy:enemy" handler works', () => {
+		const calls: Array<{ first: number; second: number }> = [];
+
+		const handler = createCollisionPairHandler({
+			'enemy:enemy': (enemyA, enemyB) => {
+				calls.push({ first: enemyA, second: enemyB });
+			},
+		});
+
+		handler({ entityA: 5, entityB: 6, layerA: 'enemy', layerB: 'enemy' }, undefined);
+
+		expect(calls).toEqual([{ first: 5, second: 6 }]);
+	});
+
+	test('explicit bidirectional — "a:b" and "b:a" with different callbacks', () => {
+		const abCalls: Array<{ first: number; second: number }> = [];
+		const baCalls: Array<{ first: number; second: number }> = [];
+
+		const handler = createCollisionPairHandler({
+			'a:b': (aId, bId) => {
+				abCalls.push({ first: aId, second: bId });
+			},
+			'b:a': (bId, aId) => {
+				baCalls.push({ first: bId, second: aId });
+			},
+		});
+
+		// Forward: layerA=a, layerB=b → should call a:b handler
+		handler({ entityA: 1, entityB: 2, layerA: 'a', layerB: 'b' }, undefined);
+		// Reverse: layerA=b, layerB=a → should call b:a handler
+		handler({ entityA: 3, entityB: 4, layerA: 'b', layerB: 'a' }, undefined);
+
+		expect(abCalls).toEqual([{ first: 1, second: 2 }]);
+		expect(baCalls).toEqual([{ first: 3, second: 4 }]);
+	});
+
+	test('unmatched collision — no callback fires, no error', () => {
+		const calls: Array<{ first: number; second: number }> = [];
+
+		const handler = createCollisionPairHandler({
+			'player:enemy': (playerId, enemyId) => {
+				calls.push({ first: playerId, second: enemyId });
+			},
+		});
+
+		// This pair has no handler
+		handler({ entityA: 1, entityB: 2, layerA: 'bullet', layerB: 'wall' }, undefined);
+
+		expect(calls).toEqual([]);
+	});
+
+	test('empty handlers — no errors on any collision', () => {
+		const handler = createCollisionPairHandler({});
+
+		// Should not throw
+		handler({ entityA: 1, entityB: 2, layerA: 'a', layerB: 'b' }, undefined);
+	});
+
+	test('invalid key format — throws on construction (missing colon)', () => {
+		expect(() => {
+			createCollisionPairHandler({
+				// @ts-expect-error — intentionally testing invalid key (no colon)
+				'playerenemy': () => {},
+			});
+		}).toThrow();
+	});
+
+	test('empty layer name — throws on construction (":b")', () => {
+		expect(() => {
+			createCollisionPairHandler({
+				':enemy': () => {},
+			});
+		}).toThrow();
+	});
+
+	test('empty layer name — throws on construction ("a:")', () => {
+		expect(() => {
+			createCollisionPairHandler({
+				'player:': () => {},
+			});
+		}).toThrow();
+	});
+
+	test('integration — full ECS with collision detection and pair handler via eventBus', () => {
+		type ECS = ECSpresso<TestComponents, TestEvents, TestResources>;
+
+		const ecs = ECSpresso
+			.create<TestComponents, TestEvents, TestResources>()
+			.withBundle(createTransformBundle())
+			.withBundle(createCollisionBundle())
+			.build();
+
+		const hits: Array<{ projectileId: number; enemyId: number }> = [];
+
+		const handler = createCollisionPairHandler<ECS>({
+			'playerProjectile:enemy': (projectileId, enemyId, ecsRef) => {
+				// Verify we get the ecs reference
+				expect(ecsRef).toBe(ecs);
+				hits.push({ projectileId, enemyId });
+			},
+		});
+
+		ecs.eventBus.subscribe('collision', (data) => handler(data, ecs));
+
+		const projectile = ecs.spawn({
+			...createTransform(100, 100),
+			...createAABBCollider(10, 10),
+			...createCollisionLayer('playerProjectile', ['enemy']),
+		});
+
+		const enemy = ecs.spawn({
+			...createTransform(105, 105),
+			...createAABBCollider(20, 20),
+			...createCollisionLayer('enemy', ['playerProjectile']),
+		});
+
+		ecs.update(0.016);
+
+		expect(hits.length).toBe(1);
+		const hit = hits[0];
+		if (!hit) throw new Error('Expected hit');
+		expect(hit.projectileId).toBe(projectile.id);
+		expect(hit.enemyId).toBe(enemy.id);
 	});
 });

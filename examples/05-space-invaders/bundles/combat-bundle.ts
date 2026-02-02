@@ -1,6 +1,12 @@
 import Bundle from '../../../src/bundle';
+import type ECSpresso from '../../../src/ecspresso';
 import { createTimer } from '../../../src/bundles/utils/timers';
+import { createCollisionPairHandler } from '../../../src/bundles/utils/collision';
 import type { Components, Events, Resources } from '../types';
+import type collisionLayers from '../collision-layers';
+
+type ECS = ECSpresso<Components, Events, Resources>;
+type Layer = keyof typeof collisionLayers;
 
 /**
  * Handles game-specific collision responses and combat logic.
@@ -12,21 +18,10 @@ export default function createCombatBundle(): Bundle<Components, Events, Resourc
 		.inGroup('gameplay')
 		.setEventHandlers({
 			collision: {
-				handler(data, ecs) {
-					const { entityA, entityB, layerA, layerB } = data;
-
-					// Player projectile hits enemy
-					if (
-						(layerA === 'playerProjectile' && layerB === 'enemy') ||
-						(layerA === 'enemy' && layerB === 'playerProjectile')
-					) {
-						const projectileId = layerA === 'playerProjectile' ? entityA : entityB;
-						const enemyId = layerA === 'enemy' ? entityA : entityB;
-
-						// Remove the projectile
+				handler: createCollisionPairHandler<ECS, Layer>({
+					'playerProjectile:enemy': (projectileId, enemyId, ecs) => {
 						ecs.commands.removeEntity(projectileId);
 
-						// Damage the enemy
 						const enemyData = ecs.entityManager.getComponent(enemyId, 'enemy');
 						if (!enemyData) return;
 
@@ -35,12 +30,10 @@ export default function createCombatBundle(): Bundle<Components, Events, Resourc
 						if (enemyData.health <= 0) {
 							ecs.commands.removeEntity(enemyId);
 
-							// Update score
 							const score = ecs.getResource('score');
 							score.value += enemyData.points;
 							ecs.eventBus.publish('updateScore', { points: score.value });
 
-							// Check if all enemies destroyed (this is the last one)
 							const enemies = ecs.getEntitiesWithQuery(['enemy']);
 							if (enemies.length === 1) {
 								const gameState = ecs.getResource('gameState');
@@ -49,22 +42,13 @@ export default function createCombatBundle(): Bundle<Components, Events, Resourc
 								}
 							}
 						}
-						return;
-					}
-
-					// Enemy projectile hits player
-					if (
-						(layerA === 'enemyProjectile' && layerB === 'player') ||
-						(layerA === 'player' && layerB === 'enemyProjectile')
-					) {
-						const projectileId = layerA === 'enemyProjectile' ? entityA : entityB;
-						const playerId = layerA === 'player' ? entityA : entityB;
-
+					},
+					'enemyProjectile:player': (projectileId, playerId, ecs) => {
 						ecs.commands.removeEntity(projectileId);
 						ecs.commands.removeEntity(playerId);
 						ecs.eventBus.publish('playerDeath');
-					}
-				},
+					},
+				}),
 			},
 
 			playerDeath: {
