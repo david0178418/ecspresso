@@ -649,11 +649,11 @@ export default class ECSpresso<
 		* Get a resource if it exists, or undefined if not
 	*/
 	getResource<K extends keyof ResourceTypes>(key: K): ResourceTypes[K] {
-		const resource = this._resourceManager.get(key, this);
+		if (!this._resourceManager.has(key)) {
+			throw new Error(`Resource '${String(key)}' not found. Available resources: [${this.getResourceKeys().map(k => String(k)).join(', ')}]`);
+		}
 
-		if (!resource) throw new Error(`Resource '${String(key)}' not found. Available resources: [${this.getResourceKeys().map(k => String(k)).join(', ')}]`);
-
-		return resource;
+		return this._resourceManager.get(key, this);
 	}
 
 	/**
