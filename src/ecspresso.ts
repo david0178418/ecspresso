@@ -269,7 +269,9 @@ export default class ECSpresso<
 		return createEcspressoSystemBuilder<
 			ComponentTypes,
 			EventTypes,
-			ResourceTypes
+			ResourceTypes,
+			AssetTypes,
+			ScreenStates
 		>(label, this);
 	}
 
@@ -280,7 +282,7 @@ export default class ECSpresso<
 	 * @param deltaTime Time elapsed since the last update (in seconds)
 	 */
 	update(deltaTime: number) {
-		const currentScreen = (this._screenManager?.getCurrentScreen() ?? null) as string | null;
+		const currentScreen = (this._screenManager?.getCurrentScreen() ?? null) as (keyof ScreenStates & string) | null;
 
 		// 1. preUpdate phase
 		this._executePhase(this._phaseSystems.preUpdate, deltaTime, currentScreen);
@@ -335,7 +337,7 @@ export default class ECSpresso<
 	private _executePhase(
 		systems: ReadonlyArray<System<ComponentTypes, any, any, EventTypes, ResourceTypes, AssetTypes, ScreenStates>>,
 		deltaTime: number,
-		currentScreen: string | null
+		currentScreen: (keyof ScreenStates & string) | null
 	): void {
 		for (const system of systems) {
 			if (!system.process) continue;
@@ -370,7 +372,7 @@ export default class ECSpresso<
 			if (system.requiredAssets?.length && this._assetManager) {
 				let assetsReady = true;
 				for (const assetKey of system.requiredAssets) {
-					if (!this._assetManager.isLoaded(assetKey as keyof AssetTypes)) {
+					if (!this._assetManager.isLoaded(assetKey)) {
 						assetsReady = false;
 						break;
 					}
@@ -1406,7 +1408,7 @@ export default class ECSpresso<
 		// Register systems from the bundle
 		// The type compatibility is ensured by the builder's withBundle method
 		// We need this cast due to TypeScript's limitations with generics
-		type BundleEcspresso = ECSpresso<C, E, R>;
+		type BundleEcspresso = ECSpresso<C, E, R, A, S>;
 		bundle.registerSystemsWithEcspresso(this as unknown as BundleEcspresso);
 
 		// Register resources from the bundle

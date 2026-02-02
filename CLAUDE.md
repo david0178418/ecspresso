@@ -60,6 +60,9 @@ src/
 - **Screen Builder**: `ECSpresso.create().withScreens(s => s.add()).build()`
 - **Screen-Scoped Systems**: `.inScreens(['menu'])`, `.excludeScreens(['pause'])`
 - **Asset-Required Systems**: `.requiresAssets(['playerTexture'])`
+- **Type-Safe Screen Filtering**: `.inScreens(['menu', 'gameplay'])` — accepts only `keyof ScreenStates`
+- **Type-Safe Asset Requirements**: `.requiresAssets(['playerTexture'])` — accepts only `keyof AssetTypes`
+- **Fully Typed System Callbacks**: `setProcess`, `setOnInitialize`, `setOnDetach`, `setEventHandlers` receive `ecs: ECSpresso<C, E, R, A, S>` with full asset/screen type safety
 - **System Phases**: `.inPhase('fixedUpdate')`, phases execute in order: `preUpdate` → `fixedUpdate` → `update` → `postUpdate` → `render`
 - **Fixed Timestep**: `ECSpresso.create().withFixedTimestep(1/60).build()`, `ecs.fixedDt`, `ecs.interpolationAlpha`
 - **Runtime Phase Change**: `updateSystemPhase(label, phase)` moves a system between phases

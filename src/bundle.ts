@@ -23,7 +23,7 @@ export default class Bundle<
 	AssetTypes extends Record<string, unknown> = {},
 	ScreenStates extends Record<string, ScreenDefinition<any, any>> = {},
 > {
-	private _systems: SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, any>[] = [];
+	private _systems: SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, any>[] = [];
 	private _resources: Map<keyof ResourceTypes, ResourceTypes[keyof ResourceTypes]> = new Map();
 	private _assets: Map<string, AssetDefinition<unknown>> = new Map();
 	private _assetGroups: Map<string, Map<string, () => Promise<unknown>>> = new Map();
@@ -52,11 +52,11 @@ export default class Bundle<
 	/**
 	 * Add a system to this bundle, by label (creating a new builder) or by reusing an existing one
 	 */
-	addSystem<Q extends Record<string, QueryDefinition<ComponentTypes>>>(builder: SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, Q>): SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, Q>;
-	addSystem(label: string): SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes>;
-	addSystem(builderOrLabel: string | SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, any>) {
+	addSystem<Q extends Record<string, QueryDefinition<ComponentTypes>>>(builder: SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, Q>): SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, Q>;
+	addSystem(label: string): SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>;
+	addSystem(builderOrLabel: string | SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, any>) {
 		if (typeof builderOrLabel === 'string') {
-			const system = createBundleSystemBuilder<ComponentTypes, EventTypes, ResourceTypes>(builderOrLabel, this);
+			const system = createBundleSystemBuilder<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>(builderOrLabel, this);
 			this._systems.push(system);
 			return system;
 		} else {
@@ -188,7 +188,7 @@ export default class Bundle<
 	 * Register all systems in this bundle with an ECSpresso instance
 	 * @internal Used by ECSpresso when adding a bundle
 	 */
-	registerSystemsWithEcspresso(ecspresso: ECSpresso<ComponentTypes, EventTypes, ResourceTypes, any, any>) {
+	registerSystemsWithEcspresso(ecspresso: ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>) {
 		for (const systemBuilder of this._systems) {
 			systemBuilder.build(ecspresso);
 		}
@@ -213,7 +213,7 @@ export default class Bundle<
 	/**
 	 * Get all system builders in this bundle
 	 */
-	getSystemBuilders(): SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, any>[] {
+	getSystemBuilders(): SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, any>[] {
 		return [...this._systems];
 	}
 

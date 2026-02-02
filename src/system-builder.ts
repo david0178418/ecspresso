@@ -9,12 +9,14 @@ export class SystemBuilder<
 	ComponentTypes extends Record<string, any> = Record<string, any>,
 	EventTypes extends Record<string, any> = Record<string, any>,
 	ResourceTypes extends Record<string, any> = Record<string, any>,
+	AssetTypes extends Record<string, unknown> = Record<string, unknown>,
+	ScreenStates extends Record<string, any> = Record<string, any>,
 	Queries extends Record<string, QueryDefinition<ComponentTypes>> = {},
 > {
 	private queries: Queries = {} as Queries;
-	private processFunction?: ProcessFunction<ComponentTypes, EventTypes, ResourceTypes, Queries>;
-	private detachFunction?: LifecycleFunction<ComponentTypes, EventTypes, ResourceTypes>;
-	private initializeFunction?: LifecycleFunction<ComponentTypes, EventTypes, ResourceTypes>;
+	private processFunction?: ProcessFunction<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, Queries>;
+	private detachFunction?: LifecycleFunction<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>;
+	private initializeFunction?: LifecycleFunction<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>;
 	private eventHandlers?: {
 		[EventName in keyof EventTypes]?: {
 			handler(
@@ -22,7 +24,9 @@ export class SystemBuilder<
 				ecs: ECSpresso<
 					ComponentTypes,
 					EventTypes,
-					ResourceTypes
+					ResourceTypes,
+					AssetTypes,
+					ScreenStates
 				>,
 			): void;
 		};
@@ -31,14 +35,14 @@ export class SystemBuilder<
 	private _phase: SystemPhase = 'update'; // Default phase is 'update'
 	private _isRegistered = false; // Track if system has been auto-registered
 	private _groups: string[] = [];
-	private _inScreens?: string[];
-	private _excludeScreens?: string[];
-	private _requiredAssets?: string[];
+	private _inScreens?: ReadonlyArray<keyof ScreenStates & string>;
+	private _excludeScreens?: ReadonlyArray<keyof ScreenStates & string>;
+	private _requiredAssets?: ReadonlyArray<keyof AssetTypes & string>;
 
 	constructor(
 		private _label: string,
-		private _ecspresso: ECSpresso<ComponentTypes, EventTypes, ResourceTypes, any, any> | null = null,
-		private _bundle: Bundle<ComponentTypes, EventTypes, ResourceTypes> | null = null,
+		private _ecspresso: ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates> | null = null,
+		private _bundle: Bundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates> | null = null,
 	) {}
 
 	get label() {
@@ -75,7 +79,7 @@ export class SystemBuilder<
 	 * Create the system object without registering it
 	 * @private
 	 */
-	private _buildSystemObject(): System<ComponentTypes, any, any, EventTypes, ResourceTypes> {
+	private _buildSystemObject(): System<ComponentTypes, any, any, EventTypes, ResourceTypes, AssetTypes, ScreenStates> {
 		return this._createSystemObject();
 	}
 
@@ -83,8 +87,8 @@ export class SystemBuilder<
 	 * Create a system object with all configured properties
 	 * @private
 	 */
-	private _createSystemObject(): System<ComponentTypes, any, any, EventTypes, ResourceTypes> {
-		const system: System<ComponentTypes, any, any, EventTypes, ResourceTypes> = {
+	private _createSystemObject(): System<ComponentTypes, any, any, EventTypes, ResourceTypes, AssetTypes, ScreenStates> {
+		const system: System<ComponentTypes, any, any, EventTypes, ResourceTypes, AssetTypes, ScreenStates> = {
 			label: this._label,
 			entityQueries: this.queries,
 			priority: this._priority,
@@ -171,7 +175,7 @@ export class SystemBuilder<
 	 * @param screens Array of screen names where this system should run
 	 * @returns This SystemBuilder instance for method chaining
 	 */
-	inScreens(screens: ReadonlyArray<string>): this {
+	inScreens(screens: ReadonlyArray<keyof ScreenStates & string>): this {
 		this._inScreens = [...screens];
 		return this;
 	}
@@ -183,7 +187,7 @@ export class SystemBuilder<
 	 * @param screens Array of screen names where this system should NOT run
 	 * @returns This SystemBuilder instance for method chaining
 	 */
-	excludeScreens(screens: ReadonlyArray<string>): this {
+	excludeScreens(screens: ReadonlyArray<keyof ScreenStates & string>): this {
 		this._excludeScreens = [...screens];
 		return this;
 	}
@@ -195,7 +199,7 @@ export class SystemBuilder<
 	 * @param assets Array of asset keys that must be loaded
 	 * @returns This SystemBuilder instance for method chaining
 	 */
-	requiresAssets(assets: ReadonlyArray<string>): this {
+	requiresAssets(assets: ReadonlyArray<keyof AssetTypes & string>): this {
 		this._requiredAssets = [...assets];
 		return this;
 	}
@@ -219,11 +223,11 @@ export class SystemBuilder<
 			optional?: ReadonlyArray<OptionalComponents>;
 			parentHas?: ReadonlyArray<keyof ComponentTypes>;
 		}
-	): this extends SystemBuilderWithEcspresso<ComponentTypes, EventTypes, ResourceTypes, Queries>
-		? SystemBuilderWithEcspresso<ComponentTypes, EventTypes, ResourceTypes, NewQueries>
-		: this extends SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, Queries>
-			? SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, NewQueries>
-			: SystemBuilder<ComponentTypes, EventTypes, ResourceTypes, NewQueries> {
+	): this extends SystemBuilderWithEcspresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, Queries>
+		? SystemBuilderWithEcspresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, NewQueries>
+		: this extends SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, Queries>
+			? SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, NewQueries>
+			: SystemBuilder<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, NewQueries> {
 		// Cast is needed because TypeScript can't preserve the type information
 		// when modifying an object property
 		const newBuilder = this as any;
@@ -240,7 +244,7 @@ export class SystemBuilder<
 	 * @returns This SystemBuilder instance for method chaining
 	 */
 	setProcess(
-		process: ProcessFunction<ComponentTypes, EventTypes, ResourceTypes, Queries>
+		process: ProcessFunction<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, Queries>
 	): this {
 		this.processFunction = process;
 		return this;
@@ -251,7 +255,7 @@ export class SystemBuilder<
 	 * This enables seamless method chaining: .registerAndContinue().addSystem(...)
 	 * @returns ECSpresso instance if attached to one, otherwise throws an error
 	 */
-	registerAndContinue(): ECSpresso<ComponentTypes, EventTypes, ResourceTypes, any, any> {
+	registerAndContinue(): ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates> {
 		if (!this._ecspresso) {
 			throw new Error(`Cannot register system '${this._label}': SystemBuilder is not attached to an ECSpresso instance. Use Bundle.addSystem() or ECSpresso.addSystem() instead.`);
 		}
@@ -266,7 +270,7 @@ export class SystemBuilder<
 	 * - For Bundle-attached builders: returns the Bundle
 	 * This method is typed via the specialized interfaces (SystemBuilderWithEcspresso, SystemBuilderWithBundle)
 	 */
-	and(): ECSpresso<ComponentTypes, EventTypes, ResourceTypes, any, any> | Bundle<ComponentTypes, EventTypes, ResourceTypes> {
+	and(): ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates> | Bundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates> {
 		if (this._ecspresso) {
 			this._autoRegister();
 			return this._ecspresso;
@@ -286,7 +290,7 @@ export class SystemBuilder<
 	 * @returns This SystemBuilder instance for method chaining
 	 */
 	setOnDetach(
-		onDetach: LifecycleFunction<ComponentTypes, EventTypes, ResourceTypes>
+		onDetach: LifecycleFunction<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>
 	): this {
 		this.detachFunction = onDetach;
 		return this;
@@ -299,7 +303,7 @@ export class SystemBuilder<
 	 * @returns This SystemBuilder instance for method chaining
 	 */
 	setOnInitialize(
-		onInitialize: LifecycleFunction<ComponentTypes, EventTypes, ResourceTypes>
+		onInitialize: LifecycleFunction<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>
 	): this {
 		this.initializeFunction = onInitialize;
 		return this;
@@ -316,7 +320,7 @@ export class SystemBuilder<
 			[EventName in keyof EventTypes]?: {
 				handler(
 					data: EventTypes[EventName],
-					ecs: ECSpresso<ComponentTypes, EventTypes, ResourceTypes, any, any>
+					ecs: ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>
 				): void;
 			};
 		}
@@ -328,7 +332,7 @@ export class SystemBuilder<
 	/**
 	 * Build the final system object
 	 */
-	build(ecspresso?: ECSpresso<ComponentTypes, EventTypes, ResourceTypes, any, any>) {
+	build(ecspresso?: ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>) {
 		const system = this._createSystemObject();
 
 		if (this._ecspresso) {
@@ -351,10 +355,12 @@ export class SystemBuilder<
 export function registerSystemWithEcspresso<
 	ComponentTypes extends Record<string, any>,
 	EventTypes extends Record<string, any>,
-	ResourceTypes extends Record<string, any>
+	ResourceTypes extends Record<string, any>,
+	AssetTypes extends Record<string, unknown>,
+	ScreenStates extends Record<string, any>
 >(
-	system: System<ComponentTypes, any, any, EventTypes, ResourceTypes>,
-	ecspresso: ECSpresso<ComponentTypes, EventTypes, ResourceTypes, any, any>
+	system: System<ComponentTypes, any, any, EventTypes, ResourceTypes, AssetTypes, ScreenStates>,
+	ecspresso: ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>
 ) {
 	// Use the new internal registration method instead of direct property access
 	ecspresso._registerSystem(system);
@@ -398,6 +404,8 @@ type ProcessFunction<
 	ComponentTypes extends Record<string, any>,
 	EventTypes extends Record<string, any>,
 	ResourceTypes extends Record<string, any>,
+	AssetTypes extends Record<string, unknown>,
+	ScreenStates extends Record<string, any>,
 	Queries extends Record<string, QueryDefinition<ComponentTypes>>,
 > = (
 	queries: QueryResults<ComponentTypes, Queries>,
@@ -405,7 +413,9 @@ type ProcessFunction<
 	ecs: ECSpresso<
 		ComponentTypes,
 		EventTypes,
-		ResourceTypes
+		ResourceTypes,
+		AssetTypes,
+		ScreenStates
 	>
 ) => void;
 
@@ -417,11 +427,15 @@ type LifecycleFunction<
 	ComponentTypes extends Record<string, any>,
 	EventTypes extends Record<string, any>,
 	ResourceTypes extends Record<string, any>,
+	AssetTypes extends Record<string, unknown>,
+	ScreenStates extends Record<string, any>,
 > = (
 	ecs: ECSpresso<
 		ComponentTypes,
 		EventTypes,
-		ResourceTypes
+		ResourceTypes,
+		AssetTypes,
+		ScreenStates
 	>,
 ) => void | Promise<void>;
 
@@ -432,15 +446,17 @@ type LifecycleFunction<
 export function createEcspressoSystemBuilder<
 	ComponentTypes extends Record<string, any>,
 	EventTypes extends Record<string, any>,
-	ResourceTypes extends Record<string, any>
+	ResourceTypes extends Record<string, any>,
+	AssetTypes extends Record<string, unknown>,
+	ScreenStates extends Record<string, any>
 >(
 	label: string,
-	ecspresso: ECSpresso<ComponentTypes, EventTypes, ResourceTypes, any, any>
-): SystemBuilderWithEcspresso<ComponentTypes, EventTypes, ResourceTypes> {
-	return new SystemBuilder<ComponentTypes, EventTypes, ResourceTypes>(
+	ecspresso: ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>
+): SystemBuilderWithEcspresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates> {
+	return new SystemBuilder<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>(
 		label,
 		ecspresso
-	) as SystemBuilderWithEcspresso<ComponentTypes, EventTypes, ResourceTypes>;
+	) as SystemBuilderWithEcspresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>;
 }
 
 /**
@@ -450,16 +466,18 @@ export function createEcspressoSystemBuilder<
 export function createBundleSystemBuilder<
 	ComponentTypes extends Record<string, any>,
 	EventTypes extends Record<string, any>,
-	ResourceTypes extends Record<string, any>
+	ResourceTypes extends Record<string, any>,
+	AssetTypes extends Record<string, unknown>,
+	ScreenStates extends Record<string, any>
 >(
 	label: string,
-	bundle: Bundle<ComponentTypes, EventTypes, ResourceTypes>
-): SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes> {
-	return new SystemBuilder<ComponentTypes, EventTypes, ResourceTypes>(
+	bundle: Bundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>
+): SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates> {
+	return new SystemBuilder<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>(
 		label,
 		null,
 		bundle
-	) as SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes>;
+	) as SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>;
 }
 
 // Type interfaces for specialized SystemBuilders
@@ -471,15 +489,17 @@ export interface SystemBuilderWithEcspresso<
 	ComponentTypes extends Record<string, any>,
 	EventTypes extends Record<string, any>,
 	ResourceTypes extends Record<string, any>,
+	AssetTypes extends Record<string, unknown>,
+	ScreenStates extends Record<string, any>,
 	Queries extends Record<string, QueryDefinition<ComponentTypes>> = {}
-> extends SystemBuilder<ComponentTypes, EventTypes, ResourceTypes, Queries> {
-	readonly ecspresso: ECSpresso<ComponentTypes, EventTypes, ResourceTypes, any, any>;
-	
+> extends SystemBuilder<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, Queries> {
+	readonly ecspresso: ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>;
+
 	/**
 	 * Complete this system and return ECSpresso for seamless chaining
 	 * Automatically registers the system when called
 	 */
-	and(): ECSpresso<ComponentTypes, EventTypes, ResourceTypes, any, any>;
+	and(): ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>;
 }
 
 /**
@@ -489,13 +509,15 @@ export interface SystemBuilderWithBundle<
 	ComponentTypes extends Record<string, any>,
 	EventTypes extends Record<string, any>,
 	ResourceTypes extends Record<string, any>,
+	AssetTypes extends Record<string, unknown>,
+	ScreenStates extends Record<string, any>,
 	Queries extends Record<string, QueryDefinition<ComponentTypes>> = {}
-> extends SystemBuilder<ComponentTypes, EventTypes, ResourceTypes, Queries> {
-	readonly bundle: Bundle<ComponentTypes, EventTypes, ResourceTypes>;
+> extends SystemBuilder<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, Queries> {
+	readonly bundle: Bundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>;
 
 	/**
 	 * Complete this system and return the Bundle for chaining
 	 * Enables fluent API: bundle.addSystem(...).and().addSystem(...)
 	 */
-	and(): Bundle<ComponentTypes, EventTypes, ResourceTypes>;
+	and(): Bundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>;
 }

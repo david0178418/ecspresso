@@ -217,17 +217,17 @@ interface System<
 	 * Screens where this system should run. If specified, system only runs
 	 * when current screen is in this list.
 	 */
-	inScreens?: string[];
+	inScreens?: ReadonlyArray<keyof ScreenStates & string>;
 	/**
 	 * Screens where this system should NOT run. If specified, system skips
 	 * when current screen is in this list.
 	 */
-	excludeScreens?: string[];
+	excludeScreens?: ReadonlyArray<keyof ScreenStates & string>;
 	/**
 	 * Assets that must be loaded for this system to run.
 	 * System will be skipped if any required asset is not loaded.
 	 */
-	requiredAssets?: string[];
+	requiredAssets?: ReadonlyArray<keyof AssetTypes & string>;
 	entityQueries?: {
 		[queryName: string]: QueryConfig<ComponentTypes, WithComponents, WithoutComponents>;
 	};
