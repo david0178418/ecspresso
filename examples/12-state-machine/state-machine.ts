@@ -43,7 +43,7 @@ interface AppComponents {
 	speed: number;
 }
 
-type Components = AppComponents & Renderer2DComponentTypes & Physics2DComponentTypes & StateMachineComponentTypes;
+type Components = AppComponents & Renderer2DComponentTypes & Physics2DComponentTypes<string> & StateMachineComponentTypes;
 type Events = StateMachineEventTypes;
 type Resources = Renderer2DResourceTypes & InputResourceTypes;
 

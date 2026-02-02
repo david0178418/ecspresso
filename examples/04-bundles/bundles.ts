@@ -25,10 +25,10 @@ import type { BoundsComponentTypes, BoundsEventTypes } from "../../src/bundles/u
 import {
 	createCollisionBundle,
 	createCollisionPairHandler,
+	defineCollisionLayers,
 	createCircleCollider,
-	createCollisionLayer,
 } from "../../src/bundles/utils/collision";
-import type { CollisionComponentTypes, CollisionEventTypes } from "../../src/bundles/utils/collision";
+import type { CollisionComponentTypes, CollisionEventTypes, LayersOf } from "../../src/bundles/utils/collision";
 
 // App-specific types (not from bundles)
 interface AppEvents {
@@ -46,9 +46,12 @@ interface AppComponents {
 
 // Aggregate types — needed by custom Bundle<> instances below.
 // Bundle types are also added automatically via .withBundle() in the builder chain.
-type Events = AppEvents & Renderer2DEventTypes & BoundsEventTypes & CollisionEventTypes;
-type Components = AppComponents & Renderer2DComponentTypes & TimerComponentTypes<Events> & Physics2DComponentTypes & BoundsComponentTypes & CollisionComponentTypes;
+type Events = AppEvents & Renderer2DEventTypes & BoundsEventTypes & CollisionEventTypes<Layer>;
+type Components = AppComponents & Renderer2DComponentTypes & TimerComponentTypes<Events> & Physics2DComponentTypes<Layer> & BoundsComponentTypes & CollisionComponentTypes<Layer>;
 type Resources = Renderer2DResourceTypes & InputResourceTypes;
+
+const bundleLayers = defineCollisionLayers({ player: ['enemy'], enemy: ['player'] });
+type Layer = LayersOf<typeof bundleLayers>;
 
 const BALL_RADIUS = 30;
 
@@ -70,7 +73,7 @@ const ecs = ECSpresso
 	}))
 	.withBundle(createPhysics2DBundle())
 	.withBundle(createBoundsBundle())
-	.withBundle(createCollisionBundle())
+	.withBundle(createCollisionBundle({ layers: bundleLayers }))
 	.withComponentTypes<AppComponents>()
 	.withEventTypes<AppEvents>()
 	.withBundle(createGameInitBundle())
@@ -120,7 +123,7 @@ function createGameInitBundle() {
 						...createRigidBody('kinematic'),
 						...createWrapAtBounds(),
 						...createCircleCollider(BALL_RADIUS),
-						...createCollisionLayer('player', ['enemy']),
+						...bundleLayers.player(),
 						player: true,
 						speed: 500,
 						velocity: { x: 0, y: 0 },
@@ -189,7 +192,7 @@ function createEnemyControllerBundle() {
 					...createRepeatingTimer<Events>(randomInt(3, 8)),
 					...createWrapAtBounds(),
 					...createCircleCollider(BALL_RADIUS),
-					...createCollisionLayer('enemy', ['player']),
+					...bundleLayers.enemy(),
 					speed,
 					velocity: {
 						x: randomInt(-speed, speed),

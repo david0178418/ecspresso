@@ -17,7 +17,7 @@ import {
 
 // ==================== Test Setup ====================
 
-interface TestComponents extends Physics2DComponentTypes {
+interface TestComponents extends Physics2DComponentTypes<string> {
 	tag: string;
 }
 

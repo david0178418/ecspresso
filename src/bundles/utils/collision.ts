@@ -41,11 +41,11 @@ export interface CircleCollider {
 /**
  * Collision layer configuration.
  */
-export interface CollisionLayer {
+export interface CollisionLayer<L extends string> {
 	/** The layer this entity belongs to */
-	layer: string;
+	layer: L;
 	/** Layers this entity can collide with */
-	collidesWith: readonly string[];
+	collidesWith: readonly L[];
 }
 
 /**
@@ -60,10 +60,10 @@ export interface CollisionLayer {
  *   .build();
  * ```
  */
-export interface CollisionComponentTypes {
+export interface CollisionComponentTypes<L extends string> {
 	aabbCollider: AABBCollider;
 	circleCollider: CircleCollider;
-	collisionLayer: CollisionLayer;
+	collisionLayer: CollisionLayer<L>;
 }
 
 // ==================== Event Types ====================
@@ -71,22 +71,22 @@ export interface CollisionComponentTypes {
 /**
  * Event fired when two entities collide.
  */
-export interface CollisionEvent {
+export interface CollisionEvent<L extends string> {
 	/** First entity in the collision */
 	entityA: number;
 	/** Second entity in the collision */
 	entityB: number;
 	/** Layer of the first entity */
-	layerA: string;
+	layerA: L;
 	/** Layer of the second entity */
-	layerB: string;
+	layerB: L;
 }
 
 /**
  * Event types provided by the collision bundle.
  */
-export interface CollisionEventTypes {
-	collision: CollisionEvent;
+export interface CollisionEventTypes<L extends string> {
+	collision: CollisionEvent<L>;
 }
 
 // ==================== Bundle Options ====================
@@ -129,7 +129,7 @@ export function createAABBCollider(
 	height: number,
 	offsetX?: number,
 	offsetY?: number
-): Pick<CollisionComponentTypes, 'aabbCollider'> {
+): { aabbCollider: AABBCollider } {
 	const collider: AABBCollider = { width, height };
 	if (offsetX !== undefined) collider.offsetX = offsetX;
 	if (offsetY !== undefined) collider.offsetY = offsetY;
@@ -156,7 +156,7 @@ export function createCircleCollider(
 	radius: number,
 	offsetX?: number,
 	offsetY?: number
-): Pick<CollisionComponentTypes, 'circleCollider'> {
+): { circleCollider: CircleCollider } {
 	const collider: CircleCollider = { radius };
 	if (offsetX !== undefined) collider.offsetX = offsetX;
 	if (offsetY !== undefined) collider.offsetY = offsetY;
@@ -179,10 +179,10 @@ export function createCircleCollider(
  * });
  * ```
  */
-export function createCollisionLayer(
-	layer: string,
-	collidesWith: readonly string[]
-): Pick<CollisionComponentTypes, 'collisionLayer'> {
+export function createCollisionLayer<L extends string>(
+	layer: L,
+	collidesWith: readonly L[]
+): Pick<CollisionComponentTypes<L>, 'collisionLayer'> {
 	return {
 		collisionLayer: { layer, collidesWith },
 	};
@@ -192,7 +192,7 @@ export function createCollisionLayer(
  * Layer factory result from defineCollisionLayers.
  */
 export type LayerFactories<T extends Record<string, readonly string[]>> = {
-	[K in keyof T]: () => Pick<CollisionComponentTypes, 'collisionLayer'>;
+	[K in keyof T]: () => Pick<CollisionComponentTypes<Extract<keyof T, string>>, 'collisionLayer'>;
 };
 
 /**
@@ -233,14 +233,25 @@ export type LayersOf<T> = Extract<keyof T, string>;
  * });
  * ```
  */
-export function defineCollisionLayers<T extends Record<string, readonly string[]>>(
-	rules: T
+/**
+ * Validates that all `collidesWith` values reference actual layer keys.
+ * Catches typos at compile time.
+ */
+type ValidateCollidesWith<T> = {
+	[K in keyof T]: T[K] extends readonly (infer V)[]
+		? [V] extends [Extract<keyof T, string>] ? T[K] : readonly Extract<keyof T, string>[]
+		: never;
+};
+
+export function defineCollisionLayers<const T extends Record<string, readonly string[]>>(
+	rules: T & ValidateCollidesWith<T>
 ): LayerFactories<T> {
+	type L = Extract<keyof T, string>;
 	const factories = {} as LayerFactories<T>;
 
-	for (const layer of Object.keys(rules) as Array<keyof T & string>) {
-		const collidesWith = rules[layer] as readonly string[];
-		factories[layer] = () => createCollisionLayer(layer, collidesWith);
+	for (const layer of Object.keys(rules) as Array<L>) {
+		const collidesWith = rules[layer] as readonly L[];
+		factories[layer] = () => createCollisionLayer<L>(layer, collidesWith);
 	}
 
 	return factories;
@@ -317,10 +328,10 @@ function parsePairKey(key: string): [string, string] {
  */
 export function createCollisionPairHandler<W = unknown, L extends string = string>(
 	pairs: { [K in `${L}:${L}`]?: CollisionPairCallback<W> }
-): (event: CollisionEvent, ecs: W) => void;
+): (event: CollisionEvent<L>, ecs: W) => void;
 export function createCollisionPairHandler<W = unknown>(
 	pairs: Record<string, CollisionPairCallback<W> | undefined>
-): (event: CollisionEvent, ecs: W) => void {
+): (event: CollisionEvent<string>, ecs: W) => void {
 	const lookup = new Map<string, PairEntry<W>>();
 	const explicitKeys = new Set<string>();
 
@@ -347,7 +358,7 @@ export function createCollisionPairHandler<W = unknown>(
 		}
 	}
 
-	return function collisionPairDispatch(event: CollisionEvent, ecs: W): void {
+	return function collisionPairDispatch(event: CollisionEvent<string>, ecs: W): void {
 		const entry = lookup.get(event.layerA + ':' + event.layerB);
 		if (!entry) return;
 
@@ -361,7 +372,7 @@ export function createCollisionPairHandler<W = unknown>(
 
 // ==================== Internal Types ====================
 
-type CombinedComponentTypes = CollisionComponentTypes & TransformComponentTypes;
+type CombinedComponentTypes<L extends string> = CollisionComponentTypes<L> & TransformComponentTypes;
 
 interface ColliderInfo {
 	entityId: number;
@@ -385,33 +396,36 @@ interface ColliderInfo {
  * - Deduplication of A-B / B-A collisions
  *
  * Uses worldTransform for position (world-space collision detection).
+ * The `layers` parameter is required for type inference — at runtime the
+ * bundle does not consume it.
  *
  * @example
  * ```typescript
+ * const layers = defineCollisionLayers({ player: ['enemy'], enemy: ['player'] });
  * const ecs = ECSpresso
- *   .create<Components, Events, Resources>()
+ *   .create()
  *   .withBundle(createTransformBundle())
- *   .withBundle(createCollisionBundle())
+ *   .withBundle(createCollisionBundle({ layers }))
  *   .build();
  *
  * // Entity with collision
  * ecs.spawn({
  *   ...createTransform(100, 200),
  *   ...createAABBCollider(50, 30),
- *   ...createCollisionLayer('player', ['enemy']),
+ *   ...layers.player(),
  * });
  * ```
  */
-export function createCollisionBundle(
-	options?: CollisionBundleOptions
-): Bundle<CombinedComponentTypes, CollisionEventTypes> {
+export function createCollisionBundle<L extends string>(
+	options: CollisionBundleOptions & { layers: LayerFactories<Record<L, readonly string[]>> }
+): Bundle<CombinedComponentTypes<L>, CollisionEventTypes<L>> {
 	const {
 		systemGroup = 'physics',
 		priority = 0,
 		phase = 'postUpdate',
-	} = options ?? {};
+	} = options;
 
-	const bundle = new Bundle<CombinedComponentTypes, CollisionEventTypes, {}>('collision');
+	const bundle = new Bundle<CombinedComponentTypes<L>, CollisionEventTypes<L>, {}>('collision');
 
 	bundle
 		.addSystem('collision-detection')
@@ -494,8 +508,8 @@ export function createCollisionBundle(
 						ecs.eventBus.publish('collision', {
 							entityA: a.entityId,
 							entityB: b.entityId,
-							layerA: a.layer,
-							layerB: b.layer,
+							layerA: a.layer as L,
+							layerB: b.layer as L,
 						});
 					}
 				}

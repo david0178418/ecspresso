@@ -4,6 +4,7 @@ import { createTimerBundle } from '../../src/bundles/utils/timers';
 import { createPhysics2DBundle } from '../../src/bundles/utils/physics2D';
 import { createBoundsBundle } from '../../src/bundles/utils/bounds';
 import { createCollisionBundle } from '../../src/bundles/utils/collision';
+import collisionLayers from './collision-layers';
 import createCombatBundle from './bundles/combat-bundle';
 import createInputProcessingBundle, { createInputBundle } from './bundles/input-bundle';
 import createSpawnerBundle from './bundles/spawner-bundle';
@@ -37,7 +38,7 @@ const game = ECSpresso
 	}))
 	.withBundle(createPhysics2DBundle({ integrationPriority: 200, systemGroup: 'gameplay' }))
 	.withBundle(createBoundsBundle({ priority: 100, systemGroup: 'gameplay' }))
-	.withBundle(createCollisionBundle({ priority: 50, systemGroup: 'gameplay' }))
+	.withBundle(createCollisionBundle({ layers: collisionLayers, priority: 50, systemGroup: 'gameplay' }))
 	.withBundle(createInputBundle())
 	.withBundle(createInputProcessingBundle())
 	.withBundle(createSpawnerBundle())

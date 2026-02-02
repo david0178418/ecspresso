@@ -20,11 +20,13 @@ import {
 import {
 	createCollisionBundle,
 	createCollisionPairHandler,
+	defineCollisionLayers,
 	createCircleCollider,
-	createCollisionLayer,
 } from "../../src/bundles/utils/collision";
 
 const BALL_RADIUS = 30;
+
+const layers = defineCollisionLayers({ player: ['enemy'], enemy: ['player'] });
 
 const ecs = ECSpresso
 	.create()
@@ -43,7 +45,7 @@ const ecs = ECSpresso
 	}))
 	.withBundle(createPhysics2DBundle())
 	.withBundle(createBoundsBundle())
-	.withBundle(createCollisionBundle())
+	.withBundle(createCollisionBundle({ layers }))
 	.withComponentTypes<{
 		player: true;
 		speed: number;
@@ -75,7 +77,7 @@ ecs
 				...createRepeatingTimer<{}>(randomInt(3, 8)),
 				...createWrapAtBounds(),
 				...createCircleCollider(BALL_RADIUS),
-				...createCollisionLayer('enemy', ['player']),
+				...layers.enemy(),
 				speed,
 				velocity: {
 					x: randomInt(-speed, speed),
@@ -139,7 +141,7 @@ ecs.spawn({
 	...createRigidBody('kinematic'),
 	...createWrapAtBounds(),
 	...createCircleCollider(BALL_RADIUS),
-	...createCollisionLayer('player', ['enemy']),
+	...layers.player(),
 	player: true,
 	speed: 500,
 	velocity: { x: 0, y: 0 },

@@ -45,7 +45,7 @@ export interface RigidBody {
 /**
  * Component types provided by the physics bundle.
  */
-export interface Physics2DComponentTypes extends TransformComponentTypes, CollisionComponentTypes {
+export interface Physics2DComponentTypes<L extends string> extends TransformComponentTypes, CollisionComponentTypes<L> {
 	rigidBody: RigidBody;
 	velocity: Vector2D;
 	force: Vector2D;
@@ -114,7 +114,7 @@ export interface RigidBodyOptions {
 export function createRigidBody(
 	type: BodyType,
 	options?: RigidBodyOptions,
-): Pick<Physics2DComponentTypes, 'rigidBody' | 'force'> {
+): { rigidBody: RigidBody; force: Vector2D } {
 	return {
 		rigidBody: {
 			type,
@@ -131,7 +131,7 @@ export function createRigidBody(
 /**
  * Create a force component with initial values.
  */
-export function createForce(x: number, y: number): Pick<Physics2DComponentTypes, 'force'> {
+export function createForce(x: number, y: number): { force: Vector2D } {
 	return { force: { x, y } };
 }
 
@@ -362,7 +362,7 @@ function computeContact(a: Physics2DColliderInfo, b: Physics2DColliderInfo): Con
  */
 export function createPhysics2DBundle(
 	options?: Physics2DBundleOptions,
-): Bundle<Physics2DComponentTypes, Physics2DEventTypes, Physics2DResourceTypes> {
+): Bundle<Physics2DComponentTypes<string>, Physics2DEventTypes, Physics2DResourceTypes> {
 	const {
 		gravity = { x: 0, y: 0 },
 		systemGroup = 'physics2D',
@@ -371,7 +371,7 @@ export function createPhysics2DBundle(
 		phase = 'fixedUpdate',
 	} = options ?? {};
 
-	const bundle = new Bundle<Physics2DComponentTypes, Physics2DEventTypes, Physics2DResourceTypes>('physics2D');
+	const bundle = new Bundle<Physics2DComponentTypes<string>, Physics2DEventTypes, Physics2DResourceTypes>('physics2D');
 
 	bundle.addResource('physicsConfig', { gravity: { x: gravity.x, y: gravity.y } });
 

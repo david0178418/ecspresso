@@ -3,14 +3,17 @@ import type { TimerComponentTypes, TimerEventData } from '../../src/bundles/util
 import type { TransformComponentTypes } from '../../src/bundles/utils/transform';
 import type { Physics2DComponentTypes } from '../../src/bundles/utils/physics2D';
 import type { BoundsComponentTypes } from '../../src/bundles/utils/bounds';
-import type { CollisionComponentTypes, CollisionEventTypes } from '../../src/bundles/utils/collision';
+import type { CollisionComponentTypes, CollisionEventTypes, LayersOf } from '../../src/bundles/utils/collision';
+import type collisionLayers from './collision-layers';
 import type { Renderer2DComponentTypes, Renderer2DResourceTypes } from '../../src/bundles/renderers/renderer2D';
 import type { InputResourceTypes } from '../../src/bundles/utils/input';
+
+type Layer = LayersOf<typeof collisionLayers>;
 
 /**
  * All event types used in the Space Invaders game
  */
-export interface Events extends CollisionEventTypes {
+export interface Events extends CollisionEventTypes<Layer> {
 	// Game state
 	gameInit: true;
 	gameStart: true;
@@ -42,9 +45,9 @@ export interface Events extends CollisionEventTypes {
 export interface Components
 	extends TimerComponentTypes<Events>,
 	        TransformComponentTypes,
-	        Physics2DComponentTypes,
+	        Physics2DComponentTypes<Layer>,
 	        BoundsComponentTypes,
-	        CollisionComponentTypes,
+	        CollisionComponentTypes<Layer>,
 	        Renderer2DComponentTypes {
 	player: boolean;
 	enemy: { type: 'grunt' | 'elite' | 'boss'; points: number; health: number };

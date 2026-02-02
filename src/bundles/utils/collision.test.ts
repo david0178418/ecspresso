@@ -9,14 +9,19 @@ import {
 	defineCollisionLayers,
 	type CollisionComponentTypes,
 	type CollisionEventTypes,
+	type CollisionEvent,
+	type LayersOf,
 } from './collision';
 import { createTransformBundle, createTransform, type TransformComponentTypes } from './transform';
 
-interface TestComponents extends TransformComponentTypes, CollisionComponentTypes {
+const playerEnemyLayers = defineCollisionLayers({ player: ['enemy'], enemy: ['player'] });
+type PlayerEnemyLayer = LayersOf<typeof playerEnemyLayers>;
+
+interface TestComponents extends TransformComponentTypes, CollisionComponentTypes<PlayerEnemyLayer> {
 	tag: string;
 }
 
-interface TestEvents extends CollisionEventTypes {}
+interface TestEvents extends CollisionEventTypes<PlayerEnemyLayer> {}
 
 interface TestResources {}
 
@@ -26,7 +31,7 @@ describe('Collision Bundle', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
 				.withBundle(createTransformBundle())
-				.withBundle(createCollisionBundle())
+				.withBundle(createCollisionBundle({ layers: playerEnemyLayers }))
 				.build();
 
 			const collisions: Array<{ entityA: number; entityB: number }> = [];
@@ -59,7 +64,7 @@ describe('Collision Bundle', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
 				.withBundle(createTransformBundle())
-				.withBundle(createCollisionBundle())
+				.withBundle(createCollisionBundle({ layers: playerEnemyLayers }))
 				.build();
 
 			const collisions: Array<{ entityA: number; entityB: number }> = [];
@@ -90,7 +95,7 @@ describe('Collision Bundle', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
 				.withBundle(createTransformBundle())
-				.withBundle(createCollisionBundle())
+				.withBundle(createCollisionBundle({ layers: playerEnemyLayers }))
 				.build();
 
 			const collisions: Array<{ entityA: number; entityB: number }> = [];
@@ -119,7 +124,7 @@ describe('Collision Bundle', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
 				.withBundle(createTransformBundle())
-				.withBundle(createCollisionBundle())
+				.withBundle(createCollisionBundle({ layers: playerEnemyLayers }))
 				.build();
 
 			const collisions: Array<{ entityA: number; entityB: number }> = [];
@@ -150,7 +155,7 @@ describe('Collision Bundle', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
 				.withBundle(createTransformBundle())
-				.withBundle(createCollisionBundle())
+				.withBundle(createCollisionBundle({ layers: playerEnemyLayers }))
 				.build();
 
 			const collisions: Array<{ entityA: number; entityB: number }> = [];
@@ -179,7 +184,7 @@ describe('Collision Bundle', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
 				.withBundle(createTransformBundle())
-				.withBundle(createCollisionBundle())
+				.withBundle(createCollisionBundle({ layers: playerEnemyLayers }))
 				.build();
 
 			const collisions: Array<{ entityA: number; entityB: number }> = [];
@@ -210,7 +215,7 @@ describe('Collision Bundle', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
 				.withBundle(createTransformBundle())
-				.withBundle(createCollisionBundle())
+				.withBundle(createCollisionBundle({ layers: playerEnemyLayers }))
 				.build();
 
 			const collisions: Array<{ entityA: number; entityB: number }> = [];
@@ -238,10 +243,11 @@ describe('Collision Bundle', () => {
 		});
 
 		test('should work with bidirectional layer configuration', () => {
+			const biLayers = defineCollisionLayers({ typeA: ['typeB'], typeB: [] });
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create()
 				.withBundle(createTransformBundle())
-				.withBundle(createCollisionBundle())
+				.withBundle(createCollisionBundle({ layers: biLayers }))
 				.build();
 
 			const collisions: Array<{ entityA: number; entityB: number }> = [];
@@ -253,14 +259,14 @@ describe('Collision Bundle', () => {
 			ecs.spawn({
 				...createTransform(100, 100),
 				...createAABBCollider(50, 50),
-				...createCollisionLayer('typeA', ['typeB']),
+				...biLayers.typeA(),
 			});
 
 			// B does not specify collision with A, but A→B should still work
 			ecs.spawn({
 				...createTransform(120, 120),
 				...createAABBCollider(50, 50),
-				...createCollisionLayer('typeB', []),
+				...biLayers.typeB(),
 			});
 
 			ecs.update(0.016);
@@ -274,10 +280,10 @@ describe('Collision Bundle', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
 				.withBundle(createTransformBundle())
-				.withBundle(createCollisionBundle())
+				.withBundle(createCollisionBundle({ layers: playerEnemyLayers }))
 				.build();
 
-			const collisions: CollisionEventTypes['collision'][] = [];
+			const collisions: CollisionEventTypes<PlayerEnemyLayer>['collision'][] = [];
 			ecs.eventBus.subscribe('collision', (data) => {
 				collisions.push(data);
 			});
@@ -316,7 +322,7 @@ describe('Collision Bundle', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
 				.withBundle(createTransformBundle())
-				.withBundle(createCollisionBundle())
+				.withBundle(createCollisionBundle({ layers: playerEnemyLayers }))
 				.build();
 
 			const collisions: Array<{ entityA: number; entityB: number }> = [];
@@ -349,7 +355,7 @@ describe('Collision Bundle', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
 				.withBundle(createTransformBundle())
-				.withBundle(createCollisionBundle())
+				.withBundle(createCollisionBundle({ layers: playerEnemyLayers }))
 				.build();
 
 			const collisions: Array<{ entityA: number; entityB: number }> = [];
@@ -382,7 +388,7 @@ describe('Collision Bundle', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
 				.withBundle(createTransformBundle())
-				.withBundle(createCollisionBundle())
+				.withBundle(createCollisionBundle({ layers: playerEnemyLayers }))
 				.build();
 
 			const collisions: Array<{ entityA: number; entityB: number }> = [];
@@ -498,7 +504,7 @@ describe('Collision Bundle', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
 				.withBundle(createTransformBundle())
-				.withBundle(createCollisionBundle())
+				.withBundle(createCollisionBundle({ layers: playerEnemyLayers }))
 				.build();
 
 			const collisions: Array<{ entityA: number; entityB: number }> = [];
@@ -529,7 +535,7 @@ describe('Collision Bundle', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
 				.withBundle(createTransformBundle())
-				.withBundle(createCollisionBundle())
+				.withBundle(createCollisionBundle({ layers: playerEnemyLayers }))
 				.build();
 
 			const collisions: Array<{ entityA: number; entityB: number }> = [];
@@ -560,7 +566,7 @@ describe('Collision Bundle', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
 				.withBundle(createTransformBundle())
-				.withBundle(createCollisionBundle())
+				.withBundle(createCollisionBundle({ layers: playerEnemyLayers }))
 				.build();
 
 			const collisions: Array<{ entityA: number; entityB: number }> = [];
@@ -729,17 +735,23 @@ describe('createCollisionPairHandler', () => {
 	});
 
 	test('integration — full ECS with collision detection and pair handler via eventBus', () => {
-		type ECS = ECSpresso<TestComponents, TestEvents, TestResources>;
+		const layers = defineCollisionLayers({
+			playerProjectile: ['enemy'],
+			enemy: ['playerProjectile'],
+		});
 
 		const ecs = ECSpresso
-			.create<TestComponents, TestEvents, TestResources>()
+			.create()
 			.withBundle(createTransformBundle())
-			.withBundle(createCollisionBundle())
+			.withBundle(createCollisionBundle({ layers }))
 			.build();
+
+		type ECS = typeof ecs;
 
 		const hits: Array<{ projectileId: number; enemyId: number }> = [];
 
-		const handler = createCollisionPairHandler<ECS>({
+		type Layer = LayersOf<typeof layers>;
+		const handler = createCollisionPairHandler<ECS, Layer>({
 			'playerProjectile:enemy': (projectileId, enemyId, ecsRef) => {
 				// Verify we get the ecs reference
 				expect(ecsRef).toBe(ecs);
@@ -752,13 +764,13 @@ describe('createCollisionPairHandler', () => {
 		const projectile = ecs.spawn({
 			...createTransform(100, 100),
 			...createAABBCollider(10, 10),
-			...createCollisionLayer('playerProjectile', ['enemy']),
+			...layers.playerProjectile(),
 		});
 
 		const enemy = ecs.spawn({
 			...createTransform(105, 105),
 			...createAABBCollider(20, 20),
-			...createCollisionLayer('enemy', ['playerProjectile']),
+			...layers.enemy(),
 		});
 
 		ecs.update(0.016);
@@ -768,5 +780,67 @@ describe('createCollisionPairHandler', () => {
 		if (!hit) throw new Error('Expected hit');
 		expect(hit.projectileId).toBe(projectile.id);
 		expect(hit.enemyId).toBe(enemy.id);
+	});
+});
+
+describe('Collision type narrowing', () => {
+	test('createCollisionLayer narrows layer type', () => {
+		const result = createCollisionLayer('player', ['enemy']);
+		const layer: 'player' | 'enemy' = result.collisionLayer.layer;
+		const collidesWith: readonly ('player' | 'enemy')[] = result.collisionLayer.collidesWith;
+		expect(layer).toBe('player');
+		expect(collidesWith).toEqual(['enemy']);
+	});
+
+	test('defineCollisionLayers factories return typed layers', () => {
+		const layers = defineCollisionLayers({ player: ['enemy'], enemy: ['player'] });
+		const result = layers.player();
+		// layer should be 'player' | 'enemy', not string
+		const layer: 'player' | 'enemy' = result.collisionLayer.layer;
+		expect(layer).toBe('player');
+	});
+
+	test('defineCollisionLayers rejects invalid collidesWith', () => {
+		defineCollisionLayers({
+			player: ['enemy'],
+			// @ts-expect-error — 'enmey' is not a valid layer name
+			enemy: ['enmey'],
+		});
+	});
+
+	test('createCollisionPairHandler returns typed event handler', () => {
+		const layers = defineCollisionLayers({ player: ['enemy'], enemy: ['player'] });
+		type Layer = LayersOf<typeof layers>;
+
+		const handler = createCollisionPairHandler<unknown, Layer>({
+			'player:enemy': () => {},
+		});
+
+		// handler accepts CollisionEvent<Layer>
+		const event: CollisionEvent<Layer> = { entityA: 1, entityB: 2, layerA: 'player', layerB: 'enemy' };
+		handler(event, undefined);
+	});
+
+	test('createCollisionBundle with layers produces typed bundle', () => {
+		const layers = defineCollisionLayers({ player: ['enemy'], enemy: ['player'] });
+
+		const ecs = ECSpresso
+			.create()
+			.withBundle(createTransformBundle())
+			.withBundle(createCollisionBundle({ layers }))
+			.build();
+
+		const entity = ecs.spawn({
+			...createTransform(0, 0),
+			...createAABBCollider(10, 10),
+			...layers.player(),
+		});
+
+		const collisionLayer = ecs.entityManager.getComponent(entity.id, 'collisionLayer');
+		if (!collisionLayer) throw new Error('Expected collisionLayer');
+
+		// collisionLayer.layer should be 'player' | 'enemy'
+		const layer: 'player' | 'enemy' = collisionLayer.layer;
+		expect(layer).toBe('player');
 	});
 });

@@ -13,7 +13,7 @@ import {
 import { createTransformBundle, createTransform, type TransformComponentTypes } from './transform';
 import { createPhysics2DBundle, createRigidBody, type Physics2DComponentTypes } from './physics2D';
 
-interface TestComponents extends TransformComponentTypes, Physics2DComponentTypes, BoundsComponentTypes {
+interface TestComponents extends TransformComponentTypes, Physics2DComponentTypes<string>, BoundsComponentTypes {
 	tag: string;
 }
 
