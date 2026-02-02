@@ -306,4 +306,4 @@ interface System<
 }
 
 // Re-export utility types from type-utils to maintain backward compatibility
-export type { Merge, MergeAll } from './type-utils';
+export type { Merge, MergeAll, TypesAreCompatible, ComponentsOf, EventsOf, ResourcesOf } from './type-utils';

@@ -46,14 +46,14 @@ export interface Visible {
 
 /**
  * Aggregate component types for the 2D renderer bundle.
- * Users should extend this interface with their own component types.
+ * Included automatically via `.withBundle(createRenderer2DBundle({ ... }))`.
  *
  * @example
  * ```typescript
- * interface GameComponents extends Renderer2DComponentTypes {
- *   velocity: { x: number; y: number };
- *   player: true;
- * }
+ * const ecs = ECSpresso.create()
+ *   .withBundle(createRenderer2DBundle({ ... }))
+ *   .withComponentTypes<{ velocity: { x: number; y: number }; player: true }>()
+ *   .build();
  * ```
  */
 export interface Renderer2DComponentTypes extends TransformComponentTypes {
@@ -175,18 +175,20 @@ export interface Renderer2DBundleManagedOptions extends Renderer2DBundleCommonOp
  * ```typescript
  * const app = new Application();
  * await app.init({ resizeTo: window });
- * const ecs = ECSpresso.create<GameComponents, {}, {}>()
+ * const ecs = ECSpresso.create()
  *   .withBundle(createRenderer2DBundle({ app }))
+ *   .withComponentTypes<{ player: true }>()
  *   .build();
  * ```
  *
  * @example Managed mode (convenience)
  * ```typescript
- * const ecs = ECSpresso.create<GameComponents, {}, {}>()
+ * const ecs = ECSpresso.create()
  *   .withBundle(createRenderer2DBundle({
  *     init: { background: '#1099bb', resizeTo: window },
  *     container: document.body,
  *   }))
+ *   .withComponentTypes<{ player: true }>()
  *   .build();
  * await ecs.initialize(); // Application created here
  * ```

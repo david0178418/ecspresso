@@ -1,66 +1,60 @@
 import { Graphics, Sprite } from 'pixi.js';
 import ECSpresso, { Bundle } from "../../src";
-import {
-	createInputBundle,
-	type InputResourceTypes,
-} from "../../src/bundles/utils/input";
+import { createInputBundle } from "../../src/bundles/utils/input";
+import type { InputResourceTypes } from "../../src/bundles/utils/input";
 import {
 	createRenderer2DBundle,
 	createSpriteComponents,
-	type Renderer2DComponentTypes,
-	type Renderer2DEventTypes,
-	type Renderer2DResourceTypes,
 } from "../../src/bundles/renderers/renderer2D";
+import type { Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes } from "../../src/bundles/renderers/renderer2D";
 import {
 	createTimerBundle,
 	createRepeatingTimer,
-	type TimerComponentTypes,
 } from "../../src/bundles/utils/timers";
+import type { TimerComponentTypes } from "../../src/bundles/utils/timers";
 import {
 	createPhysics2DBundle,
 	createRigidBody,
-	type Physics2DComponentTypes,
 } from "../../src/bundles/utils/physics2D";
+import type { Physics2DComponentTypes } from "../../src/bundles/utils/physics2D";
 import {
 	createBoundsBundle,
 	createWrapAtBounds,
-	type BoundsComponentTypes,
-	type BoundsEventTypes,
 } from "../../src/bundles/utils/bounds";
+import type { BoundsComponentTypes, BoundsEventTypes } from "../../src/bundles/utils/bounds";
 import {
 	createCollisionBundle,
 	createCollisionPairHandler,
 	createCircleCollider,
 	createCollisionLayer,
-	type CollisionComponentTypes,
-	type CollisionEventTypes,
 } from "../../src/bundles/utils/collision";
+import type { CollisionComponentTypes, CollisionEventTypes } from "../../src/bundles/utils/collision";
 
-interface Events extends Renderer2DEventTypes, BoundsEventTypes, CollisionEventTypes {
+// App-specific types (not from bundles)
+interface AppEvents {
 	initializeGame: { someRandomData: Date };
 	initializeMap: void;
 	startGame: void;
 }
 
-interface Components extends
-	Renderer2DComponentTypes,
-	TimerComponentTypes<Events>,
-	Physics2DComponentTypes,
-	BoundsComponentTypes,
-	CollisionComponentTypes {
+interface AppComponents {
 	player: true;
 	speed: number;
 	enemySpawner: true;
 	enemy: true;
 }
 
-interface Resources extends Renderer2DResourceTypes, InputResourceTypes {}
+// Aggregate types — needed by custom Bundle<> instances below.
+// Bundle types are also added automatically via .withBundle() in the builder chain.
+type Events = AppEvents & Renderer2DEventTypes & BoundsEventTypes & CollisionEventTypes;
+type Components = AppComponents & Renderer2DComponentTypes & TimerComponentTypes<Events> & Physics2DComponentTypes & BoundsComponentTypes & CollisionComponentTypes;
+type Resources = Renderer2DResourceTypes & InputResourceTypes;
 
 const BALL_RADIUS = 30;
 
 // Create an ECSpresso instance with our game bundles
 const ecs = ECSpresso
-	.create<Components, Events, Resources>()
+	.create()
 	.withBundle(createRenderer2DBundle({
 		init: { background: '#1099bb', resizeTo: window },
 		container: document.body,
@@ -77,6 +71,8 @@ const ecs = ECSpresso
 	.withBundle(createPhysics2DBundle())
 	.withBundle(createBoundsBundle())
 	.withBundle(createCollisionBundle())
+	.withComponentTypes<AppComponents>()
+	.withEventTypes<AppEvents>()
 	.withBundle(createGameInitBundle())
 	.withBundle(createCollisionHandlerBundle())
 	.withBundle(createEnemyControllerBundle())

@@ -3,31 +3,8 @@ import ECSpresso from "../../src";
 import {
 	createRenderer2DBundle,
 	createGraphicsComponents,
-	type Renderer2DComponentTypes,
-	type Renderer2DEventTypes,
-	type Renderer2DResourceTypes,
 } from "../../src/bundles/renderers/renderer2D";
-import {
-	createInputBundle,
-	type InputResourceTypes,
-} from "../../src/bundles/utils/input";
-
-// ==================== Type Definitions ====================
-
-interface Components extends Renderer2DComponentTypes {
-	/** Orbital parameters for bodies that orbit a parent */
-	orbit: { radius: number; speed: number; angle: number };
-	/** Visual properties of the celestial body */
-	celestialBody: { name: string; color: number; radius: number };
-}
-
-interface Events extends Renderer2DEventTypes {
-	bodyDestroyed: { name: string; childCount: number };
-}
-
-interface Resources extends Renderer2DResourceTypes, InputResourceTypes {
-	camera: { x: number; y: number };
-}
+import { createInputBundle } from "../../src/bundles/utils/input";
 
 // ==================== Solar System Data ====================
 
@@ -102,11 +79,9 @@ const SOLAR_SYSTEM = {
 	],
 };
 
-// ==================== Input Setup ====================
-
 // ==================== ECS Setup ====================
 
-const ecs = ECSpresso.create<Components, Events, Resources>()
+const ecs = ECSpresso.create()
 	.withBundle(createRenderer2DBundle({
 		init: { background: 0x000011, resizeTo: window },
 		container: document.body,
@@ -120,8 +95,17 @@ const ecs = ECSpresso.create<Components, Events, Resources>()
 			panRight: { keys: ['d', 'ArrowRight'] },
 		},
 	}))
+	.withComponentTypes<{
+		orbit: { radius: number; speed: number; angle: number };
+		celestialBody: { name: string; color: number; radius: number };
+	}>()
+	.withEventTypes<{
+		bodyDestroyed: { name: string; childCount: number };
+	}>()
 	.withResource('camera', { x: 0, y: 0 })
 	.build();
+
+type ECS = typeof ecs;
 
 ecs
 	// ==================== Orbit System ====================
@@ -266,55 +250,55 @@ function createCelestialGraphics(color: number, radius: number): Graphics {
 function registerClickHandler(
 	graphics: Graphics,
 	entityId: number,
-	ecs: ECSpresso<Components, Events, Resources>
+	world: ECS
 ): void {
 	graphics.on('pointerdown', () => {
-		const celestialBody = ecs.entityManager.getComponent(entityId, 'celestialBody');
+		const celestialBody = world.entityManager.getComponent(entityId, 'celestialBody');
 		if (!celestialBody) return;
 
-		const descendants = ecs.getDescendants(entityId);
+		const descendants = world.getDescendants(entityId);
 
 		// Publish destruction event
-		ecs.eventBus.publish('bodyDestroyed', {
+		world.eventBus.publish('bodyDestroyed', {
 			name: celestialBody.name,
 			childCount: descendants.length,
 		});
 
 		// Remove entity (cascade: true by default removes all children)
-		ecs.removeEntity(entityId);
+		world.removeEntity(entityId);
 
 		console.log(`Destroyed ${celestialBody.name} and ${descendants.length} descendants`);
 	});
 }
 
-function centerOnEntity(entityId: number, ecs: ECSpresso<Components, Events, Resources>): void {
-	const worldTransform = ecs.entityManager.getComponent(entityId, 'worldTransform');
+function centerOnEntity(entityId: number, world: ECS): void {
+	const worldTransform = world.entityManager.getComponent(entityId, 'worldTransform');
 	if (!worldTransform) return;
 
-	const pixiApp = ecs.getResource('pixiApp');
-	const camera = ecs.getResource('camera');
+	const pixiApp = world.getResource('pixiApp');
+	const camera = world.getResource('camera');
 
 	// Center the camera on the entity
 	camera.x = pixiApp.screen.width / 2 - worldTransform.x;
 	camera.y = pixiApp.screen.height / 2 - worldTransform.y;
 }
 
-function updateHierarchyDisplay(ecs: ECSpresso<Components, Events, Resources>): void {
+function updateHierarchyDisplay(world: ECS): void {
 	const treeEl = document.getElementById('hierarchy-tree');
 	if (!treeEl) return;
 
 	// Clear existing content
 	treeEl.innerHTML = '';
 
-	const roots = ecs.getRootEntities();
+	const roots = world.getRootEntities();
 
 	if (roots.length === 0) {
-		const bodies = ecs.getEntitiesWithQuery(['celestialBody']);
+		const bodies = world.getEntitiesWithQuery(['celestialBody']);
 		if (bodies.length === 0) {
 			treeEl.textContent = '(empty - all bodies destroyed)';
 		} else {
 			for (const body of bodies) {
-				const item = createTreeItem(body.id, body.components.celestialBody.name, 0, ecs);
+				const item = createTreeItem(body.id, body.components.celestialBody.name, 0, world);
 				treeEl.appendChild(item);
 			}
 		}
@@ -322,7 +306,7 @@ function updateHierarchyDisplay(ecs: ECSpresso<Components, Events, Resources>): 
 	}
 
 	for (const rootId of roots) {
-		buildTreeNodes(rootId, 0, treeEl, ecs);
+		buildTreeNodes(rootId, 0, treeEl, world);
 	}
 }
 
@@ -330,7 +314,7 @@ function createTreeItem(
 	entityId: number,
 	name: string,
 	depth: number,
-	ecs: ECSpresso<Components, Events, Resources>
+	world: ECS
 ): HTMLElement {
 	const item = document.createElement('div');
 	item.style.paddingLeft = `${depth * 16}px`;
@@ -348,7 +332,7 @@ function createTreeItem(
 		item.style.backgroundColor = 'transparent';
 	});
 	item.addEventListener('click', () => {
-		centerOnEntity(entityId, ecs);
+		centerOnEntity(entityId, world);
 	});
 
 	return item;
@@ -358,17 +342,17 @@ function buildTreeNodes(
 	entityId: number,
 	depth: number,
 	container: HTMLElement,
-	ecs: ECSpresso<Components, Events, Resources>
+	world: ECS
 ): void {
-	const celestialBody = ecs.entityManager.getComponent(entityId, 'celestialBody');
+	const celestialBody = world.entityManager.getComponent(entityId, 'celestialBody');
 	if (!celestialBody) return;
 
-	const item = createTreeItem(entityId, celestialBody.name, depth, ecs);
+	const item = createTreeItem(entityId, celestialBody.name, depth, world);
 	container.appendChild(item);
 
-	const children = ecs.getChildren(entityId);
+	const children = world.getChildren(entityId);
 	for (const childId of children) {
-		buildTreeNodes(childId, depth + 1, container, ecs);
+		buildTreeNodes(childId, depth + 1, container, world);
 	}
 }
 

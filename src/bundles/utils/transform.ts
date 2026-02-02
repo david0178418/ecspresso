@@ -39,14 +39,14 @@ export interface WorldTransform {
 
 /**
  * Component types provided by the transform bundle.
- * Extend your component types with this interface.
+ * Included automatically via `.withBundle(createTransformBundle())`.
  *
  * @example
  * ```typescript
- * interface GameComponents extends TransformComponentTypes {
- *   sprite: Sprite;
- *   velocity: { x: number; y: number };
- * }
+ * const ecs = ECSpresso.create()
+ *   .withBundle(createTransformBundle())
+ *   .withComponentTypes<{ sprite: Sprite; velocity: { x: number; y: number } }>()
+ *   .build();
  * ```
  */
 export interface TransformComponentTypes {

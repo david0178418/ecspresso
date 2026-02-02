@@ -345,8 +345,7 @@ function computeContact(a: Physics2DColliderInfo, b: Physics2DColliderInfo): Con
  *
  * @example
  * ```typescript
- * const ecs = ECSpresso
- *   .create<Components, Events, Resources>()
+ * const ecs = ECSpresso.create()
  *   .withBundle(createTransformBundle())
  *   .withBundle(createPhysics2DBundle({ gravity: { x: 0, y: 980 } }))
  *   .withFixedTimestep(1/60)

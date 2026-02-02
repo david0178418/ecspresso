@@ -1,66 +1,38 @@
 import { Graphics, Sprite } from 'pixi.js';
 import ECSpresso from "../../src";
-import {
-	createInputBundle,
-	type InputResourceTypes,
-} from "../../src/bundles/utils/input";
+import { createInputBundle } from "../../src/bundles/utils/input";
 import {
 	createRenderer2DBundle,
 	createSpriteComponents,
-	type Renderer2DComponentTypes,
-	type Renderer2DEventTypes,
-	type Renderer2DResourceTypes,
 } from "../../src/bundles/renderers/renderer2D";
 import {
 	createTimerBundle,
 	createRepeatingTimer,
-	type TimerComponentTypes,
 } from "../../src/bundles/utils/timers";
 import {
 	createPhysics2DBundle,
 	createRigidBody,
-	type Physics2DComponentTypes,
 } from "../../src/bundles/utils/physics2D";
 import {
 	createBoundsBundle,
 	createWrapAtBounds,
-	type BoundsComponentTypes,
-	type BoundsEventTypes,
 } from "../../src/bundles/utils/bounds";
 import {
 	createCollisionBundle,
 	createCollisionPairHandler,
 	createCircleCollider,
 	createCollisionLayer,
-	type CollisionComponentTypes,
-	type CollisionEventTypes,
 } from "../../src/bundles/utils/collision";
-
-interface Events extends Renderer2DEventTypes, BoundsEventTypes, CollisionEventTypes {}
-
-interface Components extends
-	Renderer2DComponentTypes,
-	TimerComponentTypes<Events>,
-	Physics2DComponentTypes,
-	BoundsComponentTypes,
-	CollisionComponentTypes {
-	player: true;
-	speed: number;
-	enemySpawner: true;
-	enemy: true;
-}
-
-interface Resources extends Renderer2DResourceTypes, InputResourceTypes {}
 
 const BALL_RADIUS = 30;
 
 const ecs = ECSpresso
-	.create<Components, Events, Resources>()
+	.create()
 	.withBundle(createRenderer2DBundle({
 		init: { background: '#1099bb', resizeTo: window },
 		container: document.body,
 	}))
-	.withBundle(createTimerBundle<Events>())
+	.withBundle(createTimerBundle())
 	.withBundle(createInputBundle({
 		actions: {
 			moveUp: { keys: ['w', 'ArrowUp'] },
@@ -72,6 +44,12 @@ const ecs = ECSpresso
 	.withBundle(createPhysics2DBundle())
 	.withBundle(createBoundsBundle())
 	.withBundle(createCollisionBundle())
+	.withComponentTypes<{
+		player: true;
+		speed: number;
+		enemySpawner: true;
+		enemy: true;
+	}>()
 	.build();
 
 ecs
@@ -94,7 +72,7 @@ ecs
 					y: randomInt(pixiApp.renderer.height),
 				}),
 				...createRigidBody('kinematic'),
-				...createRepeatingTimer<Events>(randomInt(3, 8)),
+				...createRepeatingTimer<{}>(randomInt(3, 8)),
 				...createWrapAtBounds(),
 				...createCircleCollider(BALL_RADIUS),
 				...createCollisionLayer('enemy', ['player']),
@@ -169,7 +147,7 @@ ecs.spawn({
 
 // Spawn enemy spawner entity with a repeating 5-second timer
 ecs.spawn({
-	...createRepeatingTimer<Events>(5),
+	...createRepeatingTimer<{}>(5),
 	enemySpawner: true,
 });
 

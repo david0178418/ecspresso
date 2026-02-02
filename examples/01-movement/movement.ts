@@ -3,26 +3,19 @@ import ECSpresso from "../../src";
 import {
 	createRenderer2DBundle,
 	createSpriteComponents,
-	type Renderer2DComponentTypes,
-	type Renderer2DEventTypes,
-	type Renderer2DResourceTypes,
 } from "../../src/bundles/renderers/renderer2D";
 import {
 	createPhysics2DBundle,
 	createRigidBody,
-	type Physics2DComponentTypes,
 } from "../../src/bundles/utils/physics2D";
 
-interface Components extends Renderer2DComponentTypes, Physics2DComponentTypes {
-	radius: number;
-}
-
-const ecs = ECSpresso.create<Components, Renderer2DEventTypes, Renderer2DResourceTypes>()
+const ecs = ECSpresso.create()
 	.withBundle(createRenderer2DBundle({
 		init: { background: '#1099bb', resizeTo: window },
 		container: document.body,
 	}))
 	.withBundle(createPhysics2DBundle())
+	.withComponentTypes<{ radius: number }>()
 	.build();
 
 // Bounce system — runs after movement bundle integrates velocity

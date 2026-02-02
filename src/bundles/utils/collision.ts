@@ -50,14 +50,14 @@ export interface CollisionLayer {
 
 /**
  * Component types provided by the collision bundle.
- * Extend your component types with this interface.
+ * Included automatically via `.withBundle(createCollisionBundle())`.
  *
  * @example
  * ```typescript
- * interface GameComponents extends TransformComponentTypes, CollisionComponentTypes {
- *   sprite: Sprite;
- *   enemy: boolean;
- * }
+ * const ecs = ECSpresso.create()
+ *   .withBundle(createCollisionBundle())
+ *   .withComponentTypes<{ sprite: Sprite; enemy: boolean }>()
+ *   .build();
  * ```
  */
 export interface CollisionComponentTypes {

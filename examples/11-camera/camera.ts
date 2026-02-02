@@ -15,19 +15,12 @@ import {
 	createRenderer2DBundle,
 	createGraphicsComponents,
 	createContainerComponents,
-	type Renderer2DComponentTypes,
-	type Renderer2DEventTypes,
-	type Renderer2DResourceTypes,
 } from '../../src/bundles/renderers/renderer2D';
 import {
 	createPhysics2DBundle,
 	createRigidBody,
-	type Physics2DComponentTypes,
 } from '../../src/bundles/utils/physics2D';
-import {
-	createInputBundle,
-	type InputResourceTypes,
-} from '../../src/bundles/utils/input';
+import { createInputBundle } from '../../src/bundles/utils/input';
 import {
 	createCameraBundle,
 	createCamera,
@@ -36,26 +29,7 @@ import {
 	createCameraBounds,
 	addTrauma,
 	screenToWorld,
-	type CameraComponentTypes,
-	type CameraResourceTypes,
 } from '../../src/bundles/utils/camera';
-
-// ==================== Type Definitions ====================
-
-interface Components extends
-	Renderer2DComponentTypes,
-	Physics2DComponentTypes,
-	CameraComponentTypes {
-	player: true;
-	scenery: true;
-}
-
-interface Events extends Renderer2DEventTypes {}
-
-interface Resources extends
-	Renderer2DResourceTypes,
-	InputResourceTypes,
-	CameraResourceTypes {}
 
 // ==================== Constants ====================
 
@@ -68,7 +42,7 @@ const VIEWPORT_HEIGHT = 600;
 
 // ==================== ECS Setup ====================
 
-const ecs = ECSpresso.create<Components, Events, Resources>()
+const ecs = ECSpresso.create()
 	.withBundle(createRenderer2DBundle({
 		init: { background: 0x1a1a2e, resizeTo: window },
 		container: document.body,
@@ -89,6 +63,10 @@ const ecs = ECSpresso.create<Components, Events, Resources>()
 		viewportWidth: VIEWPORT_WIDTH,
 		viewportHeight: VIEWPORT_HEIGHT,
 	}))
+	.withComponentTypes<{
+		player: true;
+		scenery: true;
+	}>()
 	.build();
 
 // ==================== Player Input System ====================

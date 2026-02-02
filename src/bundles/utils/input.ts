@@ -351,8 +351,7 @@ function snapshotRaw(raw: RawInputState, prevActionsActive: ReadonlySet<string>,
  *
  * @example
  * ```typescript
- * const ecs = ECSpresso
- *   .create<Components, Events, Resources>()
+ * const ecs = ECSpresso.create()
  *   .withBundle(createInputBundle({
  *     actions: {
  *       jump: { keys: [' ', 'ArrowUp'] },

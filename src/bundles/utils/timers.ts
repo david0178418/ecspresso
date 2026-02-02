@@ -64,16 +64,17 @@ export interface Timer<EventTypes extends Record<string, any>> {
 
 /**
  * Component types provided by the timer bundle.
- * Extend your component types with this interface.
+ * Included automatically via `.withBundle(createTimerBundle<Events>())`.
+ * The EventTypes generic constrains which events can be used with `onComplete`.
  *
  * @template EventTypes The event types from your ECS
  *
  * @example
  * ```typescript
- * interface GameComponents extends TimerComponentTypes<GameEvents> {
- *   velocity: { x: number; y: number };
- *   player: true;
- * }
+ * const ecs = ECSpresso.create()
+ *   .withBundle(createTimerBundle<{ respawn: TimerEventData }>())
+ *   .withComponentTypes<{ velocity: { x: number; y: number }; player: true }>()
+ *   .build();
  * ```
  */
 export interface TimerComponentTypes<EventTypes extends Record<string, any>> {

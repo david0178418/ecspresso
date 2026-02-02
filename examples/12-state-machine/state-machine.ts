@@ -16,7 +16,6 @@ import {
 	createRenderer2DBundle,
 	createSpriteComponents,
 	type Renderer2DComponentTypes,
-	type Renderer2DEventTypes,
 	type Renderer2DResourceTypes,
 } from '../../src/bundles/renderers/renderer2D';
 import {
@@ -25,10 +24,7 @@ import {
 	setVelocity,
 	type Physics2DComponentTypes,
 } from '../../src/bundles/utils/physics2D';
-import {
-	createInputBundle,
-	type InputResourceTypes,
-} from '../../src/bundles/utils/input';
+import { createInputBundle, type InputResourceTypes } from '../../src/bundles/utils/input';
 import {
 	createStateMachineKit,
 	getStateMachineState,
@@ -37,20 +33,19 @@ import {
 } from '../../src/bundles/utils/state-machine';
 
 // ==================== Types ====================
+// Aggregate types are needed here because `type ECS` must be defined
+// before the ecs builder chain (state machine kit uses it).
 
-interface Components extends
-	Renderer2DComponentTypes,
-	Physics2DComponentTypes,
-	StateMachineComponentTypes {
+interface AppComponents {
 	player: true;
 	enemy: true;
 	patrolDirection: 1 | -1;
 	speed: number;
 }
 
-interface Events extends Renderer2DEventTypes, StateMachineEventTypes {}
-
-interface Resources extends Renderer2DResourceTypes, InputResourceTypes {}
+type Components = AppComponents & Renderer2DComponentTypes & Physics2DComponentTypes & StateMachineComponentTypes;
+type Events = StateMachineEventTypes;
+type Resources = Renderer2DResourceTypes & InputResourceTypes;
 
 // ==================== Constants ====================
 
@@ -179,7 +174,7 @@ function updateEnemyColor(ecs: ECS, entityId: number, color: number): void {
 // ==================== Build ECS ====================
 
 const ecs = ECSpresso
-	.create<Components, Events, Resources>()
+	.create()
 	.withBundle(createRenderer2DBundle({
 		init: { background: '#111122', resizeTo: window },
 		container: document.body,
@@ -194,6 +189,7 @@ const ecs = ECSpresso
 		},
 	}))
 	.withBundle(stateMachineBundle)
+	.withComponentTypes<AppComponents>()
 	.build();
 
 // ==================== Systems ====================

@@ -54,7 +54,7 @@ src/
 
 - **Builder Pattern**: `world.addSystem().addQuery().setProcess().and()`
 - **Method Chaining**: `.and()` returns parent (ECSpresso or Bundle)
-- **Generic Type Parameters**: `<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>`
+- **Generic Type Parameters**: `<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>` — internal to ECSpresso class; prefer builder inference (`.withBundle()`, `.withComponentTypes<T>()`, `.withEventTypes<T>()`, `.withResource()`) over passing explicit type params to `create<C, E, R>()`
 - **Query Type Utilities**: `createQueryDefinition()`, `QueryResultEntity<>`
 - **Asset Builder**: `ECSpresso.create().withAssets(a => a.add().addGroup()).build()`
 - **Screen Builder**: `ECSpresso.create().withScreens(s => s.add()).build()`
@@ -77,7 +77,7 @@ src/
 - **Input Bundle**: `createInputBundle({ actions: { jump: { keys: [' ', 'ArrowUp'] } } })`, resource-only bundle providing `inputState` resource
 - **Input Key Codes**: `KeyCode` type covers all standard `KeyboardEvent.key` values; action bindings use `KeyCode[]` for compile-time key validation
 - **Input Action Mapping**: `inputState.setActionMap()` for runtime remapping
-- **Timer Bundle**: `createTimerBundle<Events>()`, `createTimer<Events>(duration, { onComplete: 'eventName' })`
+- **Timer Bundle**: `createTimerBundle<{ respawn: TimerEventData }>()`, `createTimer<Events>(duration, { onComplete: 'eventName' })` — generic param only needs the events used with `onComplete`, not the full event map
 - **Timer Event Data**: Events used with timer `onComplete` must have `TimerEventData` payload type
 - **Change Detection**: `markChanged(entityId, componentName)` increments a global monotonic sequence; `changed: ['component']` in query filters to only match changed entities. Each system tracks its last-seen sequence so marks are processed exactly once.
 - **Auto-Marking**: `spawn()`, `addComponent()`, `addComponents()` auto-mark components as changed
@@ -109,6 +109,10 @@ src/
 - **State Machine Query**: `getStateMachineState(ecs, entityId)` → `string | null`
 - **State Machine World**: `StateMachineWorld` interface for hooks — method syntax for bivariant parameter checking under strictFunctionTypes
 - **State Transition Events**: `stateTransition` event published on every transition with `{ entityId, from, to, definitionId }`
+- **Builder Type Inference**: `withComponentTypes<{ player: true }>()` and `withEventTypes<{ gameStart: true }>()` — pure type-level builder methods, no runtime cost. Accumulate via intersection with bundle types.
+- **Inferred World Type**: `const ecs = ECSpresso.create().withBundle(...).withComponentTypes<{...}>().build(); type ECS = typeof ecs;` — derive the full world type from the builder chain instead of manual aggregate interfaces
+- **Bundle Type Extraction**: `ComponentsOf<B>`, `EventsOf<B>`, `ResourcesOf<B>` — extract type parameters from a Bundle instance. Useful for reusable helpers.
+- **Timer Bundle Events**: Timer bundle still requires explicit `EventTypes` generic for `onComplete` constraint: `createTimerBundle<{ respawn: TimerEventData }>()`
 - **Collision Bundle**: `createCollisionBundle()` — layer-based AABB/circle collision detection with deduplication. Emits `collision` events with `{ entityA, entityB, layerA, layerB }`.
 - **Collision Helpers**: `createAABBCollider(w, h)`, `createCircleCollider(r)`, `createCollisionLayer(layer, collidesWith)` — component factories for spreading into `spawn()`
 - **Collision Layer Definitions**: `defineCollisionLayers({ player: ['enemy'], enemy: ['player'] })` — returns factory functions per layer, e.g. `layers.player()`

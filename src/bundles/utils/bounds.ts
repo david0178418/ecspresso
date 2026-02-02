@@ -38,13 +38,15 @@ export interface WrapAtBounds {
 
 /**
  * Component types provided by the bounds bundle.
- * Extend your component types with this interface.
+ * Included automatically via `.withBundle(createBoundsBundle())`.
  *
  * @example
  * ```typescript
- * interface GameComponents extends TransformComponentTypes, BoundsComponentTypes {
- *   sprite: Sprite;
- * }
+ * const ecs = ECSpresso.create()
+ *   .withBundle(createTransformBundle())
+ *   .withBundle(createBoundsBundle({ width: 800, height: 600 }))
+ *   .withComponentTypes<{ sprite: Sprite }>()
+ *   .build();
  * ```
  */
 export interface BoundsComponentTypes {

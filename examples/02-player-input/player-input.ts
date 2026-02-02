@@ -1,30 +1,17 @@
 import { Graphics, Sprite } from 'pixi.js';
 import ECSpresso from "../../src";
-import {
-	createInputBundle,
-	type InputResourceTypes,
-} from "../../src/bundles/utils/input";
+import { createInputBundle } from "../../src/bundles/utils/input";
 import {
 	createRenderer2DBundle,
 	createSpriteComponents,
-	type Renderer2DComponentTypes,
-	type Renderer2DEventTypes,
-	type Renderer2DResourceTypes,
 } from "../../src/bundles/renderers/renderer2D";
 import {
 	createPhysics2DBundle,
 	createRigidBody,
-	type Physics2DComponentTypes,
 } from "../../src/bundles/utils/physics2D";
 
-interface Components extends Renderer2DComponentTypes, Physics2DComponentTypes {
-	speed: number;
-}
-
-interface Resources extends Renderer2DResourceTypes, InputResourceTypes {}
-
 const ecs = ECSpresso
-	.create<Components, Renderer2DEventTypes, Resources>()
+	.create()
 	.withBundle(createRenderer2DBundle({
 		init: { background: '#1099bb', resizeTo: window },
 		container: document.body,
@@ -38,6 +25,7 @@ const ecs = ECSpresso
 			moveRight: { keys: ['d', 'ArrowRight'] },
 		},
 	}))
+	.withComponentTypes<{ speed: number }>()
 	.build();
 
 ecs

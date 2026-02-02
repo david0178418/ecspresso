@@ -331,8 +331,12 @@ export interface StateMachineKit<W extends StateMachineWorld> {
  *
  * @example
  * ```typescript
- * type ECS = ECSpresso<Components, Events, Resources>;
+ * const ecs = ECSpresso.create()
+ *   .withBundle(createStateMachineBundle())
+ *   .withComponentTypes<{ enemy: true }>()
+ *   .build();
  *
+ * type ECS = typeof ecs;
  * const { bundle, defineStateMachine, createStateMachine } =
  *     createStateMachineKit<ECS>();
  *
@@ -377,8 +381,7 @@ export function createStateMachineKit<W extends StateMachineWorld = StateMachine
  *
  * @example
  * ```typescript
- * const ecs = ECSpresso
- *   .create<Components, Events, Resources>()
+ * const ecs = ECSpresso.create()
  *   .withBundle(createStateMachineBundle())
  *   .build();
  *

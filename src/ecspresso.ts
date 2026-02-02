@@ -9,7 +9,7 @@ import type { System, SystemPhase, FilteredEntity, Entity, RemoveEntityOptions, 
 import type Bundle from "./bundle";
 import { createEcspressoSystemBuilder } from "./system-builder";
 import { version } from "../package.json";
-import type { BundlesAreCompatible } from "./type-utils";
+import type { BundlesAreCompatible, TypesAreCompatible } from "./type-utils";
 import type { AssetHandle, AssetConfigurator } from "./asset-types";
 import type { ScreenDefinition, ScreenConfigurator } from "./screen-types";
 
@@ -231,15 +231,23 @@ export default class ECSpresso<
 	/**
 		* Creates a new ECSpresso builder for type-safe bundle installation.
 		* This is the preferred way to create an ECSpresso instance with bundles.
+		* Types are inferred from the builder chain — use `.withBundle()`,
+		* `.withComponentTypes<T>()`, `.withEventTypes<T>()`, and `.withResource()`
+		* to accumulate types without manual aggregate interfaces.
 	 *
 		* @returns A builder instance for fluent method chaining
 	 *
 		* @example
 		* ```typescript
-		* const ecs = ECSpresso.create<BaseComponents, BaseEvents, BaseResources>()
-	 *	 .withBundle(bundle1)
-	 *	 .withBundle(bundle2)
+		* const ecs = ECSpresso.create()
+	 *	 .withBundle(createRenderer2DBundle({ ... }))
+	 *	 .withBundle(createPhysics2DBundle())
+	 *	 .withComponentTypes<{ player: true; enemy: { type: string } }>()
+	 *	 .withEventTypes<{ gameStart: true }>()
+	 *	 .withResource('score', { value: 0 })
 	 *	 .build();
+	 *
+	 * type ECS = typeof ecs;
 		* ```
 	*/
 	static create<
@@ -1508,6 +1516,30 @@ export class ECSpressoBuilder<
 
 		// Return a builder with the updated type parameters
 		return this as unknown as ECSpressoBuilder<C & BC, E & BE, R & BR, A, S>;
+	}
+
+	/**
+	 * Add application-specific component types to the builder chain.
+	 * This is a pure type-level operation with no runtime cost.
+	 * Conflicts with existing component types (same key, different type) produce a `never` return.
+	 */
+	withComponentTypes<T extends Record<string, any>>(): TypesAreCompatible<C, T> extends true
+		? ECSpressoBuilder<C & T, E, R, A, S>
+		: never;
+	withComponentTypes<T extends Record<string, any>>(): ECSpressoBuilder<C & T, E, R, A, S> {
+		return this as unknown as ECSpressoBuilder<C & T, E, R, A, S>;
+	}
+
+	/**
+	 * Add application-specific event types to the builder chain.
+	 * This is a pure type-level operation with no runtime cost.
+	 * Conflicts with existing event types (same key, different type) produce a `never` return.
+	 */
+	withEventTypes<T extends Record<string, any>>(): TypesAreCompatible<E, T> extends true
+		? ECSpressoBuilder<C, E & T, R, A, S>
+		: never;
+	withEventTypes<T extends Record<string, any>>(): ECSpressoBuilder<C, E & T, R, A, S> {
+		return this as unknown as ECSpressoBuilder<C, E & T, R, A, S>;
 	}
 
 	/**

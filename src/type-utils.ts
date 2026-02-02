@@ -61,5 +61,20 @@ export type MergeAll<T extends any[]> = T extends [infer First, ...infer Rest] ?
 	{};
 
 /**
+ * Extract the ComponentTypes from a Bundle instance
+ */
+export type ComponentsOf<B> = B extends import('./bundle').default<infer C extends Record<string, any>, any, any, any, any> ? C : never;
+
+/**
+ * Extract the EventTypes from a Bundle instance
+ */
+export type EventsOf<B> = B extends import('./bundle').default<any, infer E extends Record<string, any>, any, any, any> ? E : never;
+
+/**
+ * Extract the ResourceTypes from a Bundle instance
+ */
+export type ResourcesOf<B> = B extends import('./bundle').default<any, any, infer R extends Record<string, any>, any, any> ? R : never;
+
+/**
  * Basic utility types that can be used independently
  */

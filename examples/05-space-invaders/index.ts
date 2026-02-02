@@ -9,10 +9,10 @@ import createInputProcessingBundle, { createInputBundle } from './bundles/input-
 import createSpawnerBundle from './bundles/spawner-bundle';
 import createUIBundle from './bundles/ui-bundle';
 import createGameLogicBundle from './bundles/game-logic-bundle';
-import type { Components, Events, Resources } from './types';
+import type { Events } from './types';
 
 const game = ECSpresso
-	.create<Components, Events, Resources>()
+	.create()
 	.withResource('gameState', { status: 'ready', level: 1, lives: 3 })
 	.withResource('config', {
 		playerSpeed: 200,
