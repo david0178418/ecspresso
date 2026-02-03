@@ -29,6 +29,7 @@ export default class Bundle<
 	private _assetGroups: Map<string, Map<string, () => Promise<unknown>>> = new Map();
 	private _screens: Map<string, ScreenDefinition<any, any>> = new Map();
 	private _disposeCallbacks: Map<string, (value: unknown) => void> = new Map();
+	private _requiredComponents: Map<string, Array<{ component: string; factory: () => unknown }>> = new Map();
 	private _id: string;
 
 	constructor(id?: string) {
@@ -176,6 +177,82 @@ export default class Bundle<
 	}
 
 	/**
+	 * Register a required component relationship.
+	 * When an entity gains `trigger`, the `required` component is auto-added
+	 * (using `factory` for the default value) if not already present.
+	 * @param trigger The component whose presence triggers auto-addition
+	 * @param required The component to auto-add
+	 * @param factory Function that creates the default value for the required component
+	 * @returns This bundle for method chaining
+	 */
+	registerRequired<
+		Trigger extends keyof ComponentTypes,
+		Required extends keyof ComponentTypes,
+	>(
+		trigger: Trigger,
+		required: Required,
+		factory: () => ComponentTypes[Required]
+	): this {
+		const triggerKey = trigger as string;
+		const requiredKey = required as string;
+
+		if (triggerKey === requiredKey) {
+			throw new Error(`Cannot require a component to depend on itself: '${triggerKey}'`);
+		}
+
+		const existing = this._requiredComponents.get(triggerKey) ?? [];
+
+		if (existing.some(r => r.component === requiredKey)) {
+			throw new Error(`Required component '${requiredKey}' already registered for trigger '${triggerKey}'`);
+		}
+
+		// Cycle detection within this bundle's requirements
+		this._checkRequiredCycle(triggerKey, requiredKey);
+
+		existing.push({ component: requiredKey, factory: factory as () => unknown });
+		this._requiredComponents.set(triggerKey, existing);
+		return this;
+	}
+
+	/**
+	 * Get all registered required component mappings in this bundle
+	 */
+	getRequiredComponents(): Map<string, Array<{ component: string; factory: () => unknown }>> {
+		const result = new Map<string, Array<{ component: string; factory: () => unknown }>>();
+		for (const [trigger, reqs] of this._requiredComponents) {
+			result.set(trigger, [...reqs]);
+		}
+		return result;
+	}
+
+	/**
+	 * Check for circular dependencies in the required components graph
+	 * @throws Error if adding the new edge would create a cycle
+	 */
+	private _checkRequiredCycle(trigger: string, newRequired: string): void {
+		const visited = new Set<string>();
+		const stack = [newRequired];
+
+		while (stack.length > 0) {
+			const current = stack.pop()!;
+			if (current === trigger) {
+				throw new Error(
+					`Circular required component dependency: '${trigger}' -> '${newRequired}' -> ... -> '${trigger}'`
+				);
+			}
+			if (visited.has(current)) continue;
+			visited.add(current);
+
+			const reqs = this._requiredComponents.get(current);
+			if (reqs) {
+				for (const r of reqs) {
+					stack.push(r.component);
+				}
+			}
+		}
+	}
+
+	/**
 	 * Internal method to set a dispose callback
 	 * @internal Used by mergeBundles
 	 */
@@ -205,6 +282,18 @@ export default class Bundle<
 	 */
 	_setScreen(name: string, definition: ScreenDefinition<any, any>): void {
 		this._screens.set(name, definition);
+	}
+
+	/**
+	 * Internal method to add a required component entry
+	 * @internal Used by mergeBundles
+	 */
+	_addRequired(trigger: string, component: string, factory: () => unknown): void {
+		const existing = this._requiredComponents.get(trigger) ?? [];
+		if (!existing.some(r => r.component === component)) {
+			existing.push({ component, factory });
+			this._requiredComponents.set(trigger, existing);
+		}
 	}
 
 	/**
@@ -325,6 +414,13 @@ export function mergeBundles(
 		// Add dispose callbacks from this bundle
 		for (const [name, callback] of bundle.getDisposeCallbacks().entries()) {
 			combined._setDisposeCallback(name, callback);
+		}
+
+		// Add required components from this bundle
+		for (const [trigger, reqs] of bundle.getRequiredComponents().entries()) {
+			for (const { component, factory } of reqs) {
+				combined._addRequired(trigger, component, factory);
+			}
 		}
 	}
 

@@ -542,6 +542,10 @@ export function createPhysics2DBundle(
 
 	const bundle = new Bundle<Physics2DComponentTypes<string>, Physics2DEventTypes, Physics2DResourceTypes>('physics2D');
 
+	// rigidBody requires velocity and force — auto-add with zero defaults
+	bundle.registerRequired('rigidBody', 'velocity', () => ({ x: 0, y: 0 }));
+	bundle.registerRequired('rigidBody', 'force', () => ({ x: 0, y: 0 }));
+
 	bundle.addResource('physicsConfig', { gravity: { x: gravity.x, y: gravity.y } });
 
 	// ==================== Integration System ====================

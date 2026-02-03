@@ -20,6 +20,7 @@ A type-safe, modular, and extensible Entity Component System (ECS) framework for
 - **Reactive Queries**: Enter/exit callbacks when entities match or unmatch queries
 - **System Groups**: Enable/disable groups of systems at runtime
 - **Component Lifecycle**: Callbacks for component add/remove with unsubscribe support
+- **Required Components**: Auto-add dependent components on spawn/addComponent (e.g. `localTransform` implies `worldTransform`)
 - **Command Buffer**: Deferred structural changes for safe entity/component operations during systems
 - **Timer Bundle**: ECS-native timers with event-based completion notifications
 
@@ -47,7 +48,7 @@ npm install ecspresso
 - [Entity Hierarchy](#entity-hierarchy) -- [Traversal](#traversal), [Parent-First Traversal](#parent-first-traversal), [Cascade Deletion](#cascade-deletion)
 - [Change Detection](#change-detection) -- [Marking Changes](#marking-changes), [Changed Query Filter](#changed-query-filter), [Sequence Timing](#sequence-timing)
 - [Command Buffer](#command-buffer) -- [Available Commands](#available-commands)
-- [Bundles](#bundles) -- [Built-in Bundles](#built-in-bundles), [Timer Bundle](#timer-bundle)
+- [Bundles](#bundles) -- [Required Components](#required-components), [Built-in Bundles](#built-in-bundles), [Timer Bundle](#timer-bundle)
 - [Asset Management](#asset-management)
 - [Screen Management](#screen-management) -- [Screen-Scoped Systems](#screen-scoped-systems), [Screen Resource](#screen-resource)
 - [Type Safety](#type-safety)
@@ -686,6 +687,56 @@ const game = ECSpresso.create<GameComponents, {}, GameResources>()
   .withBundle(physicsBundle)
   .build();
 ```
+
+### Required Components
+
+Bundles can declare that certain components depend on others. When an entity gains a trigger component, any required components that aren't already present are auto-added with default values:
+
+```typescript
+const transformBundle = new Bundle<TransformComponents>('transform')
+  .registerRequired('localTransform', 'worldTransform', () => ({
+    x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1,
+  }));
+
+const world = ECSpresso.create()
+  .withBundle(transformBundle)
+  .build();
+
+// worldTransform is auto-added with defaults
+const entity = world.spawn({
+  localTransform: { x: 100, y: 200, rotation: 0, scaleX: 1, scaleY: 1 },
+});
+
+// Explicit values always win — no auto-add if already provided
+const entity2 = world.spawn({
+  localTransform: { x: 100, y: 200, rotation: 0, scaleX: 1, scaleY: 1 },
+  worldTransform: { x: 50, y: 50, rotation: 0, scaleX: 2, scaleY: 2 }, // used as-is
+});
+```
+
+Requirements can also be registered via the builder or at runtime:
+
+```typescript
+// Builder
+const world = ECSpresso.create()
+  .withComponentTypes<Components>()
+  .withRequired('rigidBody', 'velocity', () => ({ x: 0, y: 0 }))
+  .withRequired('rigidBody', 'force', () => ({ x: 0, y: 0 }))
+  .build();
+
+// Runtime
+world.registerRequired('position', 'velocity', () => ({ x: 0, y: 0 }));
+```
+
+**Behavior:**
+- Enforced at insertion time (`spawn`, `addComponent`, `addComponents`, `spawnChild`, command buffer)
+- Removal is unrestricted — removing a required component does not cascade
+- Transitive requirements resolve automatically (A requires B, B requires C → all three added)
+- Circular dependencies are detected and rejected at registration time
+- Auto-added components are marked as changed and trigger reactive queries
+- Component names and factory return types are fully type-checked
+
+**Built-in requirements:** The Transform bundle registers `localTransform` → `worldTransform`. The Physics 2D bundle registers `rigidBody` → `velocity` and `rigidBody` → `force`.
 
 ### Built-in Bundles
 

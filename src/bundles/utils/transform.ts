@@ -235,6 +235,11 @@ export function createTransformBundle(
 
 	const bundle = new Bundle<TransformComponentTypes, {}, {}>('transform');
 
+	// localTransform requires worldTransform — auto-add with matching defaults
+	bundle.registerRequired('localTransform', 'worldTransform', () => ({
+		...DEFAULT_WORLD_TRANSFORM,
+	}));
+
 	bundle
 		.addSystem('transform-propagation')
 		.setPriority(priority)

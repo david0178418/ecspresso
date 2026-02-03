@@ -72,6 +72,10 @@ src/
 - **Hierarchy Traversal**: `forEachInHierarchy()`, `hierarchyIterator()` for parent-first iteration
 - **Cascade Deletion**: `removeEntity(id)` removes descendants by default; use `{ cascade: false }` to orphan children
 - **Component Lifecycle**: `onComponentAdded()`, `onComponentRemoved()` return unsubscribe functions
+- **Required Components**: `registerRequired('localTransform', 'worldTransform', () => defaults)` — auto-adds dependent components on spawn/addComponent. Enforced at insertion time only; removal unrestricted.
+- **Required Components Registration**: Per-bundle via `bundle.registerRequired(trigger, required, factory)`, per-builder via `.withRequired(trigger, required, factory)`, or at runtime via `ecs.registerRequired(trigger, required, factory)`
+- **Required Components Behavior**: Explicit values win (user-provided components are never overwritten). Transitive requirements resolve automatically (A→B→C). Cycle detection at registration time. Auto-added components are marked as changed and trigger reactive queries.
+- **Required Components Built-in**: Transform bundle: `localTransform` requires `worldTransform`. Physics 2D bundle: `rigidBody` requires `velocity` and `force`.
 - **Reactive Queries**: `addReactiveQuery()` with `onEnter`/`onExit` callbacks for query match changes
 - **World Position Pattern**: `worldPos = localPos + parent.worldPos` (parent's world pos includes all grandparents)
 - **Resource Dependencies**: `addResource('cache', { dependsOn: ['db'], factory: (ecs) => ... })`

@@ -91,6 +91,8 @@ export default class ECSpresso<
 	private _interpolationAlpha: number = 0;
 	/** Maximum fixed update steps per frame (spiral-of-death protection) */
 	private _maxFixedSteps: number = 8;
+	/** Registry of required component relationships: trigger -> [{component, factory}] */
+	private _requiredComponents: Map<keyof ComponentTypes, Array<{ component: keyof ComponentTypes; factory: () => any }>> = new Map();
 	/** Whether diagnostics timing collection is enabled */
 	private _diagnosticsEnabled: boolean = false;
 	/** Per-system timing in ms, populated when diagnostics enabled */
@@ -135,7 +137,7 @@ export default class ECSpresso<
 			pendingChecks.clear();
 		};
 
-		// Track added components for reactive queries
+		// Track added components for reactive queries + auto-add required components
 		const originalAddComponent = this._entityManager.addComponent.bind(this._entityManager);
 		this._entityManager.addComponent = <K extends keyof ComponentTypes>(
 			entityOrId: number | Entity<ComponentTypes>,
@@ -158,6 +160,20 @@ export default class ECSpresso<
 					this._reactiveQueryManager.onComponentAdded(entity, componentName);
 				}
 			}
+
+			// Auto-add required components (recursive through wrapper for transitivity)
+			const reqs = this._requiredComponents.get(componentName);
+			if (reqs) {
+				const entity = this._entityManager.getEntity(entityId);
+				if (entity) {
+					for (const { component, factory } of reqs) {
+						if (!(component in entity.components)) {
+							this._entityManager.addComponent(entityId, component, factory());
+						}
+					}
+				}
+			}
+
 			return result;
 		};
 
@@ -1170,6 +1186,73 @@ export default class ECSpresso<
 		this._entityManager.registerDispose(componentName, callback);
 	}
 
+	// ==================== Required Components ====================
+
+	/**
+	 * Register a required component relationship.
+	 * When an entity gains `trigger`, the `required` component is auto-added
+	 * (using `factory` for the default value) if not already present.
+	 * Enforced at insertion time (spawn/addComponent) only — removal is unrestricted.
+	 * @param trigger The component whose presence triggers auto-addition
+	 * @param required The component to auto-add
+	 * @param factory Function that creates the default value for the required component
+	 */
+	registerRequired<
+		Trigger extends keyof ComponentTypes,
+		Required extends keyof ComponentTypes,
+	>(
+		trigger: Trigger,
+		required: Required,
+		factory: () => ComponentTypes[Required]
+	): void {
+		if (String(trigger) === String(required)) {
+			throw new Error(`Cannot require a component to depend on itself: '${String(trigger)}'`);
+		}
+
+		const existing = this._requiredComponents.get(trigger) ?? [];
+
+		if (existing.some(r => r.component === required)) {
+			throw new Error(
+				`Required component '${String(required)}' already registered for trigger '${String(trigger)}'`
+			);
+		}
+
+		this._checkRequiredCycle(trigger, required);
+
+		existing.push({ component: required, factory });
+		this._requiredComponents.set(trigger, existing);
+	}
+
+	/**
+	 * Check for circular dependencies in the required components graph.
+	 * @throws Error if adding trigger→newRequired would create a cycle
+	 */
+	private _checkRequiredCycle(
+		trigger: keyof ComponentTypes,
+		newRequired: keyof ComponentTypes
+	): void {
+		const visited = new Set<keyof ComponentTypes>();
+		const stack: Array<keyof ComponentTypes> = [newRequired];
+
+		while (stack.length > 0) {
+			const current = stack.pop()!;
+			if (current === trigger) {
+				throw new Error(
+					`Circular required component dependency: '${String(trigger)}' -> '${String(newRequired)}' -> ... -> '${String(trigger)}'`
+				);
+			}
+			if (visited.has(current)) continue;
+			visited.add(current);
+
+			const reqs = this._requiredComponents.get(current);
+			if (reqs) {
+				for (const r of reqs) {
+					stack.push(r.component);
+				}
+			}
+		}
+	}
+
 	// ==================== Component Lifecycle Hooks ====================
 
 	/**
@@ -1511,6 +1594,21 @@ export default class ECSpresso<
 			this._entityManager.registerDispose(componentName as keyof ComponentTypes, callback);
 		}
 
+		// Register required components from the bundle
+		const requiredComponents = bundle.getRequiredComponents();
+		for (const [trigger, reqs] of requiredComponents.entries()) {
+			for (const { component, factory } of reqs) {
+				const triggerKey = trigger as keyof ComponentTypes;
+				const componentKey = component as keyof ComponentTypes;
+				const existing = this._requiredComponents.get(triggerKey) ?? [];
+				if (!existing.some(r => r.component === componentKey)) {
+					this._checkRequiredCycle(triggerKey, componentKey);
+					existing.push({ component: componentKey, factory });
+					this._requiredComponents.set(triggerKey, existing);
+				}
+			}
+		}
+
 		// Register resources from the bundle
 		const resources = bundle.getResources();
 		for (const [key, value] of resources.entries()) {
@@ -1568,6 +1666,8 @@ export class ECSpressoBuilder<
 	private pendingResources: Array<{ key: string; value: unknown }> = [];
 	/** Pending dispose callbacks to register during build */
 	private pendingDisposeCallbacks: Array<{ key: string; callback: (value: unknown) => void }> = [];
+	/** Pending required component registrations to apply during build */
+	private pendingRequiredComponents: Array<{ trigger: string; required: string; factory: () => unknown }> = [];
 	/** Fixed timestep interval (null means use default 1/60) */
 	private _fixedDt: number | null = null;
 
@@ -1689,6 +1789,31 @@ export class ECSpressoBuilder<
 	}
 
 	/**
+	 * Register a required component relationship during build.
+	 * When an entity gains `trigger`, the `required` component is auto-added
+	 * (using `factory` for the default value) if not already present.
+	 * @param trigger The component whose presence triggers auto-addition
+	 * @param required The component to auto-add
+	 * @param factory Function that creates the default value for the required component
+	 * @returns This builder for method chaining
+	 */
+	withRequired<
+		Trigger extends keyof C & string,
+		Required extends keyof C & string,
+	>(
+		trigger: Trigger,
+		required: Required,
+		factory: () => C[Required]
+	): this {
+		this.pendingRequiredComponents.push({
+			trigger,
+			required,
+			factory: factory as () => unknown,
+		});
+		return this;
+	}
+
+	/**
 	 * Configure assets for this ECSpresso instance
 	 * @param configurator Function that receives an AssetConfigurator and returns it after adding assets
 	 * @returns This builder with updated asset types
@@ -1766,6 +1891,15 @@ export class ECSpressoBuilder<
 		// Apply pending dispose callbacks
 		for (const { key, callback } of this.pendingDisposeCallbacks) {
 			this.ecspresso.registerDispose(key as keyof C, callback as (value: C[keyof C]) => void);
+		}
+
+		// Apply pending required component registrations
+		for (const { trigger, required, factory } of this.pendingRequiredComponents) {
+			this.ecspresso.registerRequired(
+				trigger as keyof C,
+				required as keyof C,
+				factory as () => C[keyof C]
+			);
 		}
 
 		// Set up asset manager if configured
