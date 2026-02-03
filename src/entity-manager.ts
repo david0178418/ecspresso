@@ -34,6 +34,10 @@ class EntityManager<ComponentTypes> {
 	 */
 	private _changeSeq: number = 0;
 
+	get entityCount(): number {
+		return this.entities.size;
+	}
+
 	createEntity(): Entity<ComponentTypes> {
 		const id = this.nextId++;
 		const entity: Entity<ComponentTypes> = { id, components: {} };

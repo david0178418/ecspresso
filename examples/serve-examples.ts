@@ -11,6 +11,7 @@ import camera from './11-camera/camera.html';
 import stateMachine from './12-state-machine/state-machine.html';
 import tweens from './13-tweens/tweens.html';
 import screens from './14-screens/screens.html';
+import diagnostics from './15-diagnostics/diagnostics.html';
 
 const server = serve({
 	port: 3000,
@@ -30,6 +31,7 @@ const server = serve({
 		'/state-machine/': stateMachine,
 		'/tweens/': tweens,
 		'/screens/': screens,
+		'/diagnostics/': diagnostics,
 	},
 });
 

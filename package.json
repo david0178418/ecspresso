@@ -51,6 +51,10 @@
 			"import": "./dist/bundles/utils/tween.js",
 			"types": "./dist/bundles/utils/tween.d.ts"
 		},
+		"./bundles/utils/diagnostics": {
+			"import": "./dist/bundles/utils/diagnostics.js",
+			"types": "./dist/bundles/utils/diagnostics.d.ts"
+		},
 		"./math": {
 			"import": "./dist/math.js",
 			"types": "./dist/math.d.ts"

@@ -91,6 +91,14 @@ export default class ECSpresso<
 	private _interpolationAlpha: number = 0;
 	/** Maximum fixed update steps per frame (spiral-of-death protection) */
 	private _maxFixedSteps: number = 8;
+	/** Whether diagnostics timing collection is enabled */
+	private _diagnosticsEnabled: boolean = false;
+	/** Per-system timing in ms, populated when diagnostics enabled */
+	private _systemTimings: Map<string, number> = new Map();
+	/** Per-phase timing in ms, populated when diagnostics enabled */
+	private _phaseTimings: Record<SystemPhase, number> = {
+		preUpdate: 0, fixedUpdate: 0, update: 0, postUpdate: 0, render: 0,
+	};
 
 	/**
 		* Creates a new ECSpresso instance.
@@ -283,12 +291,20 @@ export default class ECSpresso<
 	 */
 	update(deltaTime: number) {
 		const currentScreen = (this._screenManager?.getCurrentScreen() ?? null) as (keyof ScreenStates & string) | null;
+		const timing = this._diagnosticsEnabled;
 
 		// 1. preUpdate phase
-		this._executePhase(this._phaseSystems.preUpdate, deltaTime, currentScreen);
+		if (timing) {
+			const t0 = performance.now();
+			this._executePhase(this._phaseSystems.preUpdate, deltaTime, currentScreen);
+			this._phaseTimings.preUpdate = performance.now() - t0;
+		} else {
+			this._executePhase(this._phaseSystems.preUpdate, deltaTime, currentScreen);
+		}
 		this._commandBuffer.playback(this);
 
 		// 2. fixedUpdate phase — accumulate time and step N times
+		const fixedT0 = timing ? performance.now() : 0;
 		this._fixedAccumulator += deltaTime;
 		let steps = 0;
 		while (this._fixedAccumulator >= this._fixedDt && steps < this._maxFixedSteps) {
@@ -301,15 +317,30 @@ export default class ECSpresso<
 		if (this._fixedAccumulator >= this._fixedDt) {
 			this._fixedAccumulator = 0;
 		}
+		if (timing) {
+			this._phaseTimings.fixedUpdate = performance.now() - fixedT0;
+		}
 		// Compute interpolation alpha for render-phase smoothing
 		this._interpolationAlpha = this._fixedAccumulator / this._fixedDt;
 
 		// 3. update phase
-		this._executePhase(this._phaseSystems.update, deltaTime, currentScreen);
+		if (timing) {
+			const t0 = performance.now();
+			this._executePhase(this._phaseSystems.update, deltaTime, currentScreen);
+			this._phaseTimings.update = performance.now() - t0;
+		} else {
+			this._executePhase(this._phaseSystems.update, deltaTime, currentScreen);
+		}
 		this._commandBuffer.playback(this);
 
 		// 4. postUpdate phase
-		this._executePhase(this._phaseSystems.postUpdate, deltaTime, currentScreen);
+		if (timing) {
+			const t0 = performance.now();
+			this._executePhase(this._phaseSystems.postUpdate, deltaTime, currentScreen);
+			this._phaseTimings.postUpdate = performance.now() - t0;
+		} else {
+			this._executePhase(this._phaseSystems.postUpdate, deltaTime, currentScreen);
+		}
 		this._commandBuffer.playback(this);
 
 		// 5. Post-update hooks (between postUpdate and render, preserving existing behavior)
@@ -318,7 +349,13 @@ export default class ECSpresso<
 		}
 
 		// 6. render phase
-		this._executePhase(this._phaseSystems.render, deltaTime, currentScreen);
+		if (timing) {
+			const t0 = performance.now();
+			this._executePhase(this._phaseSystems.render, deltaTime, currentScreen);
+			this._phaseTimings.render = performance.now() - t0;
+		} else {
+			this._executePhase(this._phaseSystems.render, deltaTime, currentScreen);
+		}
 		this._commandBuffer.playback(this);
 
 		// Set change threshold to current sequence so that public
@@ -412,9 +449,17 @@ export default class ECSpresso<
 			}
 
 			// Call the system's process function only if there are results or there is no query.
-			if (hasResults) {
+			if (this._diagnosticsEnabled) {
+				const t0 = performance.now();
+				if (hasResults) {
+					system.process(queryResults, deltaTime, this);
+				} else if (!hasQueries) {
+					system.process(EmptyQueryResults, deltaTime, this);
+				}
+				this._systemTimings.set(system.label, performance.now() - t0);
+			} else if (hasResults) {
 				system.process(queryResults, deltaTime, this);
-			} else if(!hasQueries) {
+			} else if (!hasQueries) {
 				system.process(EmptyQueryResults, deltaTime, this);
 			}
 
@@ -1063,6 +1108,39 @@ export default class ECSpresso<
 	 */
 	get changeThreshold(): number {
 		return this._changeThreshold;
+	}
+
+	// ==================== Diagnostics ====================
+
+	/**
+	 * Toggle diagnostics timing collection. When enabled, system and phase
+	 * timings are recorded each frame. When disabled, timing maps are cleared
+	 * and no overhead is incurred.
+	 */
+	enableDiagnostics(enabled: boolean): void {
+		this._diagnosticsEnabled = enabled;
+		if (!enabled) {
+			this._systemTimings.clear();
+			this._phaseTimings = {
+				preUpdate: 0, fixedUpdate: 0, update: 0, postUpdate: 0, render: 0,
+			};
+		}
+	}
+
+	get diagnosticsEnabled(): boolean {
+		return this._diagnosticsEnabled;
+	}
+
+	get systemTimings(): ReadonlyMap<string, number> {
+		return this._systemTimings;
+	}
+
+	get phaseTimings(): Readonly<Record<SystemPhase, number>> {
+		return this._phaseTimings;
+	}
+
+	get entityCount(): number {
+		return this._entityManager.entityCount;
 	}
 
 	/**
