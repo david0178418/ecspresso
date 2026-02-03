@@ -10,6 +10,7 @@ import hierarchy from './09-hierarchy/hierarchy.html';
 import camera from './11-camera/camera.html';
 import stateMachine from './12-state-machine/state-machine.html';
 import tweens from './13-tweens/tweens.html';
+import screens from './14-screens/screens.html';
 
 const server = serve({
 	port: 3000,
@@ -28,6 +29,7 @@ const server = serve({
 		'/camera/': camera,
 		'/state-machine/': stateMachine,
 		'/tweens/': tweens,
+		'/screens/': screens,
 	},
 });
 
