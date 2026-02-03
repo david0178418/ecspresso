@@ -15,6 +15,7 @@ import type { TransformComponentTypes } from './transform';
 import type { CollisionComponentTypes } from './collision';
 import type { Vector2D } from 'ecspresso';
 import type { SpatialIndex } from './spatial-index';
+import { detectCollisions, type Contact, type BaseColliderInfo } from './narrowphase';
 
 // ==================== Component Types ====================
 
@@ -189,159 +190,12 @@ export function setVelocity(
 
 // ==================== Internal: Collider Info ====================
 
-interface Physics2DColliderInfo {
-	entityId: number;
-	x: number;
-	y: number;
+interface Physics2DColliderInfo extends BaseColliderInfo {
 	rigidBody: RigidBody;
 	velocity: Vector2D;
-	layer: string;
-	collidesWith: readonly string[];
-	aabb?: { halfWidth: number; halfHeight: number };
-	circle?: { radius: number };
 }
 
-// ==================== Internal: Contact ====================
-
-interface Contact {
-	/** Unit normal from A toward B */
-	normalX: number;
-	normalY: number;
-	/** Penetration depth (positive = overlapping) */
-	depth: number;
-}
-
-// ==================== Contact Computation ====================
-
-function computeAABBvsAABB(
-	ax: number, ay: number, ahw: number, ahh: number,
-	bx: number, by: number, bhw: number, bhh: number,
-): Contact | null {
-	const dx = bx - ax;
-	const dy = by - ay;
-	const overlapX = (ahw + bhw) - Math.abs(dx);
-	const overlapY = (ahh + bhh) - Math.abs(dy);
-
-	if (overlapX <= 0 || overlapY <= 0) return null;
-
-	// Minimum separating axis
-	if (overlapX < overlapY) {
-		return {
-			normalX: dx >= 0 ? 1 : -1,
-			normalY: 0,
-			depth: overlapX,
-		};
-	}
-	return {
-		normalX: 0,
-		normalY: dy >= 0 ? 1 : -1,
-		depth: overlapY,
-	};
-}
-
-function computeCircleVsCircle(
-	ax: number, ay: number, ar: number,
-	bx: number, by: number, br: number,
-): Contact | null {
-	const dx = bx - ax;
-	const dy = by - ay;
-	const distSq = dx * dx + dy * dy;
-	const radiusSum = ar + br;
-
-	if (distSq >= radiusSum * radiusSum) return null;
-
-	const dist = Math.sqrt(distSq);
-	if (dist === 0) {
-		// Perfectly overlapping — pick arbitrary normal
-		return { normalX: 1, normalY: 0, depth: radiusSum };
-	}
-	return {
-		normalX: dx / dist,
-		normalY: dy / dist,
-		depth: radiusSum - dist,
-	};
-}
-
-function computeAABBvsCircle(
-	aabbX: number, aabbY: number, ahw: number, ahh: number,
-	circleX: number, circleY: number, radius: number,
-): Contact | null {
-	// Closest point on AABB to circle center
-	const closestX = Math.max(aabbX - ahw, Math.min(circleX, aabbX + ahw));
-	const closestY = Math.max(aabbY - ahh, Math.min(circleY, aabbY + ahh));
-
-	const dx = circleX - closestX;
-	const dy = circleY - closestY;
-	const distSq = dx * dx + dy * dy;
-
-	if (distSq >= radius * radius) return null;
-
-	// Circle center is inside the AABB
-	if (distSq === 0) {
-		// Determine minimum push direction
-		const pushLeft = (circleX - (aabbX - ahw));
-		const pushRight = ((aabbX + ahw) - circleX);
-		const pushUp = (circleY - (aabbY - ahh));
-		const pushDown = ((aabbY + ahh) - circleY);
-		const minPush = Math.min(pushLeft, pushRight, pushUp, pushDown);
-
-		if (minPush === pushRight) return { normalX: 1, normalY: 0, depth: pushRight + radius };
-		if (minPush === pushLeft) return { normalX: -1, normalY: 0, depth: pushLeft + radius };
-		if (minPush === pushDown) return { normalX: 0, normalY: 1, depth: pushDown + radius };
-		return { normalX: 0, normalY: -1, depth: pushUp + radius };
-	}
-
-	const dist = Math.sqrt(distSq);
-	return {
-		normalX: dx / dist,
-		normalY: dy / dist,
-		depth: radius - dist,
-	};
-}
-
-function computeContact(a: Physics2DColliderInfo, b: Physics2DColliderInfo): Contact | null {
-	if (a.aabb && b.aabb) {
-		return computeAABBvsAABB(
-			a.x, a.y, a.aabb.halfWidth, a.aabb.halfHeight,
-			b.x, b.y, b.aabb.halfWidth, b.aabb.halfHeight,
-		);
-	}
-
-	if (a.circle && b.circle) {
-		return computeCircleVsCircle(
-			a.x, a.y, a.circle.radius,
-			b.x, b.y, b.circle.radius,
-		);
-	}
-
-	if (a.aabb && b.circle) {
-		return computeAABBvsCircle(
-			a.x, a.y, a.aabb.halfWidth, a.aabb.halfHeight,
-			b.x, b.y, b.circle.radius,
-		);
-	}
-
-	if (a.circle && b.aabb) {
-		const contact = computeAABBvsCircle(
-			b.x, b.y, b.aabb.halfWidth, b.aabb.halfHeight,
-			a.x, a.y, a.circle.radius,
-		);
-		if (!contact) return null;
-		// Flip normal so it points from A toward B
-		return {
-			normalX: -contact.normalX,
-			normalY: -contact.normalY,
-			depth: contact.depth,
-		};
-	}
-
-	return null;
-}
-
-// ==================== Collision Detection Strategies ====================
-
-// Reusable set for broadphase candidates
-const _broadphaseCandidates = new Set<number>();
+// ==================== Collision Response ====================
 
 interface PhysicsEcsLike {
 	entityManager: { getComponent(id: number, name: string): unknown | null };
@@ -431,74 +285,15 @@ function resolvePhysicsContact(
 	});
 }
 
-/**
- * O(n²) brute-force physics collision detection + response.
- */
-function bruteForcePhysicsCollision(
-	colliders: Physics2DColliderInfo[],
+// ==================== Module-level Physics Callback ====================
+
+function onPhysicsContact(
+	a: Physics2DColliderInfo,
+	b: Physics2DColliderInfo,
+	contact: Contact,
 	ecs: PhysicsEcsLike,
 ): void {
-	for (let i = 0; i < colliders.length; i++) {
-		const a = colliders[i]!;
-
-		for (let j = i + 1; j < colliders.length; j++) {
-			const b = colliders[j]!;
-
-			const aCollidesWithB = a.collidesWith.includes(b.layer);
-			const bCollidesWithA = b.collidesWith.includes(a.layer);
-			if (!aCollidesWithB && !bCollidesWithA) continue;
-
-			const contact = computeContact(a, b);
-			if (!contact) continue;
-
-			resolvePhysicsContact(a, b, contact, ecs);
-		}
-	}
-}
-
-/**
- * Broadphase physics collision using spatial index, then narrowphase + response.
- */
-function broadphasePhysicsCollision(
-	colliders: Physics2DColliderInfo[],
-	spatialIndex: SpatialIndex,
-	ecs: PhysicsEcsLike,
-): void {
-	const colliderMap = new Map<number, Physics2DColliderInfo>();
-	for (let i = 0; i < colliders.length; i++) {
-		const c = colliders[i]!;
-		colliderMap.set(c.entityId, c);
-	}
-
-	for (let i = 0; i < colliders.length; i++) {
-		const a = colliders[i]!;
-
-		const aHalfW = a.aabb ? a.aabb.halfWidth : (a.circle ? a.circle.radius : 0);
-		const aHalfH = a.aabb ? a.aabb.halfHeight : (a.circle ? a.circle.radius : 0);
-
-		_broadphaseCandidates.clear();
-		spatialIndex.queryRectInto(
-			a.x - aHalfW, a.y - aHalfH,
-			a.x + aHalfW, a.y + aHalfH,
-			_broadphaseCandidates,
-		);
-
-		for (const bId of _broadphaseCandidates) {
-			if (bId <= a.entityId) continue;
-
-			const b = colliderMap.get(bId);
-			if (!b) continue;
-
-			const aCollidesWithB = a.collidesWith.includes(b.layer);
-			const bCollidesWithA = b.collidesWith.includes(a.layer);
-			if (!aCollidesWithB && !bCollidesWithA) continue;
-
-			const contact = computeContact(a, b);
-			if (!contact) continue;
-
-			resolvePhysicsContact(a, b, contact, ecs);
-		}
-	}
+	resolvePhysicsContact(a, b, contact, ecs);
 }
 
 // ==================== Bundle Factory ====================
@@ -619,7 +414,6 @@ export function createPhysics2DBundle(
 			with: ['localTransform', 'rigidBody', 'velocity', 'collisionLayer'],
 		})
 		.setProcess((queries, _deltaTime, ecs) => {
-			// Build collidable list
 			const colliders: Physics2DColliderInfo[] = [];
 
 			for (const entity of queries.collidables) {
@@ -659,13 +453,11 @@ export function createPhysics2DBundle(
 			}
 
 			const hasSpatial = (ecs as unknown as { hasResource(k: string): boolean }).hasResource('spatialIndex');
+			const si = hasSpatial
+				? (ecs as unknown as { getResource(k: string): SpatialIndex }).getResource('spatialIndex')
+				: null;
 
-			if (hasSpatial) {
-				const si = (ecs as unknown as { getResource(k: string): SpatialIndex }).getResource('spatialIndex');
-				broadphasePhysicsCollision(colliders, si, ecs);
-			} else {
-				bruteForcePhysicsCollision(colliders, ecs);
-			}
+			detectCollisions(colliders, si, onPhysicsContact, ecs);
 		})
 		.and();
 

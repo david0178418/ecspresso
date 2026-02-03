@@ -10,6 +10,7 @@ import { Bundle } from 'ecspresso';
 import type { SystemPhase } from 'ecspresso';
 import type { TransformComponentTypes } from './transform';
 import type { SpatialIndex } from './spatial-index';
+import { detectCollisions, type Contact, type BaseColliderInfo } from './narrowphase';
 
 // ==================== Component Types ====================
 
@@ -81,6 +82,10 @@ export interface CollisionEvent<L extends string> {
 	layerA: L;
 	/** Layer of the second entity */
 	layerB: L;
+	/** Contact normal pointing from entityA toward entityB */
+	normal: { x: number; y: number };
+	/** Penetration depth (positive = overlapping) */
+	depth: number;
 }
 
 /**
@@ -375,14 +380,26 @@ export function createCollisionPairHandler<W = unknown>(
 
 type CombinedComponentTypes<L extends string> = CollisionComponentTypes<L> & TransformComponentTypes;
 
-interface ColliderInfo {
-	entityId: number;
-	x: number;
-	y: number;
-	layer: string;
-	collidesWith: readonly string[];
-	aabb?: { halfWidth: number; halfHeight: number };
-	circle?: { radius: number };
+// ==================== Module-level Collision Callback ====================
+
+interface CollisionEventBus<L extends string> {
+	publish(event: 'collision', data: CollisionEvent<L>): void;
+}
+
+function onCollisionDetected<L extends string>(
+	a: BaseColliderInfo,
+	b: BaseColliderInfo,
+	contact: Contact,
+	eventBus: CollisionEventBus<L>,
+): void {
+	eventBus.publish('collision', {
+		entityA: a.entityId,
+		entityB: b.entityId,
+		layerA: a.layer as L,
+		layerB: b.layer as L,
+		normal: { x: contact.normalX, y: contact.normalY },
+		depth: contact.depth,
+	});
 }
 
 // ==================== Bundle Factory ====================
@@ -438,20 +455,17 @@ export function createCollisionBundle<L extends string>(
 			with: ['worldTransform', 'collisionLayer'],
 		})
 		.setProcess((queries, _deltaTime, ecs) => {
-			// Build list of collidable entities with their computed positions
-			const colliders: ColliderInfo[] = [];
+			const colliders: BaseColliderInfo[] = [];
 
 			for (const entity of queries.collidables) {
 				const { worldTransform, collisionLayer } = entity.components;
 
-				// Get collider info
 				const aabb = ecs.entityManager.getComponent(entity.id, 'aabbCollider');
 				const circle = ecs.entityManager.getComponent(entity.id, 'circleCollider');
 
-				// Must have at least one collider
 				if (!aabb && !circle) continue;
 
-				const info: ColliderInfo = {
+				const info: BaseColliderInfo = {
 					entityId: entity.id,
 					x: worldTransform.x,
 					y: worldTransform.y,
@@ -478,198 +492,14 @@ export function createCollisionBundle<L extends string>(
 			}
 
 			const hasSpatial = (ecs as unknown as { hasResource(k: string): boolean }).hasResource('spatialIndex');
+			const si = hasSpatial
+				? (ecs as unknown as { getResource(k: string): SpatialIndex }).getResource('spatialIndex')
+				: null;
 
-			if (hasSpatial) {
-				const si = (ecs as unknown as { getResource(k: string): SpatialIndex }).getResource('spatialIndex');
-				broadphaseCollision<L>(colliders, si, ecs.eventBus);
-			} else {
-				bruteForceCollision<L>(colliders, ecs.eventBus);
-			}
+			detectCollisions(colliders, si, onCollisionDetected<L>, ecs.eventBus);
 		})
 		.and();
 
 	return bundle;
 }
 
-// ==================== Collision Detection Strategies ====================
-
-// Reusable set for broadphase candidates (avoids per-frame allocation)
-const _broadphaseCandidates = new Set<number>();
-
-interface CollisionEventBus<L extends string> {
-	publish(event: 'collision', data: CollisionEvent<L>): void;
-}
-
-/**
- * O(n²) brute-force collision detection.
- */
-function bruteForceCollision<L extends string>(
-	colliders: ColliderInfo[],
-	eventBus: CollisionEventBus<L>,
-): void {
-	const processedPairs = new Set<string>();
-
-	for (let i = 0; i < colliders.length; i++) {
-		const a = colliders[i]!;
-
-		for (let j = i + 1; j < colliders.length; j++) {
-			const b = colliders[j]!;
-
-			const aCollidesWithB = a.collidesWith.includes(b.layer);
-			const bCollidesWithA = b.collidesWith.includes(a.layer);
-			if (!aCollidesWithB && !bCollidesWithA) continue;
-
-			const pairKey = a.entityId < b.entityId
-				? `${a.entityId}:${b.entityId}`
-				: `${b.entityId}:${a.entityId}`;
-
-			if (processedPairs.has(pairKey)) continue;
-
-			if (checkCollision(a, b)) {
-				processedPairs.add(pairKey);
-				eventBus.publish('collision', {
-					entityA: a.entityId,
-					entityB: b.entityId,
-					layerA: a.layer as L,
-					layerB: b.layer as L,
-				});
-			}
-		}
-	}
-}
-
-/**
- * Broadphase collision using spatial index, then narrowphase.
- */
-function broadphaseCollision<L extends string>(
-	colliders: ColliderInfo[],
-	spatialIndex: SpatialIndex,
-	eventBus: CollisionEventBus<L>,
-): void {
-	const colliderMap = new Map<number, ColliderInfo>();
-	for (let i = 0; i < colliders.length; i++) {
-		const c = colliders[i]!;
-		colliderMap.set(c.entityId, c);
-	}
-
-	for (let i = 0; i < colliders.length; i++) {
-		const a = colliders[i]!;
-
-		// Compute bounding box for grid query
-		const aHalfW = a.aabb ? a.aabb.halfWidth : (a.circle ? a.circle.radius : 0);
-		const aHalfH = a.aabb ? a.aabb.halfHeight : (a.circle ? a.circle.radius : 0);
-
-		_broadphaseCandidates.clear();
-		spatialIndex.queryRectInto(
-			a.x - aHalfW, a.y - aHalfH,
-			a.x + aHalfW, a.y + aHalfH,
-			_broadphaseCandidates,
-		);
-
-		for (const bId of _broadphaseCandidates) {
-			// Canonical ordering for dedup: skip if b <= a
-			if (bId <= a.entityId) continue;
-
-			const b = colliderMap.get(bId);
-			if (!b) continue;
-
-			const aCollidesWithB = a.collidesWith.includes(b.layer);
-			const bCollidesWithA = b.collidesWith.includes(a.layer);
-			if (!aCollidesWithB && !bCollidesWithA) continue;
-
-			if (checkCollision(a, b)) {
-				eventBus.publish('collision', {
-					entityA: a.entityId,
-					entityB: b.entityId,
-					layerA: a.layer as L,
-					layerB: b.layer as L,
-				});
-			}
-		}
-	}
-}
-
-// ==================== Narrowphase ====================
-
-/**
- * Check if two colliders are overlapping.
- */
-function checkCollision(a: ColliderInfo, b: ColliderInfo): boolean {
-	// AABB vs AABB
-	if (a.aabb && b.aabb) {
-		return aabbVsAabb(
-			a.x, a.y, a.aabb.halfWidth, a.aabb.halfHeight,
-			b.x, b.y, b.aabb.halfWidth, b.aabb.halfHeight
-		);
-	}
-
-	// Circle vs Circle
-	if (a.circle && b.circle) {
-		return circleVsCircle(
-			a.x, a.y, a.circle.radius,
-			b.x, b.y, b.circle.radius
-		);
-	}
-
-	// AABB vs Circle
-	if (a.aabb && b.circle) {
-		return aabbVsCircle(
-			a.x, a.y, a.aabb.halfWidth, a.aabb.halfHeight,
-			b.x, b.y, b.circle.radius
-		);
-	}
-
-	if (a.circle && b.aabb) {
-		return aabbVsCircle(
-			b.x, b.y, b.aabb.halfWidth, b.aabb.halfHeight,
-			a.x, a.y, a.circle.radius
-		);
-	}
-
-	return false;
-}
-
-/**
- * AABB vs AABB collision test.
- */
-function aabbVsAabb(
-	ax: number, ay: number, aHalfWidth: number, aHalfHeight: number,
-	bx: number, by: number, bHalfWidth: number, bHalfHeight: number
-): boolean {
-	const dx = Math.abs(ax - bx);
-	const dy = Math.abs(ay - by);
-	return dx < (aHalfWidth + bHalfWidth) && dy < (aHalfHeight + bHalfHeight);
-}
-
-/**
- * Circle vs Circle collision test.
- */
-function circleVsCircle(
-	ax: number, ay: number, aRadius: number,
-	bx: number, by: number, bRadius: number
-): boolean {
-	const dx = ax - bx;
-	const dy = ay - by;
-	const distSq = dx * dx + dy * dy;
-	const radiusSum = aRadius + bRadius;
-	return distSq < radiusSum * radiusSum;
-}
-
-/**
- * AABB vs Circle collision test.
- */
-function aabbVsCircle(
-	aabbX: number, aabbY: number, halfWidth: number, halfHeight: number,
-	circleX: number, circleY: number, radius: number
-): boolean {
-	// Find the closest point on the AABB to the circle center
-	const closestX = Math.max(aabbX - halfWidth, Math.min(circleX, aabbX + halfWidth));
-	const closestY = Math.max(aabbY - halfHeight, Math.min(circleY, aabbY + halfHeight));
-
-	// Calculate distance from closest point to circle center
-	const dx = circleX - closestX;
-	const dy = circleY - closestY;
-	const distSq = dx * dx + dy * dy;
-
-	return distSq < radius * radius;
-}

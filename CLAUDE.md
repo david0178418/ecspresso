@@ -27,10 +27,11 @@ src/
     ├── utils/
     │   ├── timers.ts     # Timer bundle with event-based completion
     │   ├── transform.ts  # Hierarchical local/world transform propagation
-    │   ├── physics2D.ts  # ECS-native 2D arcade physics (gravity, forces, drag, collision response)
+    │   ├── physics2D.ts  # ECS-native 2D arcade physics (gravity, forces, drag, collision response via shared narrowphase)
     │   ├── input.ts      # Frame-accurate keyboard/pointer input with action mapping
     │   ├── bounds.ts     # Screen bounds enforcement (destroy, clamp, wrap)
-    │   ├── collision.ts  # Layer-based AABB/circle collision detection + pair handler routing
+    │   ├── narrowphase.ts # Shared contact-computing narrowphase and collision iteration pipeline
+    │   ├── collision.ts  # Layer-based collision detection + pair handler routing (uses shared narrowphase)
     │   ├── state-machine.ts # Per-entity finite state machines with guards and lifecycle hooks
     │   └── tween.ts      # Declarative property animation with easing, sequences, and loops
     └── renderers/
@@ -122,6 +123,7 @@ src/
 - **Bundle Type Extraction**: `ComponentsOf<B>`, `EventsOf<B>`, `ResourcesOf<B>` — extract type parameters from a Bundle instance. Useful for reusable helpers.
 - **Timer Bundle Events**: Timer bundle still requires explicit `EventTypes` generic for `onComplete` constraint: `createTimerBundle<{ respawn: TimerEventData }>()`
 - **Collision Bundle**: `createCollisionBundle({ layers })` — layer-based AABB/circle collision detection with deduplication. `layers` (from `defineCollisionLayers`) is required; infers `L` for typed `CollisionComponentTypes<L>` and `CollisionEventTypes<L>`. Emits `collision` events with `CollisionEvent<L>`.
+- **CollisionEvent Contact Data**: `CollisionEvent<L>` includes `normal: { x, y }` (unit normal from entityA toward entityB) and `depth: number` (penetration depth). Computed via shared narrowphase at no extra cost.
 - **Collision Type Parameters**: `CollisionLayer<L>`, `CollisionEvent<L>`, `CollisionComponentTypes<L>`, `CollisionEventTypes<L>` — parameterized with layer name union `L extends string` (defaults to `string`)
 - **Collision Helpers**: `createAABBCollider(w, h)`, `createCircleCollider(r)`, `createCollisionLayer(layer, collidesWith)` — component factories for spreading into `spawn()`. `createCollisionLayer` infers `L` from arguments.
 - **Collision Layer Definitions**: `defineCollisionLayers({ player: ['enemy'], enemy: ['player'] })` — returns typed factory functions per layer. Validates `collidesWith` values reference actual layer keys at compile time (catches typos). Requires `const` inference (built-in).
