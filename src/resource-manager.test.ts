@@ -438,22 +438,23 @@ describe('ResourceManager', () => {
 
 		test('should allow factory to access dependencies via context', async () => {
 			interface Res { config: { value: number }; derived: { doubled: number } }
-			const rm = new ResourceManager<Res>();
+			interface MockEcs { getResource: (key: keyof Res) => Res[keyof Res] }
+			const rm = new ResourceManager<Res, MockEcs>();
 
 			// Create a mock ECS instance with getResource method
-			const mockEcs = {
-				getResource: (key: keyof Res) => rm.get(key)
+			const mockEcs: MockEcs = {
+				getResource: (key: keyof Res) => rm.get(key, mockEcs)
 			};
 
 			rm.add('config', { value: 42 });
 			rm.add('derived', {
 				dependsOn: ['config'],
-				factory: (ecs) => ({ doubled: ecs.getResource('config').value * 2 })
+				factory: (ecs) => ({ doubled: (ecs.getResource('config') as Res['config']).value * 2 })
 			});
 
 			await rm.initializeResources(mockEcs);
 
-			expect(rm.get('derived')).toEqual({ doubled: 84 });
+			expect(rm.get('derived', mockEcs)).toEqual({ doubled: 84 });
 		});
 
 		test('should work with async factories that have dependencies', async () => {

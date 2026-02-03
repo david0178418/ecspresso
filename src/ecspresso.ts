@@ -59,9 +59,9 @@ export default class ECSpresso<
 	/** Publish/subscribe to events*/
 	private _eventBus: EventBus<EventTypes>;
 	/** Access/modify registered resources*/
-	private _resourceManager: ResourceManager<ResourceTypes>;
+	private _resourceManager: ResourceManager<ResourceTypes, ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>>;
 	/** Command buffer for deferred structural changes */
-	private _commandBuffer: CommandBuffer<ComponentTypes, EventTypes, ResourceTypes>;
+	private _commandBuffer: CommandBuffer<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>;
 
 	/** Registered systems that will be updated in order*/
 	private _systems: Array<System<ComponentTypes, any, any, EventTypes, ResourceTypes, AssetTypes, ScreenStates>> = [];
@@ -80,7 +80,7 @@ export default class ECSpresso<
 	/** Reactive query manager for enter/exit callbacks */
 	private _reactiveQueryManager: ReactiveQueryManager<ComponentTypes>;
 	/** Post-update hooks to be called after all systems in update() */
-	private _postUpdateHooks: Array<(ecs: ECSpresso<ComponentTypes, EventTypes, ResourceTypes>, deltaTime: number) => void> = [];
+	private _postUpdateHooks: Array<(ecs: ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>, deltaTime: number) => void> = [];
 	/** Global tick counter, incremented at the end of each update() */
 	private _currentTick: number = 0;
 	/** Per-system last-seen change sequence for change detection */
@@ -112,9 +112,9 @@ export default class ECSpresso<
 	constructor() {
 		this._entityManager = new EntityManager<ComponentTypes>();
 		this._eventBus = new EventBus<EventTypes>();
-		this._resourceManager = new ResourceManager<ResourceTypes>();
+		this._resourceManager = new ResourceManager<ResourceTypes, ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>>();
 		this._reactiveQueryManager = new ReactiveQueryManager<ComponentTypes>(this._entityManager);
-		this._commandBuffer = new CommandBuffer<ComponentTypes, EventTypes, ResourceTypes>();
+		this._commandBuffer = new CommandBuffer<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>();
 
 		// Wire up component lifecycle hooks for reactive queries
 		this._setupReactiveQueryHooks();
@@ -365,7 +365,7 @@ export default class ECSpresso<
 
 		// 5. Post-update hooks (between postUpdate and render, preserving existing behavior)
 		for (const hook of this._postUpdateHooks) {
-			hook(this as unknown as ECSpresso<ComponentTypes, EventTypes, ResourceTypes>, deltaTime);
+			hook(this, deltaTime);
 		}
 
 		// 6. render phase
@@ -730,11 +730,11 @@ export default class ECSpresso<
 		key: K,
 		resource:
 			| ResourceTypes[K]
-			| ((ecs: ECSpresso<ComponentTypes, EventTypes, ResourceTypes>) => ResourceTypes[K] | Promise<ResourceTypes[K]>)
+			| ((ecs: ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>) => ResourceTypes[K] | Promise<ResourceTypes[K]>)
 			| {
 				dependsOn?: readonly string[];
-				factory: (ecs: ECSpresso<ComponentTypes, EventTypes, ResourceTypes>) => ResourceTypes[K] | Promise<ResourceTypes[K]>;
-				onDispose?: (resource: ResourceTypes[K], ecs?: ECSpresso<ComponentTypes, EventTypes, ResourceTypes>) => void | Promise<void>;
+				factory: (ecs: ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>) => ResourceTypes[K] | Promise<ResourceTypes[K]>;
+				onDispose?: (resource: ResourceTypes[K], ecs: ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>) => void | Promise<void>;
 			}
 	): this {
 		this._resourceManager.add(key, resource);
@@ -1346,7 +1346,7 @@ export default class ECSpresso<
 	 * @returns An unsubscribe function to remove the hook
 	 */
 	onPostUpdate(
-		callback: (ecs: ECSpresso<ComponentTypes, EventTypes, ResourceTypes>, deltaTime: number) => void
+		callback: (ecs: ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>, deltaTime: number) => void
 	): () => void {
 		this._postUpdateHooks.push(callback);
 		return () => {
@@ -1643,10 +1643,10 @@ export default class ECSpresso<
 /**
  * Resource factory with optional dependencies and disposal callback
  */
-type ResourceFactoryWithDeps<T> = {
+type ResourceFactoryWithDeps<T, Context = unknown> = {
 	dependsOn?: readonly string[];
-	factory: (context?: any) => T | Promise<T>;
-	onDispose?: (resource: T, context?: any) => void | Promise<void>;
+	factory: (context: Context) => T | Promise<T>;
+	onDispose?: (resource: T, context: Context) => void | Promise<void>;
 };
 
 /**
@@ -1779,7 +1779,7 @@ export class ECSpressoBuilder<
 	 */
 	withResource<K extends string, V>(
 		key: K,
-		resource: V | ((context?: any) => V | Promise<V>) | ResourceFactoryWithDeps<V>
+		resource: V | ((context: ECSpresso<C, E, R & Record<K, V>, A, S>) => V | Promise<V>) | ResourceFactoryWithDeps<V, ECSpresso<C, E, R & Record<K, V>, A, S>>
 	): ECSpressoBuilder<C, E, R & Record<K, V>, A, S, Labels, Groups> {
 		this.pendingResources.push({ key, value: resource });
 		return this as unknown as ECSpressoBuilder<C, E, R & Record<K, V>, A, S, Labels, Groups>;

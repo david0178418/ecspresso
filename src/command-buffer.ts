@@ -20,9 +20,11 @@ import type { RemoveEntityOptions } from './types';
 export default class CommandBuffer<
 	ComponentTypes extends Record<string, any> = {},
 	EventTypes extends Record<string, any> = {},
-	ResourceTypes extends Record<string, any> = {}
+	ResourceTypes extends Record<string, any> = {},
+	AssetTypes extends Record<string, unknown> = {},
+	ScreenStates extends Record<string, any> = {},
 > {
-	private commands: Array<(ecs: ECSpresso<ComponentTypes, EventTypes, ResourceTypes, any, any>) => void> = [];
+	private commands: Array<(ecs: ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>) => void> = [];
 
 	/**
 	 * Queue an entity removal command
@@ -143,7 +145,7 @@ export default class CommandBuffer<
 	 * Errors from individual commands are caught and logged, but do not stop playback.
 	 * @param ecs The ECSpresso instance to execute commands on
 	 */
-	playback<AssetTypes extends Record<string, any> = {}, ScreenStates extends Record<string, any> = {}>(
+	playback(
 		ecs: ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>
 	): void {
 		// Execute all commands, catching errors to prevent one bad command from stopping all playback

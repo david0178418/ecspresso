@@ -1,10 +1,10 @@
 /**
  * Resource factory with declared dependencies and optional disposal callback
  */
-interface ResourceFactoryWithDeps<T> {
+interface ResourceFactoryWithDeps<T, Context = unknown> {
 	dependsOn?: readonly string[];
-	factory: (context?: any) => T | Promise<T>;
-	onDispose?: (resource: T, context?: any) => void | Promise<void>;
+	factory: (context: Context) => T | Promise<T>;
+	onDispose?: (resource: T, context: Context) => void | Promise<void>;
 }
 
 /**
@@ -54,12 +54,21 @@ function topologicalSort<K extends string>(
 	return sorted;
 }
 
+/**
+ * When Context is unknown (default), context args are optional.
+ * When Context is a specific type (e.g. ECSpresso<...>), context is required.
+ */
+type ContextArgs<Context> = unknown extends Context ? [context?: Context] : [context: Context];
+
 export default
-class ResourceManager<ResourceTypes extends Record<string, any> = Record<string, any>> {
+class ResourceManager<
+	ResourceTypes extends Record<string, any> = Record<string, any>,
+	Context = unknown,
+> {
 	private resources: Map<keyof ResourceTypes, any> = new Map();
-	private resourceFactories: Map<keyof ResourceTypes, (context?: any) => any | Promise<any>> = new Map();
+	private resourceFactories: Map<keyof ResourceTypes, (context: Context) => any | Promise<any>> = new Map();
 	private resourceDependencies: Map<keyof ResourceTypes, readonly string[]> = new Map();
-	private resourceDisposers: Map<keyof ResourceTypes, (resource: any, context?: any) => void | Promise<void>> = new Map();
+	private resourceDisposers: Map<keyof ResourceTypes, (resource: any, context: Context) => void | Promise<void>> = new Map();
 	private initializedResourceKeys: Set<keyof ResourceTypes> = new Set();
 
 	/**
@@ -72,19 +81,19 @@ class ResourceManager<ResourceTypes extends Record<string, any> = Record<string,
 		label: K,
 		resource:
 			| ResourceTypes[K]
-			| ((context?: any) => ResourceTypes[K] | Promise<ResourceTypes[K]>)
-			| ResourceFactoryWithDeps<ResourceTypes[K]>,
+			| ((context: Context) => ResourceTypes[K] | Promise<ResourceTypes[K]>)
+			| ResourceFactoryWithDeps<ResourceTypes[K], Context>,
 	) {
 		if (isFactoryWithDeps<ResourceTypes[K]>(resource)) {
 			// Factory with optional dependencies and/or onDispose
-			this.resourceFactories.set(label, resource.factory);
+			this.resourceFactories.set(label, resource.factory as (context: Context) => any | Promise<any>);
 			this.resourceDependencies.set(label, resource.dependsOn ?? []);
 			if (resource.onDispose) {
-				this.resourceDisposers.set(label, resource.onDispose);
+				this.resourceDisposers.set(label, resource.onDispose as (resource: any, context: Context) => void | Promise<void>);
 			}
 		} else if (this._isFactoryFunction(resource)) {
 			// Factory function (no dependencies)
-			this.resourceFactories.set(label, resource as (context?: any) => any | Promise<any>);
+			this.resourceFactories.set(label, resource as (context: Context) => any | Promise<any>);
 			this.resourceDependencies.set(label, []);
 		} else {
 			// Direct resource value
@@ -146,13 +155,13 @@ class ResourceManager<ResourceTypes extends Record<string, any> = Record<string,
 	/**
 	 * Get a resource from the manager
 	 * @param label The resource key
-	 * @param context Optional context to pass to factory functions (usually the ECSpresso instance)
+	 * @param context Context to pass to factory functions (usually the ECSpresso instance)
 	 * @returns The resource value
 	 * @throws Error if resource not found
 	 */
 	get<K extends keyof ResourceTypes>(
 		label: K,
-		context?: any
+		...args: ContextArgs<Context>
 	): ResourceTypes[K] {
 		// Check if we already have the initialized resource
 		const resource = this.resources.get(label);
@@ -167,6 +176,7 @@ class ResourceManager<ResourceTypes extends Record<string, any> = Record<string,
 		}
 
 		// Initialize the resource, passing the context
+		const context = args[0] as Context;
 		const initializedResource = factory(context);
 
 		// If it's not a Promise, store it immediately
@@ -235,18 +245,19 @@ class ResourceManager<ResourceTypes extends Record<string, any> = Record<string,
 	/**
 	 * Initialize a specific resource if it's a factory function
 	 * @param label The resource key
-	 * @param context Optional context to pass to factory functions
+	 * @param context Context to pass to factory functions
 	 * @returns Promise that resolves when the resource is initialized
 	 */
 	async initializeResource<K extends keyof ResourceTypes>(
 		label: K,
-		context?: any
+		...args: ContextArgs<Context>
 	): Promise<void> {
 		if (!this.resourceFactories.has(label) || this.initializedResourceKeys.has(label)) {
 			return;
 		}
 
 		const factory = this.resourceFactories.get(label)!;
+		const context = args[0] as Context;
 		const initializedResource = await factory(context);
 		this.resources.set(label, initializedResource);
 		this.initializedResourceKeys.add(label);
@@ -256,14 +267,16 @@ class ResourceManager<ResourceTypes extends Record<string, any> = Record<string,
 	/**
 	 * Initialize specific resources or all resources that haven't been initialized yet.
 	 * Resources are initialized in topological order based on their dependencies.
-	 * @param context Optional context to pass to factory functions (usually the ECSpresso instance)
+	 * @param context Context to pass to factory functions (usually the ECSpresso instance)
 	 * @param keys Optional array of resource keys to initialize
 	 * @returns Promise that resolves when the specified resources are initialized
 	 */
 	async initializeResources<K extends keyof ResourceTypes>(
-		context?: any,
-		...keys: K[]
+		...args: [...ContextArgs<Context>, ...K[]]
 	): Promise<void> {
+		// First arg is context (when Context is typed), remaining are keys
+		const keys = args.slice(1) as K[];
+
 		// Determine which keys to initialize
 		const keysToInit = keys.length === 0
 			? this.getPendingInitializationKeys()
@@ -280,7 +293,7 @@ class ResourceManager<ResourceTypes extends Record<string, any> = Record<string,
 
 		// Initialize in order (sequentially to respect dependencies)
 		for (const key of sortedKeys) {
-			await this.initializeResource(key, context);
+			await this.initializeResource(key, ...args.slice(0, 1) as ContextArgs<Context>);
 		}
 	}
 
@@ -296,12 +309,12 @@ class ResourceManager<ResourceTypes extends Record<string, any> = Record<string,
 	/**
 	 * Dispose a single resource, calling its onDispose callback if it exists
 	 * @param label The resource key to dispose
-	 * @param context Optional context to pass to the onDispose callback
+	 * @param context Context to pass to the onDispose callback
 	 * @returns True if the resource existed and was disposed, false if it didn't exist
 	 */
 	async disposeResource<K extends keyof ResourceTypes>(
 		label: K,
-		context?: any
+		...args: ContextArgs<Context>
 	): Promise<boolean> {
 		if (!this.resources.has(label) && !this.resourceFactories.has(label)) {
 			return false;
@@ -312,6 +325,7 @@ class ResourceManager<ResourceTypes extends Record<string, any> = Record<string,
 			const disposer = this.resourceDisposers.get(label);
 			const resource = this.resources.get(label);
 			if (disposer && resource !== undefined) {
+				const context = args[0] as Context;
 				await disposer(resource, context);
 			}
 		}
@@ -329,9 +343,11 @@ class ResourceManager<ResourceTypes extends Record<string, any> = Record<string,
 	/**
 	 * Dispose all initialized resources in reverse dependency order.
 	 * Resources that depend on others are disposed first.
-	 * @param context Optional context to pass to onDispose callbacks
+	 * @param context Context to pass to onDispose callbacks
 	 */
-	async disposeResources(context?: any): Promise<void> {
+	async disposeResources(
+		...args: ContextArgs<Context>
+	): Promise<void> {
 		// Get only initialized resource keys
 		const initializedKeys = Array.from(this.initializedResourceKeys);
 
@@ -345,7 +361,7 @@ class ResourceManager<ResourceTypes extends Record<string, any> = Record<string,
 
 		// Dispose in reverse dependency order
 		for (const key of sortedKeys) {
-			await this.disposeResource(key, context);
+			await this.disposeResource(key, ...args);
 		}
 	}
 }

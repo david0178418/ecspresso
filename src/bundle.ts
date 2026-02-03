@@ -78,8 +78,8 @@ export default class Bundle<
 		label: K,
 		resource:
 			| ResourceTypes[K]
-			| ((ecs: ECSpresso<ComponentTypes, EventTypes, ResourceTypes, any, any>) => ResourceTypes[K] | Promise<ResourceTypes[K]>)
-			| { dependsOn: readonly string[]; factory: (ecs: ECSpresso<ComponentTypes, EventTypes, ResourceTypes, any, any>) => ResourceTypes[K] | Promise<ResourceTypes[K]> }
+			| ((ecs: ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>) => ResourceTypes[K] | Promise<ResourceTypes[K]>)
+			| { dependsOn: readonly string[]; factory: (ecs: ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>) => ResourceTypes[K] | Promise<ResourceTypes[K]> }
 	) {
 		// We need this cast because TypeScript doesn't recognize that a value of type
 		// ResourceTypes[K] | (() => ResourceTypes[K] | Promise<ResourceTypes[K]>) | { dependsOn, factory }
