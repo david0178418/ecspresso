@@ -14,6 +14,7 @@ import type { SystemPhase } from 'ecspresso';
 import type { TransformComponentTypes } from './transform';
 import type { CollisionComponentTypes } from './collision';
 import type { Vector2D } from 'ecspresso';
+import type { SpatialIndex } from './spatial-index';
 
 // ==================== Component Types ====================
 
@@ -337,6 +338,169 @@ function computeContact(a: Physics2DColliderInfo, b: Physics2DColliderInfo): Con
 	return null;
 }
 
+// ==================== Collision Detection Strategies ====================
+
+// Reusable set for broadphase candidates
+const _broadphaseCandidates = new Set<number>();
+
+interface PhysicsEcsLike {
+	entityManager: { getComponent(id: number, name: string): unknown | null };
+	eventBus: { publish(event: 'physicsCollision', data: Physics2DCollisionEvent): void };
+	markChanged(entityId: number, componentName: string): void;
+}
+
+/**
+ * Resolve a physics collision pair: position correction, impulse response, event.
+ */
+function resolvePhysicsContact(
+	a: Physics2DColliderInfo,
+	b: Physics2DColliderInfo,
+	contact: Contact,
+	ecs: PhysicsEcsLike,
+): void {
+	const invMassA = (a.rigidBody.type === 'dynamic' && a.rigidBody.mass > 0 && a.rigidBody.mass !== Infinity)
+		? 1 / a.rigidBody.mass
+		: 0;
+	const invMassB = (b.rigidBody.type === 'dynamic' && b.rigidBody.mass > 0 && b.rigidBody.mass !== Infinity)
+		? 1 / b.rigidBody.mass
+		: 0;
+	const totalInvMass = invMassA + invMassB;
+
+	// Position correction
+	if (totalInvMass > 0) {
+		const correctionScale = contact.depth / totalInvMass;
+
+		if (invMassA > 0) {
+			const ltA = ecs.entityManager.getComponent(a.entityId, 'localTransform') as { x: number; y: number };
+			ltA.x -= correctionScale * invMassA * contact.normalX;
+			ltA.y -= correctionScale * invMassA * contact.normalY;
+			// Update cached position for subsequent pairs (collider offset already baked in)
+			a.x = ltA.x;
+			ecs.markChanged(a.entityId, 'localTransform');
+		}
+
+		if (invMassB > 0) {
+			const ltB = ecs.entityManager.getComponent(b.entityId, 'localTransform') as { x: number; y: number };
+			ltB.x += correctionScale * invMassB * contact.normalX;
+			ltB.y += correctionScale * invMassB * contact.normalY;
+			ecs.markChanged(b.entityId, 'localTransform');
+		}
+
+		// Velocity response (impulse-based)
+		const relVelX = b.velocity.x - a.velocity.x;
+		const relVelY = b.velocity.y - a.velocity.y;
+		const velAlongNormal = relVelX * contact.normalX + relVelY * contact.normalY;
+
+		if (velAlongNormal < 0) {
+			const restitution = Math.min(a.rigidBody.restitution, b.rigidBody.restitution);
+			const normalImpulse = -(1 + restitution) * velAlongNormal / totalInvMass;
+
+			a.velocity.x -= normalImpulse * invMassA * contact.normalX;
+			a.velocity.y -= normalImpulse * invMassA * contact.normalY;
+			b.velocity.x += normalImpulse * invMassB * contact.normalX;
+			b.velocity.y += normalImpulse * invMassB * contact.normalY;
+
+			// Friction (tangential impulse)
+			const tangentX = relVelX - velAlongNormal * contact.normalX;
+			const tangentY = relVelY - velAlongNormal * contact.normalY;
+			const tangentSpeed = Math.sqrt(tangentX * tangentX + tangentY * tangentY);
+
+			if (tangentSpeed > 1e-6) {
+				const tangentNX = tangentX / tangentSpeed;
+				const tangentNY = tangentY / tangentSpeed;
+				const friction = Math.sqrt(a.rigidBody.friction * b.rigidBody.friction);
+				const maxFrictionImpulse = friction * Math.abs(normalImpulse);
+				const tangentImpulse = Math.min(tangentSpeed / totalInvMass, maxFrictionImpulse);
+
+				a.velocity.x += tangentImpulse * invMassA * tangentNX;
+				a.velocity.y += tangentImpulse * invMassA * tangentNY;
+				b.velocity.x -= tangentImpulse * invMassB * tangentNX;
+				b.velocity.y -= tangentImpulse * invMassB * tangentNY;
+			}
+		}
+
+		ecs.markChanged(a.entityId, 'velocity');
+		ecs.markChanged(b.entityId, 'velocity');
+	}
+
+	ecs.eventBus.publish('physicsCollision', {
+		entityA: a.entityId,
+		entityB: b.entityId,
+		normal: { x: contact.normalX, y: contact.normalY },
+		depth: contact.depth,
+	});
+}
+
+/**
+ * O(n²) brute-force physics collision detection + response.
+ */
+function bruteForcePhysicsCollision(
+	colliders: Physics2DColliderInfo[],
+	ecs: PhysicsEcsLike,
+): void {
+	for (let i = 0; i < colliders.length; i++) {
+		const a = colliders[i]!;
+
+		for (let j = i + 1; j < colliders.length; j++) {
+			const b = colliders[j]!;
+
+			const aCollidesWithB = a.collidesWith.includes(b.layer);
+			const bCollidesWithA = b.collidesWith.includes(a.layer);
+			if (!aCollidesWithB && !bCollidesWithA) continue;
+
+			const contact = computeContact(a, b);
+			if (!contact) continue;
+
+			resolvePhysicsContact(a, b, contact, ecs);
+		}
+	}
+}
+
+/**
+ * Broadphase physics collision using spatial index, then narrowphase + response.
+ */
+function broadphasePhysicsCollision(
+	colliders: Physics2DColliderInfo[],
+	spatialIndex: SpatialIndex,
+	ecs: PhysicsEcsLike,
+): void {
+	const colliderMap = new Map<number, Physics2DColliderInfo>();
+	for (let i = 0; i < colliders.length; i++) {
+		const c = colliders[i]!;
+		colliderMap.set(c.entityId, c);
+	}
+
+	for (let i = 0; i < colliders.length; i++) {
+		const a = colliders[i]!;
+
+		const aHalfW = a.aabb ? a.aabb.halfWidth : (a.circle ? a.circle.radius : 0);
+		const aHalfH = a.aabb ? a.aabb.halfHeight : (a.circle ? a.circle.radius : 0);
+
+		_broadphaseCandidates.clear();
+		spatialIndex.queryRectInto(
+			a.x - aHalfW, a.y - aHalfH,
+			a.x + aHalfW, a.y + aHalfH,
+			_broadphaseCandidates,
+		);
+
+		for (const bId of _broadphaseCandidates) {
+			if (bId <= a.entityId) continue;
+
+			const b = colliderMap.get(bId);
+			if (!b) continue;
+
+			const aCollidesWithB = a.collidesWith.includes(b.layer);
+			const bCollidesWithA = b.collidesWith.includes(a.layer);
+			if (!aCollidesWithB && !bCollidesWithA) continue;
+
+			const contact = computeContact(a, b);
+			if (!contact) continue;
+
+			resolvePhysicsContact(a, b, contact, ecs);
+		}
+	}
+}
+
 // ==================== Bundle Factory ====================
 
 /**
@@ -490,99 +654,13 @@ export function createPhysics2DBundle(
 				colliders.push(info);
 			}
 
-			// O(n²) pair-wise collision detection + response
-			for (let i = 0; i < colliders.length; i++) {
-				const a = colliders[i]!;
+			const hasSpatial = (ecs as unknown as { hasResource(k: string): boolean }).hasResource('spatialIndex');
 
-				for (let j = i + 1; j < colliders.length; j++) {
-					const b = colliders[j]!;
-
-					// Layer filtering
-					const aCollidesWithB = a.collidesWith.includes(b.layer);
-					const bCollidesWithA = b.collidesWith.includes(a.layer);
-					if (!aCollidesWithB && !bCollidesWithA) continue;
-
-					// Contact computation
-					const contact = computeContact(a, b);
-					if (!contact) continue;
-
-					const invMassA = (a.rigidBody.type === 'dynamic' && a.rigidBody.mass > 0 && a.rigidBody.mass !== Infinity)
-						? 1 / a.rigidBody.mass
-						: 0;
-					const invMassB = (b.rigidBody.type === 'dynamic' && b.rigidBody.mass > 0 && b.rigidBody.mass !== Infinity)
-						? 1 / b.rigidBody.mass
-						: 0;
-					const totalInvMass = invMassA + invMassB;
-
-					// Position correction
-					if (totalInvMass > 0) {
-						const correctionScale = contact.depth / totalInvMass;
-
-						if (invMassA > 0) {
-							const ltA = ecs.entityManager.getComponent(a.entityId, 'localTransform')!;
-							ltA.x -= correctionScale * invMassA * contact.normalX;
-							ltA.y -= correctionScale * invMassA * contact.normalY;
-							// Update cached position for subsequent pairs
-							a.x = ltA.x + (a.aabb ? 0 : 0); // collider offset already baked into initial x
-							ecs.markChanged(a.entityId, 'localTransform');
-						}
-
-						if (invMassB > 0) {
-							const ltB = ecs.entityManager.getComponent(b.entityId, 'localTransform')!;
-							ltB.x += correctionScale * invMassB * contact.normalX;
-							ltB.y += correctionScale * invMassB * contact.normalY;
-							ecs.markChanged(b.entityId, 'localTransform');
-						}
-
-						// Velocity response (impulse-based)
-						// relVel = velocity of B relative to A; normal points A→B
-						const relVelX = b.velocity.x - a.velocity.x;
-						const relVelY = b.velocity.y - a.velocity.y;
-						const velAlongNormal = relVelX * contact.normalX + relVelY * contact.normalY;
-
-						// Only apply impulse if bodies are approaching (negative = closing)
-						if (velAlongNormal < 0) {
-							const restitution = Math.min(a.rigidBody.restitution, b.rigidBody.restitution);
-							const normalImpulse = -(1 + restitution) * velAlongNormal / totalInvMass;
-
-							a.velocity.x -= normalImpulse * invMassA * contact.normalX;
-							a.velocity.y -= normalImpulse * invMassA * contact.normalY;
-							b.velocity.x += normalImpulse * invMassB * contact.normalX;
-							b.velocity.y += normalImpulse * invMassB * contact.normalY;
-
-							// Friction (tangential impulse)
-							const tangentX = relVelX - velAlongNormal * contact.normalX;
-							const tangentY = relVelY - velAlongNormal * contact.normalY;
-							const tangentSpeed = Math.sqrt(tangentX * tangentX + tangentY * tangentY);
-
-							if (tangentSpeed > 1e-6) {
-								const tangentNX = tangentX / tangentSpeed;
-								const tangentNY = tangentY / tangentSpeed;
-								const friction = Math.sqrt(a.rigidBody.friction * b.rigidBody.friction);
-								const maxFrictionImpulse = friction * Math.abs(normalImpulse);
-								const tangentImpulse = Math.min(tangentSpeed / totalInvMass, maxFrictionImpulse);
-
-								// tangent points in direction B slides relative to A;
-								// friction opposes this: push A toward tangent, B away
-								a.velocity.x += tangentImpulse * invMassA * tangentNX;
-								a.velocity.y += tangentImpulse * invMassA * tangentNY;
-								b.velocity.x -= tangentImpulse * invMassB * tangentNX;
-								b.velocity.y -= tangentImpulse * invMassB * tangentNY;
-							}
-						}
-
-						ecs.markChanged(a.entityId, 'velocity');
-						ecs.markChanged(b.entityId, 'velocity');
-					}
-
-					// Emit collision event
-					ecs.eventBus.publish('physicsCollision', {
-						entityA: a.entityId,
-						entityB: b.entityId,
-						normal: { x: contact.normalX, y: contact.normalY },
-						depth: contact.depth,
-					});
-				}
+			if (hasSpatial) {
+				const si = (ecs as unknown as { getResource(k: string): SpatialIndex }).getResource('spatialIndex');
+				broadphasePhysicsCollision(colliders, si, ecs);
+			} else {
+				bruteForcePhysicsCollision(colliders, ecs);
 			}
 		})
 		.and();

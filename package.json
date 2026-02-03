@@ -55,6 +55,10 @@
 			"import": "./dist/bundles/utils/diagnostics.js",
 			"types": "./dist/bundles/utils/diagnostics.d.ts"
 		},
+		"./bundles/utils/spatial-index": {
+			"import": "./dist/bundles/utils/spatial-index.js",
+			"types": "./dist/bundles/utils/spatial-index.d.ts"
+		},
 		"./math": {
 			"import": "./dist/math.js",
 			"types": "./dist/math.d.ts"

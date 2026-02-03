@@ -9,6 +9,7 @@
 import { Bundle } from 'ecspresso';
 import type { SystemPhase } from 'ecspresso';
 import type { TransformComponentTypes } from './transform';
+import type { SpatialIndex } from './spatial-index';
 
 // ==================== Component Types ====================
 
@@ -390,10 +391,11 @@ interface ColliderInfo {
  * Create a collision bundle for ECSpresso.
  *
  * This bundle provides:
- * - O(n²) collision detection between entities with colliders
+ * - Collision detection between entities with colliders
  * - AABB-AABB, circle-circle, and AABB-circle collision
  * - Layer-based filtering for collision pairs
  * - Deduplication of A-B / B-A collisions
+ * - Automatic broadphase acceleration when spatialIndex resource is present
  *
  * Uses worldTransform for position (world-space collision detection).
  * The `layers` parameter is required for type inference — at runtime the
@@ -475,50 +477,119 @@ export function createCollisionBundle<L extends string>(
 				colliders.push(info);
 			}
 
-			// Track processed pairs to avoid duplicates
-			const processedPairs = new Set<string>();
+			const hasSpatial = (ecs as unknown as { hasResource(k: string): boolean }).hasResource('spatialIndex');
 
-			// O(n²) collision detection
-			for (let i = 0; i < colliders.length; i++) {
-				const a = colliders[i];
-				if (!a) continue;
-
-				for (let j = i + 1; j < colliders.length; j++) {
-					const b = colliders[j];
-					if (!b) continue;
-
-					// Check layer compatibility (A→B or B→A)
-					const aCollidesWithB = a.collidesWith.includes(b.layer);
-					const bCollidesWithA = b.collidesWith.includes(a.layer);
-
-					if (!aCollidesWithB && !bCollidesWithA) continue;
-
-					// Create unique pair key
-					const pairKey = a.entityId < b.entityId
-						? `${a.entityId}:${b.entityId}`
-						: `${b.entityId}:${a.entityId}`;
-
-					if (processedPairs.has(pairKey)) continue;
-
-					// Check collision based on collider types
-					const colliding = checkCollision(a, b);
-
-					if (colliding) {
-						processedPairs.add(pairKey);
-						ecs.eventBus.publish('collision', {
-							entityA: a.entityId,
-							entityB: b.entityId,
-							layerA: a.layer as L,
-							layerB: b.layer as L,
-						});
-					}
-				}
+			if (hasSpatial) {
+				const si = (ecs as unknown as { getResource(k: string): SpatialIndex }).getResource('spatialIndex');
+				broadphaseCollision<L>(colliders, si, ecs.eventBus);
+			} else {
+				bruteForceCollision<L>(colliders, ecs.eventBus);
 			}
 		})
 		.and();
 
 	return bundle;
 }
+
+// ==================== Collision Detection Strategies ====================
+
+// Reusable set for broadphase candidates (avoids per-frame allocation)
+const _broadphaseCandidates = new Set<number>();
+
+interface CollisionEventBus<L extends string> {
+	publish(event: 'collision', data: CollisionEvent<L>): void;
+}
+
+/**
+ * O(n²) brute-force collision detection.
+ */
+function bruteForceCollision<L extends string>(
+	colliders: ColliderInfo[],
+	eventBus: CollisionEventBus<L>,
+): void {
+	const processedPairs = new Set<string>();
+
+	for (let i = 0; i < colliders.length; i++) {
+		const a = colliders[i]!;
+
+		for (let j = i + 1; j < colliders.length; j++) {
+			const b = colliders[j]!;
+
+			const aCollidesWithB = a.collidesWith.includes(b.layer);
+			const bCollidesWithA = b.collidesWith.includes(a.layer);
+			if (!aCollidesWithB && !bCollidesWithA) continue;
+
+			const pairKey = a.entityId < b.entityId
+				? `${a.entityId}:${b.entityId}`
+				: `${b.entityId}:${a.entityId}`;
+
+			if (processedPairs.has(pairKey)) continue;
+
+			if (checkCollision(a, b)) {
+				processedPairs.add(pairKey);
+				eventBus.publish('collision', {
+					entityA: a.entityId,
+					entityB: b.entityId,
+					layerA: a.layer as L,
+					layerB: b.layer as L,
+				});
+			}
+		}
+	}
+}
+
+/**
+ * Broadphase collision using spatial index, then narrowphase.
+ */
+function broadphaseCollision<L extends string>(
+	colliders: ColliderInfo[],
+	spatialIndex: SpatialIndex,
+	eventBus: CollisionEventBus<L>,
+): void {
+	const colliderMap = new Map<number, ColliderInfo>();
+	for (let i = 0; i < colliders.length; i++) {
+		const c = colliders[i]!;
+		colliderMap.set(c.entityId, c);
+	}
+
+	for (let i = 0; i < colliders.length; i++) {
+		const a = colliders[i]!;
+
+		// Compute bounding box for grid query
+		const aHalfW = a.aabb ? a.aabb.halfWidth : (a.circle ? a.circle.radius : 0);
+		const aHalfH = a.aabb ? a.aabb.halfHeight : (a.circle ? a.circle.radius : 0);
+
+		_broadphaseCandidates.clear();
+		spatialIndex.queryRectInto(
+			a.x - aHalfW, a.y - aHalfH,
+			a.x + aHalfW, a.y + aHalfH,
+			_broadphaseCandidates,
+		);
+
+		for (const bId of _broadphaseCandidates) {
+			// Canonical ordering for dedup: skip if b <= a
+			if (bId <= a.entityId) continue;
+
+			const b = colliderMap.get(bId);
+			if (!b) continue;
+
+			const aCollidesWithB = a.collidesWith.includes(b.layer);
+			const bCollidesWithA = b.collidesWith.includes(a.layer);
+			if (!aCollidesWithB && !bCollidesWithA) continue;
+
+			if (checkCollision(a, b)) {
+				eventBus.publish('collision', {
+					entityA: a.entityId,
+					entityB: b.entityId,
+					layerA: a.layer as L,
+					layerB: b.layer as L,
+				});
+			}
+		}
+	}
+}
+
+// ==================== Narrowphase ====================
 
 /**
  * Check if two colliders are overlapping.
