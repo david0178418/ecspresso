@@ -543,12 +543,13 @@ describe('Spatial Index — Collision Bundle Integration', () => {
 
 	test('physics2D with spatial index produces same collision response as without', () => {
 		const FIXED_DT = 1 / 60;
+		const physicsLayers = defineCollisionLayers({ default: ['default'] });
 
 		// Without spatial index
 		const ecsWithout = ECSpresso
 			.create()
 			.withBundle(createTransformBundle())
-			.withBundle(createPhysics2DBundle({ gravity: { x: 0, y: 0 } }))
+			.withBundle(createPhysics2DBundle({ gravity: { x: 0, y: 0 }, layers: physicsLayers }))
 			.withFixedTimestep(FIXED_DT)
 			.build();
 
@@ -560,14 +561,14 @@ describe('Spatial Index — Collision Bundle Integration', () => {
 			...createRigidBody('dynamic'),
 			velocity: { x: 0, y: 0 },
 			...createAABBCollider(20, 20),
-			...createCollisionLayer('default', ['default']),
+			...physicsLayers.default(),
 		});
 		ecsWithout.spawn({
 			...createTransform(15, 0),
 			...createRigidBody('dynamic'),
 			velocity: { x: 0, y: 0 },
 			...createAABBCollider(20, 20),
-			...createCollisionLayer('default', ['default']),
+			...physicsLayers.default(),
 		});
 
 		ecsWithout.update(FIXED_DT);
@@ -576,7 +577,7 @@ describe('Spatial Index — Collision Bundle Integration', () => {
 		const ecsWith = ECSpresso
 			.create()
 			.withBundle(createTransformBundle())
-			.withBundle(createPhysics2DBundle({ gravity: { x: 0, y: 0 } }))
+			.withBundle(createPhysics2DBundle({ gravity: { x: 0, y: 0 }, layers: physicsLayers }))
 			.withBundle(createSpatialIndexBundle())
 			.withFixedTimestep(FIXED_DT)
 			.build();
@@ -589,14 +590,14 @@ describe('Spatial Index — Collision Bundle Integration', () => {
 			...createRigidBody('dynamic'),
 			velocity: { x: 0, y: 0 },
 			...createAABBCollider(20, 20),
-			...createCollisionLayer('default', ['default']),
+			...physicsLayers.default(),
 		});
 		ecsWith.spawn({
 			...createTransform(15, 0),
 			...createRigidBody('dynamic'),
 			velocity: { x: 0, y: 0 },
 			...createAABBCollider(20, 20),
-			...createCollisionLayer('default', ['default']),
+			...physicsLayers.default(),
 		});
 
 		ecsWith.update(FIXED_DT);

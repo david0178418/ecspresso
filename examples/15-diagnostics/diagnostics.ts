@@ -38,7 +38,7 @@ const ecs = ECSpresso.create()
 		init: { background: '#1a1a2e', width: SCREEN_W, height: SCREEN_H },
 		container: document.body,
 	}))
-	.withBundle(createPhysics2DBundle({ gravity: { x: 0, y: 400 }, collisionSystemGroup: 'collision' }))
+	.withBundle(createPhysics2DBundle({ gravity: { x: 0, y: 400 }, collisionSystemGroup: 'collision', layers }))
 	.withBundle(createDiagnosticsBundle())
 	.withComponentTypes<{ radius: number; color: number }>()
 	.build();

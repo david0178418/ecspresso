@@ -12,7 +12,7 @@
 import { Bundle } from 'ecspresso';
 import type { SystemPhase } from 'ecspresso';
 import type { TransformComponentTypes } from './transform';
-import type { CollisionComponentTypes } from './collision';
+import type { CollisionComponentTypes, LayerFactories } from './collision';
 import type { Vector2D } from 'ecspresso';
 import type { SpatialIndex } from './spatial-index';
 import { detectCollisions, type Contact, type BaseColliderInfo } from './narrowphase';
@@ -47,7 +47,7 @@ export interface RigidBody {
 /**
  * Component types provided by the physics bundle.
  */
-export interface Physics2DComponentTypes<L extends string> extends TransformComponentTypes, CollisionComponentTypes<L> {
+export interface Physics2DComponentTypes<L extends string = never> extends TransformComponentTypes, CollisionComponentTypes<L> {
 	rigidBody: RigidBody;
 	velocity: Vector2D;
 	force: Vector2D;
@@ -323,9 +323,9 @@ function onPhysicsContact(
  * });
  * ```
  */
-export function createPhysics2DBundle(
-	options?: Physics2DBundleOptions,
-): Bundle<Physics2DComponentTypes<string>, Physics2DEventTypes, Physics2DResourceTypes> {
+export function createPhysics2DBundle<L extends string = never>(
+	options?: Physics2DBundleOptions & { layers?: LayerFactories<Record<L, readonly string[]>> },
+): Bundle<Physics2DComponentTypes<L>, Physics2DEventTypes, Physics2DResourceTypes> {
 	const {
 		gravity = { x: 0, y: 0 },
 		systemGroup = 'physics2D',
@@ -335,7 +335,7 @@ export function createPhysics2DBundle(
 		phase = 'fixedUpdate',
 	} = options ?? {};
 
-	const bundle = new Bundle<Physics2DComponentTypes<string>, Physics2DEventTypes, Physics2DResourceTypes>('physics2D');
+	const bundle = new Bundle<Physics2DComponentTypes<L>, Physics2DEventTypes, Physics2DResourceTypes>('physics2D');
 
 	// rigidBody requires velocity and force — auto-add with zero defaults
 	bundle.registerRequired('rigidBody', 'velocity', () => ({ x: 0, y: 0 }));

@@ -1,7 +1,12 @@
 import { describe, test, expect } from 'bun:test';
 import ECSpresso from '../../ecspresso';
 import { createTransform, createTransformBundle } from './transform';
-import { createAABBCollider, createCircleCollider, createCollisionLayer } from './collision';
+import {
+	createAABBCollider,
+	createCircleCollider,
+	defineCollisionLayers,
+	createCollisionBundle,
+} from './collision';
 import {
 	createPhysics2DBundle,
 	createRigidBody,
@@ -17,7 +22,9 @@ import {
 
 // ==================== Test Setup ====================
 
-interface TestComponents extends Physics2DComponentTypes<string> {
+const defaultLayers = defineCollisionLayers({ default: ['default'] });
+
+interface TestComponents extends Physics2DComponentTypes<'default'> {
 	tag: string;
 }
 
@@ -31,7 +38,7 @@ function createEcs(options?: { gravity?: { x: number; y: number }; systemGroup?:
 	return ECSpresso
 		.create<TestComponents, TestEvents, TestResources>()
 		.withBundle(createTransformBundle())
-		.withBundle(createPhysics2DBundle(options))
+		.withBundle(createPhysics2DBundle({ ...options, layers: defaultLayers }))
 		.withFixedTimestep(FIXED_DT)
 		.build();
 }
@@ -393,7 +400,7 @@ describe('Physics 2D Bundle', () => {
 				...createRigidBody('dynamic'),
 				velocity: { x: 0, y: 0 },
 				...createAABBCollider(20, 20),
-				...createCollisionLayer('default', ['default']),
+				...defaultLayers.default(),
 			});
 
 			const b = ecs.spawn({
@@ -401,7 +408,7 @@ describe('Physics 2D Bundle', () => {
 				...createRigidBody('dynamic'),
 				velocity: { x: 0, y: 0 },
 				...createAABBCollider(20, 20),
-				...createCollisionLayer('default', ['default']),
+				...defaultLayers.default(),
 			});
 
 			ecs.update(FIXED_DT);
@@ -421,7 +428,7 @@ describe('Physics 2D Bundle', () => {
 				...createRigidBody('dynamic'),
 				velocity: { x: 0, y: 0 },
 				...createAABBCollider(20, 20),
-				...createCollisionLayer('default', ['default']),
+				...defaultLayers.default(),
 			});
 
 			const staticEntity = ecs.spawn({
@@ -429,7 +436,7 @@ describe('Physics 2D Bundle', () => {
 				...createRigidBody('static'),
 				velocity: { x: 0, y: 0 },
 				...createAABBCollider(20, 20),
-				...createCollisionLayer('default', ['default']),
+				...defaultLayers.default(),
 			});
 
 			ecs.update(FIXED_DT);
@@ -451,7 +458,7 @@ describe('Physics 2D Bundle', () => {
 				...createRigidBody('dynamic'),
 				velocity: { x: 0, y: 0 },
 				...createAABBCollider(20, 20),
-				...createCollisionLayer('default', ['default']),
+				...defaultLayers.default(),
 			});
 
 			const kinematic = ecs.spawn({
@@ -459,7 +466,7 @@ describe('Physics 2D Bundle', () => {
 				...createRigidBody('kinematic'),
 				velocity: { x: 0, y: 0 },
 				...createAABBCollider(20, 20),
-				...createCollisionLayer('default', ['default']),
+				...defaultLayers.default(),
 			});
 
 			ecs.update(FIXED_DT);
@@ -480,7 +487,7 @@ describe('Physics 2D Bundle', () => {
 				...createRigidBody('dynamic', { mass: 1 }),
 				velocity: { x: 0, y: 0 },
 				...createAABBCollider(20, 20),
-				...createCollisionLayer('default', ['default']),
+				...defaultLayers.default(),
 			});
 
 			const heavy = ecs.spawn({
@@ -488,7 +495,7 @@ describe('Physics 2D Bundle', () => {
 				...createRigidBody('dynamic', { mass: 10 }),
 				velocity: { x: 0, y: 0 },
 				...createAABBCollider(20, 20),
-				...createCollisionLayer('default', ['default']),
+				...defaultLayers.default(),
 			});
 
 			ecs.update(FIXED_DT);
@@ -509,7 +516,7 @@ describe('Physics 2D Bundle', () => {
 				...createRigidBody('dynamic'),
 				velocity: { x: 0, y: 0 },
 				...createCircleCollider(10),
-				...createCollisionLayer('default', ['default']),
+				...defaultLayers.default(),
 			});
 
 			const b = ecs.spawn({
@@ -517,7 +524,7 @@ describe('Physics 2D Bundle', () => {
 				...createRigidBody('dynamic'),
 				velocity: { x: 0, y: 0 },
 				...createCircleCollider(10),
-				...createCollisionLayer('default', ['default']),
+				...defaultLayers.default(),
 			});
 
 			ecs.update(FIXED_DT);
@@ -539,7 +546,7 @@ describe('Physics 2D Bundle', () => {
 				...createRigidBody('dynamic'),
 				velocity: { x: 0, y: 0 },
 				...createAABBCollider(20, 20),
-				...createCollisionLayer('default', ['default']),
+				...defaultLayers.default(),
 			});
 
 			const circle = ecs.spawn({
@@ -547,7 +554,7 @@ describe('Physics 2D Bundle', () => {
 				...createRigidBody('dynamic'),
 				velocity: { x: 0, y: 0 },
 				...createCircleCollider(5),
-				...createCollisionLayer('default', ['default']),
+				...defaultLayers.default(),
 			});
 
 			ecs.update(FIXED_DT);
@@ -570,7 +577,7 @@ describe('Physics 2D Bundle', () => {
 				...createRigidBody('dynamic', { restitution: 1, mass: 1 }),
 				velocity: { x: 100, y: 0 },
 				...createAABBCollider(20, 20),
-				...createCollisionLayer('default', ['default']),
+				...defaultLayers.default(),
 			});
 
 			const b = ecs.spawn({
@@ -578,7 +585,7 @@ describe('Physics 2D Bundle', () => {
 				...createRigidBody('dynamic', { restitution: 1, mass: 1 }),
 				velocity: { x: -100, y: 0 },
 				...createAABBCollider(20, 20),
-				...createCollisionLayer('default', ['default']),
+				...defaultLayers.default(),
 			});
 
 			ecs.update(FIXED_DT);
@@ -599,7 +606,7 @@ describe('Physics 2D Bundle', () => {
 				...createRigidBody('dynamic', { restitution: 0, mass: 1 }),
 				velocity: { x: 100, y: 0 },
 				...createAABBCollider(20, 20),
-				...createCollisionLayer('default', ['default']),
+				...defaultLayers.default(),
 			});
 
 			const b = ecs.spawn({
@@ -607,7 +614,7 @@ describe('Physics 2D Bundle', () => {
 				...createRigidBody('dynamic', { restitution: 0, mass: 1 }),
 				velocity: { x: -100, y: 0 },
 				...createAABBCollider(20, 20),
-				...createCollisionLayer('default', ['default']),
+				...defaultLayers.default(),
 			});
 
 			ecs.update(FIXED_DT);
@@ -627,7 +634,7 @@ describe('Physics 2D Bundle', () => {
 				...createRigidBody('dynamic', { restitution: 1 }),
 				velocity: { x: -100, y: 0 },
 				...createAABBCollider(20, 20),
-				...createCollisionLayer('default', ['default']),
+				...defaultLayers.default(),
 			});
 
 			ecs.spawn({
@@ -635,7 +642,7 @@ describe('Physics 2D Bundle', () => {
 				...createRigidBody('static', { restitution: 1 }),
 				velocity: { x: 0, y: 0 },
 				...createAABBCollider(20, 20),
-				...createCollisionLayer('default', ['default']),
+				...defaultLayers.default(),
 			});
 
 			ecs.update(FIXED_DT);
@@ -654,7 +661,7 @@ describe('Physics 2D Bundle', () => {
 				...createRigidBody('dynamic', { restitution: 1 }),
 				velocity: { x: -100, y: 0 },
 				...createAABBCollider(20, 20),
-				...createCollisionLayer('default', ['default']),
+				...defaultLayers.default(),
 			});
 
 			const b = ecs.spawn({
@@ -662,7 +669,7 @@ describe('Physics 2D Bundle', () => {
 				...createRigidBody('dynamic', { restitution: 1 }),
 				velocity: { x: 100, y: 0 },
 				...createAABBCollider(20, 20),
-				...createCollisionLayer('default', ['default']),
+				...defaultLayers.default(),
 			});
 
 			ecs.update(FIXED_DT);
@@ -688,7 +695,7 @@ describe('Physics 2D Bundle', () => {
 				...createRigidBody('dynamic', { restitution: 0, friction: 1 }),
 				velocity: { x: 100, y: 10 },
 				...createAABBCollider(20, 20),
-				...createCollisionLayer('default', ['default']),
+				...defaultLayers.default(),
 			});
 
 			ecs.spawn({
@@ -696,7 +703,7 @@ describe('Physics 2D Bundle', () => {
 				...createRigidBody('static', { restitution: 0, friction: 1 }),
 				velocity: { x: 0, y: 0 },
 				...createAABBCollider(40, 20),
-				...createCollisionLayer('default', ['default']),
+				...defaultLayers.default(),
 			});
 
 			ecs.update(FIXED_DT);
@@ -714,7 +721,7 @@ describe('Physics 2D Bundle', () => {
 				...createRigidBody('dynamic', { restitution: 0, friction: 0 }),
 				velocity: { x: 100, y: 10 },
 				...createAABBCollider(20, 20),
-				...createCollisionLayer('default', ['default']),
+				...defaultLayers.default(),
 			});
 
 			ecs.spawn({
@@ -722,7 +729,7 @@ describe('Physics 2D Bundle', () => {
 				...createRigidBody('static', { restitution: 0, friction: 0 }),
 				velocity: { x: 0, y: 0 },
 				...createAABBCollider(40, 20),
-				...createCollisionLayer('default', ['default']),
+				...defaultLayers.default(),
 			});
 
 			ecs.update(FIXED_DT);
@@ -737,8 +744,15 @@ describe('Physics 2D Bundle', () => {
 	// ==================== Collision — Layer Filtering ====================
 
 	describe('Collision — Layer Filtering', () => {
+		const filterLayers = defineCollisionLayers({ player: ['enemy'], enemy: ['player'], neutral: ['other'], other: ['neutral'] });
+
 		test('physics collision respects collisionLayer', () => {
-			const ecs = createEcs({ gravity: { x: 0, y: 0 } });
+			const ecs = ECSpresso
+				.create()
+				.withBundle(createTransformBundle())
+				.withBundle(createPhysics2DBundle({ gravity: { x: 0, y: 0 }, layers: filterLayers }))
+				.withFixedTimestep(FIXED_DT)
+				.build();
 			const collisions: Physics2DCollisionEvent[] = [];
 			ecs.eventBus.subscribe('physicsCollision', (e: Physics2DCollisionEvent) => collisions.push(e));
 
@@ -747,7 +761,7 @@ describe('Physics 2D Bundle', () => {
 				...createRigidBody('dynamic'),
 				velocity: { x: 0, y: 0 },
 				...createAABBCollider(20, 20),
-				...createCollisionLayer('player', ['enemy']),
+				...filterLayers.player(),
 			});
 
 			ecs.spawn({
@@ -755,7 +769,7 @@ describe('Physics 2D Bundle', () => {
 				...createRigidBody('dynamic'),
 				velocity: { x: 0, y: 0 },
 				...createAABBCollider(20, 20),
-				...createCollisionLayer('enemy', ['player']),
+				...filterLayers.enemy(),
 			});
 
 			ecs.update(FIXED_DT);
@@ -764,7 +778,12 @@ describe('Physics 2D Bundle', () => {
 		});
 
 		test('non-matching layers do not respond', () => {
-			const ecs = createEcs({ gravity: { x: 0, y: 0 } });
+			const ecs = ECSpresso
+				.create()
+				.withBundle(createTransformBundle())
+				.withBundle(createPhysics2DBundle({ gravity: { x: 0, y: 0 }, layers: filterLayers }))
+				.withFixedTimestep(FIXED_DT)
+				.build();
 			const collisions: Physics2DCollisionEvent[] = [];
 			ecs.eventBus.subscribe('physicsCollision', (e: Physics2DCollisionEvent) => collisions.push(e));
 
@@ -773,7 +792,7 @@ describe('Physics 2D Bundle', () => {
 				...createRigidBody('dynamic'),
 				velocity: { x: 0, y: 0 },
 				...createAABBCollider(20, 20),
-				...createCollisionLayer('player', ['enemy']),
+				...filterLayers.player(),
 			});
 
 			const b = ecs.spawn({
@@ -781,7 +800,7 @@ describe('Physics 2D Bundle', () => {
 				...createRigidBody('dynamic'),
 				velocity: { x: 0, y: 0 },
 				...createAABBCollider(20, 20),
-				...createCollisionLayer('neutral', ['other']),
+				...filterLayers.neutral(),
 			});
 
 			ecs.update(FIXED_DT);
@@ -809,7 +828,7 @@ describe('Physics 2D Bundle', () => {
 				...createRigidBody('dynamic'),
 				velocity: { x: 0, y: 0 },
 				...createAABBCollider(20, 20),
-				...createCollisionLayer('default', ['default']),
+				...defaultLayers.default(),
 			});
 
 			const b = ecs.spawn({
@@ -817,7 +836,7 @@ describe('Physics 2D Bundle', () => {
 				...createRigidBody('dynamic'),
 				velocity: { x: 0, y: 0 },
 				...createAABBCollider(20, 20),
-				...createCollisionLayer('default', ['default']),
+				...defaultLayers.default(),
 			});
 
 			ecs.update(FIXED_DT);
@@ -839,7 +858,7 @@ describe('Physics 2D Bundle', () => {
 				...createRigidBody('dynamic'),
 				velocity: { x: 0, y: 0 },
 				...createAABBCollider(20, 20),
-				...createCollisionLayer('default', ['default']),
+				...defaultLayers.default(),
 			});
 
 			// B is to the right of A
@@ -848,7 +867,7 @@ describe('Physics 2D Bundle', () => {
 				...createRigidBody('dynamic'),
 				velocity: { x: 0, y: 0 },
 				...createAABBCollider(20, 20),
-				...createCollisionLayer('default', ['default']),
+				...defaultLayers.default(),
 			});
 
 			ecs.update(FIXED_DT);
@@ -936,7 +955,7 @@ describe('Physics 2D Bundle', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
 				.withBundle(createTransformBundle())
-				.withBundle(createPhysics2DBundle({ gravity: { x: 0, y: 100 }, systemGroup: 'custom-physics' }))
+				.withBundle(createPhysics2DBundle({ gravity: { x: 0, y: 100 }, systemGroup: 'custom-physics', layers: defaultLayers }))
 				.withFixedTimestep(FIXED_DT)
 				.build();
 
@@ -998,5 +1017,40 @@ describe('Physics 2D Bundle', () => {
 			const wt = ecs.entityManager.getComponent(entity.id, 'worldTransform');
 			expect(wt!.x).toBeCloseTo(110, 5); // 100 + 600/60
 		});
+	});
+});
+
+describe('Physics2D type narrowing', () => {
+	test('Physics2D + Collision compose with narrow types', () => {
+		const layers = defineCollisionLayers({ ball: ['ball'], wall: ['ball'] });
+
+		const ecs = ECSpresso
+			.create()
+			.withBundle(createTransformBundle())
+			.withBundle(createPhysics2DBundle({ gravity: { x: 0, y: 100 }, layers }))
+			.withBundle(createCollisionBundle({ layers }))
+			.build();
+
+		const entity = ecs.spawn({
+			...createTransform(0, 0),
+			...createRigidBody('dynamic'),
+			velocity: { x: 0, y: 0 },
+			...createCircleCollider(10),
+			...layers.ball(),
+		});
+
+		const cl = ecs.entityManager.getComponent(entity.id, 'collisionLayer');
+		if (!cl) throw new Error('Expected collisionLayer');
+
+		// layer should be 'ball' | 'wall', not string
+		const _layer: 'ball' | 'wall' = cl.layer;
+		void _layer;
+		expect(cl.layer).toBe('ball');
+	});
+
+	test('Physics2DComponentTypes bare defaults to never', () => {
+		type Bare = Physics2DComponentTypes;
+		const assertLayerIsNever: true = true as (Bare['collisionLayer']['layer'] extends never ? true : false);
+		expect(assertLayerIsNever).toBe(true);
 	});
 });

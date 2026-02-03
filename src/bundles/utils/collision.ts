@@ -43,7 +43,7 @@ export interface CircleCollider {
 /**
  * Collision layer configuration.
  */
-export interface CollisionLayer<L extends string> {
+export interface CollisionLayer<L extends string = never> {
 	/** The layer this entity belongs to */
 	layer: L;
 	/** Layers this entity can collide with */
@@ -62,7 +62,7 @@ export interface CollisionLayer<L extends string> {
  *   .build();
  * ```
  */
-export interface CollisionComponentTypes<L extends string> {
+export interface CollisionComponentTypes<L extends string = never> {
 	aabbCollider: AABBCollider;
 	circleCollider: CircleCollider;
 	collisionLayer: CollisionLayer<L>;
@@ -73,7 +73,7 @@ export interface CollisionComponentTypes<L extends string> {
 /**
  * Event fired when two entities collide.
  */
-export interface CollisionEvent<L extends string> {
+export interface CollisionEvent<L extends string = never> {
 	/** First entity in the collision */
 	entityA: number;
 	/** Second entity in the collision */
@@ -91,7 +91,7 @@ export interface CollisionEvent<L extends string> {
 /**
  * Event types provided by the collision bundle.
  */
-export interface CollisionEventTypes<L extends string> {
+export interface CollisionEventTypes<L extends string = never> {
 	collision: CollisionEvent<L>;
 }
 

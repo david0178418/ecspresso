@@ -43,7 +43,7 @@ const ecs = ECSpresso
 			moveRight: { keys: ['d', 'ArrowRight'] },
 		},
 	}))
-	.withBundle(createPhysics2DBundle())
+	.withBundle(createPhysics2DBundle({ layers }))
 	.withBundle(createBoundsBundle())
 	.withBundle(createCollisionBundle({ layers }))
 	.withComponentTypes<{

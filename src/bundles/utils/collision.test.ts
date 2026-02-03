@@ -10,6 +10,7 @@ import {
 	type CollisionComponentTypes,
 	type CollisionEventTypes,
 	type CollisionEvent,
+	type CollisionLayer,
 	type LayersOf,
 } from './collision';
 import { createTransformBundle, createTransform, type TransformComponentTypes } from './transform';
@@ -842,5 +843,58 @@ describe('Collision type narrowing', () => {
 		// collisionLayer.layer should be 'player' | 'enemy'
 		const layer: 'player' | 'enemy' = collisionLayer.layer;
 		expect(layer).toBe('player');
+	});
+
+	test('bare types default to never', () => {
+		// Verify all four interfaces compile bare and produce never layer fields
+		const assertLayerIsNever: true = true as (CollisionLayer['layer'] extends never ? true : false);
+		const assertEventLayerIsNever: true = true as (CollisionEvent['layerA'] extends never ? true : false);
+		const assertComponentLayerIsNever: true = true as (CollisionComponentTypes['collisionLayer']['layer'] extends never ? true : false);
+		const assertEventTypesIsNever: true = true as (CollisionEventTypes['collision']['layerA'] extends never ? true : false);
+		expect(assertLayerIsNever).toBe(true);
+		expect(assertEventLayerIsNever).toBe(true);
+		expect(assertComponentLayerIsNever).toBe(true);
+		expect(assertEventTypesIsNever).toBe(true);
+	});
+
+	test('event subscription narrows layer type', () => {
+		const layers = defineCollisionLayers({ player: ['enemy'], enemy: ['player'] });
+
+		const ecs = ECSpresso
+			.create()
+			.withBundle(createTransformBundle())
+			.withBundle(createCollisionBundle({ layers }))
+			.build();
+
+		ecs.eventBus.subscribe('collision', (data) => {
+			// data.layerA / data.layerB should be 'player' | 'enemy', not string
+			const _layerA: 'player' | 'enemy' = data.layerA;
+			const _layerB: 'player' | 'enemy' = data.layerB;
+			void _layerA;
+			void _layerB;
+		});
+
+		expect(true).toBe(true); // compile-time assertion only
+	});
+
+	test('pair handler rejects invalid layer names', () => {
+		type Layer = 'player' | 'enemy';
+		createCollisionPairHandler<unknown, Layer>({
+			// @ts-expect-error — 'player:goblin' is not a valid layer pair
+			'player:goblin': () => {},
+		});
+	});
+
+	test('cannot assign string to narrow collision layer', () => {
+		type Layer = 'player' | 'enemy';
+		// @ts-expect-error — 'goblin' is not assignable to Layer
+		const _cl: CollisionLayer<Layer> = { layer: 'goblin', collidesWith: [] };
+		void _cl;
+	});
+
+	test('createCollisionLayer rejects wrong layer name with explicit type', () => {
+		type Layer = 'player' | 'enemy';
+		// @ts-expect-error — 'goblin' is not assignable to Layer
+		createCollisionLayer<Layer>('goblin', []);
 	});
 });
