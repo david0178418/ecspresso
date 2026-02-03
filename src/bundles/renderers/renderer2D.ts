@@ -633,14 +633,19 @@ export function createRenderer2DBundle(
 		}
 	}
 
-	// Helper to remove a PixiJS object from scene graph
-	function removeFromSceneGraph(entityId: number): void {
-		const pixiObject = entityToPixiObject.get(entityId);
-		if (pixiObject) {
-			pixiObject.removeFromParent();
-			entityToPixiObject.delete(entityId);
-		}
-	}
+	// Register dispose callbacks for display object components.
+	// When a sprite/graphics/container component is removed (explicit removal,
+	// entity destruction, or component replacement), the PixiJS object is
+	// automatically detached from the scene graph.
+	rendererBundle.registerDispose('sprite', (sprite) => {
+		sprite.removeFromParent();
+	});
+	rendererBundle.registerDispose('graphics', (graphics) => {
+		graphics.removeFromParent();
+	});
+	rendererBundle.registerDispose('container', (container) => {
+		container.removeFromParent();
+	});
 
 	// Helper to update parent in scene graph
 	function updateSceneGraphParent(
@@ -793,7 +798,7 @@ export function createRenderer2DBundle(
 					addToSceneGraph(entity.id, pixiObject, ecs);
 				},
 				onExit: (entityId) => {
-					removeFromSceneGraph(entityId);
+					entityToPixiObject.delete(entityId);
 				},
 			});
 
@@ -806,7 +811,7 @@ export function createRenderer2DBundle(
 					addToSceneGraph(entity.id, pixiObject, ecs);
 				},
 				onExit: (entityId) => {
-					removeFromSceneGraph(entityId);
+					entityToPixiObject.delete(entityId);
 				},
 			});
 
@@ -819,7 +824,7 @@ export function createRenderer2DBundle(
 					addToSceneGraph(entity.id, pixiObject, ecs);
 				},
 				onExit: (entityId) => {
-					removeFromSceneGraph(entityId);
+					entityToPixiObject.delete(entityId);
 				},
 			});
 

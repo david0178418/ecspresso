@@ -19,6 +19,11 @@ class EntityManager<ComponentTypes> {
 	 */
 	private hierarchyManager: HierarchyManager = new HierarchyManager();
 	/**
+	 * Per-type component dispose callbacks.
+	 * Called when a component is removed (explicit removal, entity destruction, or replacement).
+	 */
+	private disposeCallbacks: Map<keyof ComponentTypes, (value: any) => void> = new Map();
+	/**
 	 * Per-entity per-component change sequence tracking.
 	 * Maps entityId -> (componentName -> sequence number when last changed)
 	 */
@@ -36,6 +41,45 @@ class EntityManager<ComponentTypes> {
 		return entity;
 	}
 
+	/**
+	 * Register a dispose callback for a component type.
+	 * Called when a component is removed (explicit removal, entity destruction, or replacement).
+	 * Later registrations replace earlier ones for the same component type.
+	 * @param componentName The component type to register disposal for
+	 * @param callback Function receiving the component value being disposed
+	 */
+	registerDispose<ComponentName extends keyof ComponentTypes>(
+		componentName: ComponentName,
+		callback: (value: ComponentTypes[ComponentName]) => void
+	): void {
+		this.disposeCallbacks.set(componentName, callback);
+	}
+
+	/**
+	 * Get all registered dispose callbacks.
+	 * @internal Used by ECSpresso for bundle installation
+	 */
+	getDisposeCallbacks(): Map<keyof ComponentTypes, (value: any) => void> {
+		return this.disposeCallbacks;
+	}
+
+	/**
+	 * Invoke the dispose callback for a component, if registered.
+	 * Errors are caught and logged to prevent blocking removal.
+	 */
+	private invokeDispose<ComponentName extends keyof ComponentTypes>(
+		componentName: ComponentName,
+		value: ComponentTypes[ComponentName]
+	): void {
+		const cb = this.disposeCallbacks.get(componentName);
+		if (!cb) return;
+		try {
+			cb(value);
+		} catch (error) {
+			console.warn(`Component dispose callback for '${String(componentName)}' threw:`, error);
+		}
+	}
+
 	// TODO: Component object pooling if(/when) garbage collection is an issue...?
 	addComponent<ComponentName extends keyof ComponentTypes>(
 		entityOrId: number | Entity<ComponentTypes>,
@@ -49,6 +93,12 @@ class EntityManager<ComponentTypes> {
 		if (!entity) {
 			const id = typeof entityOrId === 'number' ? entityOrId : entityOrId.id;
 			throw new Error(`Cannot add component '${String(componentName)}': Entity with ID ${id} does not exist`);
+		}
+
+		// Dispose old value if replacing an existing component
+		const existing = entity.components[componentName];
+		if (existing !== undefined) {
+			this.invokeDispose(componentName, existing as ComponentTypes[ComponentName]);
 		}
 
 		entity.components[componentName] = data;
@@ -113,6 +163,11 @@ class EntityManager<ComponentTypes> {
 		}
 		// Get old value for callbacks
 		const oldValue = entity.components[componentName] as ComponentTypes[ComponentName] | undefined;
+
+		// Invoke dispose before deletion and removal callbacks
+		if (oldValue !== undefined) {
+			this.invokeDispose(componentName, oldValue);
+		}
 
 		delete entity.components[componentName];
 
@@ -264,12 +319,15 @@ class EntityManager<ComponentTypes> {
 		// Clean up hierarchy
 		this.hierarchyManager.removeEntity(entityId);
 
-		// Trigger removal callbacks for each component before removing the entity
+		// Trigger disposal and removal callbacks for each component before removing the entity
 		for (const componentName of Object.keys(entity.components) as Array<keyof ComponentTypes>) {
 			const oldValue = entity.components[componentName];
 
-			// Trigger removed callbacks if the component exists (iterate over copy to allow mid-iteration unsubscribe)
 			if (oldValue !== undefined) {
+				// Invoke dispose before removal callbacks
+				this.invokeDispose(componentName, oldValue as ComponentTypes[keyof ComponentTypes]);
+
+				// Trigger removed callbacks (iterate over copy to allow mid-iteration unsubscribe)
 				const removeCbs = this.removedCallbacks.get(componentName);
 				if (removeCbs) {
 					for (const cb of [...removeCbs]) {

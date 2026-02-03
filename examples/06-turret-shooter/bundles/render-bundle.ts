@@ -11,6 +11,13 @@ import {
 
 export default function createRenderBundle() {
 	return new Bundle<Components, Events, Resources>('render-bundle')
+		// Automatically remove 3D models from the scene graph when the component
+		// is removed (entity destruction, explicit removal, or replacement).
+		.registerDispose('model', (model) => {
+			if (model.parent) {
+				model.parent.remove(model);
+			}
+		})
 		// Main renderer system
 		.addSystem('renderer')
 		.inPhase('render')
@@ -498,34 +505,17 @@ export default function createRenderBundle() {
 			},
 			entityDestroyed: {
 				handler(data, ecs) {
-					const entity = ecs.entityManager.getEntity(data.entityId);
-
-					if (!entity) return;
-
-					// Remove 3D model from scene
-					if (entity.components.model) {
-						// Make sure to properly remove the model
-						// (it might be parented to camera or another object)
-						const model = entity.components.model;
-						if (model.parent) {
-							model.parent.remove(model);
-						}
-					}
-
 					// Handle cleanup of radar blips in HTML radar
-					if (entity.components.enemy) {
-						// Find and remove corresponding HTML blip
-						const radarContainer = document.getElementById('radar-overlay');
-						if (radarContainer) {
-							// Find blip with matching entity ID
-							const blipElement = radarContainer.querySelector(`.radar-blip[data-entity-id="${data.entityId}"]`);
-							if (blipElement) {
-								radarContainer.removeChild(blipElement);
-							}
+					const radarContainer = document.getElementById('radar-overlay');
+					if (radarContainer) {
+						const blipElement = radarContainer.querySelector(`.radar-blip[data-entity-id="${data.entityId}"]`);
+						if (blipElement) {
+							radarContainer.removeChild(blipElement);
 						}
 					}
 
 					// Remove the entity from the ECS
+					// (model cleanup is handled automatically by registerDispose)
 					ecs.entityManager.removeEntity(data.entityId);
 				}
 			}

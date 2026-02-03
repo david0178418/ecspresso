@@ -28,6 +28,7 @@ export default class Bundle<
 	private _assets: Map<string, AssetDefinition<unknown>> = new Map();
 	private _assetGroups: Map<string, Map<string, () => Promise<unknown>>> = new Map();
 	private _screens: Map<string, ScreenDefinition<any, any>> = new Map();
+	private _disposeCallbacks: Map<string, (value: unknown) => void> = new Map();
 	private _id: string;
 
 	constructor(id?: string) {
@@ -150,6 +151,36 @@ export default class Bundle<
 	 */
 	getScreens(): Map<string, ScreenDefinition<any, any>> {
 		return new Map(this._screens);
+	}
+
+	/**
+	 * Register a dispose callback for a component type in this bundle.
+	 * Called when a component is removed (explicit removal, entity destruction, or replacement).
+	 * @param componentName The component type to register disposal for
+	 * @param callback Function receiving the component value being disposed
+	 * @returns This bundle for method chaining
+	 */
+	registerDispose<K extends keyof ComponentTypes>(
+		componentName: K,
+		callback: (value: ComponentTypes[K]) => void
+	): this {
+		this._disposeCallbacks.set(componentName as string, callback as (value: unknown) => void);
+		return this;
+	}
+
+	/**
+	 * Get all registered dispose callbacks in this bundle
+	 */
+	getDisposeCallbacks(): Map<string, (value: unknown) => void> {
+		return new Map(this._disposeCallbacks);
+	}
+
+	/**
+	 * Internal method to set a dispose callback
+	 * @internal Used by mergeBundles
+	 */
+	_setDisposeCallback(name: string, callback: (value: unknown) => void): void {
+		this._disposeCallbacks.set(name, callback);
 	}
 
 	/**
@@ -289,6 +320,11 @@ export function mergeBundles(
 		// Add screens from this bundle
 		for (const [name, definition] of bundle.getScreens().entries()) {
 			combined._setScreen(name, definition);
+		}
+
+		// Add dispose callbacks from this bundle
+		for (const [name, callback] of bundle.getDisposeCallbacks().entries()) {
+			combined._setDisposeCallback(name, callback);
 		}
 	}
 

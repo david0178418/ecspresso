@@ -1076,6 +1076,22 @@ export default class ECSpresso<
 		this._entityManager.markChanged(entityId, componentName);
 	}
 
+	// ==================== Component Dispose ====================
+
+	/**
+	 * Register a dispose callback for a component type.
+	 * Called when a component is removed (explicit removal, entity destruction, or replacement).
+	 * Later registrations replace earlier ones for the same component type.
+	 * @param componentName The component type to register disposal for
+	 * @param callback Function receiving the component value being disposed
+	 */
+	registerDispose<K extends keyof ComponentTypes>(
+		componentName: K,
+		callback: (value: ComponentTypes[K]) => void
+	): void {
+		this._entityManager.registerDispose(componentName, callback);
+	}
+
 	// ==================== Component Lifecycle Hooks ====================
 
 	/**
@@ -1411,6 +1427,12 @@ export default class ECSpresso<
 		type BundleEcspresso = ECSpresso<C, E, R, A, S>;
 		bundle.registerSystemsWithEcspresso(this as unknown as BundleEcspresso);
 
+		// Register dispose callbacks from the bundle
+		const disposeCallbacks = bundle.getDisposeCallbacks();
+		for (const [componentName, callback] of disposeCallbacks.entries()) {
+			this._entityManager.registerDispose(componentName as keyof ComponentTypes, callback);
+		}
+
 		// Register resources from the bundle
 		const resources = bundle.getResources();
 		for (const [key, value] of resources.entries()) {
@@ -1466,6 +1488,8 @@ export class ECSpressoBuilder<
 	private screenConfigurator: ScreenConfiguratorImpl<S> | null = null;
 	/** Pending resources to add during build */
 	private pendingResources: Array<{ key: string; value: unknown }> = [];
+	/** Pending dispose callbacks to register during build */
+	private pendingDisposeCallbacks: Array<{ key: string; callback: (value: unknown) => void }> = [];
 	/** Fixed timestep interval (null means use default 1/60) */
 	private _fixedDt: number | null = null;
 
@@ -1572,6 +1596,21 @@ export class ECSpressoBuilder<
 	}
 
 	/**
+	 * Register a dispose callback for a component type during build.
+	 * Called when a component is removed (explicit removal, entity destruction, or replacement).
+	 * @param componentName The component type to register disposal for
+	 * @param callback Function receiving the component value being disposed
+	 * @returns This builder for method chaining
+	 */
+	withDispose<K extends keyof C & string>(
+		componentName: K,
+		callback: (value: C[K]) => void
+	): this {
+		this.pendingDisposeCallbacks.push({ key: componentName, callback: callback as (value: unknown) => void });
+		return this;
+	}
+
+	/**
 	 * Configure assets for this ECSpresso instance
 	 * @param configurator Function that receives an AssetConfigurator and returns it after adding assets
 	 * @returns This builder with updated asset types
@@ -1644,6 +1683,11 @@ export class ECSpressoBuilder<
 		// Apply pending resources
 		for (const { key, value } of this.pendingResources) {
 			this.ecspresso.addResource(key as keyof R, value as any);
+		}
+
+		// Apply pending dispose callbacks
+		for (const { key, callback } of this.pendingDisposeCallbacks) {
+			this.ecspresso.registerDispose(key as keyof C, callback as (value: C[keyof C]) => void);
 		}
 
 		// Set up asset manager if configured
