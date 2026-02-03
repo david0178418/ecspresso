@@ -89,6 +89,10 @@ export interface Physics2DBundleOptions {
 	gravity?: Vector2D;
 	/** System group name (default: 'physics2D') */
 	systemGroup?: string;
+	/** Additional group for the collision system only (default: none).
+	 * When set, the collision system belongs to both `systemGroup` and this group,
+	 * allowing independent enable/disable of collision detection. */
+	collisionSystemGroup?: string;
 	/** Priority for integration system (default: 1000) */
 	integrationPriority?: number;
 	/** Priority for collision system (default: 900) */
@@ -366,6 +370,7 @@ export function createPhysics2DBundle(
 	const {
 		gravity = { x: 0, y: 0 },
 		systemGroup = 'physics2D',
+		collisionSystemGroup,
 		integrationPriority = 1000,
 		collisionPriority = 900,
 		phase = 'fixedUpdate',
@@ -431,11 +436,17 @@ export function createPhysics2DBundle(
 
 	// ==================== Collision System ====================
 
-	bundle
+	const collisionSystem = bundle
 		.addSystem('physics2D-collision')
 		.setPriority(collisionPriority)
 		.inPhase(phase)
-		.inGroup(systemGroup)
+		.inGroup(systemGroup);
+
+	if (collisionSystemGroup) {
+		collisionSystem.inGroup(collisionSystemGroup);
+	}
+
+	collisionSystem
 		.addQuery('collidables', {
 			with: ['localTransform', 'rigidBody', 'velocity', 'collisionLayer'],
 		})
