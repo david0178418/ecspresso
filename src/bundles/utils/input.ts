@@ -186,9 +186,9 @@ export interface InputResourceTypes {
 	inputState: InputState;
 }
 
-export interface InputBundleOptions {
+export interface InputBundleOptions<G extends string = 'input'> {
 	/** System group name (default: 'input') */
-	systemGroup?: string;
+	systemGroup?: G;
 	/** Priority for input system (default: 100) */
 	priority?: number;
 	/** Execution phase (default: 'preUpdate') */
@@ -366,9 +366,9 @@ function snapshotRaw(raw: RawInputState, prevActionsActive: ReadonlySet<string>,
  * if (input.keyboard.isDown('ArrowRight')) { ... }
  * ```
  */
-export function createInputBundle(
-	options?: InputBundleOptions
-): Bundle<{}, {}, InputResourceTypes> {
+export function createInputBundle<G extends string = 'input'>(
+	options?: InputBundleOptions<G>
+): Bundle<{}, {}, InputResourceTypes, {}, {}, 'input-state', G> {
 	const {
 		systemGroup = 'input',
 		priority = 100,
@@ -496,5 +496,5 @@ export function createInputBundle(
 		})
 		.and();
 
-	return bundle;
+	return bundle as Bundle<{}, {}, InputResourceTypes, {}, {}, 'input-state', G>;
 }

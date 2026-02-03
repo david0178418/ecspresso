@@ -117,9 +117,9 @@ export interface StateMachineEventTypes {
 /**
  * Configuration options for the state machine bundle.
  */
-export interface StateMachineBundleOptions {
+export interface StateMachineBundleOptions<G extends string = 'stateMachine'> {
 	/** System group name (default: 'stateMachine') */
-	systemGroup?: string;
+	systemGroup?: G;
 	/** Priority for state machine system (default: 0) */
 	priority?: number;
 	/** Execution phase (default: 'update') */
@@ -308,7 +308,7 @@ export function getStateMachineState(
  * @template W - Concrete ECS world type
  */
 export interface StateMachineKit<W extends StateMachineWorld> {
-	bundle: Bundle<StateMachineComponentTypes, StateMachineEventTypes>;
+	bundle: Bundle<StateMachineComponentTypes, StateMachineEventTypes, {}, {}, {}, 'state-machine-update', 'stateMachine'>;
 	defineStateMachine: <S extends string>(
 		id: string,
 		config: { initial: NoInfer<S>; states: Record<S, StateConfig<NoInfer<S>, W>> },
@@ -404,9 +404,9 @@ export function createStateMachineKit<W extends StateMachineWorld = StateMachine
  * });
  * ```
  */
-export function createStateMachineBundle(
-	options?: StateMachineBundleOptions,
-): Bundle<StateMachineComponentTypes, StateMachineEventTypes> {
+export function createStateMachineBundle<G extends string = 'stateMachine'>(
+	options?: StateMachineBundleOptions<G>,
+): Bundle<StateMachineComponentTypes, StateMachineEventTypes, {}, {}, {}, 'state-machine-update', G> {
 	const {
 		systemGroup = 'stateMachine',
 		priority = 0,
@@ -466,5 +466,5 @@ export function createStateMachineBundle(
 		})
 		.and();
 
-	return bundle;
+	return bundle as Bundle<StateMachineComponentTypes, StateMachineEventTypes, {}, {}, {}, 'state-machine-update', G>;
 }

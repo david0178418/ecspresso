@@ -100,9 +100,9 @@ export interface CollisionEventTypes<L extends string = never> {
 /**
  * Configuration options for the collision bundle.
  */
-export interface CollisionBundleOptions {
+export interface CollisionBundleOptions<G extends string = 'physics'> {
 	/** System group name (default: 'physics') */
-	systemGroup?: string;
+	systemGroup?: G;
 	/** Priority for collision system (default: 0) */
 	priority?: number;
 	/** Name of the collision event (default: 'collision') */
@@ -435,9 +435,9 @@ function onCollisionDetected<L extends string>(
  * });
  * ```
  */
-export function createCollisionBundle<L extends string>(
-	options: CollisionBundleOptions & { layers: LayerFactories<Record<L, readonly string[]>> }
-): Bundle<CombinedComponentTypes<L>, CollisionEventTypes<L>> {
+export function createCollisionBundle<L extends string, G extends string = 'physics'>(
+	options: CollisionBundleOptions<G> & { layers: LayerFactories<Record<L, readonly string[]>> }
+): Bundle<CombinedComponentTypes<L>, CollisionEventTypes<L>, {}, {}, {}, 'collision-detection', G> {
 	const {
 		systemGroup = 'physics',
 		priority = 0,
@@ -500,6 +500,6 @@ export function createCollisionBundle<L extends string>(
 		})
 		.and();
 
-	return bundle;
+	return bundle as Bundle<CombinedComponentTypes<L>, CollisionEventTypes<L>, {}, {}, {}, 'collision-detection', G>;
 }
 

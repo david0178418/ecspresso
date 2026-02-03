@@ -22,9 +22,9 @@ export interface DiagnosticsResourceTypes {
 	diagnostics: DiagnosticsData;
 }
 
-export interface DiagnosticsBundleOptions {
+export interface DiagnosticsBundleOptions<G extends string = 'diagnostics'> {
 	/** System group name (default: 'diagnostics') */
-	systemGroup?: string;
+	systemGroup?: G;
 	/** Enable timing collection on initialize (default: true) */
 	enableTimingOnInit?: boolean;
 	/** Number of frames to sample for FPS average (default: 60) */
@@ -88,9 +88,9 @@ function createRingBuffer(capacity: number) {
 
 // ==================== Bundle Factory ====================
 
-export function createDiagnosticsBundle(
-	options?: DiagnosticsBundleOptions,
-): Bundle<{}, {}, DiagnosticsResourceTypes> {
+export function createDiagnosticsBundle<G extends string = 'diagnostics'>(
+	options?: DiagnosticsBundleOptions<G>,
+): Bundle<{}, {}, DiagnosticsResourceTypes, {}, {}, 'diagnostics-collect', G> {
 	const {
 		systemGroup = 'diagnostics',
 		enableTimingOnInit = true,
@@ -146,7 +146,7 @@ export function createDiagnosticsBundle(
 		})
 		.and();
 
-	return bundle;
+	return bundle as Bundle<{}, {}, DiagnosticsResourceTypes, {}, {}, 'diagnostics-collect', G>;
 }
 
 // ==================== Overlay Helper ====================

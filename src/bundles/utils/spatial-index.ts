@@ -209,12 +209,13 @@ type SpatialIndexComponentTypes =
 // ==================== Bundle Options ====================
 
 export type SpatialIndexPhase = 'fixedUpdate' | 'postUpdate';
+type SpatialIndexLabel = `spatial-index-rebuild-${SpatialIndexPhase}`;
 
-export interface SpatialIndexBundleOptions {
+export interface SpatialIndexBundleOptions<G extends string = 'spatialIndex'> {
 	/** Cell size for the spatial hash grid (default: 64) */
 	cellSize?: number;
 	/** System group name (default: 'spatialIndex') */
-	systemGroup?: string;
+	systemGroup?: G;
 	/** Priority for rebuild systems (default: 2000, before collision) */
 	priority?: number;
 	/** Phases to register rebuild systems in (default: ['fixedUpdate', 'postUpdate']) */
@@ -247,9 +248,9 @@ export interface SpatialIndexBundleOptions {
  * const nearby = si.queryRadius(playerX, playerY, 200);
  * ```
  */
-export function createSpatialIndexBundle(
-	options?: SpatialIndexBundleOptions,
-): Bundle<SpatialIndexComponentTypes, {}, SpatialIndexResourceTypes> {
+export function createSpatialIndexBundle<G extends string = 'spatialIndex'>(
+	options?: SpatialIndexBundleOptions<G>,
+): Bundle<SpatialIndexComponentTypes, {}, SpatialIndexResourceTypes, {}, {}, SpatialIndexLabel, G> {
 	const {
 		cellSize = 64,
 		systemGroup = 'spatialIndex',
@@ -313,5 +314,5 @@ export function createSpatialIndexBundle(
 			.and();
 	}
 
-	return bundle;
+	return bundle as Bundle<SpatialIndexComponentTypes, {}, SpatialIndexResourceTypes, {}, {}, SpatialIndexLabel, G>;
 }

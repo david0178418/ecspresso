@@ -12,6 +12,10 @@ export class SystemBuilder<
 	AssetTypes extends Record<string, unknown> = Record<string, unknown>,
 	ScreenStates extends Record<string, any> = Record<string, any>,
 	Queries extends Record<string, QueryDefinition<ComponentTypes>> = {},
+	Label extends string = string,
+	SysGroups extends string = never,
+	BundleLabels extends string = never,
+	BundleGroups extends string = never,
 > {
 	private queries: Queries = {} as Queries;
 	private processFunction?: ProcessFunction<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, Queries>;
@@ -42,7 +46,7 @@ export class SystemBuilder<
 	constructor(
 		private _label: string,
 		private _ecspresso: ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates> | null = null,
-		private _bundle: Bundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates> | null = null,
+		private _bundle: Bundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, BundleLabels, BundleGroups> | null = null,
 	) {}
 
 	get label() {
@@ -69,7 +73,7 @@ export class SystemBuilder<
 	 */
 	private _autoRegister(): void {
 		if (this._isRegistered || !this._ecspresso) return;
-		
+
 		const system = this._buildSystemObject();
 		registerSystemWithEcspresso(system, this._ecspresso);
 		this._isRegistered = true;
@@ -161,11 +165,16 @@ export class SystemBuilder<
 	 * @param groupName The name of the group to add the system to
 	 * @returns This SystemBuilder instance for method chaining
 	 */
-	inGroup(groupName: string): this {
+	inGroup<G extends string>(groupName: G):
+		this extends SystemBuilderWithEcspresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, Queries, Label, SysGroups>
+			? SystemBuilderWithEcspresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, Queries, Label, SysGroups | G>
+			: this extends SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, Queries, BundleLabels, BundleGroups, Label, SysGroups>
+				? SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, Queries, BundleLabels, BundleGroups, Label, SysGroups | G>
+				: SystemBuilder<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, Queries, Label, SysGroups | G, BundleLabels, BundleGroups> {
 		if (!this._groups.includes(groupName)) {
 			this._groups.push(groupName);
 		}
-		return this;
+		return this as any;
 	}
 
 	/**
@@ -223,11 +232,11 @@ export class SystemBuilder<
 			optional?: ReadonlyArray<OptionalComponents>;
 			parentHas?: ReadonlyArray<keyof ComponentTypes>;
 		}
-	): this extends SystemBuilderWithEcspresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, Queries>
-		? SystemBuilderWithEcspresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, NewQueries>
-		: this extends SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, Queries>
-			? SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, NewQueries>
-			: SystemBuilder<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, NewQueries> {
+	): this extends SystemBuilderWithEcspresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, Queries, Label, SysGroups>
+		? SystemBuilderWithEcspresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, NewQueries, Label, SysGroups>
+		: this extends SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, Queries, BundleLabels, BundleGroups, Label, SysGroups>
+			? SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, NewQueries, BundleLabels, BundleGroups, Label, SysGroups>
+			: SystemBuilder<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, NewQueries, Label, SysGroups, BundleLabels, BundleGroups> {
 		// Cast is needed because TypeScript can't preserve the type information
 		// when modifying an object property
 		const newBuilder = this as any;
@@ -259,7 +268,7 @@ export class SystemBuilder<
 		if (!this._ecspresso) {
 			throw new Error(`Cannot register system '${this._label}': SystemBuilder is not attached to an ECSpresso instance. Use Bundle.addSystem() or ECSpresso.addSystem() instead.`);
 		}
-		
+
 		this._autoRegister();
 		return this._ecspresso;
 	}
@@ -270,14 +279,14 @@ export class SystemBuilder<
 	 * - For Bundle-attached builders: returns the Bundle
 	 * This method is typed via the specialized interfaces (SystemBuilderWithEcspresso, SystemBuilderWithBundle)
 	 */
-	and(): ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates> | Bundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates> {
+	and(): ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates> | Bundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, BundleLabels | Label, BundleGroups | SysGroups> {
 		if (this._ecspresso) {
 			this._autoRegister();
 			return this._ecspresso;
 		}
 
 		if (this._bundle) {
-			return this._bundle;
+			return this._bundle as Bundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, BundleLabels | Label, BundleGroups | SysGroups>;
 		}
 
 		throw new Error(`Cannot use and() on system '${this._label}': not attached to ECSpresso or Bundle.`);
@@ -468,16 +477,19 @@ export function createBundleSystemBuilder<
 	EventTypes extends Record<string, any>,
 	ResourceTypes extends Record<string, any>,
 	AssetTypes extends Record<string, unknown>,
-	ScreenStates extends Record<string, any>
+	ScreenStates extends Record<string, any>,
+	BundleLabels extends string = never,
+	BundleGroups extends string = never,
+	Label extends string = string,
 >(
-	label: string,
-	bundle: Bundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>
-): SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates> {
-	return new SystemBuilder<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>(
+	label: Label,
+	bundle: Bundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, BundleLabels, BundleGroups>
+): SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, {}, BundleLabels, BundleGroups, Label> {
+	return new SystemBuilder<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, {}, Label, never, BundleLabels, BundleGroups>(
 		label,
 		null,
 		bundle
-	) as SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>;
+	) as SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, {}, BundleLabels, BundleGroups, Label>;
 }
 
 // Type interfaces for specialized SystemBuilders
@@ -491,8 +503,10 @@ export interface SystemBuilderWithEcspresso<
 	ResourceTypes extends Record<string, any>,
 	AssetTypes extends Record<string, unknown>,
 	ScreenStates extends Record<string, any>,
-	Queries extends Record<string, QueryDefinition<ComponentTypes>> = {}
-> extends SystemBuilder<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, Queries> {
+	Queries extends Record<string, QueryDefinition<ComponentTypes>> = {},
+	Label extends string = string,
+	SysGroups extends string = never,
+> extends SystemBuilder<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, Queries, Label, SysGroups> {
 	readonly ecspresso: ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>;
 
 	/**
@@ -511,13 +525,17 @@ export interface SystemBuilderWithBundle<
 	ResourceTypes extends Record<string, any>,
 	AssetTypes extends Record<string, unknown>,
 	ScreenStates extends Record<string, any>,
-	Queries extends Record<string, QueryDefinition<ComponentTypes>> = {}
-> extends SystemBuilder<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, Queries> {
-	readonly bundle: Bundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>;
+	Queries extends Record<string, QueryDefinition<ComponentTypes>> = {},
+	BundleLabels extends string = never,
+	BundleGroups extends string = never,
+	Label extends string = string,
+	SysGroups extends string = never,
+> extends SystemBuilder<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, Queries, Label, SysGroups, BundleLabels, BundleGroups> {
+	readonly bundle: Bundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, BundleLabels, BundleGroups>;
 
 	/**
 	 * Complete this system and return the Bundle for chaining
 	 * Enables fluent API: bundle.addSystem(...).and().addSystem(...)
 	 */
-	and(): Bundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>;
+	and(): Bundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, BundleLabels | Label, BundleGroups | SysGroups>;
 }

@@ -79,10 +79,10 @@ export interface CameraResourceTypes {
 
 // ==================== Bundle Options ====================
 
-export interface CameraBundleOptions {
+export interface CameraBundleOptions<G extends string = 'camera'> {
 	viewportWidth?: number;
 	viewportHeight?: number;
-	systemGroup?: string;
+	systemGroup?: G;
 	phase?: SystemPhase;
 	randomFn?: () => number;
 }
@@ -219,9 +219,9 @@ export function screenToWorld(
 
 // ==================== Bundle Factory ====================
 
-export function createCameraBundle(
-	options?: CameraBundleOptions,
-): Bundle<CombinedComponentTypes, {}, CameraResourceTypes> {
+export function createCameraBundle<G extends string = 'camera'>(
+	options?: CameraBundleOptions<G>,
+): Bundle<CombinedComponentTypes, {}, CameraResourceTypes, {}, {}, 'camera-follow' | 'camera-shake-update' | 'camera-bounds' | 'camera-state-sync', G> {
 	const {
 		viewportWidth = 800,
 		viewportHeight = 600,
@@ -385,5 +385,5 @@ export function createCameraBundle(
 		})
 		.and();
 
-	return bundle;
+	return bundle as Bundle<CombinedComponentTypes, {}, CameraResourceTypes, {}, {}, 'camera-follow' | 'camera-shake-update' | 'camera-bounds' | 'camera-state-sync', G>;
 }

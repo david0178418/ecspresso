@@ -102,9 +102,9 @@ export interface BoundsEventTypes {
 /**
  * Configuration options for the bounds bundle.
  */
-export interface BoundsBundleOptions {
+export interface BoundsBundleOptions<G extends string = 'physics'> {
 	/** System group name (default: 'physics') */
-	systemGroup?: string;
+	systemGroup?: G;
 	/** Priority for bounds systems (default: 50) */
 	priority?: number;
 	/** Resource key for bounds rectangle (default: 'bounds') */
@@ -234,9 +234,9 @@ type CombinedComponentTypes = BoundsComponentTypes & TransformComponentTypes;
  * });
  * ```
  */
-export function createBoundsBundle<ResourceTypes extends BoundsResourceTypes = BoundsResourceTypes>(
-	options?: BoundsBundleOptions
-): Bundle<CombinedComponentTypes, BoundsEventTypes, ResourceTypes> {
+export function createBoundsBundle<ResourceTypes extends BoundsResourceTypes = BoundsResourceTypes, G extends string = 'physics'>(
+	options?: BoundsBundleOptions<G>
+): Bundle<CombinedComponentTypes, BoundsEventTypes, ResourceTypes, {}, {}, 'bounds-destroy' | 'bounds-clamp' | 'bounds-wrap', G> {
 	const {
 		systemGroup = 'physics',
 		priority = 50,
@@ -374,7 +374,7 @@ export function createBoundsBundle<ResourceTypes extends BoundsResourceTypes = B
 		})
 		.and();
 
-	return bundle;
+	return bundle as Bundle<CombinedComponentTypes, BoundsEventTypes, ResourceTypes, {}, {}, 'bounds-destroy' | 'bounds-clamp' | 'bounds-wrap', G>;
 }
 
 /**

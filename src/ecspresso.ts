@@ -23,11 +23,13 @@ export default interface ECSpresso<
 	ResourceTypes extends Record<string, any> = {},
 	AssetTypes extends Record<string, unknown> = {},
 	ScreenStates extends Record<string, ScreenDefinition<any, any>> = {},
+	Labels extends string = string,
+	Groups extends string = string,
 > {
 	/**
 		* Default constructor
 	*/
-	new(): ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>;
+	new(): ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, Labels, Groups>;
 }
 
 const PHASE_ORDER: readonly SystemPhase[] = [
@@ -46,6 +48,8 @@ export default class ECSpresso<
 	ResourceTypes extends Record<string, any> = {},
 	AssetTypes extends Record<string, unknown> = {},
 	ScreenStates extends Record<string, ScreenDefinition<any, any>> = {},
+	Labels extends string = string,
+	Groups extends string = string,
 > {
 	/** Library version*/
 	public static readonly VERSION = version;
@@ -280,8 +284,8 @@ export default class ECSpresso<
 		R extends Record<string, any> = {},
 		A extends Record<string, unknown> = {},
 		S extends Record<string, ScreenDefinition<any, any>> = {},
-	>(): ECSpressoBuilder<C, E, R, A, S> {
-		return new ECSpressoBuilder<C, E, R, A, S>();
+	>(): ECSpressoBuilder<C, E, R, A, S, never, never> {
+		return new ECSpressoBuilder<C, E, R, A, S, never, never>();
 	}
 
 	/**
@@ -562,7 +566,7 @@ export default class ECSpresso<
 		* @param priority The new priority value (higher values execute first)
 		* @returns true if the system was found and updated, false otherwise
 	*/
-	updateSystemPriority(label: string, priority: number): boolean {
+	updateSystemPriority(label: Labels, priority: number): boolean {
 		const system = this._systems.find(system => system.label === label);
 		if (!system) return false;
 
@@ -581,7 +585,7 @@ export default class ECSpresso<
 	 * @param phase The target phase
 	 * @returns true if the system was found and updated, false otherwise
 	 */
-	updateSystemPhase(label: string, phase: SystemPhase): boolean {
+	updateSystemPhase(label: Labels, phase: SystemPhase): boolean {
 		const system = this._systems.find(system => system.label === label);
 		if (!system) return false;
 
@@ -614,7 +618,7 @@ export default class ECSpresso<
 	 * Disable a system group. Systems in this group will be skipped during update().
 	 * @param groupName The name of the group to disable
 	 */
-	disableSystemGroup(groupName: string): void {
+	disableSystemGroup(groupName: Groups): void {
 		this._disabledGroups.add(groupName);
 	}
 
@@ -622,7 +626,7 @@ export default class ECSpresso<
 	 * Enable a system group. Systems in this group will run during update().
 	 * @param groupName The name of the group to enable
 	 */
-	enableSystemGroup(groupName: string): void {
+	enableSystemGroup(groupName: Groups): void {
 		this._disabledGroups.delete(groupName);
 	}
 
@@ -631,7 +635,7 @@ export default class ECSpresso<
 	 * @param groupName The name of the group to check
 	 * @returns true if the group is enabled (or doesn't exist), false if disabled
 	 */
-	isSystemGroupEnabled(groupName: string): boolean {
+	isSystemGroupEnabled(groupName: Groups): boolean {
 		return !this._disabledGroups.has(groupName);
 	}
 
@@ -640,7 +644,7 @@ export default class ECSpresso<
 	 * @param groupName The name of the group
 	 * @returns Array of system labels in the group
 	 */
-	getSystemsInGroup(groupName: string): string[] {
+	getSystemsInGroup(groupName: Groups): string[] {
 		return this._systems
 			.filter(system => system.groups?.includes(groupName))
 			.map(system => system.label);
@@ -652,7 +656,7 @@ export default class ECSpresso<
 		* @param label The unique label of the system to remove
 		* @returns true if the system was found and removed, false otherwise
 	*/
-	removeSystem(label: string): boolean {
+	removeSystem(label: Labels): boolean {
 		const index = this._systems.findIndex(system => system.label === label);
 		if (index === -1) return false;
 
@@ -1573,7 +1577,7 @@ export default class ECSpresso<
 		R extends Record<string, any>,
 		A extends Record<string, unknown> = {},
 		S extends Record<string, ScreenDefinition<any, any>> = {},
-	>(bundle: Bundle<C, E, R, A, S>): this {
+	>(bundle: Bundle<C, E, R, A, S, any, any>): this {
 		// Prevent duplicate installation of the same bundle
 		if (this._installedBundles.has(bundle.id)) {
 			return this;
@@ -1655,6 +1659,8 @@ export class ECSpressoBuilder<
 	R extends Record<string, any> = {},
 	A extends Record<string, unknown> = {},
 	S extends Record<string, ScreenDefinition<any, any>> = {},
+	Labels extends string = never,
+	Groups extends string = never,
 > {
 	/** The ECSpresso instance being built*/
 	private ecspresso: ECSpresso<C, E, R, A, S>;
@@ -1682,11 +1688,13 @@ export class ECSpressoBuilder<
 	withBundle<
 		BC extends Record<string, any>,
 		BE extends Record<string, any>,
-		BR extends Record<string, any>
+		BR extends Record<string, any>,
+		BL extends string = never,
+		BG extends string = never,
 	>(
-		this: ECSpressoBuilder<{}, {}, {}, A, S>,
-		bundle: Bundle<BC, BE, BR>
-	): ECSpressoBuilder<BC, BE, BR, A, S>;
+		this: ECSpressoBuilder<{}, {}, {}, A, S, Labels, Groups>,
+		bundle: Bundle<BC, BE, BR, any, any, BL, BG>
+	): ECSpressoBuilder<BC, BE, BR, A, S, Labels | BL, Groups | BG>;
 
 	/**
 		* Add a subsequent bundle with type checking.
@@ -1695,12 +1703,14 @@ export class ECSpressoBuilder<
 	withBundle<
 		BC extends Record<string, any>,
 		BE extends Record<string, any>,
-		BR extends Record<string, any>
+		BR extends Record<string, any>,
+		BL extends string = never,
+		BG extends string = never,
 	>(
 		bundle: BundlesAreCompatible<C, BC, E, BE, R, BR> extends true
-			? Bundle<BC, BE, BR>
+			? Bundle<BC, BE, BR, any, any, BL, BG>
 			: never
-	): ECSpressoBuilder<C & BC, E & BE, R & BR, A, S>;
+	): ECSpressoBuilder<C & BC, E & BE, R & BR, A, S, Labels | BL, Groups | BG>;
 
 	/**
 		* Implementation of both overloads.
@@ -1710,16 +1720,18 @@ export class ECSpressoBuilder<
 	withBundle<
 		BC extends Record<string, any>,
 		BE extends Record<string, any>,
-		BR extends Record<string, any>
+		BR extends Record<string, any>,
+		BL extends string = never,
+		BG extends string = never,
 	>(
-		bundle: Bundle<BC, BE, BR>
-	): ECSpressoBuilder<C & BC, E & BE, R & BR, A, S> {
+		bundle: Bundle<BC, BE, BR, any, any, BL, BG>
+	): ECSpressoBuilder<C & BC, E & BE, R & BR, A, S, Labels | BL, Groups | BG> {
 		// Install the bundle
 		// Type compatibility is guaranteed by method overloads
 		this.ecspresso._installBundle(bundle);
 
 		// Return a builder with the updated type parameters
-		return this as unknown as ECSpressoBuilder<C & BC, E & BE, R & BR, A, S>;
+		return this as unknown as ECSpressoBuilder<C & BC, E & BE, R & BR, A, S, Labels | BL, Groups | BG>;
 	}
 
 	/**
@@ -1728,10 +1740,10 @@ export class ECSpressoBuilder<
 	 * Conflicts with existing component types (same key, different type) produce a `never` return.
 	 */
 	withComponentTypes<T extends Record<string, any>>(): TypesAreCompatible<C, T> extends true
-		? ECSpressoBuilder<C & T, E, R, A, S>
+		? ECSpressoBuilder<C & T, E, R, A, S, Labels, Groups>
 		: never;
-	withComponentTypes<T extends Record<string, any>>(): ECSpressoBuilder<C & T, E, R, A, S> {
-		return this as unknown as ECSpressoBuilder<C & T, E, R, A, S>;
+	withComponentTypes<T extends Record<string, any>>(): ECSpressoBuilder<C & T, E, R, A, S, Labels, Groups> {
+		return this as unknown as ECSpressoBuilder<C & T, E, R, A, S, Labels, Groups>;
 	}
 
 	/**
@@ -1740,10 +1752,10 @@ export class ECSpressoBuilder<
 	 * Conflicts with existing event types (same key, different type) produce a `never` return.
 	 */
 	withEventTypes<T extends Record<string, any>>(): TypesAreCompatible<E, T> extends true
-		? ECSpressoBuilder<C, E & T, R, A, S>
+		? ECSpressoBuilder<C, E & T, R, A, S, Labels, Groups>
 		: never;
-	withEventTypes<T extends Record<string, any>>(): ECSpressoBuilder<C, E & T, R, A, S> {
-		return this as unknown as ECSpressoBuilder<C, E & T, R, A, S>;
+	withEventTypes<T extends Record<string, any>>(): ECSpressoBuilder<C, E & T, R, A, S, Labels, Groups> {
+		return this as unknown as ECSpressoBuilder<C, E & T, R, A, S, Labels, Groups>;
 	}
 
 	/**
@@ -1768,9 +1780,9 @@ export class ECSpressoBuilder<
 	withResource<K extends string, V>(
 		key: K,
 		resource: V | ((context?: any) => V | Promise<V>) | ResourceFactoryWithDeps<V>
-	): ECSpressoBuilder<C, E, R & Record<K, V>, A, S> {
+	): ECSpressoBuilder<C, E, R & Record<K, V>, A, S, Labels, Groups> {
 		this.pendingResources.push({ key, value: resource });
-		return this as unknown as ECSpressoBuilder<C, E, R & Record<K, V>, A, S>;
+		return this as unknown as ECSpressoBuilder<C, E, R & Record<K, V>, A, S, Labels, Groups>;
 	}
 
 	/**
@@ -1833,11 +1845,11 @@ export class ECSpressoBuilder<
 	 */
 	withAssets<NewA extends Record<string, unknown>>(
 		configurator: (assets: AssetConfigurator<{}>) => AssetConfigurator<NewA>
-	): ECSpressoBuilder<C, E, R, A & NewA, S> {
+	): ECSpressoBuilder<C, E, R, A & NewA, S, Labels, Groups> {
 		const assetConfig = createAssetConfigurator<{}>();
 		configurator(assetConfig);
 		this.assetConfigurator = assetConfig as unknown as AssetConfiguratorImpl<A>;
-		return this as unknown as ECSpressoBuilder<C, E, R, A & NewA, S>;
+		return this as unknown as ECSpressoBuilder<C, E, R, A & NewA, S, Labels, Groups>;
 	}
 
 	/**
@@ -1862,11 +1874,11 @@ export class ECSpressoBuilder<
 	 */
 	withScreens<NewS extends Record<string, ScreenDefinition<any, any>>>(
 		configurator: (screens: ScreenConfigurator<{}>) => ScreenConfigurator<NewS>
-	): ECSpressoBuilder<C, E, R, A, S & NewS> {
+	): ECSpressoBuilder<C, E, R, A, S & NewS, Labels, Groups> {
 		const screenConfig = createScreenConfigurator<{}>();
 		configurator(screenConfig);
 		this.screenConfigurator = screenConfig as unknown as ScreenConfiguratorImpl<S>;
-		return this as unknown as ECSpressoBuilder<C, E, R, A, S & NewS>;
+		return this as unknown as ECSpressoBuilder<C, E, R, A, S & NewS, Labels, Groups>;
 	}
 
 	/**
@@ -1882,7 +1894,7 @@ export class ECSpressoBuilder<
 	/**
 		* Complete the build process and return the built ECSpresso instance
 	*/
-	build(): ECSpresso<C, E, R, A, S> {
+	build(): ECSpresso<C, E, R, A, S, [Labels] extends [never] ? string : Labels, [Groups] extends [never] ? string : Groups> {
 		// Apply pending resources
 		for (const { key, value } of this.pendingResources) {
 			this.ecspresso.addResource(key as keyof R, value as any);
@@ -1917,6 +1929,6 @@ export class ECSpressoBuilder<
 			this.ecspresso._setFixedDt(this._fixedDt);
 		}
 
-		return this.ecspresso;
+		return this.ecspresso as ECSpresso<C, E, R, A, S, [Labels] extends [never] ? string : Labels, [Groups] extends [never] ? string : Groups>;
 	}
 }

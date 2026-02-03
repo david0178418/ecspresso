@@ -86,15 +86,15 @@ export interface Physics2DEventTypes {
 
 // ==================== Bundle Options ====================
 
-export interface Physics2DBundleOptions {
+export interface Physics2DBundleOptions<G extends string = 'physics2D', CG extends string = never> {
 	/** World gravity vector (default: {x: 0, y: 0}) */
 	gravity?: Vector2D;
 	/** System group name (default: 'physics2D') */
-	systemGroup?: string;
+	systemGroup?: G;
 	/** Additional group for the collision system only (default: none).
 	 * When set, the collision system belongs to both `systemGroup` and this group,
 	 * allowing independent enable/disable of collision detection. */
-	collisionSystemGroup?: string;
+	collisionSystemGroup?: CG;
 	/** Priority for integration system (default: 1000) */
 	integrationPriority?: number;
 	/** Priority for collision system (default: 900) */
@@ -323,9 +323,9 @@ function onPhysicsContact(
  * });
  * ```
  */
-export function createPhysics2DBundle<L extends string = never>(
-	options?: Physics2DBundleOptions & { layers?: LayerFactories<Record<L, readonly string[]>> },
-): Bundle<Physics2DComponentTypes<L>, Physics2DEventTypes, Physics2DResourceTypes> {
+export function createPhysics2DBundle<L extends string = never, G extends string = 'physics2D', CG extends string = never>(
+	options?: Physics2DBundleOptions<G, CG> & { layers?: LayerFactories<Record<L, readonly string[]>> },
+): Bundle<Physics2DComponentTypes<L>, Physics2DEventTypes, Physics2DResourceTypes, {}, {}, 'physics2D-integration' | 'physics2D-collision', G | CG> {
 	const {
 		gravity = { x: 0, y: 0 },
 		systemGroup = 'physics2D',
@@ -461,5 +461,5 @@ export function createPhysics2DBundle<L extends string = never>(
 		})
 		.and();
 
-	return bundle;
+	return bundle as Bundle<Physics2DComponentTypes<L>, Physics2DEventTypes, Physics2DResourceTypes, {}, {}, 'physics2D-integration' | 'physics2D-collision', G | CG>;
 }

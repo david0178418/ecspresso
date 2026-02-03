@@ -86,9 +86,9 @@ export interface TimerComponentTypes<EventTypes extends Record<string, any>> {
 /**
  * Configuration options for the timer bundle.
  */
-export interface TimerBundleOptions {
+export interface TimerBundleOptions<G extends string = 'timers'> {
 	/** System group name (default: 'timers') */
-	systemGroup?: string;
+	systemGroup?: G;
 	/** Priority for timer update system (default: 0) */
 	priority?: number;
 	/** Execution phase (default: 'preUpdate') */
@@ -218,9 +218,9 @@ export function createRepeatingTimer<EventTypes extends Record<string, any>>(
  *   });
  * ```
  */
-export function createTimerBundle<EventTypes extends Record<string, any>>(
-	options?: TimerBundleOptions
-): Bundle<TimerComponentTypes<EventTypes>, EventTypes> {
+export function createTimerBundle<EventTypes extends Record<string, any>, G extends string = 'timers'>(
+	options?: TimerBundleOptions<G>
+): Bundle<TimerComponentTypes<EventTypes>, EventTypes, {}, {}, {}, 'timer-update', G> {
 	const {
 		systemGroup = 'timers',
 		priority = 0,
@@ -293,5 +293,5 @@ export function createTimerBundle<EventTypes extends Record<string, any>>(
 		ecs.eventBus.publish(timer.onComplete, eventData);
 	}
 
-	return bundle;
+	return bundle as Bundle<TimerComponentTypes<EventTypes>, EventTypes, {}, {}, {}, 'timer-update', G>;
 }

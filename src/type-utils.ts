@@ -63,18 +63,24 @@ export type MergeAll<T extends any[]> = T extends [infer First, ...infer Rest] ?
 /**
  * Extract the ComponentTypes from a Bundle instance
  */
-export type ComponentsOf<B> = B extends import('./bundle').default<infer C extends Record<string, any>, any, any, any, any> ? C : never;
+export type ComponentsOf<B> = B extends import('./bundle').default<infer C extends Record<string, any>, any, any, any, any, any, any> ? C : never;
 
 /**
  * Extract the EventTypes from a Bundle instance
  */
-export type EventsOf<B> = B extends import('./bundle').default<any, infer E extends Record<string, any>, any, any, any> ? E : never;
+export type EventsOf<B> = B extends import('./bundle').default<any, infer E extends Record<string, any>, any, any, any, any, any> ? E : never;
 
 /**
  * Extract the ResourceTypes from a Bundle instance
  */
-export type ResourcesOf<B> = B extends import('./bundle').default<any, any, infer R extends Record<string, any>, any, any> ? R : never;
+export type ResourcesOf<B> = B extends import('./bundle').default<any, any, infer R extends Record<string, any>, any, any, any, any> ? R : never;
 
 /**
- * Basic utility types that can be used independently
+ * Extract the system Labels from a Bundle instance
  */
+export type LabelsOf<B> = B extends import('./bundle').default<any, any, any, any, any, infer L extends string, any> ? L : never;
+
+/**
+ * Extract the system Groups from a Bundle instance
+ */
+export type GroupsOf<B> = B extends import('./bundle').default<any, any, any, any, any, any, infer G extends string> ? G : never;

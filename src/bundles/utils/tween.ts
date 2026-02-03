@@ -299,9 +299,9 @@ export interface TweenComponentTypes<EventTypes extends Record<string, any> = Re
 
 // ==================== Bundle Options ====================
 
-export interface TweenBundleOptions {
+export interface TweenBundleOptions<G extends string = 'tweens'> {
 	/** System group name (default: 'tweens') */
-	systemGroup?: string;
+	systemGroup?: G;
 	/** Priority for tween update system (default: 0) */
 	priority?: number;
 	/** Execution phase (default: 'update') */
@@ -579,9 +579,9 @@ function reverseAllTargets<E extends Record<string, any>>(tween: Tween<E>): void
  * - `onComplete` event publishing
  * - Change detection via markChanged
  */
-export function createTweenBundle<EventTypes extends Record<string, any> = Record<string, any>>(
-	options?: TweenBundleOptions
-): Bundle<TweenComponentTypes<EventTypes>, EventTypes> {
+export function createTweenBundle<EventTypes extends Record<string, any> = Record<string, any>, G extends string = 'tweens'>(
+	options?: TweenBundleOptions<G>
+): Bundle<TweenComponentTypes<EventTypes>, EventTypes, {}, {}, {}, 'tween-update', G> {
 	const {
 		systemGroup = 'tweens',
 		priority = 0,
@@ -757,5 +757,5 @@ export function createTweenBundle<EventTypes extends Record<string, any> = Recor
 		ecs.eventBus.publish(tween.onComplete, eventData);
 	}
 
-	return bundle;
+	return bundle as Bundle<TweenComponentTypes<EventTypes>, EventTypes, {}, {}, {}, 'tween-update', G>;
 }

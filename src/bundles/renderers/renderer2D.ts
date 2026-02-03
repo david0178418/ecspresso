@@ -120,11 +120,11 @@ export interface ViewportScaleResourceTypes {
 /**
  * Common options shared between both initialization modes
  */
-interface Renderer2DBundleCommonOptions {
+interface Renderer2DBundleCommonOptions<G extends string = 'renderer2d'> {
 	/** Optional custom root container (defaults to app.stage) */
 	rootContainer?: Container;
 	/** System group name (default: 'renderer2d') */
-	systemGroup?: string;
+	systemGroup?: G;
 	/** Priority for render sync system (default: 500) */
 	renderSyncPriority?: number;
 	/** Options for the included transform bundle */
@@ -144,7 +144,7 @@ interface Renderer2DBundleCommonOptions {
 /**
  * Options when providing a pre-initialized PixiJS Application
  */
-export interface Renderer2DBundleAppOptions extends Renderer2DBundleCommonOptions {
+export interface Renderer2DBundleAppOptions<G extends string = 'renderer2d'> extends Renderer2DBundleCommonOptions<G> {
 	/** The PixiJS Application instance (already initialized) */
 	app: Application;
 	init?: never;
@@ -154,7 +154,7 @@ export interface Renderer2DBundleAppOptions extends Renderer2DBundleCommonOption
 /**
  * Options when letting the bundle create and manage the PixiJS Application
  */
-export interface Renderer2DBundleManagedOptions extends Renderer2DBundleCommonOptions {
+export interface Renderer2DBundleManagedOptions<G extends string = 'renderer2d'> extends Renderer2DBundleCommonOptions<G> {
 	app?: never;
 	/** PixiJS ApplicationOptions - bundle will create and initialize the Application */
 	init: Partial<ApplicationOptions>;
@@ -193,7 +193,7 @@ export interface Renderer2DBundleManagedOptions extends Renderer2DBundleCommonOp
  * await ecs.initialize(); // Application created here
  * ```
  */
-export type Renderer2DBundleOptions = Renderer2DBundleAppOptions | Renderer2DBundleManagedOptions;
+export type Renderer2DBundleOptions<G extends string = 'renderer2d'> = Renderer2DBundleAppOptions<G> | Renderer2DBundleManagedOptions<G>;
 
 // ==================== Default Values ====================
 
@@ -441,24 +441,26 @@ export function physicalToLogical(
  * await ecs.initialize();
  * ```
  */
-export function createRenderer2DBundle(
-	options: Renderer2DBundleOptions & { screenScale: ScreenScaleOptions; camera: true }
-): Bundle<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes & ViewportScaleResourceTypes & CameraResourceTypes>;
-export function createRenderer2DBundle(
-	options: Renderer2DBundleOptions & { screenScale: ScreenScaleOptions }
-): Bundle<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes & ViewportScaleResourceTypes>;
-export function createRenderer2DBundle(
-	options: Renderer2DBundleOptions & { camera: true }
-): Bundle<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes & CameraResourceTypes>;
-export function createRenderer2DBundle(
-	options: Renderer2DBundleOptions
-): Bundle<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes>;
-export function createRenderer2DBundle(
-	options: Renderer2DBundleOptions & { camera?: boolean; screenScale?: ScreenScaleOptions }
-): Bundle<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes>
-| Bundle<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes & CameraResourceTypes>
-| Bundle<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes & ViewportScaleResourceTypes>
-| Bundle<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes & ViewportScaleResourceTypes & CameraResourceTypes> {
+type Renderer2DLabels = 'renderer2d-sync' | 'renderer2d-scene-graph' | 'renderer2d-camera-sync' | 'transform-propagation';
+
+export function createRenderer2DBundle<G extends string = 'renderer2d'>(
+	options: Renderer2DBundleOptions<G> & { screenScale: ScreenScaleOptions; camera: true }
+): Bundle<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes & ViewportScaleResourceTypes & CameraResourceTypes, {}, {}, Renderer2DLabels, G>;
+export function createRenderer2DBundle<G extends string = 'renderer2d'>(
+	options: Renderer2DBundleOptions<G> & { screenScale: ScreenScaleOptions }
+): Bundle<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes & ViewportScaleResourceTypes, {}, {}, Renderer2DLabels, G>;
+export function createRenderer2DBundle<G extends string = 'renderer2d'>(
+	options: Renderer2DBundleOptions<G> & { camera: true }
+): Bundle<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes & CameraResourceTypes, {}, {}, Renderer2DLabels, G>;
+export function createRenderer2DBundle<G extends string = 'renderer2d'>(
+	options: Renderer2DBundleOptions<G>
+): Bundle<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes, {}, {}, Renderer2DLabels, G>;
+export function createRenderer2DBundle<G extends string = 'renderer2d'>(
+	options: Renderer2DBundleOptions<G> & { camera?: boolean; screenScale?: ScreenScaleOptions }
+): Bundle<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes, {}, {}, Renderer2DLabels, G>
+| Bundle<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes & CameraResourceTypes, {}, {}, Renderer2DLabels, G>
+| Bundle<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes & ViewportScaleResourceTypes, {}, {}, Renderer2DLabels, G>
+| Bundle<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes & ViewportScaleResourceTypes & CameraResourceTypes, {}, {}, Renderer2DLabels, G> {
 	const {
 		rootContainer: customRootContainer,
 		systemGroup = 'renderer2d',
@@ -924,5 +926,5 @@ export function createRenderer2DBundle(
 
 	// Merge transform bundle (runs first) with renderer bundle
 	const transformBundle = createTransformBundle(transformOptions);
-	return mergeBundles('renderer2d', transformBundle, rendererBundle);
+	return mergeBundles('renderer2d', transformBundle, rendererBundle) as unknown as Bundle<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes & ViewportScaleResourceTypes & CameraResourceTypes, {}, {}, Renderer2DLabels, G>;
 }

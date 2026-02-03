@@ -59,9 +59,9 @@ export interface TransformComponentTypes {
 /**
  * Configuration options for the transform bundle.
  */
-export interface TransformBundleOptions {
+export interface TransformBundleOptions<G extends string = 'transform'> {
 	/** System group name (default: 'transform') */
-	systemGroup?: string;
+	systemGroup?: G;
 	/** Priority for transform propagation (default: 500, runs after physics) */
 	priority?: number;
 	/** Execution phase (default: 'postUpdate') */
@@ -224,9 +224,9 @@ export function createTransform(
  * });
  * ```
  */
-export function createTransformBundle(
-	options?: TransformBundleOptions
-): Bundle<TransformComponentTypes> {
+export function createTransformBundle<G extends string = 'transform'>(
+	options?: TransformBundleOptions<G>
+): Bundle<TransformComponentTypes, {}, {}, {}, {}, 'transform-propagation', G> {
 	const {
 		systemGroup = 'transform',
 		priority = 500,
@@ -250,7 +250,7 @@ export function createTransformBundle(
 		})
 		.and();
 
-	return bundle;
+	return bundle as Bundle<TransformComponentTypes, {}, {}, {}, {}, 'transform-propagation', G>;
 }
 
 /**
