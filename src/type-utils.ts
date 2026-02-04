@@ -84,3 +84,17 @@ export type LabelsOf<B> = B extends import('./bundle').default<any, any, any, an
  * Extract the system Groups from a Bundle instance
  */
 export type GroupsOf<B> = B extends import('./bundle').default<any, any, any, any, any, any, infer G extends string> ? G : never;
+
+/**
+ * Extract ComponentTypes from an ECSpresso world instance type.
+ */
+export type ComponentsOfWorld<W> = W extends import('./ecspresso').default<
+	infer C extends Record<string, any>, any, any, any, any, any, any
+> ? C : never;
+
+/**
+ * Extract EventTypes from an ECSpresso world instance type.
+ */
+export type EventsOfWorld<W> = W extends import('./ecspresso').default<
+	any, infer E extends Record<string, any>, any, any, any, any, any
+> ? E : never;

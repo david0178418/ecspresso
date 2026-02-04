@@ -6,7 +6,7 @@
  */
 
 import { Bundle } from 'ecspresso';
-import type { SystemPhase } from 'ecspresso';
+import type { SystemPhase, ComponentsOfWorld, EventsOfWorld } from 'ecspresso';
 
 // ==================== Easing Functions ====================
 
@@ -432,6 +432,106 @@ export function createTweenSequence<EventTypes extends Record<string, any> = Rec
 			onComplete,
 			justFinished: false,
 		},
+	};
+}
+
+// ==================== Kit Types ====================
+
+type AnyECSpresso = import('ecspresso').default<any, any, any, any, any, any, any>;
+
+/**
+ * Recursively produce a union of dot-separated paths that resolve to `number`
+ * within type T. Depth-limited to 4 levels to prevent TS recursion errors.
+ *
+ * @example
+ * NumericPaths<{ x: number; y: number }> // 'x' | 'y'
+ * NumericPaths<{ position: { x: number }; rotation: number }> // 'position.x' | 'rotation'
+ */
+export type NumericPaths<T, Depth extends readonly unknown[] = []> =
+	Depth['length'] extends 4 ? never :
+	T extends readonly unknown[] ? never :
+	T extends Record<string, unknown>
+		? { [K in keyof T & string]:
+			NonNullable<T[K]> extends number
+				? K
+				: NonNullable<T[K]> extends readonly unknown[]
+					? never
+					: NonNullable<T[K]> extends Record<string, unknown>
+						? `${K}.${NumericPaths<NonNullable<T[K]>, [...Depth, unknown]>}`
+						: never
+		}[keyof T & string]
+		: never;
+
+/**
+ * Discriminated union over component names: each variant constrains `field`
+ * to the numeric paths of that component. TS narrows inline object literals
+ * by `component` discriminant — zero runtime overhead.
+ */
+export type TypedTweenTargetInput<C extends Record<string, any>> = {
+	[K in keyof C & string]: {
+		component: K;
+		field: NumericPaths<C[K]>;
+		to: number;
+		from?: number;
+	}
+}[keyof C & string];
+
+export interface TypedTweenSequenceStepInput<C extends Record<string, any>> {
+	targets: ReadonlyArray<TypedTweenTargetInput<C>>;
+	duration: number;
+	easing?: EasingFn;
+}
+
+export interface TweenKit<W extends AnyECSpresso, G extends string = 'tweens'> {
+	bundle: Bundle<TweenComponentTypes<EventsOfWorld<W>>, EventsOfWorld<W>, {}, {}, {}, 'tween-update', G>;
+	createTween: <K extends keyof ComponentsOfWorld<W> & string>(
+		component: K,
+		field: NumericPaths<ComponentsOfWorld<W>[K]>,
+		to: number,
+		duration: number,
+		options?: TweenOptions<EventsOfWorld<W>>,
+	) => Pick<TweenComponentTypes<EventsOfWorld<W>>, 'tween'>;
+	createTweenSequence: (
+		steps: ReadonlyArray<TypedTweenSequenceStepInput<ComponentsOfWorld<W>>>,
+		options?: TweenSequenceOptions<EventsOfWorld<W>>,
+	) => Pick<TweenComponentTypes<EventsOfWorld<W>>, 'tween'>;
+}
+
+/**
+ * Create a typed tween kit that captures the world type W.
+ *
+ * The returned `createTween` and `createTweenSequence` validate component names
+ * and field paths at compile time. Runtime behavior is identical to the standalone
+ * functions — all validation is type-level only.
+ *
+ * @template W - Concrete ECS world type (e.g. `typeof ecs`)
+ * @template G - System group name (default: 'tweens')
+ * @param options - Optional bundle configuration (same as createTweenBundle)
+ * @returns A kit object with bundle, createTween, createTweenSequence
+ *
+ * @example
+ * ```typescript
+ * const kit = createTweenKit<typeof ecs>();
+ * // or: const kit = createTweenKit<ECS>();
+ *
+ * const ecs = ECSpresso.create()
+ *   .withBundle(kit.bundle)
+ *   .build();
+ *
+ * // Type-safe: 'position' must be a component, 'x' must be a numeric field
+ * kit.createTween('position', 'x', 100, 1);
+ *
+ * // Type error: 'z' is not a field of position
+ * kit.createTween('position', 'z', 100, 1);
+ * ```
+ */
+export function createTweenKit<W extends AnyECSpresso, G extends string = 'tweens'>(
+	options?: TweenBundleOptions<G>,
+): TweenKit<W, G> {
+	return {
+		bundle: createTweenBundle<EventsOfWorld<W>, G>(options),
+		createTween: createTween as TweenKit<W, G>['createTween'],
+		createTweenSequence: createTweenSequence as TweenKit<W, G>['createTweenSequence'],
 	};
 }
 

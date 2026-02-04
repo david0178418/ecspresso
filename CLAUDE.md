@@ -145,6 +145,11 @@ src/
 - **Tween Change Detection**: System calls `markChanged` for each modified component, integrating with `changed` query filters.
 - **Tween Bundle Options**: `createTweenBundle({ phase?, priority?, systemGroup? })` — defaults to `update` phase, priority 0, group `'tweens'`.
 - **Tween Sequences**: `createTweenSequence([{ targets: [...], duration, easing? }, ...], options?)` — steps execute in order with overflow time carried to next step. Each step can animate multiple targets in parallel.
+- **Tween Kit**: `createTweenKit<W>()` — factory that captures world type `W` once; returned `createTween` and `createTweenSequence` validate component names and field paths at compile time. Zero runtime overhead — all validation is type-level only.
+- **Tween Kit API**: `const { bundle, createTween, createTweenSequence } = createTweenKit<ECS>()` — standalone `createTween`/`createTweenSequence` remain available for untyped usage
+- **NumericPaths<T>**: Recursive type utility producing union of dot-separated paths resolving to `number`. Depth-limited to 4 levels. Handles optional fields via `NonNullable`.
+- **TypedTweenTargetInput<C>**: Discriminated union over component names — each variant constrains `field` to `NumericPaths` of that component. Used in `TypedTweenSequenceStepInput` for typed sequence targets.
+- **ECSpresso Type Extraction**: `ComponentsOfWorld<W>`, `EventsOfWorld<W>` — extract type parameters from an ECSpresso instance type. Complements existing `ComponentsOf<B>`, `EventsOf<B>` for Bundle extraction.
 
 ## Commands
 

@@ -4,6 +4,7 @@ import {
 	createTweenBundle,
 	createTween,
 	createTweenSequence,
+	createTweenKit,
 	linear,
 	easeInQuad,
 	easeOutQuad,
@@ -37,6 +38,8 @@ import {
 	easeInOutBounce,
 	easings,
 	type TweenEventData,
+	type NumericPaths,
+	type TypedTweenTargetInput,
 } from './tween';
 
 // ==================== Test Type Definitions ====================
@@ -956,5 +959,228 @@ describe('Bundle Options', () => {
 		if (!pos) throw new Error('Expected position');
 		// Should still work in postUpdate phase
 		expect(pos.x).toBeCloseTo(50, 1);
+	});
+});
+
+// ==================== createTweenKit ====================
+
+type TestECS = ECSpresso<TestComponents, TestEvents, TestResources>;
+
+function createKitTestEcs() {
+	const kit = createTweenKit<TestECS>();
+	const ecs = ECSpresso
+		.create<TestComponents, TestEvents, TestResources>()
+		.withBundle(kit.bundle)
+		.build();
+	return { ecs, kit };
+}
+
+describe('createTweenKit', () => {
+	// Helper to assert type assignability without triggering noUnusedLocals
+	function assertType<T>(_value: T): void {}
+
+	// ---- Type assertion tests ----
+
+	test('NumericPaths produces flat numeric field names', () => {
+		type Result = NumericPaths<{ x: number; y: number }>;
+		assertType<Result>('x');
+		assertType<Result>('y');
+		// @ts-expect-error - 'z' is not a key
+		assertType<Result>('z');
+	});
+
+	test('NumericPaths produces dot-paths for nested objects', () => {
+		type Result = NumericPaths<{ position: { x: number; y: number } }>;
+		assertType<Result>('position.x');
+		assertType<Result>('position.y');
+		// @ts-expect-error - 'position' alone is not a numeric path
+		assertType<Result>('position');
+	});
+
+	test('NumericPaths excludes non-numeric fields', () => {
+		type Result = NumericPaths<{ x: number; name: string; active: boolean }>;
+		assertType<Result>('x');
+		// @ts-expect-error - string field is not numeric
+		assertType<Result>('name');
+		// @ts-expect-error - boolean field is not numeric
+		assertType<Result>('active');
+	});
+
+	test('NumericPaths returns never for non-object types', () => {
+		type Result = NumericPaths<string>;
+		// @ts-expect-error - string has no numeric paths
+		assertType<Result>('length');
+	});
+
+	test('TypedTweenTargetInput constrains field per component', () => {
+		type Input = TypedTweenTargetInput<{ position: { x: number; y: number }; health: { current: number; max: number } }>;
+		assertType<Input>({ component: 'position', field: 'x', to: 10 });
+		assertType<Input>({ component: 'health', field: 'current', to: 50 });
+		// @ts-expect-error - 'current' is not a field of position
+		assertType<Input>({ component: 'position', field: 'current', to: 10 });
+	});
+
+	test('Kit createTween rejects invalid component name', () => {
+		const { kit } = createKitTestEcs();
+		// @ts-expect-error - 'nonexistent' is not a component
+		kit.createTween('nonexistent', 'x', 100, 1);
+	});
+
+	test('Kit createTween rejects invalid field path', () => {
+		const { kit } = createKitTestEcs();
+		// @ts-expect-error - 'z' is not a field of position
+		kit.createTween('position', 'z', 100, 1);
+	});
+
+	test('Kit createTween rejects fields on non-tweeable component', () => {
+		const { kit } = createKitTestEcs();
+		// @ts-expect-error - tag is a string, has no numeric paths
+		kit.createTween('tag', 'length', 100, 1);
+	});
+
+	test('Kit createTween accepts valid component and field', () => {
+		const { kit } = createKitTestEcs();
+		// Flat field
+		kit.createTween('position', 'x', 100, 1);
+		// Nested dot-path
+		kit.createTween('transform', 'position.x', 100, 1);
+		kit.createTween('transform', 'scale.y', 2, 0.5);
+	});
+
+	test('Kit createTween rejects invalid onComplete event name', () => {
+		const { kit } = createKitTestEcs();
+		// @ts-expect-error - 'bogusEvent' is not a valid event
+		kit.createTween('position', 'x', 100, 1, { onComplete: 'bogusEvent' });
+	});
+
+	test('Kit createTweenSequence rejects invalid component/field in targets', () => {
+		const { kit } = createKitTestEcs();
+		kit.createTweenSequence([
+			{
+				targets: [
+					// @ts-expect-error - 'z' is not a field of position
+					{ component: 'position', field: 'z', to: 100 },
+				],
+				duration: 1,
+			},
+		]);
+	});
+
+	test('Kit createTweenSequence accepts valid mixed-component targets', () => {
+		const { kit } = createKitTestEcs();
+		kit.createTweenSequence([
+			{
+				targets: [
+					{ component: 'position', field: 'x', to: 100 },
+					{ component: 'opacity', field: 'value', to: 0 },
+				],
+				duration: 1,
+			},
+			{
+				targets: [
+					{ component: 'transform', field: 'scale.x', to: 2 },
+				],
+				duration: 0.5,
+			},
+		]);
+	});
+
+	// ---- Runtime behavior tests ----
+
+	test('Kit bundle installs and processes tweens (interpolation at 0.5s)', () => {
+		const { ecs, kit } = createKitTestEcs();
+
+		const entity = ecs.spawn({
+			position: { x: 0, y: 0 },
+			...kit.createTween('position', 'x', 100, 1),
+		});
+
+		ecs.update(0.5);
+
+		const pos = ecs.entityManager.getComponent(entity.id, 'position');
+		if (!pos) throw new Error('Expected position');
+		expect(pos.x).toBeCloseTo(50, 1);
+	});
+
+	test('Kit tween completes and removes component', () => {
+		const { ecs, kit } = createKitTestEcs();
+
+		const entity = ecs.spawn({
+			position: { x: 0, y: 0 },
+			...kit.createTween('position', 'x', 100, 1),
+		});
+
+		ecs.update(1.0);
+		ecs.update(0);
+
+		const tween = ecs.entityManager.getComponent(entity.id, 'tween');
+		expect(tween).toBeNull();
+
+		const pos = ecs.entityManager.getComponent(entity.id, 'position');
+		if (!pos) throw new Error('Expected position');
+		expect(pos.x).toBe(100);
+	});
+
+	test('Kit sequence executes steps in order', () => {
+		const { ecs, kit } = createKitTestEcs();
+
+		const entity = ecs.spawn({
+			position: { x: 0, y: 0 },
+			...kit.createTweenSequence([
+				{ targets: [{ component: 'position', field: 'x', to: 100 }], duration: 1 },
+				{ targets: [{ component: 'position', field: 'y', to: 200 }], duration: 1 },
+			]),
+		});
+
+		ecs.update(1.0);
+		const pos1 = ecs.entityManager.getComponent(entity.id, 'position');
+		if (!pos1) throw new Error('Expected position');
+		expect(pos1.x).toBe(100);
+		expect(pos1.y).toBe(0);
+
+		ecs.update(1.0);
+		const pos2 = ecs.entityManager.getComponent(entity.id, 'position');
+		if (!pos2) throw new Error('Expected position');
+		expect(pos2.x).toBe(100);
+		expect(pos2.y).toBe(200);
+	});
+
+	test('Kit onComplete event fires with correct data', () => {
+		const { ecs, kit } = createKitTestEcs();
+
+		const events: TweenEventData[] = [];
+		ecs.eventBus.subscribe('animDone', (data) => {
+			events.push(data);
+		});
+
+		const entity = ecs.spawn({
+			position: { x: 0, y: 0 },
+			...kit.createTween('position', 'x', 100, 1, { onComplete: 'animDone' }),
+		});
+
+		ecs.update(1.0);
+
+		expect(events.length).toBe(1);
+		const eventData = events[0];
+		if (!eventData) throw new Error('Expected event data');
+		expect(eventData.entityId).toBe(entity.id);
+		expect(eventData.stepCount).toBe(1);
+	});
+
+	test('Kit tween with nested dot-path works at runtime', () => {
+		const { ecs, kit } = createKitTestEcs();
+
+		const entity = ecs.spawn({
+			transform: { position: { x: 0, y: 0 }, scale: { x: 1, y: 1 } },
+			...kit.createTween('transform', 'position.x', 100, 1),
+		});
+
+		ecs.update(0.5);
+
+		const t = ecs.entityManager.getComponent(entity.id, 'transform');
+		if (!t) throw new Error('Expected transform');
+		expect(t.position.x).toBeCloseTo(50, 1);
+		expect(t.position.y).toBe(0);
+		expect(t.scale.x).toBe(1);
 	});
 });
