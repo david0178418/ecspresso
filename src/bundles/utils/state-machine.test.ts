@@ -1,5 +1,6 @@
 import { describe, test, expect } from 'bun:test';
 import ECSpresso from '../../ecspresso';
+import type Bundle from '../../bundle';
 import {
 	defineStateMachine,
 	createStateMachine,
@@ -8,9 +9,12 @@ import {
 	transitionTo,
 	sendEvent,
 	getStateMachineState,
+	type StateMachine,
 	type StateMachineComponentTypes,
 	type StateMachineEventTypes,
+	type StateMachineWorld,
 	type StateTransitionEvent,
+	type StatesOf,
 } from './state-machine';
 
 // ==================== Test Types ====================
@@ -716,6 +720,186 @@ describe('State Machine Bundle', () => {
 			shouldTransition = true;
 			ecs.update(1 / 60);
 			expect(getStateMachineState(ecs, entity.id)).toBe('alert');
+		});
+	});
+
+	// --- Type Safety ---
+
+	describe('type safety', () => {
+		// Conditional type helper for compile-time assertions
+		type IsExact<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
+
+		test('bare defaults — StateMachine defaults to string', () => {
+			const _smCheck: IsExact<StateMachine['current'], string> = true;
+			const _smPrev: IsExact<StateMachine['previous'], string | null> = true;
+			expect(_smCheck).toBe(true);
+			expect(_smPrev).toBe(true);
+		});
+
+		test('bare defaults — StateTransitionEvent defaults to string', () => {
+			const _from: IsExact<StateTransitionEvent['from'], string> = true;
+			const _to: IsExact<StateTransitionEvent['to'], string> = true;
+			expect(_from).toBe(true);
+			expect(_to).toBe(true);
+		});
+
+		test('StateMachineComponentTypes<S> narrows current', () => {
+			type Narrowed = StateMachineComponentTypes<'idle' | 'chase'>;
+			const _check: IsExact<Narrowed['stateMachine']['current'], 'idle' | 'chase'> = true;
+			expect(_check).toBe(true);
+		});
+
+		test('StateTransitionEvent<S> narrows from/to', () => {
+			type Narrowed = StateTransitionEvent<'idle' | 'chase'>;
+			const _from: IsExact<Narrowed['from'], 'idle' | 'chase'> = true;
+			const _to: IsExact<Narrowed['to'], 'idle' | 'chase'> = true;
+			expect(_from).toBe(true);
+			expect(_to).toBe(true);
+		});
+
+		test('createStateMachine preserves S in returned component', () => {
+			const fsm = defineStateMachine('test', {
+				initial: 'idle',
+				states: { idle: {}, chase: {} },
+			});
+			const component = createStateMachine(fsm);
+			const _check: IsExact<typeof component.stateMachine.current, 'idle' | 'chase'> = true;
+			expect(_check).toBe(true);
+		});
+
+		test('StatesOf extracts S from definition', () => {
+			const fsm = defineStateMachine('test', {
+				initial: 'idle',
+				states: { idle: {}, chase: {} },
+			});
+			type S = StatesOf<typeof fsm>;
+			const _check: IsExact<S, 'idle' | 'chase'> = true;
+			expect(_check).toBe(true);
+		});
+
+		test('StatesOf union across multiple definitions', () => {
+			const fsmA = defineStateMachine('a', {
+				initial: 'idle',
+				states: { idle: {}, run: {} },
+			});
+			const fsmB = defineStateMachine('b', {
+				initial: 'patrol',
+				states: { patrol: {}, chase: {} },
+			});
+			type AllStates = StatesOf<typeof fsmA> | StatesOf<typeof fsmB>;
+			const _check: IsExact<AllStates, 'idle' | 'run' | 'patrol' | 'chase'> = true;
+			expect(_check).toBe(true);
+		});
+
+		test('kit constrains state names — invalid name rejected', () => {
+			type TestECS = ECSpresso<TestComponents, TestEvents, TestResources>;
+			const kit = createStateMachineKit<TestECS, 'idle' | 'chase'>();
+
+			// Valid state names work
+			kit.defineStateMachine('test', {
+				initial: 'idle',
+				states: { idle: {}, chase: {} },
+			});
+
+			// @ts-expect-error — 'flying' is not in 'idle' | 'chase'
+			kit.defineStateMachine<'flying'>('bad', {
+				initial: 'flying',
+				states: { flying: {} },
+			});
+		});
+
+		test('kit createStateMachine returns world-level S', () => {
+			type TestECS = ECSpresso<TestComponents, TestEvents, TestResources>;
+			const kit = createStateMachineKit<TestECS, 'idle' | 'chase'>();
+
+			const fsm = kit.defineStateMachine('test', {
+				initial: 'idle',
+				states: { idle: {}, chase: {} },
+			});
+			const component = kit.createStateMachine(fsm);
+			const _check: IsExact<typeof component.stateMachine.current, 'idle' | 'chase'> = true;
+			expect(_check).toBe(true);
+		});
+
+		test('bundle parameterization flows through world', () => {
+			type States = 'idle' | 'chase';
+			const bundle = createStateMachineBundle<States>();
+
+			type BundleComponents = (typeof bundle) extends Bundle<infer C, infer _E, infer _R> ? C : never;
+			const _check: IsExact<BundleComponents['stateMachine']['current'], States> = true;
+			expect(_check).toBe(true);
+		});
+
+		test('event subscription narrows with S', () => {
+			type Narrowed = StateMachineEventTypes<'idle' | 'chase'>;
+			const _check: IsExact<Narrowed['stateTransition']['from'], 'idle' | 'chase'> = true;
+			const _check2: IsExact<Narrowed['stateTransition']['to'], 'idle' | 'chase'> = true;
+			expect(_check).toBe(true);
+			expect(_check2).toBe(true);
+		});
+	});
+
+	// --- Typed Kit Runtime ---
+
+	describe('typed kit runtime', () => {
+		type States = 'idle' | 'chase';
+
+		function createTypedKitEcs() {
+			const kit = createStateMachineKit<StateMachineWorld, States>();
+			const ecs = ECSpresso
+				.create()
+				.withBundle(kit.bundle)
+				.withComponentTypes<{ position: { x: number; y: number }; health: number }>()
+				.withEventTypes<{ damaged: { entityId: number } }>()
+				.withResource('playerNearby', false)
+				.build();
+			return { ecs, kit };
+		}
+
+		test('typed kit definitions and components work at runtime', () => {
+			const { ecs, kit } = createTypedKitEcs();
+
+			const fsm = kit.defineStateMachine('enemy', {
+				initial: 'idle',
+				states: {
+					idle: {},
+					chase: {},
+				},
+			});
+
+			const entity = ecs.spawn({ ...kit.createStateMachine(fsm) });
+			ecs.update(1 / 60);
+
+			expect(getStateMachineState(ecs, entity.id)).toBe('idle');
+
+			transitionTo(ecs, entity.id, 'chase');
+			expect(getStateMachineState(ecs, entity.id)).toBe('chase');
+		});
+
+		test('typed kit events carry correct state name values', () => {
+			const { ecs, kit } = createTypedKitEcs();
+			const events: StateTransitionEvent[] = [];
+
+			ecs.eventBus.subscribe('stateTransition', (data) => {
+				events.push(data);
+			});
+
+			const fsm = kit.defineStateMachine('test', {
+				initial: 'idle',
+				states: {
+					idle: {},
+					chase: {},
+				},
+			});
+
+			const entity = ecs.spawn({ ...kit.createStateMachine(fsm) });
+			ecs.update(1 / 60);
+
+			transitionTo(ecs, entity.id, 'chase');
+
+			expect(events).toHaveLength(1);
+			expect(events[0]!.from).toBe('idle');
+			expect(events[0]!.to).toBe('chase');
 		});
 	});
 });

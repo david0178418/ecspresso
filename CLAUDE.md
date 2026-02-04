@@ -109,11 +109,13 @@ src/
 - **Physics 2D Utilities**: `applyForce(ecs, id, fx, fy)` accumulates force, `applyImpulse(ecs, id, ix, iy)` instant velocity change (respects mass), `setVelocity(ecs, id, vx, vy)` direct velocity set
 - **Physics 2D Phase Flow**: Integration (fixedUpdate priority 1000) → Collision response (fixedUpdate priority 900) → Transform propagation (postUpdate) → Renderer (render)
 - **Physics 2D Body Types**: `'dynamic'` = fully simulated, `'kinematic'` = velocity-only movement (no gravity/forces, immovable in collisions), `'static'` = immovable (mass=Infinity, no position updates)
-- **State Machine Bundle**: `createStateMachineBundle()` — per-entity finite state machines with lifecycle hooks and guard transitions
-- **State Machine Kit**: `createStateMachineKit<W>()` — factory that captures world type `W` once; returned helpers contextually type `ecs` as `W` in hooks/guards (no manual annotations needed)
-- **State Machine Kit API**: `const { bundle, defineStateMachine, createStateMachine } = createStateMachineKit<ECS>()` — utility functions (`transitionTo`, `sendEvent`, `getStateMachineState`) stay as standalone imports since they accept `StateMachineWorld` (wider than any concrete `W`)
+- **State Machine Bundle**: `createStateMachineBundle<S>()` — per-entity finite state machines with lifecycle hooks and guard transitions. `S extends string` (default `string`) narrows `stateMachine.current`/`previous` and event `from`/`to` to state name literals.
+- **State Machine Type Parameters**: `StateMachine<S>`, `StateMachineComponentTypes<S>`, `StateTransitionEvent<S>`, `StateMachineEventTypes<S>` — parameterized with state name union `S extends string` (defaults to `string` for backward compatibility)
+- **State Machine StatesOf**: `StatesOf<D>` — extract state name union from a `StateMachineDefinition`. Example: `type AllStates = StatesOf<typeof enemyFSM> | StatesOf<typeof playerFSM>;`
+- **State Machine Kit**: `createStateMachineKit<W, S>()` — factory that captures world type `W` and state union `S` once; returned helpers contextually type `ecs` as `W` in hooks/guards. `S` constrains `defineStateMachine` to only accept states in the union.
+- **State Machine Kit API**: `const { bundle, defineStateMachine, createStateMachine } = createStateMachineKit<ECS, AllStates>()` — utility functions (`transitionTo`, `sendEvent`, `getStateMachineState`) stay as standalone imports since they accept `StateMachineWorld` (wider than any concrete `W`)
 - **State Machine Definition**: `defineStateMachine(id, { initial, states })` — shared immutable definition, type-safe state names inferred from `states` keys
-- **State Machine Component**: `createStateMachine(definition, options?)` → `Pick<StateMachineComponentTypes, 'stateMachine'>`, spreads into `spawn()`
+- **State Machine Component**: `createStateMachine(definition, options?)` → `Pick<StateMachineComponentTypes<S>, 'stateMachine'>`, preserves definition's `S` in the returned component
 - **State Machine Hooks**: `onEnter(ecs, entityId)`, `onExit(ecs, entityId)`, `onUpdate(ecs, entityId, deltaTime)` per state
 - **State Machine Guards**: `transitions: [{ target, guard }]` — evaluated each tick, first passing guard wins
 - **State Machine Events**: `sendEvent(ecs, entityId, eventName)` — checks current state's `on` handlers (string target or `{ target, guard }`)

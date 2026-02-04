@@ -78,39 +78,59 @@ export interface StateMachineDefinition<S extends string> {
 
 /**
  * Runtime state machine component stored on each entity.
+ *
+ * @template S - Union of state name strings (default: string)
  */
-export interface StateMachine {
+export interface StateMachine<S extends string = string> {
 	readonly definition: StateMachineDefinition<string>;
-	current: string;
-	previous: string | null;
+	current: S;
+	previous: S | null;
 	stateTime: number;
 }
 
 /**
  * Component types provided by the state machine bundle.
+ *
+ * @template S - Union of state name strings (default: string)
  */
-export interface StateMachineComponentTypes {
-	stateMachine: StateMachine;
+export interface StateMachineComponentTypes<S extends string = string> {
+	stateMachine: StateMachine<S>;
 }
 
 // ==================== Event Types ====================
 
 /**
  * Event published on every state transition.
+ *
+ * @template S - Union of state name strings (default: string)
  */
-export interface StateTransitionEvent {
+export interface StateTransitionEvent<S extends string = string> {
 	entityId: number;
-	from: string;
-	to: string;
+	from: S;
+	to: S;
 	definitionId: string;
 }
 
 /**
  * Event types provided by the state machine bundle.
+ *
+ * @template S - Union of state name strings (default: string)
  */
-export interface StateMachineEventTypes {
-	stateTransition: StateTransitionEvent;
+export interface StateMachineEventTypes<S extends string = string> {
+	stateTransition: StateTransitionEvent<S>;
 }
+
+/**
+ * Extract the state name union from a StateMachineDefinition.
+ *
+ * @example
+ * ```typescript
+ * const enemyFSM = defineStateMachine('enemy', { initial: 'idle', states: { idle: {}, chase: {} } });
+ * type EnemyStates = StatesOf<typeof enemyFSM>; // 'idle' | 'chase'
+ * type AllStates = StatesOf<typeof enemyFSM> | StatesOf<typeof playerFSM>;
+ * ```
+ */
+export type StatesOf<D> = D extends StateMachineDefinition<infer S> ? S : never;
 
 // ==================== Bundle Options ====================
 
@@ -182,7 +202,7 @@ export function defineStateMachine<S extends string>(
 export function createStateMachine<S extends string>(
 	definition: StateMachineDefinition<S>,
 	options?: { initial?: S },
-): Pick<StateMachineComponentTypes, 'stateMachine'> {
+): Pick<StateMachineComponentTypes<S>, 'stateMachine'> {
 	const initial = options?.initial ?? definition.initial;
 	return {
 		stateMachine: {
@@ -307,16 +327,16 @@ export function getStateMachineState(
  *
  * @template W - Concrete ECS world type
  */
-export interface StateMachineKit<W extends StateMachineWorld> {
-	bundle: Bundle<StateMachineComponentTypes, StateMachineEventTypes, {}, {}, {}, 'state-machine-update', 'stateMachine'>;
-	defineStateMachine: <S extends string>(
+export interface StateMachineKit<W extends StateMachineWorld, S extends string = string> {
+	bundle: Bundle<StateMachineComponentTypes<S>, StateMachineEventTypes<S>, {}, {}, {}, 'state-machine-update', 'stateMachine'>;
+	defineStateMachine: <DS extends S>(
 		id: string,
-		config: { initial: NoInfer<S>; states: Record<S, StateConfig<NoInfer<S>, W>> },
-	) => StateMachineDefinition<S>;
-	createStateMachine: <S extends string>(
-		definition: StateMachineDefinition<S>,
-		options?: { initial?: S },
-	) => Pick<StateMachineComponentTypes, 'stateMachine'>;
+		config: { initial: NoInfer<DS>; states: Record<DS, StateConfig<NoInfer<DS>, W>> },
+	) => StateMachineDefinition<DS>;
+	createStateMachine: <DS extends S>(
+		definition: StateMachineDefinition<DS>,
+		options?: { initial?: DS },
+	) => Pick<StateMachineComponentTypes<S>, 'stateMachine'>;
 }
 
 /**
@@ -357,13 +377,13 @@ export interface StateMachineKit<W extends StateMachineWorld> {
  * });
  * ```
  */
-export function createStateMachineKit<W extends StateMachineWorld = StateMachineWorld>(
+export function createStateMachineKit<W extends StateMachineWorld = StateMachineWorld, S extends string = string>(
 	options?: StateMachineBundleOptions,
-): StateMachineKit<W> {
+): StateMachineKit<W, S> {
 	return {
-		bundle: createStateMachineBundle(options),
-		defineStateMachine: defineStateMachine as StateMachineKit<W>['defineStateMachine'],
-		createStateMachine,
+		bundle: createStateMachineBundle<S>(options),
+		defineStateMachine: defineStateMachine as StateMachineKit<W, S>['defineStateMachine'],
+		createStateMachine: createStateMachine as StateMachineKit<W, S>['createStateMachine'],
 	};
 }
 
@@ -404,16 +424,16 @@ export function createStateMachineKit<W extends StateMachineWorld = StateMachine
  * });
  * ```
  */
-export function createStateMachineBundle<G extends string = 'stateMachine'>(
+export function createStateMachineBundle<S extends string = string, G extends string = 'stateMachine'>(
 	options?: StateMachineBundleOptions<G>,
-): Bundle<StateMachineComponentTypes, StateMachineEventTypes, {}, {}, {}, 'state-machine-update', G> {
+): Bundle<StateMachineComponentTypes<S>, StateMachineEventTypes<S>, {}, {}, {}, 'state-machine-update', G> {
 	const {
 		systemGroup = 'stateMachine',
 		priority = 0,
 		phase = 'update',
 	} = options ?? {};
 
-	const bundle = new Bundle<StateMachineComponentTypes, StateMachineEventTypes, {}>('stateMachine');
+	const bundle = new Bundle<StateMachineComponentTypes<S>, StateMachineEventTypes<S>, {}>('stateMachine');
 
 	const initialized = new Set<number>();
 	let cleanupRegistered = false;
@@ -466,5 +486,5 @@ export function createStateMachineBundle<G extends string = 'stateMachine'>(
 		})
 		.and();
 
-	return bundle as Bundle<StateMachineComponentTypes, StateMachineEventTypes, {}, {}, {}, 'state-machine-update', G>;
+	return bundle as Bundle<StateMachineComponentTypes<S>, StateMachineEventTypes<S>, {}, {}, {}, 'state-machine-update', G>;
 }
