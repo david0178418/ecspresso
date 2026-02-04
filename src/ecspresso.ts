@@ -1,6 +1,6 @@
 import EntityManager from "./entity-manager";
 import EventBus from "./event-bus";
-import ResourceManager from "./resource-manager";
+import ResourceManager, { type ResourceFactoryWithDeps } from "./resource-manager";
 import AssetManager, { AssetConfiguratorImpl, createAssetConfigurator } from "./asset-manager";
 import ScreenManager, { ScreenConfiguratorImpl, createScreenConfigurator } from "./screen-manager";
 import ReactiveQueryManager, { type ReactiveQueryDefinition } from "./reactive-query-manager";
@@ -733,11 +733,7 @@ export default class ECSpresso<
 		resource:
 			| ResourceTypes[K]
 			| ((ecs: ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>) => ResourceTypes[K] | Promise<ResourceTypes[K]>)
-			| {
-				dependsOn?: readonly string[];
-				factory: (ecs: ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>) => ResourceTypes[K] | Promise<ResourceTypes[K]>;
-				onDispose?: (resource: ResourceTypes[K], ecs: ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>) => void | Promise<void>;
-			}
+			| ResourceFactoryWithDeps<ResourceTypes[K], ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>, keyof ResourceTypes & string>
 	): this {
 		this._resourceManager.add(key, resource);
 		return this;
@@ -1643,15 +1639,6 @@ export default class ECSpresso<
 }
 
 /**
- * Resource factory with optional dependencies and disposal callback
- */
-type ResourceFactoryWithDeps<T, Context = unknown> = {
-	dependsOn?: readonly string[];
-	factory: (context: Context) => T | Promise<T>;
-	onDispose?: (resource: T, context: Context) => void | Promise<void>;
-};
-
-/**
 	* Builder class for ECSpresso that provides fluent type-safe bundle installation.
 	* Handles type checking during build process to ensure type safety.
 */
@@ -1781,7 +1768,7 @@ export class ECSpressoBuilder<
 	 */
 	withResource<K extends string, V>(
 		key: K,
-		resource: V | ((context: ECSpresso<C, E, R & Record<K, V>, A, S>) => V | Promise<V>) | ResourceFactoryWithDeps<V, ECSpresso<C, E, R & Record<K, V>, A, S>>
+		resource: V | ((context: ECSpresso<C, E, R & Record<K, V>, A, S>) => V | Promise<V>) | ResourceFactoryWithDeps<V, ECSpresso<C, E, R & Record<K, V>, A, S>, keyof (R & Record<K, V>) & string>
 	): ECSpressoBuilder<C, E, R & Record<K, V>, A, S, Labels, Groups> {
 		this.pendingResources.push({ key, value: resource });
 		return this as unknown as ECSpressoBuilder<C, E, R & Record<K, V>, A, S, Labels, Groups>;

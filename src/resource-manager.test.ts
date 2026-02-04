@@ -525,6 +525,15 @@ describe('ResourceManager', () => {
 			expect(order.indexOf('d')).toBeLessThan(order.indexOf('e'));
 		});
 
+		test('should reject invalid dependency names at compile time', () => {
+			const rm = new ResourceManager<{ a: number; b: number }>();
+			rm.add('b', {
+				// @ts-expect-error - 'nonExistent' is not a key of ResourceTypes
+				dependsOn: ['nonExistent'],
+				factory: () => 2,
+			});
+		});
+
 		test('should expose getDependencies for introspection', () => {
 			const rm = new ResourceManager<{ a: number; b: number; c: number }>();
 

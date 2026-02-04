@@ -110,7 +110,7 @@ describe('addResource factory callback receives full generic params', () => {
 		const ecs = createFullWorld();
 
 		ecs.addResource('derived' as keyof TR, {
-			dependsOn: ['score'] as readonly string[],
+			dependsOn: ['score'],
 			factory: (world: FullWorld) => {
 				// Type-level: asset access is typed
 				const _loaded: boolean = world.isAssetLoaded('sprite');

@@ -138,6 +138,45 @@ describe('ECSpresso', () => {
 			expect(true).toBe(true); // Just to ensure the test runs without errors
 		});
 
+		test('should reject invalid dependsOn keys in addResource', () => {
+			const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
+
+			world.addResource('config', {
+				// @ts-expect-error - 'nonExistent' is not a valid resource key
+				dependsOn: ['nonExistent'],
+				factory: () => ({ debug: true, maxEntities: 100 }),
+			});
+
+			// Valid dependsOn should compile
+			world.addResource('config', {
+				dependsOn: ['gameState'],
+				factory: () => ({ debug: true, maxEntities: 100 }),
+			});
+
+			expect(true).toBe(true);
+		});
+
+		test('should type-check dependsOn keys in withResource builder', () => {
+			// Valid dependsOn compiles with inferred resource types
+			ECSpresso
+				.create<{}, {}, {}>()
+				.withResource('base', 10)
+				.withResource('derived', {
+					dependsOn: ['base'],
+					factory: () => 20,
+				});
+
+			// Valid dependsOn compiles with pre-declared resource types
+			ECSpresso
+				.create<{}, {}, { base: number; derived: number }>()
+				.withResource('derived', {
+					dependsOn: ['base'],
+					factory: () => 20,
+				});
+
+			expect(true).toBe(true);
+		});
+
 		test('should allow type-safe event publishing', () => {
 			const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
 

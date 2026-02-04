@@ -1,8 +1,8 @@
 /**
  * Resource factory with declared dependencies and optional disposal callback
  */
-interface ResourceFactoryWithDeps<T, Context = unknown> {
-	dependsOn?: readonly string[];
+export interface ResourceFactoryWithDeps<T, Context = unknown, D extends string = string> {
+	dependsOn?: readonly D[];
 	factory: (context: Context) => T | Promise<T>;
 	onDispose?: (resource: T, context: Context) => void | Promise<void>;
 }
@@ -67,7 +67,7 @@ class ResourceManager<
 > {
 	private resources: Map<keyof ResourceTypes, any> = new Map();
 	private resourceFactories: Map<keyof ResourceTypes, (context: Context) => any | Promise<any>> = new Map();
-	private resourceDependencies: Map<keyof ResourceTypes, readonly string[]> = new Map();
+	private resourceDependencies: Map<keyof ResourceTypes, readonly (keyof ResourceTypes & string)[]> = new Map();
 	private resourceDisposers: Map<keyof ResourceTypes, (resource: any, context: Context) => void | Promise<void>> = new Map();
 	private initializedResourceKeys: Set<keyof ResourceTypes> = new Set();
 
@@ -82,12 +82,13 @@ class ResourceManager<
 		resource:
 			| ResourceTypes[K]
 			| ((context: Context) => ResourceTypes[K] | Promise<ResourceTypes[K]>)
-			| ResourceFactoryWithDeps<ResourceTypes[K], Context>,
+			| ResourceFactoryWithDeps<ResourceTypes[K], Context, keyof ResourceTypes & string>,
 	) {
 		if (isFactoryWithDeps<ResourceTypes[K]>(resource)) {
 			// Factory with optional dependencies and/or onDispose
 			this.resourceFactories.set(label, resource.factory as (context: Context) => any | Promise<any>);
-			this.resourceDependencies.set(label, resource.dependsOn ?? []);
+			// Type guard narrows to default D=string; the call-site constraint ensures correctness
+			this.resourceDependencies.set(label, (resource.dependsOn ?? []) as readonly (keyof ResourceTypes & string)[]);
 			if (resource.onDispose) {
 				this.resourceDisposers.set(label, resource.onDispose as (resource: any, context: Context) => void | Promise<void>);
 			}
@@ -302,7 +303,7 @@ class ResourceManager<
 	 * @param label The resource key
 	 * @returns Array of resource keys that this resource depends on
 	 */
-	getDependencies<K extends keyof ResourceTypes>(label: K): readonly string[] {
+	getDependencies<K extends keyof ResourceTypes>(label: K): readonly (keyof ResourceTypes & string)[] {
 		return this.resourceDependencies.get(label) ?? [];
 	}
 

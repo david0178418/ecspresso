@@ -1,5 +1,6 @@
 import { createBundleSystemBuilder, SystemBuilderWithBundle } from './system-builder';
 import type ECSpresso from './ecspresso';
+import type { ResourceFactoryWithDeps } from './resource-manager';
 import type { AssetDefinition } from './asset-types';
 import type { ScreenDefinition } from './screen-types';
 import type { BundlesAreCompatible } from './type-utils';
@@ -79,7 +80,7 @@ export default class Bundle<
 		resource:
 			| ResourceTypes[K]
 			| ((ecs: ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>) => ResourceTypes[K] | Promise<ResourceTypes[K]>)
-			| { dependsOn: readonly string[]; factory: (ecs: ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>) => ResourceTypes[K] | Promise<ResourceTypes[K]> }
+			| ResourceFactoryWithDeps<ResourceTypes[K], ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>, keyof ResourceTypes & string>
 	) {
 		// We need this cast because TypeScript doesn't recognize that a value of type
 		// ResourceTypes[K] | (() => ResourceTypes[K] | Promise<ResourceTypes[K]>) | { dependsOn, factory }

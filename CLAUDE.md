@@ -81,7 +81,7 @@ src/
 - **Required Components Built-in**: Transform bundle: `localTransform` requires `worldTransform`. Physics 2D bundle: `rigidBody` requires `velocity` and `force`.
 - **Reactive Queries**: `addReactiveQuery()` with `onEnter`/`onExit` callbacks for query match changes
 - **World Position Pattern**: `worldPos = localPos + parent.worldPos` (parent's world pos includes all grandparents)
-- **Resource Dependencies**: `addResource('cache', { dependsOn: ['db'], factory: (ecs) => ... })`
+- **Resource Dependencies**: `addResource('cache', { dependsOn: ['db'], factory: (ecs) => ... })` — `dependsOn` keys are validated at compile time against `keyof ResourceTypes`
 - **Resource Builder**: `ECSpresso.create().withResource('key', value).build()` for fluent resource addition
 - **Resource Disposal**: `onDispose` callback for cleanup, `disposeResource()`, `disposeResources()` for proper teardown
 - **Command Buffer**: `ecs.commands.removeEntity(id)`, `ecs.commands.spawn({...})` for deferred execution
