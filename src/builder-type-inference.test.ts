@@ -4,6 +4,7 @@ import type { TimerEventData } from './bundles/utils/timers';
 import { createTimerBundle } from './bundles/utils/timers';
 import { createTransformBundle, type TransformComponentTypes } from './bundles/utils/transform';
 import type { ComponentsOf, EventsOf, ResourcesOf } from './types';
+import type { AssetsResource } from './asset-types';
 
 describe('Builder Type Inference', () => {
 	test('withComponentTypes adds app component types', () => {
@@ -223,5 +224,140 @@ describe('Builder Type Inference', () => {
 		});
 		expect(entity.components.localTransform.x).toBe(1);
 		expect(entity.components.player).toBe(true);
+	});
+});
+
+describe('Built-in Resource Typing ($assets / $screen)', () => {
+	// Type-level checks use function signatures that are never called at runtime.
+	// This validates compile-time assignability without triggering getResource before initialize.
+
+	test('$assets resource is typed after withAssets()', () => {
+		const ecs = ECSpresso.create()
+			.withAssets(a => a.add('sprite', () => Promise.resolve('sprite-data')))
+			.build();
+
+		// Compile-time: '$assets' is a valid resource key and returns AssetsResource
+		function _typeCheck(world: typeof ecs) {
+			const assets: AssetsResource<{ sprite: string }> = world.getResource('$assets');
+			return assets;
+		}
+		void _typeCheck;
+	});
+
+	test('$screen resource is typed after withScreens()', () => {
+		const ecs = ECSpresso.create()
+			.withScreens(s => s
+				.add('menu', { initialState: () => ({}) })
+				.add('play', { initialState: () => ({ score: 0 }) })
+			)
+			.build();
+
+		// Compile-time: '$screen' is a valid resource key with isCurrent/current
+		function _typeCheck(world: typeof ecs) {
+			const screen = world.getResource('$screen');
+			const _check: boolean = screen.isCurrent('menu');
+			return _check;
+		}
+		void _typeCheck;
+	});
+
+	test('$assets not in ResourceTypes without withAssets()', () => {
+		const ecs = ECSpresso.create()
+			.withComponentTypes<{ position: { x: number; y: number } }>()
+			.build();
+
+		function _typeCheck(world: typeof ecs) {
+			// @ts-expect-error - $assets should not be a valid resource key without withAssets()
+			world.getResource('$assets');
+		}
+		void _typeCheck;
+	});
+
+	test('$screen not in ResourceTypes without withScreens()', () => {
+		const ecs = ECSpresso.create()
+			.withComponentTypes<{ position: { x: number; y: number } }>()
+			.build();
+
+		function _typeCheck(world: typeof ecs) {
+			// @ts-expect-error - $screen should not be a valid resource key without withScreens()
+			world.getResource('$screen');
+		}
+		void _typeCheck;
+	});
+
+	test('$assets and $screen coexist with user resources', () => {
+		const ecs = ECSpresso.create()
+			.withResource('score', { value: 0 })
+			.withAssets(a => a.add('texture', () => Promise.resolve('img')))
+			.withScreens(s => s.add('menu', { initialState: () => ({}) }))
+			.build();
+
+		// Compile-time: all three resource keys are valid
+		function _typeCheck(world: typeof ecs) {
+			const score: { value: number } = world.getResource('score');
+			const assets: AssetsResource<{ texture: string }> = world.getResource('$assets');
+			const screen = world.getResource('$screen');
+			return { score, assets, screen };
+		}
+		void _typeCheck;
+	});
+
+	test('$assets resource provides typed asset access', () => {
+		const ecs = ECSpresso.create()
+			.withAssets(a => a
+				.add('playerSprite', () => Promise.resolve('player.png'))
+				.add('enemyData', () => Promise.resolve({ hp: 100 }))
+			)
+			.build();
+
+		// Compile-time: get() returns correct type per asset key
+		function _typeCheck(world: typeof ecs) {
+			const assets = world.getResource('$assets');
+			const _sprite: string = assets.get('playerSprite');
+			const _data: { hp: number } = assets.get('enemyData');
+			return { _sprite, _data };
+		}
+		void _typeCheck;
+	});
+
+	test('$screen resource provides typed screen access', () => {
+		const ecs = ECSpresso.create()
+			.withScreens(s => s
+				.add('menu', { initialState: () => ({}) })
+				.add('gameplay', { initialState: () => ({ score: 0 }) })
+			)
+			.build();
+
+		// Compile-time: isCurrent() accepts valid screen names
+		function _typeCheck(world: typeof ecs) {
+			const screen = world.getResource('$screen');
+			const _check: boolean = screen.isCurrent('menu');
+			const _check2: boolean = screen.isCurrent('gameplay');
+			return { _check, _check2 };
+		}
+		void _typeCheck;
+	});
+
+	test('getResource($assets) works after initialize()', async () => {
+		const ecs = ECSpresso.create()
+			.withAssets(a => a.add('sprite', () => Promise.resolve('sprite-data')))
+			.build();
+
+		await ecs.initialize();
+		const assets = ecs.getResource('$assets');
+		expect(assets).toBeDefined();
+		expect(assets.isLoaded('sprite')).toBe(true);
+		expect(assets.get('sprite')).toBe('sprite-data');
+	});
+
+	test('getResource($screen) works after initialize()', async () => {
+		const ecs = ECSpresso.create()
+			.withScreens(s => s.add('menu', { initialState: () => ({}) }))
+			.build();
+
+		await ecs.initialize();
+		const screen = ecs.getResource('$screen');
+		expect(screen).toBeDefined();
+		expect(screen.current).toBeNull();
 	});
 });

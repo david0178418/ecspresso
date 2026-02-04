@@ -3,6 +3,8 @@ import ECSpresso from './ecspresso';
 import Bundle from './bundle';
 import CommandBuffer from './command-buffer';
 import type { ScreenDefinition } from './screen-types';
+import type { AssetsResource } from './asset-types';
+import type { ScreenResource } from './screen-types';
 
 // ── shared test types ────────────────────────────────────────────────
 
@@ -227,7 +229,9 @@ describe('Bundle.addResource factory receives full generic params', () => {
 describe('CommandBuffer carries full generic params', () => {
 	test('accepts full 5-param ECSpresso in playback', () => {
 		const ecs = createFullWorld();
-		const buffer = new CommandBuffer<TC, TE, TR, TA, TS>();
+		// Resource type includes user-defined TR plus built-in $assets/$screen from builder
+		type FullR = TR & { $assets: AssetsResource<TA> } & { $screen: ScreenResource<TS> };
+		const buffer = new CommandBuffer<TC, TE, FullR, TA, TS>();
 
 		buffer.spawn({ position: { x: 1, y: 2 } });
 		buffer.playback(ecs);

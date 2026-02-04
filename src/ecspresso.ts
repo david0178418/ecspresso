@@ -10,8 +10,8 @@ import type Bundle from "./bundle";
 import { createEcspressoSystemBuilder } from "./system-builder";
 import { version } from "../package.json";
 import type { BundlesAreCompatible, TypesAreCompatible } from "./type-utils";
-import type { AssetHandle, AssetConfigurator } from "./asset-types";
-import type { ScreenDefinition, ScreenConfigurator } from "./screen-types";
+import type { AssetHandle, AssetConfigurator, AssetsResource } from "./asset-types";
+import type { ScreenDefinition, ScreenConfigurator, ScreenResource } from "./screen-types";
 
 /**
 	* Interface declaration for ECSpresso constructor to ensure type augmentation works properly.
@@ -506,6 +506,8 @@ export default class ECSpresso<
 		await this.initializeResources();
 
 		// Set up asset manager if present
+		// Key/value casts are needed because the class generic doesn't constrain ResourceTypes
+		// to contain $assets/$screen — the builder merges them into R at the type level.
 		if (this._assetManager) {
 			this._assetManager.setEventBus(this._eventBus as unknown as EventBus<any>);
 			await this._assetManager.loadEagerAssets();
@@ -1845,11 +1847,11 @@ export class ECSpressoBuilder<
 	 */
 	withAssets<NewA extends Record<string, unknown>>(
 		configurator: (assets: AssetConfigurator<{}>) => AssetConfigurator<NewA>
-	): ECSpressoBuilder<C, E, R, A & NewA, S, Labels, Groups> {
+	): ECSpressoBuilder<C, E, R & { $assets: AssetsResource<A & NewA> }, A & NewA, S, Labels, Groups> {
 		const assetConfig = createAssetConfigurator<{}>();
 		configurator(assetConfig);
 		this.assetConfigurator = assetConfig as unknown as AssetConfiguratorImpl<A>;
-		return this as unknown as ECSpressoBuilder<C, E, R, A & NewA, S, Labels, Groups>;
+		return this as unknown as ECSpressoBuilder<C, E, R & { $assets: AssetsResource<A & NewA> }, A & NewA, S, Labels, Groups>;
 	}
 
 	/**
@@ -1874,11 +1876,11 @@ export class ECSpressoBuilder<
 	 */
 	withScreens<NewS extends Record<string, ScreenDefinition<any, any>>>(
 		configurator: (screens: ScreenConfigurator<{}, ECSpresso<C, E, R, A, Record<string, ScreenDefinition>>>) => ScreenConfigurator<NewS, ECSpresso<C, E, R, A, Record<string, ScreenDefinition>>>
-	): ECSpressoBuilder<C, E, R, A, S & NewS, Labels, Groups> {
+	): ECSpressoBuilder<C, E, R & { $screen: ScreenResource<S & NewS> }, A, S & NewS, Labels, Groups> {
 		const screenConfig = createScreenConfigurator<{}, ECSpresso<C, E, R, A, Record<string, ScreenDefinition>>>();
 		configurator(screenConfig);
 		this.screenConfigurator = screenConfig as unknown as ScreenConfiguratorImpl<S>;
-		return this as unknown as ECSpressoBuilder<C, E, R, A, S & NewS, Labels, Groups>;
+		return this as unknown as ECSpressoBuilder<C, E, R & { $screen: ScreenResource<S & NewS> }, A, S & NewS, Labels, Groups>;
 	}
 
 	/**
