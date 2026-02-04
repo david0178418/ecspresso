@@ -136,9 +136,9 @@ export default class Bundle<
 	 */
 	addScreen<K extends string, Config extends Record<string, unknown>, State extends Record<string, unknown>>(
 		name: K,
-		definition: ScreenDefinition<Config, State>
+		definition: ScreenDefinition<Config, State, ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, Record<string, ScreenDefinition>>>
 	): Bundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates & Record<K, ScreenDefinition<Config, State>>, Labels, Groups> {
-		this._screens.set(name, definition);
+		this._screens.set(name, definition as ScreenDefinition<Config, State>);
 		return this as unknown as Bundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates & Record<K, ScreenDefinition<Config, State>>, Labels, Groups>;
 	}
 

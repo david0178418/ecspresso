@@ -9,7 +9,8 @@ import type ECSpresso from './ecspresso';
  */
 export interface ScreenDefinition<
 	Config extends Record<string, unknown> = Record<string, never>,
-	State extends Record<string, unknown> = Record<string, never>
+	State extends Record<string, unknown> = Record<string, never>,
+	W = ECSpresso<any, any, any, any, any>,
 > {
 	/**
 	 * Function to create initial state from config
@@ -18,11 +19,11 @@ export interface ScreenDefinition<
 	/**
 	 * Lifecycle hook called when entering this screen
 	 */
-	readonly onEnter?: (config: Config, ecs: ECSpresso<any, any, any, any, any>) => void | Promise<void>;
+	readonly onEnter?: (config: Config, ecs: W) => void | Promise<void>;
 	/**
 	 * Lifecycle hook called when exiting this screen
 	 */
-	readonly onExit?: (ecs: ECSpresso<any, any, any, any, any>) => void | Promise<void>;
+	readonly onExit?: (ecs: W) => void | Promise<void>;
 	/**
 	 * Asset keys that must be loaded before entering this screen
 	 */
@@ -109,14 +110,14 @@ export interface ScreenEvents {
 /**
  * Configuration for screen definitions during builder setup
  */
-export interface ScreenConfigurator<Screens extends Record<string, ScreenDefinition<any, any>>> {
+export interface ScreenConfigurator<Screens extends Record<string, ScreenDefinition<any, any>>, W = unknown> {
 	/**
 	 * Add a screen definition
 	 */
 	add<K extends string, Config extends Record<string, unknown>, State extends Record<string, unknown>>(
 		name: K,
-		definition: ScreenDefinition<Config, State>
-	): ScreenConfigurator<Screens & Record<K, ScreenDefinition<Config, State>>>;
+		definition: ScreenDefinition<Config, State, W>
+	): ScreenConfigurator<Screens & Record<K, ScreenDefinition<Config, State, W>>, W>;
 }
 
 /**

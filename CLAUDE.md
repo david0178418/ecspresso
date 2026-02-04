@@ -60,6 +60,7 @@ src/
 - **Query Type Utilities**: `createQueryDefinition()`, `QueryResultEntity<>`
 - **Asset Builder**: `ECSpresso.create().withAssets(a => a.add().addGroup()).build()`
 - **Screen Builder**: `ECSpresso.create().withScreens(s => s.add()).build()`
+- **Screen Lifecycle Hooks**: `onEnter` and `onExit` receive typed `ecs` parameter when defined via `withScreens()` builder or `Bundle.addScreen()`. Components, events, resources, and assets are fully typed. Screen names are relaxed to `string` within hooks (avoids circular dependency with screen definitions).
 - **Screen-Scoped Systems**: `.inScreens(['menu'])`, `.excludeScreens(['pause'])`
 - **Asset-Required Systems**: `.requiresAssets(['playerTexture'])`
 - **Type-Safe Screen Filtering**: `.inScreens(['menu', 'gameplay'])` — accepts only `keyof ScreenStates`

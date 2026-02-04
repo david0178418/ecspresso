@@ -336,7 +336,7 @@ export default class ScreenManager<Screens extends Record<string, ScreenDefiniti
 /**
  * Implementation of ScreenConfigurator for builder pattern
  */
-export class ScreenConfiguratorImpl<Screens extends Record<string, ScreenDefinition<any, any>>> implements ScreenConfigurator<Screens> {
+export class ScreenConfiguratorImpl<Screens extends Record<string, ScreenDefinition<any, any>>, W = unknown> implements ScreenConfigurator<Screens, W> {
 	private readonly manager: ScreenManager<Screens>;
 
 	constructor(manager: ScreenManager<Screens>) {
@@ -345,10 +345,10 @@ export class ScreenConfiguratorImpl<Screens extends Record<string, ScreenDefinit
 
 	add<K extends string, Config extends Record<string, unknown>, State extends Record<string, unknown>>(
 		name: K,
-		definition: ScreenDefinition<Config, State>
-	): ScreenConfigurator<Screens & Record<K, ScreenDefinition<Config, State>>> {
-		this.manager.register(name, definition);
-		return this as unknown as ScreenConfigurator<Screens & Record<K, ScreenDefinition<Config, State>>>;
+		definition: ScreenDefinition<Config, State, W>
+	): ScreenConfigurator<Screens & Record<K, ScreenDefinition<Config, State, W>>, W> {
+		this.manager.register(name, definition as ScreenDefinition<Config, State>);
+		return this as unknown as ScreenConfigurator<Screens & Record<K, ScreenDefinition<Config, State, W>>, W>;
 	}
 
 	/**
@@ -363,8 +363,8 @@ export class ScreenConfiguratorImpl<Screens extends Record<string, ScreenDefinit
 /**
  * Create a new ScreenConfigurator for builder pattern usage
  */
-export function createScreenConfigurator<Screens extends Record<string, ScreenDefinition<any, any>> = Record<string, never>>(
+export function createScreenConfigurator<Screens extends Record<string, ScreenDefinition<any, any>> = Record<string, never>, W = unknown>(
 	manager?: ScreenManager<Screens>
-): ScreenConfiguratorImpl<Screens> {
-	return new ScreenConfiguratorImpl(manager ?? new ScreenManager<Screens>());
+): ScreenConfiguratorImpl<Screens, W> {
+	return new ScreenConfiguratorImpl<Screens, W>(manager ?? new ScreenManager<Screens>());
 }

@@ -1873,9 +1873,9 @@ export class ECSpressoBuilder<
 	 * ```
 	 */
 	withScreens<NewS extends Record<string, ScreenDefinition<any, any>>>(
-		configurator: (screens: ScreenConfigurator<{}>) => ScreenConfigurator<NewS>
+		configurator: (screens: ScreenConfigurator<{}, ECSpresso<C, E, R, A, Record<string, ScreenDefinition>>>) => ScreenConfigurator<NewS, ECSpresso<C, E, R, A, Record<string, ScreenDefinition>>>
 	): ECSpressoBuilder<C, E, R, A, S & NewS, Labels, Groups> {
-		const screenConfig = createScreenConfigurator<{}>();
+		const screenConfig = createScreenConfigurator<{}, ECSpresso<C, E, R, A, Record<string, ScreenDefinition>>>();
 		configurator(screenConfig);
 		this.screenConfigurator = screenConfig as unknown as ScreenConfiguratorImpl<S>;
 		return this as unknown as ECSpressoBuilder<C, E, R, A, S & NewS, Labels, Groups>;
