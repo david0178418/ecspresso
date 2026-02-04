@@ -190,7 +190,7 @@ export function setVelocity(
 
 // ==================== Internal: Collider Info ====================
 
-interface Physics2DColliderInfo extends BaseColliderInfo {
+interface Physics2DColliderInfo<L extends string = string> extends BaseColliderInfo<L> {
 	rigidBody: RigidBody;
 	velocity: Vector2D;
 }
@@ -414,7 +414,7 @@ export function createPhysics2DBundle<L extends string = never, G extends string
 			with: ['localTransform', 'rigidBody', 'velocity', 'collisionLayer'],
 		})
 		.setProcess((queries, _deltaTime, ecs) => {
-			const colliders: Physics2DColliderInfo[] = [];
+			const colliders: Physics2DColliderInfo<L>[] = [];
 
 			for (const entity of queries.collidables) {
 				const { localTransform, rigidBody, velocity, collisionLayer } = entity.components;
@@ -424,7 +424,7 @@ export function createPhysics2DBundle<L extends string = never, G extends string
 
 				if (!aabb && !circle) continue;
 
-				const info: Physics2DColliderInfo = {
+				const info: Physics2DColliderInfo<L> = {
 					entityId: entity.id,
 					x: localTransform.x,
 					y: localTransform.y,

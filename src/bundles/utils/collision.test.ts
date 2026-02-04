@@ -845,6 +845,41 @@ describe('Collision type narrowing', () => {
 		expect(layer).toBe('player');
 	});
 
+	test('layer type flows from defineCollisionLayers through narrowphase to CollisionEvent without casts', () => {
+		const layers = defineCollisionLayers({ player: ['enemy'], enemy: ['player'] });
+
+		const ecs = ECSpresso
+			.create()
+			.withBundle(createTransformBundle())
+			.withBundle(createCollisionBundle({ layers }))
+			.build();
+
+		type ExpectedLayer = 'player' | 'enemy';
+
+		ecs.eventBus.subscribe('collision', (data) => {
+			// data.layerA and data.layerB should be 'player' | 'enemy', not string
+			const layerA: ExpectedLayer = data.layerA;
+			const layerB: ExpectedLayer = data.layerB;
+			void layerA;
+			void layerB;
+		});
+
+		ecs.spawn({
+			...createTransform(100, 100),
+			...createAABBCollider(50, 50),
+			...layers.player(),
+		});
+
+		ecs.spawn({
+			...createTransform(120, 120),
+			...createAABBCollider(50, 50),
+			...layers.enemy(),
+		});
+
+		ecs.update(0.016);
+		expect(true).toBe(true); // compile-time assertion
+	});
+
 	test('bare types default to never', () => {
 		// Verify all four interfaces compile bare and produce never layer fields
 		const assertLayerIsNever: true = true as (CollisionLayer['layer'] extends never ? true : false);

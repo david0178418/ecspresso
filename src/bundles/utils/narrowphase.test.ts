@@ -9,6 +9,71 @@ import {
 	type BaseColliderInfo,
 } from './narrowphase';
 
+// ==================== BaseColliderInfo generic layer type ====================
+
+describe('BaseColliderInfo generic layer type', () => {
+	test('BaseColliderInfo<L> preserves layer and collidesWith types', () => {
+		type Layer = 'player' | 'enemy';
+		const info: BaseColliderInfo<Layer> = {
+			entityId: 1, x: 0, y: 0,
+			layer: 'player',
+			collidesWith: ['enemy'],
+		};
+		const _layer: Layer = info.layer;
+		const _collidesWith: readonly Layer[] = info.collidesWith;
+		void _layer;
+		void _collidesWith;
+		expect(info.layer).toBe('player');
+	});
+
+	test('BaseColliderInfo (bare) defaults to string', () => {
+		const info: BaseColliderInfo = {
+			entityId: 1, x: 0, y: 0,
+			layer: 'anything',
+			collidesWith: ['whatever'],
+		};
+		const _layer: string = info.layer;
+		void _layer;
+		expect(info.layer).toBe('anything');
+	});
+
+	test('detectCollisions callback receives narrow layer type via I', () => {
+		type Layer = 'a' | 'b';
+		const colliders: BaseColliderInfo<Layer>[] = [
+			{ entityId: 1, x: 0, y: 0, layer: 'a', collidesWith: ['b'], aabb: { halfWidth: 10, halfHeight: 10 } },
+			{ entityId: 2, x: 5, y: 0, layer: 'b', collidesWith: ['a'], aabb: { halfWidth: 10, halfHeight: 10 } },
+		];
+
+		const layers: Layer[] = [];
+		detectCollisions(
+			colliders,
+			null,
+			(a, b, _contact, ctx) => {
+				// a.layer and b.layer should be Layer, not string
+				const _aLayer: Layer = a.layer;
+				const _bLayer: Layer = b.layer;
+				void _aLayer;
+				void _bLayer;
+				ctx.push(a.layer, b.layer);
+			},
+			layers,
+		);
+
+		expect(layers).toEqual(['a', 'b']);
+	});
+
+	test('@ts-expect-error rejects invalid layer values', () => {
+		type Layer = 'player' | 'enemy';
+		const _info: BaseColliderInfo<Layer> = {
+			entityId: 1, x: 0, y: 0,
+			// @ts-expect-error — 'goblin' is not assignable to Layer
+			layer: 'goblin',
+			collidesWith: [],
+		};
+		void _info;
+	});
+});
+
 // ==================== AABB vs AABB ====================
 
 describe('computeAABBvsAABB', () => {

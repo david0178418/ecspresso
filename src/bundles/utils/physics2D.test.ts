@@ -1048,6 +1048,32 @@ describe('Physics2D type narrowing', () => {
 		expect(cl.layer).toBe('ball');
 	});
 
+	test('Physics2DColliderInfo inherits narrow layer type from BaseColliderInfo', () => {
+		const layers = defineCollisionLayers({ ball: ['wall'], wall: ['ball'] });
+
+		const ecs = ECSpresso
+			.create()
+			.withBundle(createTransformBundle())
+			.withBundle(createPhysics2DBundle({ gravity: { x: 0, y: 100 }, layers }))
+			.build();
+
+		const entity = ecs.spawn({
+			...createTransform(0, 0),
+			...createRigidBody('dynamic'),
+			velocity: { x: 0, y: 0 },
+			...createCircleCollider(10),
+			...layers.ball(),
+		});
+
+		const cl = ecs.entityManager.getComponent(entity.id, 'collisionLayer');
+		if (!cl) throw new Error('Expected collisionLayer');
+
+		// layer should be 'ball' | 'wall', not string
+		const _layer: 'ball' | 'wall' = cl.layer;
+		void _layer;
+		expect(cl.layer).toBe('ball');
+	});
+
 	test('Physics2DComponentTypes bare defaults to never', () => {
 		type Bare = Physics2DComponentTypes;
 		const assertLayerIsNever: true = true as (Bare['collisionLayer']['layer'] extends never ? true : false);

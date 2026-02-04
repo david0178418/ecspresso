@@ -21,12 +21,12 @@ export interface Contact {
 // ==================== BaseColliderInfo ====================
 
 /** Minimum collider data shared by collision and physics bundles. */
-export interface BaseColliderInfo {
+export interface BaseColliderInfo<L extends string = string> {
 	entityId: number;
 	x: number;
 	y: number;
-	layer: string;
-	collidesWith: readonly string[];
+	layer: L;
+	collidesWith: readonly L[];
 	aabb?: { halfWidth: number; halfHeight: number };
 	circle?: { radius: number };
 }

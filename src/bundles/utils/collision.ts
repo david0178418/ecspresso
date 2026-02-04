@@ -387,16 +387,16 @@ interface CollisionEventBus<L extends string> {
 }
 
 function onCollisionDetected<L extends string>(
-	a: BaseColliderInfo,
-	b: BaseColliderInfo,
+	a: BaseColliderInfo<L>,
+	b: BaseColliderInfo<L>,
 	contact: Contact,
 	eventBus: CollisionEventBus<L>,
 ): void {
 	eventBus.publish('collision', {
 		entityA: a.entityId,
 		entityB: b.entityId,
-		layerA: a.layer as L,
-		layerB: b.layer as L,
+		layerA: a.layer,
+		layerB: b.layer,
 		normal: { x: contact.normalX, y: contact.normalY },
 		depth: contact.depth,
 	});
@@ -455,7 +455,7 @@ export function createCollisionBundle<L extends string, G extends string = 'phys
 			with: ['worldTransform', 'collisionLayer'],
 		})
 		.setProcess((queries, _deltaTime, ecs) => {
-			const colliders: BaseColliderInfo[] = [];
+			const colliders: BaseColliderInfo<L>[] = [];
 
 			for (const entity of queries.collidables) {
 				const { worldTransform, collisionLayer } = entity.components;
@@ -465,7 +465,7 @@ export function createCollisionBundle<L extends string, G extends string = 'phys
 
 				if (!aabb && !circle) continue;
 
-				const info: BaseColliderInfo = {
+				const info: BaseColliderInfo<L> = {
 					entityId: entity.id,
 					x: worldTransform.x,
 					y: worldTransform.y,
