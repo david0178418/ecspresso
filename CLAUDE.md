@@ -85,9 +85,10 @@ src/
 - **Resource Builder**: `ECSpresso.create().withResource('key', value).build()` for fluent resource addition
 - **Resource Disposal**: `onDispose` callback for cleanup, `disposeResource()`, `disposeResources()` for proper teardown
 - **Command Buffer**: `ecs.commands.removeEntity(id)`, `ecs.commands.spawn({...})` for deferred execution
-- **Input Bundle**: `createInputBundle({ actions: { jump: { keys: [' ', 'ArrowUp'] } } })`, resource-only bundle providing `inputState` resource
+- **Input Bundle**: `createInputBundle({ actions: { jump: { keys: [' ', 'ArrowUp'] } } })`, resource-only bundle providing `inputState` resource. Action names inferred from config keys as `A extends string`.
 - **Input Key Codes**: `KeyCode` type covers all standard `KeyboardEvent.key` values; action bindings use `KeyCode[]` for compile-time key validation
-- **Input Action Mapping**: `inputState.setActionMap()` for runtime remapping
+- **Input Action Mapping**: `inputState.setActionMap()` for runtime remapping. Requires all configured action names when `A` is narrowed.
+- **Input Type Parameters**: `ActionState<A>`, `InputState<A>`, `InputResourceTypes<A>`, `ActionMap<A>` parameterized with action name union `A extends string` (defaults to `string` for backward compatibility). `createInputBundle` infers `A` from the `actions` config object keys.
 - **Timer Bundle**: `createTimerBundle<{ respawn: TimerEventData }>()`, `createTimer<Events>(duration, { onComplete: 'eventName' })` — generic param only needs the events used with `onComplete`, not the full event map
 - **Timer Event Data**: Events used with timer `onComplete` must have `TimerEventData` payload type
 - **Change Detection**: `markChanged(entityId, componentName)` increments a global monotonic sequence; `changed: ['component']` in query filters to only match changed entities. Each system tracks its last-seen sequence so marks are processed exactly once.

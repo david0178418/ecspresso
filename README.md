@@ -762,9 +762,7 @@ import {
   type InputResourceTypes, type KeyCode
 } from 'ecspresso/bundles/utils/input';
 
-interface Resources extends InputResourceTypes {}
-
-const world = ECSpresso.create<Components, Events, Resources>()
+const world = ECSpresso.create()
   .withBundle(createInputBundle({
     actions: {
       jump: { keys: [' ', 'ArrowUp'] },
@@ -781,9 +779,16 @@ if (input.actions.justActivated('jump')) { /* ... */ }
 if (input.keyboard.isDown('ArrowRight')) { /* ... */ }
 if (input.pointer.justPressed(0)) { /* ... */ }
 
-// Runtime remapping
-input.setActionMap({ jump: { keys: ['w'] } });
+// Runtime remapping — must include all configured actions
+input.setActionMap({
+  jump: { keys: ['w'] },
+  shoot: { keys: ['z'], buttons: [0] },
+  moveLeft: { keys: ['a'] },
+  moveRight: { keys: ['d'] },
+});
 ```
+
+Action names are type-safe — `isActive`, `justActivated`, `justDeactivated`, `setActionMap`, and `getActionMap` only accept action names from the config. The type parameter `A` is inferred from the `actions` object keys passed to `createInputBundle`. Defaults to `string` when no actions are configured.
 
 Key values use the `KeyCode` type — a union of all standard `KeyboardEvent.key` values — providing autocomplete and compile-time validation. Note that the space bar key is `' '` (a space character), not `'Space'`.
 

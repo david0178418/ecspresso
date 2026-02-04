@@ -161,18 +161,18 @@ export interface PointerState {
 	justReleased(button: number): boolean;
 }
 
-export interface ActionState {
-	isActive(action: string): boolean;
-	justActivated(action: string): boolean;
-	justDeactivated(action: string): boolean;
+export interface ActionState<A extends string = string> {
+	isActive(action: A): boolean;
+	justActivated(action: A): boolean;
+	justDeactivated(action: A): boolean;
 }
 
-export interface InputState {
+export interface InputState<A extends string = string> {
 	readonly keyboard: KeyboardState;
 	readonly pointer: PointerState;
-	readonly actions: ActionState;
-	setActionMap(actions: ActionMap): void;
-	getActionMap(): Readonly<ActionMap>;
+	readonly actions: ActionState<A>;
+	setActionMap(actions: ActionMap<A>): void;
+	getActionMap(): Readonly<ActionMap<A>>;
 }
 
 export interface ActionBinding {
@@ -180,13 +180,13 @@ export interface ActionBinding {
 	buttons?: number[];
 }
 
-export type ActionMap = Record<string, ActionBinding>;
+export type ActionMap<A extends string = string> = Record<A, ActionBinding>;
 
-export interface InputResourceTypes {
-	inputState: InputState;
+export interface InputResourceTypes<A extends string = string> {
+	inputState: InputState<A>;
 }
 
-export interface InputBundleOptions<G extends string = 'input'> {
+export interface InputBundleOptions<A extends string = string, G extends string = 'input'> {
 	/** System group name (default: 'input') */
 	systemGroup?: G;
 	/** Priority for input system (default: 100) */
@@ -194,7 +194,7 @@ export interface InputBundleOptions<G extends string = 'input'> {
 	/** Execution phase (default: 'preUpdate') */
 	phase?: SystemPhase;
 	/** Initial action mappings */
-	actions?: ActionMap;
+	actions?: ActionMap<A>;
 	/** EventTarget to attach listeners to (default: globalThis). Pass a custom target for testability. */
 	target?: EventTarget;
 }
@@ -366,9 +366,9 @@ function snapshotRaw(raw: RawInputState, prevActionsActive: ReadonlySet<string>,
  * if (input.keyboard.isDown('ArrowRight')) { ... }
  * ```
  */
-export function createInputBundle<G extends string = 'input'>(
-	options?: InputBundleOptions<G>
-): Bundle<{}, {}, InputResourceTypes, {}, {}, 'input-state', G> {
+export function createInputBundle<A extends string = string, G extends string = 'input'>(
+	options?: InputBundleOptions<A, G>
+): Bundle<{}, {}, InputResourceTypes<A>, {}, {}, 'input-state', G> {
 	const {
 		systemGroup = 'input',
 		priority = 100,
@@ -403,7 +403,7 @@ export function createInputBundle<G extends string = 'input'>(
 		justReleased: (button) => snapshot.buttonsReleased.has(button),
 	};
 
-	const actionState: ActionState = {
+	const actionState: ActionState<A> = {
 		isActive: (action) => snapshot.actionsActive.has(action),
 		justActivated: (action) =>
 			snapshot.actionsActive.has(action) && !snapshot.prevActionsActive.has(action),
@@ -411,7 +411,7 @@ export function createInputBundle<G extends string = 'input'>(
 			!snapshot.actionsActive.has(action) && snapshot.prevActionsActive.has(action),
 	};
 
-	const inputState: InputState = {
+	const inputState: InputState<A> = {
 		keyboard,
 		pointer,
 		actions: actionState,
@@ -419,7 +419,7 @@ export function createInputBundle<G extends string = 'input'>(
 			actionMap = { ...newMap };
 		},
 		getActionMap() {
-			return { ...actionMap };
+			return { ...actionMap } as ActionMap<A>;
 		},
 	};
 
@@ -462,7 +462,7 @@ export function createInputBundle<G extends string = 'input'>(
 	}
 
 	// Build bundle
-	const bundle = new Bundle<{}, {}, InputResourceTypes>('input');
+	const bundle = new Bundle<{}, {}, InputResourceTypes<A>>('input');
 
 	bundle.addResource('inputState', inputState);
 
@@ -496,5 +496,5 @@ export function createInputBundle<G extends string = 'input'>(
 		})
 		.and();
 
-	return bundle as Bundle<{}, {}, InputResourceTypes, {}, {}, 'input-state', G>;
+	return bundle as Bundle<{}, {}, InputResourceTypes<A>, {}, {}, 'input-state', G>;
 }
