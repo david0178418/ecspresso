@@ -1,7 +1,7 @@
 import { describe, test, expect, spyOn } from 'bun:test';
 import ECSpresso from './ecspresso';
 import CommandBuffer from './command-buffer';
-import { createTimer, createTimerBundle, type TimerEventData } from './bundles/utils/timers';
+import { createTimer, createTimerBundle, type TimerEventData } from './bundles/timers';
 
 interface TestComponents {
 	position: { x: number; y: number };

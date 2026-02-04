@@ -9,8 +9,8 @@
 import { Bundle } from 'ecspresso';
 import type { SystemPhase } from 'ecspresso';
 import type { TransformComponentTypes } from './transform';
-import type { SpatialIndex } from './spatial-index';
-import { detectCollisions, type Contact, type BaseColliderInfo } from './narrowphase';
+import type { SpatialIndex } from '../utils/spatial-hash';
+import { detectCollisions, type Contact, type BaseColliderInfo } from '../utils/narrowphase';
 
 // ==================== Component Types ====================
 

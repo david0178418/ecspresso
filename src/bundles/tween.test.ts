@@ -1,10 +1,6 @@
 import { describe, test, expect } from 'bun:test';
-import ECSpresso from '../../ecspresso';
+import ECSpresso from '../ecspresso';
 import {
-	createTweenBundle,
-	createTween,
-	createTweenSequence,
-	createTweenKit,
 	linear,
 	easeInQuad,
 	easeOutQuad,
@@ -37,6 +33,12 @@ import {
 	easeOutBounce,
 	easeInOutBounce,
 	easings,
+} from '../utils/easing';
+import {
+	createTweenBundle,
+	createTween,
+	createTweenSequence,
+	createTweenKit,
 	type TweenEventData,
 	type NumericPaths,
 	type TypedTweenTargetInput,

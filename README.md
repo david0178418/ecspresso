@@ -742,12 +742,12 @@ world.registerRequired('position', 'velocity', () => ({ x: 0, y: 0 }));
 
 | Bundle | Import | Default Phase | Description |
 |--------|--------|---------------|-------------|
-| **Input** | `ecspresso/bundles/utils/input` | `preUpdate` | Frame-accurate keyboard/pointer input with action mapping |
-| **Timers** | `ecspresso/bundles/utils/timers` | `preUpdate` | ECS-native timers with event-based completion |
-| **Movement** | `ecspresso/bundles/utils/movement` | `fixedUpdate` | Velocity-based movement integration |
-| **Transform** | `ecspresso/bundles/utils/transform` | `postUpdate` | Hierarchical transform propagation (local/world transforms) |
-| **Bounds** | `ecspresso/bundles/utils/bounds` | `postUpdate` | Screen bounds enforcement (destroy, clamp, wrap) |
-| **Collision** | `ecspresso/bundles/utils/collision` | `postUpdate` | Layer-based AABB/circle collision detection with events |
+| **Input** | `ecspresso/bundles/input` | `preUpdate` | Frame-accurate keyboard/pointer input with action mapping |
+| **Timers** | `ecspresso/bundles/timers` | `preUpdate` | ECS-native timers with event-based completion |
+| **Movement** | `ecspresso/bundles/movement` | `fixedUpdate` | Velocity-based movement integration |
+| **Transform** | `ecspresso/bundles/transform` | `postUpdate` | Hierarchical transform propagation (local/world transforms) |
+| **Bounds** | `ecspresso/bundles/bounds` | `postUpdate` | Screen bounds enforcement (destroy, clamp, wrap) |
+| **Collision** | `ecspresso/bundles/collision` | `postUpdate` | Layer-based AABB/circle collision detection with events |
 | **2D Renderer** | `ecspresso/bundles/renderers/renderer2D` | `render` | Automated PixiJS scene graph wiring |
 
 Each bundle accepts a `phase` option to override its default.
@@ -760,7 +760,7 @@ The input bundle provides frame-accurate keyboard, pointer (mouse + touch via Po
 import {
   createInputBundle,
   type InputResourceTypes, type KeyCode
-} from 'ecspresso/bundles/utils/input';
+} from 'ecspresso/bundles/input';
 
 const world = ECSpresso.create()
   .withBundle(createInputBundle({
@@ -800,7 +800,7 @@ The timer bundle provides ECS-native timers that follow the "data, not callbacks
 import {
   createTimerBundle, createTimer, createRepeatingTimer,
   type TimerComponentTypes, type TimerEventData
-} from 'ecspresso/bundles/utils/timers';
+} from 'ecspresso/bundles/timers';
 
 // Events used with onComplete must have TimerEventData payload
 interface Events {

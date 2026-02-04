@@ -1,7 +1,7 @@
 import { Graphics, Sprite } from 'pixi.js';
 import ECSpresso, { Bundle } from "../../src";
-import { createInputBundle } from "../../src/bundles/utils/input";
-import type { InputResourceTypes } from "../../src/bundles/utils/input";
+import { createInputBundle } from "../../src/bundles/input";
+import type { InputResourceTypes } from "../../src/bundles/input";
 import {
 	createRenderer2DBundle,
 	createSpriteComponents,
@@ -10,25 +10,25 @@ import type { Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResource
 import {
 	createTimerBundle,
 	createRepeatingTimer,
-} from "../../src/bundles/utils/timers";
-import type { TimerComponentTypes } from "../../src/bundles/utils/timers";
+} from "../../src/bundles/timers";
+import type { TimerComponentTypes } from "../../src/bundles/timers";
 import {
 	createPhysics2DBundle,
 	createRigidBody,
-} from "../../src/bundles/utils/physics2D";
-import type { Physics2DComponentTypes } from "../../src/bundles/utils/physics2D";
+} from "../../src/bundles/physics2D";
+import type { Physics2DComponentTypes } from "../../src/bundles/physics2D";
 import {
 	createBoundsBundle,
 	createWrapAtBounds,
-} from "../../src/bundles/utils/bounds";
-import type { BoundsComponentTypes, BoundsEventTypes } from "../../src/bundles/utils/bounds";
+} from "../../src/bundles/bounds";
+import type { BoundsComponentTypes, BoundsEventTypes } from "../../src/bundles/bounds";
 import {
 	createCollisionBundle,
 	createCollisionPairHandler,
 	defineCollisionLayers,
 	createCircleCollider,
-} from "../../src/bundles/utils/collision";
-import type { CollisionComponentTypes, CollisionEventTypes, LayersOf } from "../../src/bundles/utils/collision";
+} from "../../src/bundles/collision";
+import type { CollisionComponentTypes, CollisionEventTypes, LayersOf } from "../../src/bundles/collision";
 
 // App-specific types (not from bundles)
 interface AppEvents {

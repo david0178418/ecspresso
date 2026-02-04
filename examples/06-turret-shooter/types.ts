@@ -5,7 +5,7 @@ import {
 	WebGLRenderer,
 	Vector3
 } from 'three';
-import type { TimerComponentTypes } from '../../src/bundles/utils/timers';
+import type { TimerComponentTypes } from '../../src/bundles/timers';
 
 /**
  * All event types used in the 3D Turret Shooter game

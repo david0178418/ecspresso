@@ -6,7 +6,7 @@
  * the physics2D bundle (impulse response).
  */
 
-import type { SpatialIndex } from './spatial-index';
+import type { SpatialIndex } from './spatial-hash';
 
 // ==================== Contact ====================
 

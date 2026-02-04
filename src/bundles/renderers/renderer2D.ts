@@ -16,14 +16,14 @@ import {
 	type WorldTransform,
 	type TransformComponentTypes,
 	type TransformBundleOptions,
-} from 'ecspresso/bundles/utils/transform';
-import { createBounds, type BoundsRect } from 'ecspresso/bundles/utils/bounds';
-import type { CameraResourceTypes } from 'ecspresso/bundles/utils/camera';
+} from 'ecspresso/bundles/transform';
+import { createBounds, type BoundsRect } from 'ecspresso/bundles/bounds';
+import type { CameraResourceTypes } from 'ecspresso/bundles/camera';
 
 // Re-export transform and bounds types for convenience
 export type { LocalTransform, WorldTransform, TransformComponentTypes };
 export type { BoundsRect };
-export { createTransform, createLocalTransform, createWorldTransform } from 'ecspresso/bundles/utils/transform';
+export { createTransform, createLocalTransform, createWorldTransform } from 'ecspresso/bundles/transform';
 
 // Dynamic import for Application to avoid requiring pixi.js at bundle creation time
 // when using managed mode (init options instead of pre-initialized app)

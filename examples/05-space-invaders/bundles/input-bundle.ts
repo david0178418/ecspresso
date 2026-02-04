@@ -1,4 +1,4 @@
-import { createInputBundle as createLibInputBundle } from '../../../src/bundles/utils/input';
+import { createInputBundle as createLibInputBundle } from '../../../src/bundles/input';
 import Bundle from '../../../src/bundle';
 import type { Components, Events, Resources } from '../types';
 

@@ -5,7 +5,7 @@ import Bundle, { mergeBundles } from './bundle';
 export * from './types';
 export * from './asset-types';
 export * from './screen-types';
-export * from './math';
+export * from './utils/math';
 export type { ReactiveQueryDefinition } from './reactive-query-manager';
 export { default as EntityManager } from './entity-manager';
 export { default as EventBus } from './event-bus';

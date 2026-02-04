@@ -1,8 +1,8 @@
 import { expect, describe, test } from 'bun:test';
 import ECSpresso from './ecspresso';
-import type { TimerEventData } from './bundles/utils/timers';
-import { createTimerBundle } from './bundles/utils/timers';
-import { createTransformBundle, type TransformComponentTypes } from './bundles/utils/transform';
+import type { TimerEventData } from './bundles/timers';
+import { createTimerBundle } from './bundles/timers';
+import { createTransformBundle, type TransformComponentTypes } from './bundles/transform';
 import type { ComponentsOf, EventsOf, ResourcesOf } from './types';
 import type { AssetsResource } from './asset-types';
 

@@ -1,5 +1,5 @@
 import Bundle from '../../../src/bundle';
-import { createTimer, createRepeatingTimer } from '../../../src/bundles/utils/timers';
+import { createTimer, createRepeatingTimer } from '../../../src/bundles/timers';
 import type { Components, Events, Resources } from '../types';
 import { updateUI } from '../utils';
 

@@ -1,7 +1,6 @@
 import { describe, test, expect } from 'bun:test';
-import ECSpresso from '../../ecspresso';
+import ECSpresso from '../ecspresso';
 import {
-	createSpatialIndexBundle,
 	createGrid,
 	clearGrid,
 	insertEntity,
@@ -10,6 +9,9 @@ import {
 	gridQueryRadius,
 	type SpatialHashGrid,
 	type SpatialIndex,
+} from '../utils/spatial-hash';
+import {
+	createSpatialIndexBundle,
 } from './spatial-index';
 import { createTransformBundle, createTransform } from './transform';
 import {

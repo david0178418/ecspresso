@@ -1,9 +1,9 @@
 import { Graphics, Sprite } from "pixi.js";
 import ECSpresso from "../../src";
 import { createSpriteComponents } from "../../src/bundles/renderers/renderer2D";
-import { createRigidBody } from "../../src/bundles/utils/physics2D";
-import { createAABBCollider } from "../../src/bundles/utils/collision";
-import { createClampToBounds } from "../../src/bundles/utils/bounds";
+import { createRigidBody } from "../../src/bundles/physics2D";
+import { createAABBCollider } from "../../src/bundles/collision";
+import { createClampToBounds } from "../../src/bundles/bounds";
 import collisionLayers from "./collision-layers";
 import { Components, Events, Resources } from "./types";
 

@@ -1,6 +1,6 @@
 import { Graphics, Sprite } from 'pixi.js';
 import ECSpresso from "../../src";
-import { createInputBundle } from "../../src/bundles/utils/input";
+import { createInputBundle } from "../../src/bundles/input";
 import {
 	createRenderer2DBundle,
 	createSpriteComponents,
@@ -8,7 +8,7 @@ import {
 import {
 	createPhysics2DBundle,
 	createRigidBody,
-} from "../../src/bundles/utils/physics2D";
+} from "../../src/bundles/physics2D";
 
 const ecs = ECSpresso
 	.create()

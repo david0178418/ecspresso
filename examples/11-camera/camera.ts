@@ -19,8 +19,8 @@ import {
 import {
 	createPhysics2DBundle,
 	createRigidBody,
-} from '../../src/bundles/utils/physics2D';
-import { createInputBundle } from '../../src/bundles/utils/input';
+} from '../../src/bundles/physics2D';
+import { createInputBundle } from '../../src/bundles/input';
 import {
 	createCameraBundle,
 	createCamera,
@@ -29,7 +29,7 @@ import {
 	createCameraBounds,
 	addTrauma,
 	screenToWorld,
-} from '../../src/bundles/utils/camera';
+} from '../../src/bundles/camera';
 
 // ==================== Constants ====================
 

@@ -5,7 +5,7 @@ const bundleEntryPoints = Array.from(
 ).filter((f) => !f.includes('.test.'));
 
 const result = await Bun.build({
-	entrypoints: ['src/index.ts', 'src/math.ts', ...bundleEntryPoints],
+	entrypoints: ['src/index.ts', ...bundleEntryPoints],
 	outdir: 'dist',
 	target: 'browser',
 	sourcemap: 'linked',

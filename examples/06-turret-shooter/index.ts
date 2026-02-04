@@ -1,5 +1,5 @@
 import ECSpresso from '../../src';
-import { createTimerBundle } from '../../src/bundles/utils/timers';
+import { createTimerBundle } from '../../src/bundles/timers';
 import createInitBundle from './bundles/init-bundle';
 import createInputBundle from './bundles/input-bundle';
 import createRenderBundle from './bundles/render-bundle';

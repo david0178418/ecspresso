@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test';
-import ECSpresso from '../../ecspresso';
+import ECSpresso from '../ecspresso';
 import {
 	createTransformBundle,
 	createTransform,

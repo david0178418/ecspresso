@@ -1,8 +1,8 @@
 import Bundle from '../../../src/bundle';
 import { createSpriteComponents } from '../../../src/bundles/renderers/renderer2D';
-import { createRigidBody } from '../../../src/bundles/utils/physics2D';
-import { createAABBCollider } from '../../../src/bundles/utils/collision';
-import { createDestroyOutOfBounds } from '../../../src/bundles/utils/bounds';
+import { createRigidBody } from '../../../src/bundles/physics2D';
+import { createAABBCollider } from '../../../src/bundles/collision';
+import { createDestroyOutOfBounds } from '../../../src/bundles/bounds';
 import type { Components, Events, Resources } from '../types';
 import { spawnPlayer, createProjectileSprite } from '../utils';
 import collisionLayers from '../collision-layers';

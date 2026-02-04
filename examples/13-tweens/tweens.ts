@@ -5,9 +5,6 @@ import {
 	createSpriteComponents,
 } from "../../src/bundles/renderers/renderer2D";
 import {
-	createTweenBundle,
-	createTween,
-	createTweenSequence,
 	linear,
 	easeInQuad,
 	easeOutQuad,
@@ -15,8 +12,13 @@ import {
 	easeOutBounce,
 	easeInOutElastic,
 	easeOutBack,
+} from "../../src/utils/easing";
+import {
+	createTweenBundle,
+	createTween,
+	createTweenSequence,
 	type LoopMode,
-} from "../../src/bundles/utils/tween";
+} from "../../src/bundles/tween";
 
 // -- Layout constants --
 

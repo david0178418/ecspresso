@@ -1,7 +1,7 @@
 import Bundle from '../../../src/bundle';
 import type ECSpresso from '../../../src/ecspresso';
-import { createTimer } from '../../../src/bundles/utils/timers';
-import { createCollisionPairHandler } from '../../../src/bundles/utils/collision';
+import { createTimer } from '../../../src/bundles/timers';
+import { createCollisionPairHandler } from '../../../src/bundles/collision';
 import type { Components, Events, Resources } from '../types';
 import type collisionLayers from '../collision-layers';
 

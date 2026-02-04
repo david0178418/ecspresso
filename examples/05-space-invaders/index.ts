@@ -1,9 +1,9 @@
 import ECSpresso from '../../src';
 import { createRenderer2DBundle } from '../../src/bundles/renderers/renderer2D';
-import { createTimerBundle } from '../../src/bundles/utils/timers';
-import { createPhysics2DBundle } from '../../src/bundles/utils/physics2D';
-import { createBoundsBundle } from '../../src/bundles/utils/bounds';
-import { createCollisionBundle } from '../../src/bundles/utils/collision';
+import { createTimerBundle } from '../../src/bundles/timers';
+import { createPhysics2DBundle } from '../../src/bundles/physics2D';
+import { createBoundsBundle } from '../../src/bundles/bounds';
+import { createCollisionBundle } from '../../src/bundles/collision';
 import collisionLayers from './collision-layers';
 import createCombatBundle from './bundles/combat-bundle';
 import createInputProcessingBundle, { createInputBundle } from './bundles/input-bundle';

@@ -1,5 +1,5 @@
 import Bundle from '../../../src/bundle';
-import { createTimer } from '../../../src/bundles/utils/timers';
+import { createTimer } from '../../../src/bundles/timers';
 import type { Components, Events, Resources } from '../types';
 import { spawnEnemyFormation } from '../utils';
 

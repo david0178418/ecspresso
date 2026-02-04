@@ -4,7 +4,7 @@ import {
 	createRenderer2DBundle,
 	createGraphicsComponents,
 } from "../../src/bundles/renderers/renderer2D";
-import { createInputBundle } from "../../src/bundles/utils/input";
+import { createInputBundle } from "../../src/bundles/input";
 
 // ==================== Solar System Data ====================
 

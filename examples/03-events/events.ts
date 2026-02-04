@@ -1,6 +1,6 @@
 import { Graphics, Sprite } from 'pixi.js';
 import ECSpresso from "../../src";
-import { createInputBundle } from "../../src/bundles/utils/input";
+import { createInputBundle } from "../../src/bundles/input";
 import {
 	createRenderer2DBundle,
 	createSpriteComponents,
@@ -8,21 +8,21 @@ import {
 import {
 	createTimerBundle,
 	createRepeatingTimer,
-} from "../../src/bundles/utils/timers";
+} from "../../src/bundles/timers";
 import {
 	createPhysics2DBundle,
 	createRigidBody,
-} from "../../src/bundles/utils/physics2D";
+} from "../../src/bundles/physics2D";
 import {
 	createBoundsBundle,
 	createWrapAtBounds,
-} from "../../src/bundles/utils/bounds";
+} from "../../src/bundles/bounds";
 import {
 	createCollisionBundle,
 	createCollisionPairHandler,
 	defineCollisionLayers,
 	createCircleCollider,
-} from "../../src/bundles/utils/collision";
+} from "../../src/bundles/collision";
 
 const BALL_RADIUS = 30;
 

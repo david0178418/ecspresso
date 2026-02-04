@@ -23,14 +23,14 @@ import {
 	createRigidBody,
 	setVelocity,
 	type Physics2DComponentTypes,
-} from '../../src/bundles/utils/physics2D';
-import { createInputBundle, type InputResourceTypes } from '../../src/bundles/utils/input';
+} from '../../src/bundles/physics2D';
+import { createInputBundle, type InputResourceTypes } from '../../src/bundles/input';
 import {
 	createStateMachineKit,
 	getStateMachineState,
 	type StateMachineComponentTypes,
 	type StateMachineEventTypes,
-} from '../../src/bundles/utils/state-machine';
+} from '../../src/bundles/state-machine';
 
 // ==================== Types ====================
 // Aggregate types are needed here because `type ECS` must be defined

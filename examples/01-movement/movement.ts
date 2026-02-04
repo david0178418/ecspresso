@@ -7,7 +7,7 @@ import {
 import {
 	createPhysics2DBundle,
 	createRigidBody,
-} from "../../src/bundles/utils/physics2D";
+} from "../../src/bundles/physics2D";
 
 const ecs = ECSpresso.create()
 	.withBundle(createRenderer2DBundle({

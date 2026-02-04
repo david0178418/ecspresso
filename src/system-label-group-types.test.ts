@@ -2,7 +2,7 @@ import { test, expect } from 'bun:test';
 import ECSpresso from './ecspresso';
 import Bundle, { mergeBundles } from './bundle';
 import type { LabelsOf, GroupsOf, ComponentsOf, EventsOf, ResourcesOf, AssetGroupNamesOf, ReactiveQueryNamesOf } from './type-utils';
-import { createTransformBundle } from './bundles/utils/transform';
+import { createTransformBundle } from './bundles/transform';
 
 // ==================== Type-level assertion helpers ====================
 

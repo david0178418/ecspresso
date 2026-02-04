@@ -1,6 +1,6 @@
 import { Container, Text, TextStyle } from 'pixi.js';
 import Bundle from '../../../src/bundle';
-import { createTimer } from '../../../src/bundles/utils/timers';
+import { createTimer } from '../../../src/bundles/timers';
 import type { Components, Events, Resources } from '../types';
 
 export default function createUIBundle() {

@@ -1,4 +1,4 @@
-import { defineCollisionLayers } from "../../src/bundles/utils/collision";
+import { defineCollisionLayers } from "../../src/bundles/collision";
 
 /**
  * Collision layer definitions for Space Invaders.

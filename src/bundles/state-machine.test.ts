@@ -1,6 +1,6 @@
 import { describe, test, expect } from 'bun:test';
-import ECSpresso from '../../ecspresso';
-import type Bundle from '../../bundle';
+import ECSpresso from '../ecspresso';
+import type Bundle from '../bundle';
 import {
 	defineStateMachine,
 	createStateMachine,
