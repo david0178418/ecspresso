@@ -63,38 +63,48 @@ export type MergeAll<T extends any[]> = T extends [infer First, ...infer Rest] ?
 /**
  * Extract the ComponentTypes from a Bundle instance
  */
-export type ComponentsOf<B> = B extends import('./bundle').default<infer C extends Record<string, any>, any, any, any, any, any, any> ? C : never;
+export type ComponentsOf<B> = B extends import('./bundle').default<infer C extends Record<string, any>, any, any, any, any, any, any, any, any> ? C : never;
 
 /**
  * Extract the EventTypes from a Bundle instance
  */
-export type EventsOf<B> = B extends import('./bundle').default<any, infer E extends Record<string, any>, any, any, any, any, any> ? E : never;
+export type EventsOf<B> = B extends import('./bundle').default<any, infer E extends Record<string, any>, any, any, any, any, any, any, any> ? E : never;
 
 /**
  * Extract the ResourceTypes from a Bundle instance
  */
-export type ResourcesOf<B> = B extends import('./bundle').default<any, any, infer R extends Record<string, any>, any, any, any, any> ? R : never;
+export type ResourcesOf<B> = B extends import('./bundle').default<any, any, infer R extends Record<string, any>, any, any, any, any, any, any> ? R : never;
 
 /**
  * Extract the system Labels from a Bundle instance
  */
-export type LabelsOf<B> = B extends import('./bundle').default<any, any, any, any, any, infer L extends string, any> ? L : never;
+export type LabelsOf<B> = B extends import('./bundle').default<any, any, any, any, any, infer L extends string, any, any, any> ? L : never;
 
 /**
  * Extract the system Groups from a Bundle instance
  */
-export type GroupsOf<B> = B extends import('./bundle').default<any, any, any, any, any, any, infer G extends string> ? G : never;
+export type GroupsOf<B> = B extends import('./bundle').default<any, any, any, any, any, any, infer G extends string, any, any> ? G : never;
+
+/**
+ * Extract the AssetGroupNames from a Bundle instance
+ */
+export type AssetGroupNamesOf<B> = B extends import('./bundle').default<any, any, any, any, any, any, any, infer AG extends string, any> ? AG : never;
+
+/**
+ * Extract the ReactiveQueryNames from a Bundle instance
+ */
+export type ReactiveQueryNamesOf<B> = B extends import('./bundle').default<any, any, any, any, any, any, any, any, infer RQ extends string> ? RQ : never;
 
 /**
  * Extract ComponentTypes from an ECSpresso world instance type.
  */
 export type ComponentsOfWorld<W> = W extends import('./ecspresso').default<
-	infer C extends Record<string, any>, any, any, any, any, any, any
+	infer C extends Record<string, any>, any, any, any, any, any, any, any, any
 > ? C : never;
 
 /**
  * Extract EventTypes from an ECSpresso world instance type.
  */
 export type EventsOfWorld<W> = W extends import('./ecspresso').default<
-	any, infer E extends Record<string, any>, any, any, any, any, any
+	any, infer E extends Record<string, any>, any, any, any, any, any, any, any
 > ? E : never;

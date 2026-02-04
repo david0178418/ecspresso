@@ -16,6 +16,8 @@ export class SystemBuilder<
 	SysGroups extends string = never,
 	BundleLabels extends string = never,
 	BundleGroups extends string = never,
+	BundleAssetGroupNames extends string = never,
+	BundleReactiveQueryNames extends string = never,
 > {
 	private queries: Queries = {} as Queries;
 	private processFunction?: ProcessFunction<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, Queries>;
@@ -46,7 +48,7 @@ export class SystemBuilder<
 	constructor(
 		private _label: string,
 		private _ecspresso: ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates> | null = null,
-		private _bundle: Bundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, BundleLabels, BundleGroups> | null = null,
+		private _bundle: Bundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, BundleLabels, BundleGroups, BundleAssetGroupNames, BundleReactiveQueryNames> | null = null,
 	) {}
 
 	get label() {
@@ -168,9 +170,9 @@ export class SystemBuilder<
 	inGroup<G extends string>(groupName: G):
 		this extends SystemBuilderWithEcspresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, Queries, Label, SysGroups>
 			? SystemBuilderWithEcspresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, Queries, Label, SysGroups | G>
-			: this extends SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, Queries, BundleLabels, BundleGroups, Label, SysGroups>
-				? SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, Queries, BundleLabels, BundleGroups, Label, SysGroups | G>
-				: SystemBuilder<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, Queries, Label, SysGroups | G, BundleLabels, BundleGroups> {
+			: this extends SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, Queries, BundleLabels, BundleGroups, Label, SysGroups, BundleAssetGroupNames, BundleReactiveQueryNames>
+				? SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, Queries, BundleLabels, BundleGroups, Label, SysGroups | G, BundleAssetGroupNames, BundleReactiveQueryNames>
+				: SystemBuilder<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, Queries, Label, SysGroups | G, BundleLabels, BundleGroups, BundleAssetGroupNames, BundleReactiveQueryNames> {
 		if (!this._groups.includes(groupName)) {
 			this._groups.push(groupName);
 		}
@@ -234,9 +236,9 @@ export class SystemBuilder<
 		}
 	): this extends SystemBuilderWithEcspresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, Queries, Label, SysGroups>
 		? SystemBuilderWithEcspresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, NewQueries, Label, SysGroups>
-		: this extends SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, Queries, BundleLabels, BundleGroups, Label, SysGroups>
-			? SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, NewQueries, BundleLabels, BundleGroups, Label, SysGroups>
-			: SystemBuilder<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, NewQueries, Label, SysGroups, BundleLabels, BundleGroups> {
+		: this extends SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, Queries, BundleLabels, BundleGroups, Label, SysGroups, BundleAssetGroupNames, BundleReactiveQueryNames>
+			? SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, NewQueries, BundleLabels, BundleGroups, Label, SysGroups, BundleAssetGroupNames, BundleReactiveQueryNames>
+			: SystemBuilder<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, NewQueries, Label, SysGroups, BundleLabels, BundleGroups, BundleAssetGroupNames, BundleReactiveQueryNames> {
 		// Cast is needed because TypeScript can't preserve the type information
 		// when modifying an object property
 		const newBuilder = this as any;
@@ -279,14 +281,14 @@ export class SystemBuilder<
 	 * - For Bundle-attached builders: returns the Bundle
 	 * This method is typed via the specialized interfaces (SystemBuilderWithEcspresso, SystemBuilderWithBundle)
 	 */
-	and(): ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates> | Bundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, BundleLabels | Label, BundleGroups | SysGroups> {
+	and(): ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates> | Bundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, BundleLabels | Label, BundleGroups | SysGroups, BundleAssetGroupNames, BundleReactiveQueryNames> {
 		if (this._ecspresso) {
 			this._autoRegister();
 			return this._ecspresso;
 		}
 
 		if (this._bundle) {
-			return this._bundle as Bundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, BundleLabels | Label, BundleGroups | SysGroups>;
+			return this._bundle as Bundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, BundleLabels | Label, BundleGroups | SysGroups, BundleAssetGroupNames, BundleReactiveQueryNames>;
 		}
 
 		throw new Error(`Cannot use and() on system '${this._label}': not attached to ECSpresso or Bundle.`);
@@ -481,15 +483,17 @@ export function createBundleSystemBuilder<
 	BundleLabels extends string = never,
 	BundleGroups extends string = never,
 	Label extends string = string,
+	BundleAssetGroupNames extends string = never,
+	BundleReactiveQueryNames extends string = never,
 >(
 	label: Label,
-	bundle: Bundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, BundleLabels, BundleGroups>
-): SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, {}, BundleLabels, BundleGroups, Label> {
-	return new SystemBuilder<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, {}, Label, never, BundleLabels, BundleGroups>(
+	bundle: Bundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, BundleLabels, BundleGroups, BundleAssetGroupNames, BundleReactiveQueryNames>
+): SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, {}, BundleLabels, BundleGroups, Label, never, BundleAssetGroupNames, BundleReactiveQueryNames> {
+	return new SystemBuilder<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, {}, Label, never, BundleLabels, BundleGroups, BundleAssetGroupNames, BundleReactiveQueryNames>(
 		label,
 		null,
 		bundle
-	) as SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, {}, BundleLabels, BundleGroups, Label>;
+	) as SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, {}, BundleLabels, BundleGroups, Label, never, BundleAssetGroupNames, BundleReactiveQueryNames>;
 }
 
 // Type interfaces for specialized SystemBuilders
@@ -530,12 +534,14 @@ export interface SystemBuilderWithBundle<
 	BundleGroups extends string = never,
 	Label extends string = string,
 	SysGroups extends string = never,
-> extends SystemBuilder<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, Queries, Label, SysGroups, BundleLabels, BundleGroups> {
-	readonly bundle: Bundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, BundleLabels, BundleGroups>;
+	BundleAssetGroupNames extends string = never,
+	BundleReactiveQueryNames extends string = never,
+> extends SystemBuilder<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, Queries, Label, SysGroups, BundleLabels, BundleGroups, BundleAssetGroupNames, BundleReactiveQueryNames> {
+	readonly bundle: Bundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, BundleLabels, BundleGroups, BundleAssetGroupNames, BundleReactiveQueryNames>;
 
 	/**
 	 * Complete this system and return the Bundle for chaining
 	 * Enables fluent API: bundle.addSystem(...).and().addSystem(...)
 	 */
-	and(): Bundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, BundleLabels | Label, BundleGroups | SysGroups>;
+	and(): Bundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, BundleLabels | Label, BundleGroups | SysGroups, BundleAssetGroupNames, BundleReactiveQueryNames>;
 }

@@ -25,8 +25,10 @@ export default class Bundle<
 	ScreenStates extends Record<string, ScreenDefinition<any, any>> = {},
 	Labels extends string = never,
 	Groups extends string = never,
+	AssetGroupNames extends string = never,
+	ReactiveQueryNames extends string = never,
 > {
-	private _systems: SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, any, any, any, any, any>[] = [];
+	private _systems: SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, any, any, any, any, any, any, any>[] = [];
 	private _resources: Map<keyof ResourceTypes, ResourceTypes[keyof ResourceTypes]> = new Map();
 	private _assets: Map<string, AssetDefinition<unknown>> = new Map();
 	private _assetGroups: Map<string, Map<string, () => Promise<unknown>>> = new Map();
@@ -57,11 +59,11 @@ export default class Bundle<
 	/**
 	 * Add a system to this bundle, by label (creating a new builder) or by reusing an existing one
 	 */
-	addSystem<Q extends Record<string, QueryDefinition<ComponentTypes>>, BL extends string, BG extends string, L extends string, SG extends string>(builder: SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, Q, BL, BG, L, SG>): SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, Q, Labels, Groups, L, SG>;
-	addSystem<L extends string>(label: L): SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, {}, Labels, Groups, L>;
-	addSystem(builderOrLabel: string | SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, any, any, any, any, any>) {
+	addSystem<Q extends Record<string, QueryDefinition<ComponentTypes>>, BL extends string, BG extends string, L extends string, SG extends string>(builder: SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, Q, BL, BG, L, SG, any, any>): SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, Q, Labels, Groups, L, SG, AssetGroupNames, ReactiveQueryNames>;
+	addSystem<L extends string>(label: L): SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, {}, Labels, Groups, L, never, AssetGroupNames, ReactiveQueryNames>;
+	addSystem(builderOrLabel: string | SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, any, any, any, any, any, any, any>) {
 		if (typeof builderOrLabel === 'string') {
-			const system = createBundleSystemBuilder<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, Labels, Groups, typeof builderOrLabel>(builderOrLabel, this as any);
+			const system = createBundleSystemBuilder<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, Labels, Groups, typeof builderOrLabel, AssetGroupNames, ReactiveQueryNames>(builderOrLabel, this as any);
 			this._systems.push(system as any);
 			return system;
 		} else {
@@ -99,13 +101,13 @@ export default class Bundle<
 		key: K,
 		loader: () => Promise<T>,
 		options?: { eager?: boolean; group?: string }
-	): Bundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes & Record<K, T>, ScreenStates, Labels, Groups> {
+	): Bundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes & Record<K, T>, ScreenStates, Labels, Groups, AssetGroupNames, ReactiveQueryNames> {
 		this._assets.set(key, {
 			loader,
 			eager: options?.eager ?? true,
 			group: options?.group,
 		});
-		return this as unknown as Bundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes & Record<K, T>, ScreenStates, Labels, Groups>;
+		return this as unknown as Bundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes & Record<K, T>, ScreenStates, Labels, Groups, AssetGroupNames, ReactiveQueryNames>;
 	}
 
 	/**
@@ -113,10 +115,10 @@ export default class Bundle<
 	 * @param groupName The group name
 	 * @param assets Object mapping asset keys to loader functions
 	 */
-	addAssetGroup<G extends string, T extends Record<string, () => Promise<unknown>>>(
-		groupName: G,
+	addAssetGroup<GN extends string, T extends Record<string, () => Promise<unknown>>>(
+		groupName: GN,
 		assets: T
-	): Bundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes & { [K in keyof T]: Awaited<ReturnType<T[K]>> }, ScreenStates, Labels, Groups> {
+	): Bundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes & { [K in keyof T]: Awaited<ReturnType<T[K]>> }, ScreenStates, Labels, Groups, AssetGroupNames | GN, ReactiveQueryNames> {
 		const groupAssets = new Map<string, () => Promise<unknown>>();
 		for (const [key, loader] of Object.entries(assets)) {
 			groupAssets.set(key, loader as () => Promise<unknown>);
@@ -127,7 +129,7 @@ export default class Bundle<
 			});
 		}
 		this._assetGroups.set(groupName, groupAssets);
-		return this as unknown as Bundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes & { [K in keyof T]: Awaited<ReturnType<T[K]>> }, ScreenStates, Labels, Groups>;
+		return this as unknown as Bundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes & { [K in keyof T]: Awaited<ReturnType<T[K]>> }, ScreenStates, Labels, Groups, AssetGroupNames | GN, ReactiveQueryNames>;
 	}
 
 	/**
@@ -138,9 +140,9 @@ export default class Bundle<
 	addScreen<K extends string, Config extends Record<string, unknown>, State extends Record<string, unknown>>(
 		name: K,
 		definition: ScreenDefinition<Config, State, ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, Record<string, ScreenDefinition>>>
-	): Bundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates & Record<K, ScreenDefinition<Config, State>>, Labels, Groups> {
+	): Bundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates & Record<K, ScreenDefinition<Config, State>>, Labels, Groups, AssetGroupNames, ReactiveQueryNames> {
 		this._screens.set(name, definition as ScreenDefinition<Config, State>);
-		return this as unknown as Bundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates & Record<K, ScreenDefinition<Config, State>>, Labels, Groups>;
+		return this as unknown as Bundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates & Record<K, ScreenDefinition<Config, State>>, Labels, Groups, AssetGroupNames, ReactiveQueryNames>;
 	}
 
 	/**
@@ -215,6 +217,14 @@ export default class Bundle<
 		existing.push({ component: requiredKey, factory: factory as () => unknown });
 		this._requiredComponents.set(triggerKey, existing);
 		return this;
+	}
+
+	/**
+	 * Declare reactive query names that this bundle will register at runtime.
+	 * This is a pure type-level operation with no runtime cost.
+	 */
+	withReactiveQueryNames<N extends string>(): Bundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, Labels, Groups, AssetGroupNames, ReactiveQueryNames | N> {
+		return this as unknown as Bundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, Labels, Groups, AssetGroupNames, ReactiveQueryNames | N>;
 	}
 
 	/**
@@ -336,7 +346,7 @@ export default class Bundle<
 	/**
 	 * Get all system builders in this bundle
 	 */
-	getSystemBuilders(): SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, any, any, any, any, any>[] {
+	getSystemBuilders(): SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, any, any, any, any, any, any, any>[] {
 		return [...this._systems];
 	}
 
@@ -361,6 +371,8 @@ export function mergeBundles<
 	S1 extends Record<string, ScreenDefinition<any, any>>,
 	L1 extends string,
 	G1 extends string,
+	AG1 extends string,
+	RQ1 extends string,
 	C2 extends Record<string, any>,
 	E2 extends Record<string, any>,
 	R2 extends Record<string, any>,
@@ -368,13 +380,15 @@ export function mergeBundles<
 	S2 extends Record<string, ScreenDefinition<any, any>>,
 	L2 extends string,
 	G2 extends string,
+	AG2 extends string,
+	RQ2 extends string,
 >(
 	id: string,
-	bundle1: Bundle<C1, E1, R1, A1, S1, L1, G1>,
+	bundle1: Bundle<C1, E1, R1, A1, S1, L1, G1, AG1, RQ1>,
 	bundle2: BundlesAreCompatible<C1, C2, E1, E2, R1, R2, A1, A2, S1, S2> extends true
-		? Bundle<C2, E2, R2, A2, S2, L2, G2>
+		? Bundle<C2, E2, R2, A2, S2, L2, G2, AG2, RQ2>
 		: never
-): Bundle<C1 & C2, E1 & E2, R1 & R2, A1 & A2, S1 & S2, L1 | L2, G1 | G2>;
+): Bundle<C1 & C2, E1 & E2, R1 & R2, A1 & A2, S1 & S2, L1 | L2, G1 | G2, AG1 | AG2, RQ1 | RQ2>;
 
 export function mergeBundles<
 	ComponentTypes extends Record<string, any>,
@@ -384,15 +398,17 @@ export function mergeBundles<
 	ScreenStates extends Record<string, ScreenDefinition<any, any>>,
 	Labels extends string,
 	Groups extends string,
+	AssetGroupNamesParam extends string,
+	ReactiveQueryNamesParam extends string,
 >(
 	id: string,
-	...bundles: Array<Bundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, Labels, Groups>>
-): Bundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, Labels, Groups>;
+	...bundles: Array<Bundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, Labels, Groups, AssetGroupNamesParam, ReactiveQueryNamesParam>>
+): Bundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, Labels, Groups, AssetGroupNamesParam, ReactiveQueryNamesParam>;
 
 export function mergeBundles(
 	id: string,
-	...bundles: Array<Bundle<any, any, any, any, any, any, any>>
-): Bundle<any, any, any, any, any, any, any> {
+	...bundles: Array<Bundle<any, any, any, any, any, any, any, any, any>>
+): Bundle<any, any, any, any, any, any, any, any, any> {
 	if (bundles.length === 0) {
 		return new Bundle(id);
 	}

@@ -36,7 +36,7 @@ export interface AssetHandle<T> {
  * Resource interface for accessing assets in systems
  * Exposed as $assets resource
  */
-export interface AssetsResource<A extends Record<string, unknown>> {
+export interface AssetsResource<A extends Record<string, unknown>, G extends string = string> {
 	/**
 	 * Get the loading status of an asset
 	 */
@@ -48,11 +48,11 @@ export interface AssetsResource<A extends Record<string, unknown>> {
 	/**
 	 * Check if all assets in a group are loaded
 	 */
-	isGroupLoaded(groupName: string): boolean;
+	isGroupLoaded(groupName: G): boolean;
 	/**
 	 * Get the loading progress of a group (0-1)
 	 */
-	getGroupProgress(groupName: string): number;
+	getGroupProgress(groupName: G): number;
 	/**
 	 * Get a loaded asset. Throws if not loaded.
 	 */
@@ -80,14 +80,14 @@ export interface AssetEvents {
 /**
  * Configuration for asset definitions during builder setup
  */
-export interface AssetConfigurator<A extends Record<string, unknown>> {
+export interface AssetConfigurator<A extends Record<string, unknown>, G extends string = never> {
 	/**
 	 * Add a single eager asset
 	 */
 	add<K extends string, T>(
 		key: K,
 		loader: () => Promise<T>
-	): AssetConfigurator<A & Record<K, T>>;
+	): AssetConfigurator<A & Record<K, T>, G>;
 
 	/**
 	 * Add a single asset with full configuration
@@ -95,13 +95,13 @@ export interface AssetConfigurator<A extends Record<string, unknown>> {
 	addWithConfig<K extends string, T>(
 		key: K,
 		definition: AssetDefinition<T>
-	): AssetConfigurator<A & Record<K, T>>;
+	): AssetConfigurator<A & Record<K, T>, G>;
 
 	/**
 	 * Add a group of assets that can be loaded together
 	 */
-	addGroup<G extends string, T extends Record<string, () => Promise<unknown>>>(
-		groupName: G,
+	addGroup<GN extends string, T extends Record<string, () => Promise<unknown>>>(
+		groupName: GN,
 		assets: T
-	): AssetConfigurator<A & { [K in keyof T]: Awaited<ReturnType<T[K]>> }>;
+	): AssetConfigurator<A & { [K in keyof T]: Awaited<ReturnType<T[K]>> }, G | GN>;
 }

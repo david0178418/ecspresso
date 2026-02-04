@@ -32,7 +32,7 @@ interface StoredQuery<ComponentTypes extends Record<string, any>> {
 /**
  * Manages reactive queries that trigger callbacks when entities enter/exit query matches
  */
-export default class ReactiveQueryManager<ComponentTypes extends Record<string, any>> {
+export default class ReactiveQueryManager<ComponentTypes extends Record<string, any>, QueryNames extends string = string> {
 	private queries: Map<string, StoredQuery<ComponentTypes>> = new Map();
 	private entityManager: EntityManager<ComponentTypes>;
 	/** Whether any registered query uses parentHas */
@@ -59,7 +59,7 @@ export default class ReactiveQueryManager<ComponentTypes extends Record<string, 
 		WithoutComponents extends keyof ComponentTypes = never,
 		OptionalComponents extends keyof ComponentTypes = never,
 	>(
-		name: string,
+		name: QueryNames,
 		definition: ReactiveQueryDefinition<ComponentTypes, WithComponents, WithoutComponents, OptionalComponents>
 	): void {
 		const storedQuery: StoredQuery<ComponentTypes> = {
@@ -93,7 +93,7 @@ export default class ReactiveQueryManager<ComponentTypes extends Record<string, 
 	 * @param name Name of the query to remove
 	 * @returns true if the query existed and was removed
 	 */
-	removeQuery(name: string): boolean {
+	removeQuery(name: QueryNames): boolean {
 		const result = this.queries.delete(name);
 
 		// Recalculate parentHas flag

@@ -442,25 +442,26 @@ export function physicalToLogical(
  * ```
  */
 type Renderer2DLabels = 'renderer2d-sync' | 'renderer2d-scene-graph' | 'renderer2d-camera-sync' | 'transform-propagation';
+type Renderer2DReactiveQueryNames = 'renderer2d-sprites' | 'renderer2d-graphics' | 'renderer2d-containers';
 
 export function createRenderer2DBundle<G extends string = 'renderer2d'>(
 	options: Renderer2DBundleOptions<G> & { screenScale: ScreenScaleOptions; camera: true }
-): Bundle<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes & ViewportScaleResourceTypes & CameraResourceTypes, {}, {}, Renderer2DLabels, G>;
+): Bundle<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes & ViewportScaleResourceTypes & CameraResourceTypes, {}, {}, Renderer2DLabels, G, never, Renderer2DReactiveQueryNames>;
 export function createRenderer2DBundle<G extends string = 'renderer2d'>(
 	options: Renderer2DBundleOptions<G> & { screenScale: ScreenScaleOptions }
-): Bundle<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes & ViewportScaleResourceTypes, {}, {}, Renderer2DLabels, G>;
+): Bundle<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes & ViewportScaleResourceTypes, {}, {}, Renderer2DLabels, G, never, Renderer2DReactiveQueryNames>;
 export function createRenderer2DBundle<G extends string = 'renderer2d'>(
 	options: Renderer2DBundleOptions<G> & { camera: true }
-): Bundle<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes & CameraResourceTypes, {}, {}, Renderer2DLabels, G>;
+): Bundle<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes & CameraResourceTypes, {}, {}, Renderer2DLabels, G, never, Renderer2DReactiveQueryNames>;
 export function createRenderer2DBundle<G extends string = 'renderer2d'>(
 	options: Renderer2DBundleOptions<G>
-): Bundle<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes, {}, {}, Renderer2DLabels, G>;
+): Bundle<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes, {}, {}, Renderer2DLabels, G, never, Renderer2DReactiveQueryNames>;
 export function createRenderer2DBundle<G extends string = 'renderer2d'>(
 	options: Renderer2DBundleOptions<G> & { camera?: boolean; screenScale?: ScreenScaleOptions }
-): Bundle<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes, {}, {}, Renderer2DLabels, G>
-| Bundle<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes & CameraResourceTypes, {}, {}, Renderer2DLabels, G>
-| Bundle<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes & ViewportScaleResourceTypes, {}, {}, Renderer2DLabels, G>
-| Bundle<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes & ViewportScaleResourceTypes & CameraResourceTypes, {}, {}, Renderer2DLabels, G> {
+): Bundle<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes, {}, {}, Renderer2DLabels, G, never, Renderer2DReactiveQueryNames>
+| Bundle<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes & CameraResourceTypes, {}, {}, Renderer2DLabels, G, never, Renderer2DReactiveQueryNames>
+| Bundle<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes & ViewportScaleResourceTypes, {}, {}, Renderer2DLabels, G, never, Renderer2DReactiveQueryNames>
+| Bundle<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes & ViewportScaleResourceTypes & CameraResourceTypes, {}, {}, Renderer2DLabels, G, never, Renderer2DReactiveQueryNames> {
 	const {
 		rootContainer: customRootContainer,
 		systemGroup = 'renderer2d',
@@ -924,7 +925,10 @@ export function createRenderer2DBundle<G extends string = 'renderer2d'>(
 			.and();
 	}
 
+	// Declare reactive query names registered by this bundle
+	const typedRendererBundle = rendererBundle.withReactiveQueryNames<'renderer2d-sprites' | 'renderer2d-graphics' | 'renderer2d-containers'>();
+
 	// Merge transform bundle (runs first) with renderer bundle
 	const transformBundle = createTransformBundle(transformOptions);
-	return mergeBundles('renderer2d', transformBundle, rendererBundle) as unknown as Bundle<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes & ViewportScaleResourceTypes & CameraResourceTypes, {}, {}, Renderer2DLabels, G>;
+	return mergeBundles('renderer2d', transformBundle, typedRendererBundle) as unknown as Bundle<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes & ViewportScaleResourceTypes & CameraResourceTypes, {}, {}, Renderer2DLabels, G, never, Renderer2DReactiveQueryNames>;
 }

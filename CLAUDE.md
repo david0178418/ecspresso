@@ -153,6 +153,11 @@ src/
 - **NumericPaths<T>**: Recursive type utility producing union of dot-separated paths resolving to `number`. Depth-limited to 4 levels. Handles optional fields via `NonNullable`.
 - **TypedTweenTargetInput<C>**: Discriminated union over component names — each variant constrains `field` to `NumericPaths` of that component. Used in `TypedTweenSequenceStepInput` for typed sequence targets.
 - **ECSpresso Type Extraction**: `ComponentsOfWorld<W>`, `EventsOfWorld<W>` — extract type parameters from an ECSpresso instance type. Complements existing `ComponentsOf<B>`, `EventsOf<B>` for Bundle extraction.
+- **Type-Safe Asset Group Names**: `AssetConfigurator.addGroup('level1', {...})` accumulates group names. `Bundle.addAssetGroup('level2', {...})` accumulates on bundle. `withBundle()` and `withAssets()` merge into builder. `ecs.loadAssetGroup(name)`, `ecs.isAssetGroupLoaded(name)`, and `ecs.getResource('$assets').isGroupLoaded(name)` reject unknown names at compile time.
+- **Type-Safe Reactive Query Names**: `Builder.withReactiveQueryNames<'sprites' | 'enemies'>()` and `Bundle.withReactiveQueryNames<'sprites'>()` — pure type-level declaration of reactive query names. `ecs.addReactiveQuery(name, def)` and `ecs.removeReactiveQuery(name)` reject unknown names at compile time.
+- **Asset Group/RQ Name Extraction**: `AssetGroupNamesOf<B>`, `ReactiveQueryNamesOf<B>` — extract asset group names and reactive query names from a Bundle instance.
+- **Asset Group/RQ Backward Compat**: When no asset group names or reactive query names are declared, methods accept `string` (never→string conditional at `build()` time). Existing code requires no changes.
+- **NarrowAssetsResource**: `build()` replaces the `$assets` entry in `ResourceTypes` with finalized `AssetGroupNames`, so `ecs.getResource('$assets').isGroupLoaded(name)` is also typed.
 
 ## Commands
 

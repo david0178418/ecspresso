@@ -320,6 +320,28 @@ describe('Built-in Resource Typing ($assets / $screen)', () => {
 		void _typeCheck;
 	});
 
+	test('$assets resource group methods are typed when groups are declared', () => {
+		const ecs = ECSpresso.create()
+			.withAssets(a => a
+				.addGroup('level1', { bg: () => Promise.resolve('bg') })
+				.addGroup('level2', { music: () => Promise.resolve('music') })
+			)
+			.build();
+
+		function _typeCheck(world: typeof ecs) {
+			const assets = world.getResource('$assets');
+			// Valid group names
+			assets.isGroupLoaded('level1');
+			assets.isGroupLoaded('level2');
+			assets.getGroupProgress('level1');
+			// @ts-expect-error 'typo' is not a valid group
+			assets.isGroupLoaded('typo');
+			// @ts-expect-error 'typo' is not a valid group
+			assets.getGroupProgress('typo');
+		}
+		void _typeCheck;
+	});
+
 	test('$screen resource provides typed screen access', () => {
 		const ecs = ECSpresso.create()
 			.withScreens(s => s

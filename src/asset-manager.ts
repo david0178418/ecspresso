@@ -23,7 +23,7 @@ interface AssetEntry<T> {
 /**
  * Manages asset loading and access for ECSpresso
  */
-export default class AssetManager<AssetTypes extends Record<string, unknown> = Record<string, never>> {
+export default class AssetManager<AssetTypes extends Record<string, unknown> = Record<string, never>, AssetGroupNames extends string = string> {
 	private readonly assets: Map<keyof AssetTypes, AssetEntry<unknown>> = new Map();
 	private readonly groups: Map<string, Set<keyof AssetTypes>> = new Map();
 	private eventBus: EventBus<AssetEvents> | null = null;
@@ -123,7 +123,7 @@ export default class AssetManager<AssetTypes extends Record<string, unknown> = R
 	/**
 	 * Load all assets in a group
 	 */
-	async loadAssetGroup(groupName: string): Promise<void> {
+	async loadAssetGroup(groupName: AssetGroupNames): Promise<void> {
 		const groupKeys = this.groups.get(groupName);
 
 		if (!groupKeys || groupKeys.size === 0) {
@@ -216,7 +216,7 @@ export default class AssetManager<AssetTypes extends Record<string, unknown> = R
 	/**
 	 * Check if all assets in a group are loaded
 	 */
-	isGroupLoaded(groupName: string): boolean {
+	isGroupLoaded(groupName: AssetGroupNames): boolean {
 		const groupKeys = this.groups.get(groupName);
 
 		if (!groupKeys || groupKeys.size === 0) {
@@ -236,7 +236,7 @@ export default class AssetManager<AssetTypes extends Record<string, unknown> = R
 	/**
 	 * Get the loading progress of a group (0-1)
 	 */
-	getGroupProgress(groupName: string): number {
+	getGroupProgress(groupName: AssetGroupNames): number {
 		const groupKeys = this.groups.get(groupName);
 
 		if (!groupKeys || groupKeys.size === 0) {
@@ -257,7 +257,7 @@ export default class AssetManager<AssetTypes extends Record<string, unknown> = R
 	/**
 	 * Get detailed group progress
 	 */
-	getGroupProgressDetails(groupName: string): { loaded: number; total: number; progress: number } {
+	getGroupProgressDetails(groupName: AssetGroupNames): { loaded: number; total: number; progress: number } {
 		const groupKeys = this.groups.get(groupName);
 
 		if (!groupKeys || groupKeys.size === 0) {
@@ -282,7 +282,7 @@ export default class AssetManager<AssetTypes extends Record<string, unknown> = R
 	private checkGroupProgress(groupName: string | undefined): void {
 		if (!groupName || !this.eventBus) return;
 
-		const details = this.getGroupProgressDetails(groupName);
+		const details = this.getGroupProgressDetails(groupName as AssetGroupNames);
 
 		this.eventBus.publish('assetGroupProgress', {
 			group: groupName,
@@ -297,7 +297,7 @@ export default class AssetManager<AssetTypes extends Record<string, unknown> = R
 	/**
 	 * Create the $assets resource object
 	 */
-	createResource(): AssetsResource<AssetTypes> {
+	createResource(): AssetsResource<AssetTypes, AssetGroupNames> {
 		const manager = this;
 		return {
 			getStatus<K extends keyof AssetTypes>(key: K): AssetStatus {
@@ -306,10 +306,10 @@ export default class AssetManager<AssetTypes extends Record<string, unknown> = R
 			isLoaded<K extends keyof AssetTypes>(key: K): boolean {
 				return manager.isLoaded(key);
 			},
-			isGroupLoaded(groupName: string): boolean {
+			isGroupLoaded(groupName: AssetGroupNames): boolean {
 				return manager.isGroupLoaded(groupName);
 			},
-			getGroupProgress(groupName: string): number {
+			getGroupProgress(groupName: AssetGroupNames): number {
 				return manager.getGroupProgress(groupName);
 			},
 			get<K extends keyof AssetTypes>(key: K): AssetTypes[K] {
@@ -350,33 +350,33 @@ export default class AssetManager<AssetTypes extends Record<string, unknown> = R
 /**
  * Implementation of AssetConfigurator for builder pattern
  */
-export class AssetConfiguratorImpl<A extends Record<string, unknown>> implements AssetConfigurator<A> {
-	private readonly manager: AssetManager<A>;
+export class AssetConfiguratorImpl<A extends Record<string, unknown>, G extends string = never> implements AssetConfigurator<A, G> {
+	private readonly manager: AssetManager<A, G>;
 
-	constructor(manager: AssetManager<A>) {
+	constructor(manager: AssetManager<A, G>) {
 		this.manager = manager;
 	}
 
 	add<K extends string, T>(
 		key: K,
 		loader: () => Promise<T>
-	): AssetConfigurator<A & Record<K, T>> {
+	): AssetConfigurator<A & Record<K, T>, G> {
 		this.manager.register(key, { loader, eager: true });
-		return this as unknown as AssetConfigurator<A & Record<K, T>>;
+		return this as unknown as AssetConfigurator<A & Record<K, T>, G>;
 	}
 
 	addWithConfig<K extends string, T>(
 		key: K,
 		definition: AssetDefinition<T>
-	): AssetConfigurator<A & Record<K, T>> {
+	): AssetConfigurator<A & Record<K, T>, G> {
 		this.manager.register(key, definition);
-		return this as unknown as AssetConfigurator<A & Record<K, T>>;
+		return this as unknown as AssetConfigurator<A & Record<K, T>, G>;
 	}
 
-	addGroup<G extends string, T extends Record<string, () => Promise<unknown>>>(
-		groupName: G,
+	addGroup<GN extends string, T extends Record<string, () => Promise<unknown>>>(
+		groupName: GN,
 		assets: T
-	): AssetConfigurator<A & { [K in keyof T]: Awaited<ReturnType<T[K]>> }> {
+	): AssetConfigurator<A & { [K in keyof T]: Awaited<ReturnType<T[K]>> }, G | GN> {
 		for (const [key, loader] of Object.entries(assets)) {
 			this.manager.register(key, {
 				loader: loader as () => Promise<unknown>,
@@ -384,14 +384,14 @@ export class AssetConfiguratorImpl<A extends Record<string, unknown>> implements
 				group: groupName,
 			});
 		}
-		return this as unknown as AssetConfigurator<A & { [K in keyof T]: Awaited<ReturnType<T[K]>> }>;
+		return this as unknown as AssetConfigurator<A & { [K in keyof T]: Awaited<ReturnType<T[K]>> }, G | GN>;
 	}
 
 	/**
 	 * Get the underlying manager
 	 * @internal
 	 */
-	getManager(): AssetManager<A> {
+	getManager(): AssetManager<A, G> {
 		return this.manager;
 	}
 }
@@ -399,8 +399,8 @@ export class AssetConfiguratorImpl<A extends Record<string, unknown>> implements
 /**
  * Create a new AssetConfigurator for builder pattern usage
  */
-export function createAssetConfigurator<A extends Record<string, unknown> = Record<string, never>>(
-	manager?: AssetManager<A>
-): AssetConfiguratorImpl<A> {
-	return new AssetConfiguratorImpl(manager ?? new AssetManager<A>());
+export function createAssetConfigurator<A extends Record<string, unknown> = Record<string, never>, G extends string = never>(
+	manager?: AssetManager<A, G>
+): AssetConfiguratorImpl<A, G> {
+	return new AssetConfiguratorImpl(manager ?? new AssetManager<A, G>());
 }

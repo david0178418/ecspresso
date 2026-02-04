@@ -25,11 +25,13 @@ export default interface ECSpresso<
 	ScreenStates extends Record<string, ScreenDefinition<any, any>> = {},
 	Labels extends string = string,
 	Groups extends string = string,
+	AssetGroupNames extends string = string,
+	ReactiveQueryNames extends string = string,
 > {
 	/**
 		* Default constructor
 	*/
-	new(): ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, Labels, Groups>;
+	new(): ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, Labels, Groups, AssetGroupNames, ReactiveQueryNames>;
 }
 
 const PHASE_ORDER: readonly SystemPhase[] = [
@@ -50,6 +52,8 @@ export default class ECSpresso<
 	ScreenStates extends Record<string, ScreenDefinition<any, any>> = {},
 	Labels extends string = string,
 	Groups extends string = string,
+	AssetGroupNames extends string = string,
+	ReactiveQueryNames extends string = string,
 > {
 	/** Library version*/
 	public static readonly VERSION = version;
@@ -284,8 +288,8 @@ export default class ECSpresso<
 		R extends Record<string, any> = {},
 		A extends Record<string, unknown> = {},
 		S extends Record<string, ScreenDefinition<any, any>> = {},
-	>(): ECSpressoBuilder<C, E, R, A, S, never, never> {
-		return new ECSpressoBuilder<C, E, R, A, S, never, never>();
+	>(): ECSpressoBuilder<C, E, R, A, S, never, never, never, never> {
+		return new ECSpressoBuilder<C, E, R, A, S, never, never, never, never>();
 	}
 
 	/**
@@ -1295,7 +1299,7 @@ export default class ECSpresso<
 		WithoutComponents extends keyof ComponentTypes = never,
 		OptionalComponents extends keyof ComponentTypes = never,
 	>(
-		name: string,
+		name: ReactiveQueryNames,
 		definition: ReactiveQueryDefinition<ComponentTypes, WithComponents, WithoutComponents, OptionalComponents>
 	): void {
 		this._reactiveQueryManager.addQuery(name, definition);
@@ -1306,7 +1310,7 @@ export default class ECSpresso<
 	 * @param name Name of the query to remove
 	 * @returns true if the query existed and was removed, false otherwise
 	 */
-	removeReactiveQuery(name: string): boolean {
+	removeReactiveQuery(name: ReactiveQueryNames): boolean {
 		return this._reactiveQueryManager.removeQuery(name);
 	}
 
@@ -1404,7 +1408,7 @@ export default class ECSpresso<
 	/**
 	 * Load all assets in a group
 	 */
-	async loadAssetGroup(groupName: string): Promise<void> {
+	async loadAssetGroup(groupName: AssetGroupNames): Promise<void> {
 		if (!this._assetManager) {
 			throw new Error('Asset manager not configured. Use withAssets() in builder.');
 		}
@@ -1414,14 +1418,14 @@ export default class ECSpresso<
 	/**
 	 * Check if all assets in a group are loaded
 	 */
-	isAssetGroupLoaded(groupName: string): boolean {
+	isAssetGroupLoaded(groupName: AssetGroupNames): boolean {
 		return this._assetManager?.isGroupLoaded(groupName) ?? false;
 	}
 
 	/**
 	 * Get the loading progress of a group (0-1)
 	 */
-	getAssetGroupProgress(groupName: string): number {
+	getAssetGroupProgress(groupName: AssetGroupNames): number {
 		return this._assetManager?.getGroupProgress(groupName) ?? 0;
 	}
 
@@ -1575,7 +1579,7 @@ export default class ECSpresso<
 		R extends Record<string, any>,
 		A extends Record<string, unknown> = {},
 		S extends Record<string, ScreenDefinition<any, any>> = {},
-	>(bundle: Bundle<C, E, R, A, S, any, any>): this {
+	>(bundle: Bundle<C, E, R, A, S, any, any, any, any>): this {
 		// Prevent duplicate installation of the same bundle
 		if (this._installedBundles.has(bundle.id)) {
 			return this;
@@ -1642,6 +1646,14 @@ export default class ECSpresso<
 	* Builder class for ECSpresso that provides fluent type-safe bundle installation.
 	* Handles type checking during build process to ensure type safety.
 */
+/**
+ * Helper type: replace the $assets entry in R with finalized AssetGroupNames
+ */
+type NarrowAssetsResource<R, AG extends string> =
+	R extends { $assets: AssetsResource<infer A extends Record<string, unknown>, any> }
+		? Omit<R, '$assets'> & { $assets: AssetsResource<A, AG> }
+		: R;
+
 export class ECSpressoBuilder<
 	C extends Record<string, any> = {},
 	E extends Record<string, any> = {},
@@ -1650,6 +1662,8 @@ export class ECSpressoBuilder<
 	S extends Record<string, ScreenDefinition<any, any>> = {},
 	Labels extends string = never,
 	Groups extends string = never,
+	AssetGroupNames extends string = never,
+	ReactiveQueryNames extends string = never,
 > {
 	/** The ECSpresso instance being built*/
 	private ecspresso: ECSpresso<C, E, R, A, S>;
@@ -1680,10 +1694,12 @@ export class ECSpressoBuilder<
 		BR extends Record<string, any>,
 		BL extends string = never,
 		BG extends string = never,
+		BAG extends string = never,
+		BRQ extends string = never,
 	>(
-		this: ECSpressoBuilder<{}, {}, {}, A, S, Labels, Groups>,
-		bundle: Bundle<BC, BE, BR, any, any, BL, BG>
-	): ECSpressoBuilder<BC, BE, BR, A, S, Labels | BL, Groups | BG>;
+		this: ECSpressoBuilder<{}, {}, {}, A, S, Labels, Groups, AssetGroupNames, ReactiveQueryNames>,
+		bundle: Bundle<BC, BE, BR, any, any, BL, BG, BAG, BRQ>
+	): ECSpressoBuilder<BC, BE, BR, A, S, Labels | BL, Groups | BG, AssetGroupNames | BAG, ReactiveQueryNames | BRQ>;
 
 	/**
 		* Add a subsequent bundle with type checking.
@@ -1695,11 +1711,13 @@ export class ECSpressoBuilder<
 		BR extends Record<string, any>,
 		BL extends string = never,
 		BG extends string = never,
+		BAG extends string = never,
+		BRQ extends string = never,
 	>(
 		bundle: BundlesAreCompatible<C, BC, E, BE, R, BR> extends true
-			? Bundle<BC, BE, BR, any, any, BL, BG>
+			? Bundle<BC, BE, BR, any, any, BL, BG, BAG, BRQ>
 			: never
-	): ECSpressoBuilder<C & BC, E & BE, R & BR, A, S, Labels | BL, Groups | BG>;
+	): ECSpressoBuilder<C & BC, E & BE, R & BR, A, S, Labels | BL, Groups | BG, AssetGroupNames | BAG, ReactiveQueryNames | BRQ>;
 
 	/**
 		* Implementation of both overloads.
@@ -1712,15 +1730,17 @@ export class ECSpressoBuilder<
 		BR extends Record<string, any>,
 		BL extends string = never,
 		BG extends string = never,
+		BAG extends string = never,
+		BRQ extends string = never,
 	>(
-		bundle: Bundle<BC, BE, BR, any, any, BL, BG>
-	): ECSpressoBuilder<C & BC, E & BE, R & BR, A, S, Labels | BL, Groups | BG> {
+		bundle: Bundle<BC, BE, BR, any, any, BL, BG, BAG, BRQ>
+	): ECSpressoBuilder<C & BC, E & BE, R & BR, A, S, Labels | BL, Groups | BG, AssetGroupNames | BAG, ReactiveQueryNames | BRQ> {
 		// Install the bundle
 		// Type compatibility is guaranteed by method overloads
 		this.ecspresso._installBundle(bundle);
 
 		// Return a builder with the updated type parameters
-		return this as unknown as ECSpressoBuilder<C & BC, E & BE, R & BR, A, S, Labels | BL, Groups | BG>;
+		return this as unknown as ECSpressoBuilder<C & BC, E & BE, R & BR, A, S, Labels | BL, Groups | BG, AssetGroupNames | BAG, ReactiveQueryNames | BRQ>;
 	}
 
 	/**
@@ -1729,10 +1749,10 @@ export class ECSpressoBuilder<
 	 * Conflicts with existing component types (same key, different type) produce a `never` return.
 	 */
 	withComponentTypes<T extends Record<string, any>>(): TypesAreCompatible<C, T> extends true
-		? ECSpressoBuilder<C & T, E, R, A, S, Labels, Groups>
+		? ECSpressoBuilder<C & T, E, R, A, S, Labels, Groups, AssetGroupNames, ReactiveQueryNames>
 		: never;
-	withComponentTypes<T extends Record<string, any>>(): ECSpressoBuilder<C & T, E, R, A, S, Labels, Groups> {
-		return this as unknown as ECSpressoBuilder<C & T, E, R, A, S, Labels, Groups>;
+	withComponentTypes<T extends Record<string, any>>(): ECSpressoBuilder<C & T, E, R, A, S, Labels, Groups, AssetGroupNames, ReactiveQueryNames> {
+		return this as unknown as ECSpressoBuilder<C & T, E, R, A, S, Labels, Groups, AssetGroupNames, ReactiveQueryNames>;
 	}
 
 	/**
@@ -1741,10 +1761,10 @@ export class ECSpressoBuilder<
 	 * Conflicts with existing event types (same key, different type) produce a `never` return.
 	 */
 	withEventTypes<T extends Record<string, any>>(): TypesAreCompatible<E, T> extends true
-		? ECSpressoBuilder<C, E & T, R, A, S, Labels, Groups>
+		? ECSpressoBuilder<C, E & T, R, A, S, Labels, Groups, AssetGroupNames, ReactiveQueryNames>
 		: never;
-	withEventTypes<T extends Record<string, any>>(): ECSpressoBuilder<C, E & T, R, A, S, Labels, Groups> {
-		return this as unknown as ECSpressoBuilder<C, E & T, R, A, S, Labels, Groups>;
+	withEventTypes<T extends Record<string, any>>(): ECSpressoBuilder<C, E & T, R, A, S, Labels, Groups, AssetGroupNames, ReactiveQueryNames> {
+		return this as unknown as ECSpressoBuilder<C, E & T, R, A, S, Labels, Groups, AssetGroupNames, ReactiveQueryNames>;
 	}
 
 	/**
@@ -1769,9 +1789,9 @@ export class ECSpressoBuilder<
 	withResource<K extends string, V>(
 		key: K,
 		resource: V | ((context: ECSpresso<C, E, R & Record<K, V>, A, S>) => V | Promise<V>) | ResourceFactoryWithDeps<V, ECSpresso<C, E, R & Record<K, V>, A, S>, keyof (R & Record<K, V>) & string>
-	): ECSpressoBuilder<C, E, R & Record<K, V>, A, S, Labels, Groups> {
+	): ECSpressoBuilder<C, E, R & Record<K, V>, A, S, Labels, Groups, AssetGroupNames, ReactiveQueryNames> {
 		this.pendingResources.push({ key, value: resource });
-		return this as unknown as ECSpressoBuilder<C, E, R & Record<K, V>, A, S, Labels, Groups>;
+		return this as unknown as ECSpressoBuilder<C, E, R & Record<K, V>, A, S, Labels, Groups, AssetGroupNames, ReactiveQueryNames>;
 	}
 
 	/**
@@ -1832,13 +1852,13 @@ export class ECSpressoBuilder<
 	 *   .build();
 	 * ```
 	 */
-	withAssets<NewA extends Record<string, unknown>>(
-		configurator: (assets: AssetConfigurator<{}>) => AssetConfigurator<NewA>
-	): ECSpressoBuilder<C, E, R & { $assets: AssetsResource<A & NewA> }, A & NewA, S, Labels, Groups> {
-		const assetConfig = createAssetConfigurator<{}>();
+	withAssets<NewA extends Record<string, unknown>, NewG extends string = never>(
+		configurator: (assets: AssetConfigurator<{}, never>) => AssetConfigurator<NewA, NewG>
+	): ECSpressoBuilder<C, E, R & { $assets: AssetsResource<A & NewA, string> }, A & NewA, S, Labels, Groups, AssetGroupNames | NewG, ReactiveQueryNames> {
+		const assetConfig = createAssetConfigurator<{}, never>();
 		configurator(assetConfig);
 		this.assetConfigurator = assetConfig as unknown as AssetConfiguratorImpl<A>;
-		return this as unknown as ECSpressoBuilder<C, E, R & { $assets: AssetsResource<A & NewA> }, A & NewA, S, Labels, Groups>;
+		return this as unknown as ECSpressoBuilder<C, E, R & { $assets: AssetsResource<A & NewA, string> }, A & NewA, S, Labels, Groups, AssetGroupNames | NewG, ReactiveQueryNames>;
 	}
 
 	/**
@@ -1863,11 +1883,11 @@ export class ECSpressoBuilder<
 	 */
 	withScreens<NewS extends Record<string, ScreenDefinition<any, any>>>(
 		configurator: (screens: ScreenConfigurator<{}, ECSpresso<C, E, R, A, Record<string, ScreenDefinition>>>) => ScreenConfigurator<NewS, ECSpresso<C, E, R, A, Record<string, ScreenDefinition>>>
-	): ECSpressoBuilder<C, E, R & { $screen: ScreenResource<S & NewS> }, A, S & NewS, Labels, Groups> {
+	): ECSpressoBuilder<C, E, R & { $screen: ScreenResource<S & NewS> }, A, S & NewS, Labels, Groups, AssetGroupNames, ReactiveQueryNames> {
 		const screenConfig = createScreenConfigurator<{}, ECSpresso<C, E, R, A, Record<string, ScreenDefinition>>>();
 		configurator(screenConfig);
 		this.screenConfigurator = screenConfig as unknown as ScreenConfiguratorImpl<S>;
-		return this as unknown as ECSpressoBuilder<C, E, R & { $screen: ScreenResource<S & NewS> }, A, S & NewS, Labels, Groups>;
+		return this as unknown as ECSpressoBuilder<C, E, R & { $screen: ScreenResource<S & NewS> }, A, S & NewS, Labels, Groups, AssetGroupNames, ReactiveQueryNames>;
 	}
 
 	/**
@@ -1881,9 +1901,25 @@ export class ECSpressoBuilder<
 	}
 
 	/**
+	 * Declare reactive query names that will be registered at runtime.
+	 * This is a pure type-level operation with no runtime cost.
+	 */
+	withReactiveQueryNames<N extends string>(): ECSpressoBuilder<C, E, R, A, S, Labels, Groups, AssetGroupNames, ReactiveQueryNames | N> {
+		return this as unknown as ECSpressoBuilder<C, E, R, A, S, Labels, Groups, AssetGroupNames, ReactiveQueryNames | N>;
+	}
+
+	/**
 		* Complete the build process and return the built ECSpresso instance
 	*/
-	build(): ECSpresso<C, E, R, A, S, [Labels] extends [never] ? string : Labels, [Groups] extends [never] ? string : Groups> {
+	build(): ECSpresso<
+		C, E,
+		NarrowAssetsResource<R, [AssetGroupNames] extends [never] ? string : AssetGroupNames>,
+		A, S,
+		[Labels] extends [never] ? string : Labels,
+		[Groups] extends [never] ? string : Groups,
+		[AssetGroupNames] extends [never] ? string : AssetGroupNames,
+		[ReactiveQueryNames] extends [never] ? string : ReactiveQueryNames
+	> {
 		// Apply pending resources
 		for (const { key, value } of this.pendingResources) {
 			this.ecspresso.addResource(key as keyof R, value as any);
@@ -1918,6 +1954,14 @@ export class ECSpressoBuilder<
 			this.ecspresso._setFixedDt(this._fixedDt);
 		}
 
-		return this.ecspresso as ECSpresso<C, E, R, A, S, [Labels] extends [never] ? string : Labels, [Groups] extends [never] ? string : Groups>;
+		return this.ecspresso as unknown as ECSpresso<
+			C, E,
+			NarrowAssetsResource<R, [AssetGroupNames] extends [never] ? string : AssetGroupNames>,
+			A, S,
+			[Labels] extends [never] ? string : Labels,
+			[Groups] extends [never] ? string : Groups,
+			[AssetGroupNames] extends [never] ? string : AssetGroupNames,
+			[ReactiveQueryNames] extends [never] ? string : ReactiveQueryNames
+		>;
 	}
 }

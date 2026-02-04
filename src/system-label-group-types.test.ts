@@ -1,7 +1,7 @@
 import { test, expect } from 'bun:test';
 import ECSpresso from './ecspresso';
 import Bundle, { mergeBundles } from './bundle';
-import type { LabelsOf, GroupsOf, ComponentsOf, EventsOf, ResourcesOf } from './type-utils';
+import type { LabelsOf, GroupsOf, ComponentsOf, EventsOf, ResourcesOf, AssetGroupNamesOf, ReactiveQueryNamesOf } from './type-utils';
 import { createTransformBundle } from './bundles/utils/transform';
 
 // ==================== Type-level assertion helpers ====================
@@ -228,6 +228,8 @@ test('type-level: LabelsOf and GroupsOf extraction', () => {
 	assertType<IsEqual<ComponentsOf<typeof bundle>, { x: number }>>();
 	assertType<IsEqual<EventsOf<typeof bundle>, { click: true }>>();
 	assertType<IsEqual<ResourcesOf<typeof bundle>, { db: object }>>();
+	assertType<IsEqual<AssetGroupNamesOf<typeof bundle>, never>>();
+	assertType<IsEqual<ReactiveQueryNamesOf<typeof bundle>, never>>();
 
 	expect(bundle).toBeDefined();
 });
