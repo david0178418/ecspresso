@@ -108,3 +108,10 @@ export type ComponentsOfWorld<W> = W extends import('./ecspresso').default<
 export type EventsOfWorld<W> = W extends import('./ecspresso').default<
 	any, infer E extends Record<string, any>, any, any, any, any, any, any, any
 > ? E : never;
+
+/**
+ * Extract AssetTypes from an ECSpresso world instance type.
+ */
+export type AssetsOfWorld<W> = W extends import('./ecspresso').default<
+	any, any, any, infer A extends Record<string, unknown>, any, any, any, any, any
+> ? A : never;

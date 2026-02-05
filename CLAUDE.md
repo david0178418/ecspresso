@@ -33,7 +33,8 @@ src/
     │   ├── narrowphase.ts # Shared contact-computing narrowphase and collision iteration pipeline
     │   ├── collision.ts  # Layer-based collision detection + pair handler routing (uses shared narrowphase)
     │   ├── state-machine.ts # Per-entity finite state machines with guards and lifecycle hooks
-    │   └── tween.ts      # Declarative property animation with easing, sequences, and loops
+    │   ├── tween.ts      # Declarative property animation with easing, sequences, and loops
+    │   └── audio.ts      # Howler.js audio integration with channels, SFX, and music
     └── renderers/
         └── renderer2D.ts  # PixiJS scene graph wiring
 ```
@@ -152,12 +153,24 @@ src/
 - **Tween Kit API**: `const { bundle, createTween, createTweenSequence } = createTweenKit<ECS>()` — standalone `createTween`/`createTweenSequence` remain available for untyped usage
 - **NumericPaths<T>**: Recursive type utility producing union of dot-separated paths resolving to `number`. Depth-limited to 4 levels. Handles optional fields via `NonNullable`.
 - **TypedTweenTargetInput<C>**: Discriminated union over component names — each variant constrains `field` to `NumericPaths` of that component. Used in `TypedTweenSequenceStepInput` for typed sequence targets.
-- **ECSpresso Type Extraction**: `ComponentsOfWorld<W>`, `EventsOfWorld<W>` — extract type parameters from an ECSpresso instance type. Complements existing `ComponentsOf<B>`, `EventsOf<B>` for Bundle extraction.
+- **ECSpresso Type Extraction**: `ComponentsOfWorld<W>`, `EventsOfWorld<W>`, `AssetsOfWorld<W>` — extract type parameters from an ECSpresso instance type. Complements existing `ComponentsOf<B>`, `EventsOf<B>` for Bundle extraction.
 - **Type-Safe Asset Group Names**: `AssetConfigurator.addGroup('level1', {...})` accumulates group names. `Bundle.addAssetGroup('level2', {...})` accumulates on bundle. `withBundle()` and `withAssets()` merge into builder. `ecs.loadAssetGroup(name)`, `ecs.isAssetGroupLoaded(name)`, and `ecs.getResource('$assets').isGroupLoaded(name)` reject unknown names at compile time.
 - **Type-Safe Reactive Query Names**: `Builder.withReactiveQueryNames<'sprites' | 'enemies'>()` and `Bundle.withReactiveQueryNames<'sprites'>()` — pure type-level declaration of reactive query names. `ecs.addReactiveQuery(name, def)` and `ecs.removeReactiveQuery(name)` reject unknown names at compile time.
 - **Asset Group/RQ Name Extraction**: `AssetGroupNamesOf<B>`, `ReactiveQueryNamesOf<B>` — extract asset group names and reactive query names from a Bundle instance.
 - **Asset Group/RQ Backward Compat**: When no asset group names or reactive query names are declared, methods accept `string` (never→string conditional at `build()` time). Existing code requires no changes.
 - **NarrowAssetsResource**: `build()` replaces the `$assets` entry in `ResourceTypes` with finalized `AssetGroupNames`, so `ecs.getResource('$assets').isGroupLoaded(name)` is also typed.
+- **Audio Bundle**: `createAudioBundle({ channels })` — Howler.js audio integration. User-defined channels with type-safe volume control, hybrid resource + component API, asset manager integration. Peer dep on `howler` (optional, like `pixi.js`).
+- **Audio Channels**: `defineAudioChannels({ sfx: { volume: 1 }, music: { volume: 0.7 } })` — returns frozen config with inferred channel name union `Ch`. `ChannelsOf<typeof channels>` extracts the union.
+- **Audio Type Parameters**: `AudioSource<Ch>`, `AudioState<Ch>`, `AudioComponentTypes<Ch>`, `AudioEventTypes<Ch>`, `AudioResourceTypes<Ch>` — parameterized with channel name union `Ch extends string` (defaults to `string` for backward compatibility).
+- **Audio Resource**: `audioState` resource for fire-and-forget SFX (`play(sound, opts)`), music control (`playMusic`/`stopMusic`/`pauseMusic`/`resumeMusic`), volume hierarchy (`setChannelVolume`/`setMasterVolume`/`mute`/`unmute`/`toggleMute`). Effective volume = individual * channel * master.
+- **Audio Component**: `audioSource` component for entity-attached sounds. Sound starts on spawn (via reactive query), stops on entity removal (dispose callback). `autoRemove: true` removes entity when sound ends.
+- **Audio Events**: `playSound` event triggers fire-and-forget playback. `stopMusic` event triggers music stop. `soundEnded` event published on completion (entity-attached or fire-and-forget).
+- **Audio Helpers**: `createAudioSource(sound, channel, options?)` — component factory. `loadSound(src, options?)` — returns `() => Promise<Howl>` loader for asset manager.
+- **Audio Asset Integration**: Sounds must be preloaded via asset pipeline. `audioState.play()` resolves Howl from `$assets` resource. Use `loadSound('/path.mp3')` with `.withAssets(a => a.add('key', loadSound(...)))`.
+- **Audio Kit**: `createAudioKit<W, Ch>({ channels })` — factory capturing world type `W` and channel type `Ch`. Returned `createAudioSource` validates sound keys against `AssetsOfWorld<W>` at compile time.
+- **Audio Kit API**: `const { bundle, createAudioSource, loadSound } = createAudioKit<ECS, Ch>({ channels })` — standalone `createAudioSource`/`loadSound` remain available for untyped usage.
+- **Audio Bundle Options**: `createAudioBundle({ channels, phase?, priority?, systemGroup? })` — defaults to `update` phase, priority 0, group `'audio'`.
+- **Audio Music Exclusivity**: `playMusic()` on a channel with existing music stops the current track first.
 
 ## Commands
 

@@ -1,4 +1,5 @@
 import { serve } from "bun";
+import { join } from "path";
 import home from './index.html';
 import basiceMovement from './01-movement/movement.html';
 import playerInput from './02-player-input/player-input.html';
@@ -12,6 +13,9 @@ import stateMachine from './12-state-machine/state-machine.html';
 import tweens from './13-tweens/tweens.html';
 import screens from './14-screens/screens.html';
 import diagnostics from './15-diagnostics/diagnostics.html';
+import audio from './16-audio/audio.html';
+
+const examplesDir = import.meta.dir;
 
 const server = serve({
 	port: 3000,
@@ -32,6 +36,19 @@ const server = serve({
 		'/tweens/': tweens,
 		'/screens/': screens,
 		'/diagnostics/': diagnostics,
+		'/audio/': audio,
+	},
+	async fetch(request) {
+		// Serve static assets (e.g. .wav, .mp3) from example directories
+		const url = new URL(request.url);
+		const filePath = join(examplesDir, url.pathname);
+		const file = Bun.file(filePath);
+
+		if (await file.exists()) {
+			return new Response(file);
+		}
+
+		return new Response('Not Found', { status: 404 });
 	},
 });
 

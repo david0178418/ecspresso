@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Audio Bundle</title>
+	<link rel="stylesheet" href="../styles.css">
+	<script src="./audio.ts" type="module" defer></script>
+	<style>
+		body {
+			overflow: auto;
+			background: #1a1a2e;
+			color: #e0e0e0;
+			font-family: 'Segoe UI', system-ui, sans-serif;
+			padding: 60px 20px 20px;
+		}
+
+		h1 {
+			font-size: 24px;
+			margin: 0 0 8px;
+			color: #fff;
+		}
+
+		.subtitle {
+			color: #888;
+			font-size: 13px;
+			margin: 0 0 24px;
+		}
+
+		.sections {
+			display: flex;
+			gap: 24px;
+			flex-wrap: wrap;
+			max-width: 900px;
+		}
+
+		.section {
+			background: #2a2a3e;
+			border-radius: 8px;
+			padding: 16px 20px;
+			min-width: 260px;
+			flex: 1;
+		}
+
+		.section h2 {
+			font-size: 15px;
+			margin: 0 0 12px;
+			color: #aaa;
+			text-transform: uppercase;
+			letter-spacing: 1px;
+		}
+
+		button {
+			display: block;
+			width: 100%;
+			padding: 10px 16px;
+			margin: 6px 0;
+			background: #3a3a5e;
+			border: 1px solid #555;
+			border-radius: 6px;
+			color: #ddd;
+			font-size: 14px;
+			cursor: pointer;
+			transition: background 0.15s;
+			text-align: left;
+		}
+
+		button:hover { background: #4a4a6e; }
+		button:active { background: #5a5a7e; }
+		button.active { background: #2d5a2d; border-color: #4a8a4a; }
+
+		.slider-row {
+			display: flex;
+			align-items: center;
+			gap: 10px;
+			margin: 8px 0;
+		}
+
+		.slider-row label {
+			min-width: 70px;
+			font-size: 13px;
+			color: #aaa;
+		}
+
+		.slider-row input[type="range"] {
+			flex: 1;
+			accent-color: #6a6aaa;
+		}
+
+		.slider-row .value {
+			min-width: 36px;
+			text-align: right;
+			font-size: 13px;
+			font-family: monospace;
+			color: #ccc;
+		}
+
+		#log {
+			margin-top: 24px;
+			max-width: 900px;
+			background: #111;
+			border-radius: 6px;
+			padding: 12px;
+			font-family: monospace;
+			font-size: 12px;
+			max-height: 180px;
+			overflow-y: auto;
+			color: #888;
+		}
+
+		#log .entry { margin: 2px 0; }
+		#log .entry.sfx { color: #4fc3f7; }
+		#log .entry.music { color: #81c784; }
+		#log .entry.event { color: #ffb74d; }
+		#log .entry.volume { color: #ba68c8; }
+	</style>
+</head>
+<body>
+	<a class="back" href="/">Back</a>
+	<h1>Audio Bundle</h1>
+	<p class="subtitle">Howler.js integration with typed channels, volume hierarchy, and entity-attached sounds</p>
+
+	<div class="sections">
+		<div class="section">
+			<h2>Sound Effects (sfx channel)</h2>
+			<button id="btn-click">Play Click</button>
+			<button id="btn-coin">Play Coin</button>
+			<button id="btn-explosion">Play Explosion</button>
+			<button id="btn-entity-sound">Spawn Entity Sound (autoRemove)</button>
+		</div>
+
+		<div class="section">
+			<h2>Music (music channel)</h2>
+			<button id="btn-play-music">Play Music</button>
+			<button id="btn-pause-music">Pause Music</button>
+			<button id="btn-resume-music">Resume Music</button>
+			<button id="btn-stop-music">Stop Music</button>
+		</div>
+
+		<div class="section">
+			<h2>Volume Controls</h2>
+			<div class="slider-row">
+				<label>Master</label>
+				<input type="range" id="vol-master" min="0" max="100" value="100">
+				<span class="value" id="val-master">100</span>
+			</div>
+			<div class="slider-row">
+				<label>SFX</label>
+				<input type="range" id="vol-sfx" min="0" max="100" value="100">
+				<span class="value" id="val-sfx">100</span>
+			</div>
+			<div class="slider-row">
+				<label>Music</label>
+				<input type="range" id="vol-music" min="0" max="100" value="70">
+				<span class="value" id="val-music">70</span>
+			</div>
+			<button id="btn-mute">Mute All</button>
+		</div>
+	</div>
+
+	<div id="log"></div>
+</body>
+</html>
