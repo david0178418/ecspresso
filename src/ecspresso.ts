@@ -120,56 +120,21 @@ export default class ECSpresso<
 		this._reactiveQueryManager = new ReactiveQueryManager<ComponentTypes>(this._entityManager);
 		this._commandBuffer = new CommandBuffer<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>();
 
-		// Wire up component lifecycle hooks for reactive queries
-		this._setupReactiveQueryHooks();
+		// Wire up lifecycle hooks for change detection, required components, and reactive queries
+		this._subscribeLifecycleHooks();
 	}
 
 	/**
-	 * Sets up component lifecycle hooks for reactive query tracking
+	 * Subscribes to EntityManager lifecycle hooks for change detection,
+	 * required component auto-addition, and reactive query tracking.
 	 * @private
 	 */
-	private _setupReactiveQueryHooks(): void {
-		// Batching mechanism: during addComponents, we defer reactive query checks
-		// until all components are added to avoid intermediate state triggers
-		let batchingDepth = 0;
-		const pendingChecks = new Set<number>();
-
-		const flushPendingChecks = () => {
-			for (const entityId of pendingChecks) {
-				const entity = this._entityManager.getEntity(entityId);
-				if (entity) {
-					// Do a full recheck of the entity against all queries
-					this._reactiveQueryManager.recheckEntity(entity);
-				}
-			}
-			pendingChecks.clear();
-		};
-
-		// Track added components for reactive queries + auto-add required components
-		const originalAddComponent = this._entityManager.addComponent.bind(this._entityManager);
-		this._entityManager.addComponent = <K extends keyof ComponentTypes>(
-			entityOrId: number | Entity<ComponentTypes>,
-			componentName: K,
-			data: ComponentTypes[K]
-		) => {
-			const result = originalAddComponent(entityOrId, componentName, data);
-			const entityId = typeof entityOrId === 'number' ? entityOrId : entityOrId.id;
-
-			// Auto-mark component as changed (always, regardless of batching)
+	private _subscribeLifecycleHooks(): void {
+		// afterComponentAdded → mark changed + auto-add required components
+		this._entityManager.onAfterComponentAdded((entityId, componentName) => {
 			this._entityManager.markChanged(entityId, componentName);
 
-			if (batchingDepth > 0) {
-				// During batching, just track that this entity needs checking
-				pendingChecks.add(entityId);
-			} else {
-				// Not batching, check immediately
-				const entity = this._entityManager.getEntity(entityId);
-				if (entity) {
-					this._reactiveQueryManager.onComponentAdded(entity, componentName);
-				}
-			}
-
-			// Auto-add required components (recursive through wrapper for transitivity)
+			// Auto-add required components (recursive via addComponent → this hook)
 			const reqs = this._requiredComponents.get(componentName);
 			if (reqs) {
 				const entity = this._entityManager.getEntity(entityId);
@@ -181,83 +146,38 @@ export default class ECSpresso<
 					}
 				}
 			}
+		});
 
-			return result;
-		};
-
-		// Wrap addComponents to enable batching
-		const originalAddComponents = this._entityManager.addComponents.bind(this._entityManager);
-		this._entityManager.addComponents = <T extends { [K in keyof ComponentTypes]?: ComponentTypes[K] }>(
-			entityOrId: number | Entity<ComponentTypes>,
-			components: T & Record<Exclude<keyof T, keyof ComponentTypes>, never>
-		) => {
-			batchingDepth++;
-			const result = originalAddComponents(entityOrId, components);
-			batchingDepth--;
-			if (batchingDepth === 0) {
-				flushPendingChecks();
-			}
-			return result;
-		};
-
-		// Track removed components for reactive queries
-		const originalRemoveComponent = this._entityManager.removeComponent.bind(this._entityManager);
-		this._entityManager.removeComponent = <K extends keyof ComponentTypes>(
-			entityOrId: number | Entity<ComponentTypes>,
-			componentName: K
-		) => {
-			const entityId = typeof entityOrId === 'number' ? entityOrId : entityOrId.id;
+		// afterEntityMutated → recheck reactive queries (entity itself + children for parentHas)
+		this._entityManager.onAfterEntityMutated((entityId) => {
 			const entity = this._entityManager.getEntity(entityId);
-			const result = originalRemoveComponent(entityOrId, componentName);
+			if (entity) {
+				this._reactiveQueryManager.recheckEntityAndChildren(entity);
+			}
+		});
+
+		// afterComponentRemoved → notify reactive query manager
+		this._entityManager.onAfterComponentRemoved((entityId, componentName) => {
+			const entity = this._entityManager.getEntity(entityId);
 			if (entity) {
 				this._reactiveQueryManager.onComponentRemoved(entity, componentName);
 			}
-			return result;
-		};
+		});
 
-		// Track hierarchy changes for parentHas reactive queries
-		const originalSetParent = this._entityManager.setParent.bind(this._entityManager);
-		this._entityManager.setParent = (childId: number, parentId: number) => {
-			const result = originalSetParent(childId, parentId);
+		// beforeEntityRemoved → notify reactive query manager
+		this._entityManager.onBeforeEntityRemoved((entityId) => {
+			this._reactiveQueryManager.onEntityRemoved(entityId);
+		});
+
+		// afterParentChanged → recheck child entity for parentHas queries
+		this._entityManager.onAfterParentChanged((childId) => {
 			if (this._reactiveQueryManager.hasParentHasQueries) {
 				const childEntity = this._entityManager.getEntity(childId);
 				if (childEntity) {
 					this._reactiveQueryManager.recheckEntity(childEntity);
 				}
 			}
-			return result;
-		};
-
-		const originalRemoveParent = this._entityManager.removeParent.bind(this._entityManager);
-		this._entityManager.removeParent = (childId: number) => {
-			const result = originalRemoveParent(childId);
-			if (this._reactiveQueryManager.hasParentHasQueries) {
-				const childEntity = this._entityManager.getEntity(childId);
-				if (childEntity) {
-					this._reactiveQueryManager.recheckEntity(childEntity);
-				}
-			}
-			return result;
-		};
-
-		// Track entity removal for reactive queries
-		const originalRemoveEntity = this._entityManager.removeEntity.bind(this._entityManager);
-		this._entityManager.removeEntity = (entityOrId, options?) => {
-			const entityId = typeof entityOrId === 'number' ? entityOrId : entityOrId.id;
-			// Notify reactive query manager about all entities being removed (including descendants)
-			const entity = this._entityManager.getEntity(entityId);
-			if (entity) {
-				const cascade = options?.cascade ?? true;
-				if (cascade) {
-					const descendants = this._entityManager.getDescendants(entityId);
-					for (const descId of descendants) {
-						this._reactiveQueryManager.onEntityRemoved(descId);
-					}
-				}
-				this._reactiveQueryManager.onEntityRemoved(entityId);
-			}
-			return originalRemoveEntity(entityOrId, options);
-		};
+		});
 	}
 
 	/**

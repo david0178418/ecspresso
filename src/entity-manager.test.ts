@@ -310,4 +310,248 @@ describe('Entity Manager', () => {
 			expect(manager.getChildIndex(root.id, child2.id)).toBe(1);
 		});
 	});
+
+	describe('lifecycle hooks', () => {
+		test('afterComponentAdded fires with correct entityId and componentName', () => {
+			const manager = new EntityManager<TestComponents>();
+			const entity = manager.createEntity();
+			const calls: Array<{ entityId: number; componentName: keyof TestComponents }> = [];
+
+			manager.onAfterComponentAdded((entityId, componentName) => {
+				calls.push({ entityId, componentName });
+			});
+
+			manager.addComponent(entity.id, 'position', { x: 1, y: 2 });
+
+			expect(calls).toEqual([{ entityId: entity.id, componentName: 'position' }]);
+		});
+
+		test('afterEntityMutated fires once after single addComponent', () => {
+			const manager = new EntityManager<TestComponents>();
+			const entity = manager.createEntity();
+			const mutatedIds: number[] = [];
+
+			manager.onAfterEntityMutated((entityId) => {
+				mutatedIds.push(entityId);
+			});
+
+			manager.addComponent(entity.id, 'position', { x: 0, y: 0 });
+
+			expect(mutatedIds).toEqual([entity.id]);
+		});
+
+		test('afterEntityMutated fires once (not N times) after addComponents with N components', () => {
+			const manager = new EntityManager<TestComponents>();
+			const entity = manager.createEntity();
+			const mutatedIds: number[] = [];
+
+			manager.onAfterEntityMutated((entityId) => {
+				mutatedIds.push(entityId);
+			});
+
+			manager.addComponents(entity, {
+				position: { x: 0, y: 0 },
+				velocity: { x: 1, y: 1 },
+				health: { value: 100 },
+			});
+
+			expect(mutatedIds).toEqual([entity.id]);
+		});
+
+		test('afterComponentAdded fires N times during addComponents (before batch flush)', () => {
+			const manager = new EntityManager<TestComponents>();
+			const entity = manager.createEntity();
+			const addedComponents: Array<keyof TestComponents> = [];
+
+			manager.onAfterComponentAdded((_entityId, componentName) => {
+				addedComponents.push(componentName);
+			});
+
+			manager.addComponents(entity, {
+				position: { x: 0, y: 0 },
+				velocity: { x: 1, y: 1 },
+				health: { value: 100 },
+			});
+
+			expect(addedComponents).toEqual(['position', 'velocity', 'health']);
+		});
+
+		test('afterComponentRemoved fires with correct entityId and componentName', () => {
+			const manager = new EntityManager<TestComponents>();
+			const entity = manager.createEntity();
+			manager.addComponent(entity.id, 'position', { x: 0, y: 0 });
+
+			const calls: Array<{ entityId: number; componentName: keyof TestComponents }> = [];
+
+			manager.onAfterComponentRemoved((entityId, componentName) => {
+				calls.push({ entityId, componentName });
+			});
+
+			manager.removeComponent(entity.id, 'position');
+
+			expect(calls).toEqual([{ entityId: entity.id, componentName: 'position' }]);
+		});
+
+		test('beforeEntityRemoved fires before entity is deleted (entity still accessible)', () => {
+			const manager = new EntityManager<TestComponents>();
+			const entity = manager.createEntity();
+			manager.addComponent(entity.id, 'health', { value: 50 });
+
+			let entityWasAccessible = false;
+
+			manager.onBeforeEntityRemoved((entityId) => {
+				const e = manager.getEntity(entityId);
+				entityWasAccessible = e !== undefined && 'health' in e.components;
+			});
+
+			manager.removeEntity(entity.id);
+
+			expect(entityWasAccessible).toBe(true);
+			expect(manager.getEntity(entity.id)).toBeUndefined();
+		});
+
+		test('beforeEntityRemoved fires for descendants in cascade removal', () => {
+			const manager = new EntityManager<TestComponents>();
+			const parent = manager.createEntity();
+			const child = manager.createEntity();
+			const grandchild = manager.createEntity();
+
+			manager.setParent(child.id, parent.id);
+			manager.setParent(grandchild.id, child.id);
+
+			const removedIds: number[] = [];
+
+			manager.onBeforeEntityRemoved((entityId) => {
+				removedIds.push(entityId);
+			});
+
+			manager.removeEntity(parent.id);
+
+			// Descendants should fire first (reverse order), then the entity itself
+			expect(removedIds).toContain(parent.id);
+			expect(removedIds).toContain(child.id);
+			expect(removedIds).toContain(grandchild.id);
+			// Descendants before the entity
+			expect(removedIds.indexOf(grandchild.id)).toBeLessThan(removedIds.indexOf(parent.id));
+		});
+
+		test('afterParentChanged fires after setParent', () => {
+			const manager = new EntityManager<TestComponents>();
+			const parent = manager.createEntity();
+			const child = manager.createEntity();
+			const calls: number[] = [];
+
+			manager.onAfterParentChanged((childId) => {
+				calls.push(childId);
+			});
+
+			manager.setParent(child.id, parent.id);
+
+			expect(calls).toEqual([child.id]);
+		});
+
+		test('afterParentChanged fires after removeParent', () => {
+			const manager = new EntityManager<TestComponents>();
+			const parent = manager.createEntity();
+			const child = manager.createEntity();
+			manager.setParent(child.id, parent.id);
+
+			const calls: number[] = [];
+
+			manager.onAfterParentChanged((childId) => {
+				calls.push(childId);
+			});
+
+			manager.removeParent(child.id);
+
+			expect(calls).toEqual([child.id]);
+		});
+
+		test('afterParentChanged does NOT fire when removeParent returns false (no parent)', () => {
+			const manager = new EntityManager<TestComponents>();
+			const entity = manager.createEntity();
+			const calls: number[] = [];
+
+			manager.onAfterParentChanged((childId) => {
+				calls.push(childId);
+			});
+
+			const result = manager.removeParent(entity.id);
+
+			expect(result).toBe(false);
+			expect(calls).toEqual([]);
+		});
+
+		test('unsubscribe works for each hook type', () => {
+			const manager = new EntityManager<TestComponents>();
+			const entity = manager.createEntity();
+			const parent = manager.createEntity();
+			const calls: string[] = [];
+
+			const unsub1 = manager.onAfterComponentAdded(() => { calls.push('added'); });
+			const unsub2 = manager.onAfterEntityMutated(() => { calls.push('mutated'); });
+			const unsub3 = manager.onAfterComponentRemoved(() => { calls.push('removed'); });
+			const unsub4 = manager.onBeforeEntityRemoved(() => { calls.push('entityRemoved'); });
+			const unsub5 = manager.onAfterParentChanged(() => { calls.push('parentChanged'); });
+
+			// Unsubscribe all
+			unsub1();
+			unsub2();
+			unsub3();
+			unsub4();
+			unsub5();
+
+			manager.addComponent(entity.id, 'position', { x: 0, y: 0 });
+			manager.removeComponent(entity.id, 'position');
+			manager.setParent(entity.id, parent.id);
+			manager.removeParent(entity.id);
+			manager.removeEntity(parent.id);
+
+			expect(calls).toEqual([]);
+		});
+
+		test('recursive addComponent during batch (from afterComponentAdded hook) defers afterEntityMutated', () => {
+			const manager = new EntityManager<TestComponents>();
+			const entity = manager.createEntity();
+			const mutatedIds: number[] = [];
+			const addedComponents: Array<keyof TestComponents> = [];
+
+			// Hook that recursively adds a component when 'position' is added
+			manager.onAfterComponentAdded((entityId, componentName) => {
+				addedComponents.push(componentName);
+				if (componentName === 'position') {
+					const e = manager.getEntity(entityId);
+					if (e && !('velocity' in e.components)) {
+						manager.addComponent(entityId, 'velocity', { x: 0, y: 0 });
+					}
+				}
+			});
+
+			manager.onAfterEntityMutated((entityId) => {
+				mutatedIds.push(entityId);
+			});
+
+			// Single addComponent should trigger recursive add, but afterEntityMutated only once at the end
+			manager.addComponent(entity.id, 'position', { x: 1, y: 1 });
+
+			expect(addedComponents).toEqual(['position', 'velocity']);
+			// afterEntityMutated should fire once after the recursion completes
+			expect(mutatedIds).toEqual([entity.id]);
+		});
+
+		test('afterComponentRemoved does NOT fire when removing a component that does not exist', () => {
+			const manager = new EntityManager<TestComponents>();
+			const entity = manager.createEntity();
+			const calls: Array<keyof TestComponents> = [];
+
+			manager.onAfterComponentRemoved((_entityId, componentName) => {
+				calls.push(componentName);
+			});
+
+			// Remove a component that was never added
+			manager.removeComponent(entity.id, 'position');
+
+			expect(calls).toEqual([]);
+		});
+	});
 });

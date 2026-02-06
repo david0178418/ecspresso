@@ -233,6 +233,18 @@ export default class ReactiveQueryManager<ComponentTypes extends Record<string, 
 	}
 
 	/**
+	 * Recheck an entity and its children against all queries.
+	 * Used after component mutations to handle both the entity's own queries
+	 * and parentHas queries on its children.
+	 */
+	recheckEntityAndChildren(entity: Entity<ComponentTypes>): void {
+		this.recheckEntity(entity);
+		if (this._hasParentHasQueries) {
+			this._recheckChildren(entity.id);
+		}
+	}
+
+	/**
 	 * Recheck all children of a parent entity against parentHas queries.
 	 * Called when a component is added/removed from a parent entity.
 	 */

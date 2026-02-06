@@ -34,6 +34,17 @@ class EntityManager<ComponentTypes> {
 	 */
 	private _changeSeq: number = 0;
 
+	// ==================== Lifecycle Hook Arrays ====================
+	private _afterComponentAddedHooks: Array<(entityId: number, componentName: keyof ComponentTypes) => void> = [];
+	private _afterEntityMutatedHooks: Array<(entityId: number) => void> = [];
+	private _afterComponentRemovedHooks: Array<(entityId: number, componentName: keyof ComponentTypes) => void> = [];
+	private _beforeEntityRemovedHooks: Array<(entityId: number) => void> = [];
+	private _afterParentChangedHooks: Array<(childId: number) => void> = [];
+
+	// ==================== Batching Fields ====================
+	private _batchingDepth: number = 0;
+	private _batchedEntityIds: Set<number> = new Set();
+
 	get entityCount(): number {
 		return this.entities.size;
 	}
@@ -119,6 +130,25 @@ class EntityManager<ComponentTypes> {
 				cb(data, entity);
 			}
 		}
+
+		// Fire afterComponentAdded hooks (may trigger recursive addComponent)
+		this._batchingDepth++;
+		for (const hook of this._afterComponentAddedHooks) {
+			hook(entity.id, componentName);
+		}
+		this._batchedEntityIds.add(entity.id);
+		this._batchingDepth--;
+
+		// Flush afterEntityMutated when outermost batch completes
+		if (this._batchingDepth === 0) {
+			for (const entityId of this._batchedEntityIds) {
+				for (const hook of this._afterEntityMutatedHooks) {
+					hook(entityId);
+				}
+			}
+			this._batchedEntityIds.clear();
+		}
+
 		return this;
 	}
 
@@ -142,12 +172,23 @@ class EntityManager<ComponentTypes> {
 			throw new Error(`Cannot add components: Entity with ID ${id} does not exist`);
 		}
 
+		this._batchingDepth++;
 		for (const componentName in components) {
 			this.addComponent(
 				entity,
 				componentName as keyof ComponentTypes,
 				components[componentName as keyof T] as ComponentTypes[keyof ComponentTypes]
 			);
+		}
+		this._batchingDepth--;
+
+		if (this._batchingDepth === 0) {
+			for (const entityId of this._batchedEntityIds) {
+				for (const hook of this._afterEntityMutatedHooks) {
+					hook(entityId);
+				}
+			}
+			this._batchedEntityIds.clear();
 		}
 
 		return this;
@@ -185,6 +226,13 @@ class EntityManager<ComponentTypes> {
 
 		// Update component index
 		this.componentIndices.get(componentName)?.delete(entity.id);
+
+		// Fire afterComponentRemoved hooks (only if component was present)
+		if (oldValue !== undefined) {
+			for (const hook of this._afterComponentRemovedHooks) {
+				hook(entity.id, componentName);
+			}
+		}
 
 		return this;
 	}
@@ -304,9 +352,24 @@ class EntityManager<ComponentTypes> {
 		if (cascade) {
 			// Get all descendants first (depth-first order)
 			const descendants = this.hierarchyManager.getDescendants(entity.id);
-			// Remove descendants in reverse order (children before parents) for proper cleanup
-			for (const descendantId of [...descendants].reverse()) {
-				this.removeEntityInternal(descendantId);
+			// Fire beforeEntityRemoved for descendants (reverse: children before parents)
+			for (let i = descendants.length - 1; i >= 0; i--) {
+				for (const hook of this._beforeEntityRemovedHooks) {
+					hook(descendants[i]!);
+				}
+			}
+			// Fire beforeEntityRemoved for the entity itself
+			for (const hook of this._beforeEntityRemovedHooks) {
+				hook(entity.id);
+			}
+			// Now do actual removal (descendants in reverse order)
+			for (let i = descendants.length - 1; i >= 0; i--) {
+				this.removeEntityInternal(descendants[i]!);
+			}
+		} else {
+			// Fire beforeEntityRemoved for just this entity
+			for (const hook of this._beforeEntityRemovedHooks) {
+				hook(entity.id);
 			}
 		}
 
@@ -393,6 +456,48 @@ class EntityManager<ComponentTypes> {
 		};
 	}
 
+	// ==================== Lifecycle Hook Registration ====================
+
+	onAfterComponentAdded(hook: (entityId: number, componentName: keyof ComponentTypes) => void): () => void {
+		this._afterComponentAddedHooks.push(hook);
+		return () => {
+			const idx = this._afterComponentAddedHooks.indexOf(hook);
+			if (idx !== -1) this._afterComponentAddedHooks.splice(idx, 1);
+		};
+	}
+
+	onAfterEntityMutated(hook: (entityId: number) => void): () => void {
+		this._afterEntityMutatedHooks.push(hook);
+		return () => {
+			const idx = this._afterEntityMutatedHooks.indexOf(hook);
+			if (idx !== -1) this._afterEntityMutatedHooks.splice(idx, 1);
+		};
+	}
+
+	onAfterComponentRemoved(hook: (entityId: number, componentName: keyof ComponentTypes) => void): () => void {
+		this._afterComponentRemovedHooks.push(hook);
+		return () => {
+			const idx = this._afterComponentRemovedHooks.indexOf(hook);
+			if (idx !== -1) this._afterComponentRemovedHooks.splice(idx, 1);
+		};
+	}
+
+	onBeforeEntityRemoved(hook: (entityId: number) => void): () => void {
+		this._beforeEntityRemovedHooks.push(hook);
+		return () => {
+			const idx = this._beforeEntityRemovedHooks.indexOf(hook);
+			if (idx !== -1) this._beforeEntityRemovedHooks.splice(idx, 1);
+		};
+	}
+
+	onAfterParentChanged(hook: (childId: number) => void): () => void {
+		this._afterParentChangedHooks.push(hook);
+		return () => {
+			const idx = this._afterParentChangedHooks.indexOf(hook);
+			if (idx !== -1) this._afterParentChangedHooks.splice(idx, 1);
+		};
+	}
+
 	// ==================== Change Detection Methods ====================
 
 	/**
@@ -461,6 +566,9 @@ class EntityManager<ComponentTypes> {
 	 */
 	setParent(childId: number, parentId: number): this {
 		this.hierarchyManager.setParent(childId, parentId);
+		for (const hook of this._afterParentChangedHooks) {
+			hook(childId);
+		}
 		return this;
 	}
 
@@ -470,7 +578,13 @@ class EntityManager<ComponentTypes> {
 	 * @returns true if a parent was removed, false if entity had no parent
 	 */
 	removeParent(childId: number): boolean {
-		return this.hierarchyManager.removeParent(childId);
+		const result = this.hierarchyManager.removeParent(childId);
+		if (result) {
+			for (const hook of this._afterParentChangedHooks) {
+				hook(childId);
+			}
+		}
+		return result;
 	}
 
 	/**
