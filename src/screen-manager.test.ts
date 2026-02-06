@@ -13,11 +13,11 @@ type TestScreens = {
 
 describe('ScreenManager', () => {
 	let manager: ScreenManager<TestScreens>;
-	let eventBus: EventBus<ScreenEvents>;
+	let eventBus: EventBus<ScreenEvents<keyof TestScreens & string>>;
 
 	beforeEach(() => {
 		manager = new ScreenManager<TestScreens>();
-		eventBus = new EventBus<ScreenEvents>();
+		eventBus = new EventBus<ScreenEvents<keyof TestScreens & string>>();
 		manager.setDependencies(eventBus, null, {} as any);
 	});
 

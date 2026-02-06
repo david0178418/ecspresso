@@ -12,11 +12,11 @@ type TestAssets = {
 
 describe('AssetManager', () => {
 	let manager: AssetManager<TestAssets>;
-	let eventBus: EventBus<AssetEvents>;
+	let eventBus: EventBus<AssetEvents<keyof TestAssets & string>>;
 
 	beforeEach(() => {
 		manager = new AssetManager<TestAssets>();
-		eventBus = new EventBus<AssetEvents>();
+		eventBus = new EventBus<AssetEvents<keyof TestAssets & string>>();
 		manager.setEventBus(eventBus);
 	});
 

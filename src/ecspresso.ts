@@ -430,7 +430,7 @@ export default class ECSpresso<
 		// Key/value casts are needed because the class generic doesn't constrain ResourceTypes
 		// to contain $assets/$screen — the builder merges them into R at the type level.
 		if (this._assetManager) {
-			this._assetManager.setEventBus(this._eventBus as unknown as EventBus<AssetEvents>);
+			this._assetManager.setEventBus(this._eventBus as unknown as EventBus<AssetEvents<keyof AssetTypes & string>>);
 			await this._assetManager.loadEagerAssets();
 			this._resourceManager.add('$assets' as keyof ResourceTypes, this._assetManager.createResource() as unknown as ResourceTypes[keyof ResourceTypes]);
 		}
@@ -438,7 +438,7 @@ export default class ECSpresso<
 		// Set up screen manager if present
 		if (this._screenManager) {
 			this._screenManager.setDependencies(
-				this._eventBus as unknown as EventBus<ScreenEvents>,
+				this._eventBus as unknown as EventBus<ScreenEvents<keyof ScreenStates & string>>,
 				this._assetManager,
 				this as unknown as ECSpresso<any, any, any, any, any>
 			);

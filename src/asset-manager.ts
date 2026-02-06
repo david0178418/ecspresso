@@ -26,13 +26,13 @@ interface AssetEntry<T> {
 export default class AssetManager<AssetTypes extends Record<string, unknown> = Record<string, never>, AssetGroupNames extends string = string> {
 	private readonly assets: Map<keyof AssetTypes, AssetEntry<unknown>> = new Map();
 	private readonly groups: Map<string, Set<keyof AssetTypes>> = new Map();
-	private eventBus: EventBus<AssetEvents> | null = null;
+	private eventBus: EventBus<AssetEvents<keyof AssetTypes & string, AssetGroupNames>> | null = null;
 
 	/**
 	 * Set the event bus for asset events
 	 * @internal
 	 */
-	setEventBus(eventBus: EventBus<AssetEvents>): void {
+	setEventBus(eventBus: EventBus<AssetEvents<keyof AssetTypes & string, AssetGroupNames>>): void {
 		this.eventBus = eventBus;
 	}
 
@@ -105,7 +105,7 @@ export default class AssetManager<AssetTypes extends Record<string, unknown> = R
 			entry.status = 'loaded';
 			entry.loadPromise = undefined;
 
-			this.eventBus?.publish('assetLoaded', { key: String(key) });
+			this.eventBus?.publish('assetLoaded', { key: key as keyof AssetTypes & string });
 			this.checkGroupProgress(entry.definition.group);
 
 			return value as AssetTypes[K];
@@ -115,7 +115,7 @@ export default class AssetManager<AssetTypes extends Record<string, unknown> = R
 			entry.error = error;
 			entry.loadPromise = undefined;
 
-			this.eventBus?.publish('assetFailed', { key: String(key), error });
+			this.eventBus?.publish('assetFailed', { key: key as keyof AssetTypes & string, error });
 			throw error;
 		}
 	}
@@ -268,15 +268,16 @@ export default class AssetManager<AssetTypes extends Record<string, unknown> = R
 	private checkGroupProgress(groupName: string | undefined): void {
 		if (!groupName || !this.eventBus) return;
 
-		const details = this.getGroupProgressDetails(groupName as AssetGroupNames);
+		const group = groupName as AssetGroupNames;
+		const details = this.getGroupProgressDetails(group);
 
 		this.eventBus.publish('assetGroupProgress', {
-			group: groupName,
+			group,
 			...details,
 		});
 
 		if (details.loaded === details.total) {
-			this.eventBus.publish('assetGroupLoaded', { group: groupName });
+			this.eventBus.publish('assetGroupLoaded', { group });
 		}
 	}
 

@@ -1,4 +1,7 @@
-import type { EventHandler } from "./types";
+interface EventHandler<T> {
+	callback: (data: T) => void;
+	once: boolean;
+}
 
 export default
 class EventBus<EventTypes> {

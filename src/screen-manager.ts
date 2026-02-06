@@ -31,7 +31,7 @@ export default class ScreenManager<Screens extends Record<string, ScreenDefiniti
 	private currentScreen: ActiveScreen<Screens> | null = null;
 	private screenStack: Array<ActiveScreen<Screens>> = [];
 
-	private eventBus: EventBus<ScreenEvents> | null = null;
+	private eventBus: EventBus<ScreenEvents<keyof Screens & string>> | null = null;
 	private assetManager: AssetManager<any> | null = null;
 	private ecs: ECSpresso<any, any, any, any, any> | null = null;
 
@@ -40,7 +40,7 @@ export default class ScreenManager<Screens extends Record<string, ScreenDefiniti
 	 * @internal
 	 */
 	setDependencies(
-		eventBus: EventBus<ScreenEvents>,
+		eventBus: EventBus<ScreenEvents<keyof Screens & string>>,
 		assetManager: AssetManager<any> | null,
 		ecs: ECSpresso<any, any, any, any, any>
 	): void {
@@ -97,7 +97,7 @@ export default class ScreenManager<Screens extends Record<string, ScreenDefiniti
 		};
 
 		await entry.definition.onEnter?.(config, this.ecs!);
-		this.eventBus?.publish('screenEnter', { screen: String(name), config });
+		this.eventBus?.publish('screenEnter', { screen: name as keyof Screens & string, config });
 	}
 
 	/**
@@ -130,7 +130,7 @@ export default class ScreenManager<Screens extends Record<string, ScreenDefiniti
 		};
 
 		await entry.definition.onEnter?.(config, this.ecs!);
-		this.eventBus?.publish('screenPush', { screen: String(name), config });
+		this.eventBus?.publish('screenPush', { screen: name as keyof Screens & string, config });
 	}
 
 	/**
@@ -144,7 +144,7 @@ export default class ScreenManager<Screens extends Record<string, ScreenDefiniti
 		// Exit current screen
 		if (this.currentScreen) {
 			await this.exitScreen(this.currentScreen.name);
-			this.eventBus?.publish('screenPop', { screen: String(this.currentScreen.name) });
+			this.eventBus?.publish('screenPop', { screen: this.currentScreen.name as keyof Screens & string });
 		}
 
 		// Restore previous screen from stack
@@ -159,7 +159,7 @@ export default class ScreenManager<Screens extends Record<string, ScreenDefiniti
 		if (entry?.definition.onExit) {
 			await entry.definition.onExit(this.ecs!);
 		}
-		this.eventBus?.publish('screenExit', { screen: String(name) });
+		this.eventBus?.publish('screenExit', { screen: name as keyof Screens & string });
 	}
 
 	/**

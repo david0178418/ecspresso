@@ -47,12 +47,6 @@ interface HierarchyEntry {
 }
 
 export
-interface EventHandler<T> {
-	callback: (data: T) => void;
-	once: boolean;
-}
-
-export
 interface FilteredEntity<
 	ComponentTypes,
 	WithComponents extends keyof ComponentTypes = never,
