@@ -128,7 +128,7 @@ describe('CommandBuffer', () => {
 			const entity = ecs.spawn({ position: { x: 0, y: 0 } });
 
 			buffer.addComponent(entity.id, 'velocity', { x: 1, y: 1 });
-			expect(ecs.entityManager.getComponent(entity.id, 'velocity')).toBeNull();
+			expect(ecs.entityManager.getComponent(entity.id, 'velocity')).toBeUndefined();
 
 			buffer.playback(ecs);
 			expect(ecs.entityManager.getComponent(entity.id, 'velocity')).toEqual({ x: 1, y: 1 });
@@ -161,7 +161,7 @@ describe('CommandBuffer', () => {
 			expect(ecs.entityManager.getComponent(entity.id, 'velocity')).toEqual({ x: 1, y: 1 });
 
 			buffer.playback(ecs);
-			expect(ecs.entityManager.getComponent(entity.id, 'velocity')).toBeNull();
+			expect(ecs.entityManager.getComponent(entity.id, 'velocity')).toBeUndefined();
 		});
 	});
 
@@ -225,8 +225,8 @@ describe('CommandBuffer', () => {
 				health: { value: 100 }
 			});
 
-			expect(ecs.entityManager.getComponent(entity.id, 'velocity')).toBeNull();
-			expect(ecs.entityManager.getComponent(entity.id, 'health')).toBeNull();
+			expect(ecs.entityManager.getComponent(entity.id, 'velocity')).toBeUndefined();
+			expect(ecs.entityManager.getComponent(entity.id, 'health')).toBeUndefined();
 
 			buffer.playback(ecs);
 
@@ -290,7 +290,7 @@ describe('CommandBuffer', () => {
 			// Verify results
 			expect(ecs.getEntitiesWithQuery(['position']).length).toBe(2); // e1 has no position now
 			expect(ecs.entityManager.getComponent(e1.id, 'velocity')).toEqual({ x: 2, y: 2 });
-			expect(ecs.entityManager.getComponent(e1.id, 'position')).toBeNull();
+			expect(ecs.entityManager.getComponent(e1.id, 'position')).toBeUndefined();
 		});
 
 		test('should handle entity creation and immediate removal', () => {

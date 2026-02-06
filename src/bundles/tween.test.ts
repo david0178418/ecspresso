@@ -339,7 +339,7 @@ describe('Step Completion', () => {
 		ecs.update(0);
 
 		const tween = ecs.entityManager.getComponent(entity.id, 'tween');
-		expect(tween).toBeNull();
+		expect(tween).toBeUndefined();
 	});
 
 	test('should NOT remove entity after tween completes', () => {
@@ -486,7 +486,7 @@ describe('Loop Once', () => {
 		ecs.update(0);
 
 		const tween = ecs.entityManager.getComponent(entity.id, 'tween');
-		expect(tween).toBeNull();
+		expect(tween).toBeUndefined();
 	});
 });
 
@@ -532,7 +532,7 @@ describe('Loop Repeat', () => {
 		ecs.update(0);
 
 		const tween = ecs.entityManager.getComponent(entity.id, 'tween');
-		expect(tween).toBeNull();
+		expect(tween).toBeUndefined();
 	});
 });
 
@@ -1116,7 +1116,7 @@ describe('createTweenKit', () => {
 		ecs.update(0);
 
 		const tween = ecs.entityManager.getComponent(entity.id, 'tween');
-		expect(tween).toBeNull();
+		expect(tween).toBeUndefined();
 
 		const pos = ecs.entityManager.getComponent(entity.id, 'position');
 		if (!pos) throw new Error('Expected position');

@@ -108,7 +108,7 @@ const entity = world.spawn({
 // Add components later
 world.entityManager.addComponent(entity.id, 'velocity', { x: 5, y: 0 });
 
-// Get component data (returns null if not found)
+// Get component data (returns undefined if not found)
 const position = world.entityManager.getComponent(entity.id, 'position');
 
 // Remove components or entities
@@ -1005,8 +1005,8 @@ world.getResource('nonexistent');
 world.entityManager.addComponent(999, 'position', { x: 0, y: 0 });
 // → "Cannot add component 'position': Entity with ID 999 does not exist"
 
-// Component not found returns null (no throw)
-world.entityManager.getComponent(123, 'position'); // null
+// Component not found returns undefined (no throw)
+world.entityManager.getComponent(123, 'position'); // undefined
 ```
 
 ## Performance Tips

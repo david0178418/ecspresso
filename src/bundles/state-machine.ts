@@ -20,7 +20,7 @@ import type { SystemPhase } from 'ecspresso';
  */
 export interface StateMachineWorld {
 	entityManager: {
-		getComponent(entityId: number, componentName: string): unknown | null;
+		getComponent(entityId: number, componentName: string): unknown | undefined;
 	};
 	eventBus: {
 		publish(eventType: string, data: unknown): void;
@@ -267,7 +267,7 @@ export function transitionTo(
 	entityId: number,
 	targetState: string,
 ): boolean {
-	const sm = ecs.entityManager.getComponent(entityId, 'stateMachine') as StateMachine | null;
+	const sm = ecs.entityManager.getComponent(entityId, 'stateMachine') as StateMachine | undefined;
 	if (!sm) return false;
 	return performTransition(ecs, entityId, sm, targetState);
 }
@@ -286,7 +286,7 @@ export function sendEvent(
 	entityId: number,
 	eventName: string,
 ): boolean {
-	const sm = ecs.entityManager.getComponent(entityId, 'stateMachine') as StateMachine | null;
+	const sm = ecs.entityManager.getComponent(entityId, 'stateMachine') as StateMachine | undefined;
 	if (!sm) return false;
 
 	const states = sm.definition.states as Record<string, StateConfig<string>>;
@@ -309,14 +309,14 @@ export function sendEvent(
  *
  * @param ecs - ECS instance (structural typing)
  * @param entityId - Entity to query
- * @returns The current state string, or null if entity has no stateMachine
+ * @returns The current state string, or undefined if entity has no stateMachine
  */
 export function getStateMachineState(
 	ecs: StateMachineWorld,
 	entityId: number,
-): string | null {
-	const sm = ecs.entityManager.getComponent(entityId, 'stateMachine') as StateMachine | null;
-	return sm?.current ?? null;
+): string | undefined {
+	const sm = ecs.entityManager.getComponent(entityId, 'stateMachine') as StateMachine | undefined;
+	return sm?.current;
 }
 
 // ==================== State Machine Kit ====================

@@ -592,6 +592,29 @@ describe('ECSpresso', () => {
 			expect(health).toEqual({ value: 100 });
 		});
 
+		test('getComponent returns T | undefined for missing components', () => {
+			type IsExact<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
+			const world = ECSpresso.create<TestComponents>().build();
+			const entity = world.spawn({ position: { x: 0, y: 0 } });
+			const result = world.entityManager.getComponent(entity.id, 'position');
+			const _typeCheck: IsExact<typeof result, { x: number; y: number } | undefined> = true;
+			expect(_typeCheck).toBe(true);
+		});
+
+		test('getComponent returns falsy component values correctly', () => {
+			interface FalsyComponents {
+				count: number;
+				flag: boolean;
+				label: string;
+			}
+			const world = ECSpresso.create<FalsyComponents>().build();
+			const entity = world.spawn({ count: 0, flag: false, label: '' });
+
+			expect(world.entityManager.getComponent(entity.id, 'count')).toBe(0);
+			expect(world.entityManager.getComponent(entity.id, 'flag')).toBe(false);
+			expect(world.entityManager.getComponent(entity.id, 'label')).toBe('');
+		});
+
 		test('should handle state transitions in systems', () => {
 			// Create a system that updates state
 			const bundle = new Bundle<TestComponents>()
@@ -683,11 +706,11 @@ describe('ECSpresso', () => {
 				world.entityManager.removeEntity(id);
 			}
 
-			// After removing entity1, trying to get its component should return null
+			// After removing entity1, trying to get its component should return undefined
 			// because the entity no longer exists
 			try {
 				const lifeComponent = world.entityManager.getComponent(entity1.id, 'lifetime');
-				expect(lifeComponent).toBeNull();
+				expect(lifeComponent).toBeUndefined();
 			} catch (_error) {
 				// If an error is thrown because the entity doesn't exist, that's also acceptable
 				// The test is successful either way
@@ -695,7 +718,7 @@ describe('ECSpresso', () => {
 
 			// Entity2 exists but has no lifetime component
 			const entity2Component = world.entityManager.getComponent(entity2.id, 'lifetime');
-			expect(entity2Component).toBeNull();
+			expect(entity2Component).toBeUndefined();
 		});
 
 		test('should handle component additions and removals during update', () => {
@@ -727,11 +750,11 @@ describe('ECSpresso', () => {
 
 			// First update adds the position component
 			world.update(1/60);
-			expect(world.entityManager.getComponent(entity.id, 'position')).not.toBeNull();
+			expect(world.entityManager.getComponent(entity.id, 'position')).toBeDefined();
 
 			// Second update removes the position component
 			world.update(1/60);
-			expect(world.entityManager.getComponent(entity.id, 'position')).toBeNull();
+			expect(world.entityManager.getComponent(entity.id, 'position')).toBeUndefined();
 		});
 	});
 

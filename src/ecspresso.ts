@@ -736,7 +736,7 @@ export default class ECSpresso<
 		componentName: K
 	): boolean {
 		const component = this._entityManager.getComponent(entityId, componentName);
-		return component !== null;
+		return component !== undefined;
 	}
 
 	/**

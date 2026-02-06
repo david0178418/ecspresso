@@ -145,7 +145,7 @@ export function createForce(x: number, y: number): { force: Vector2D } {
  * Accumulate a force onto an entity's force component.
  */
 export function applyForce(
-	ecs: { entityManager: { getComponent(id: number, name: 'force'): Vector2D | null } },
+	ecs: { entityManager: { getComponent(id: number, name: 'force'): Vector2D | undefined } },
 	entityId: number,
 	fx: number,
 	fy: number,
@@ -160,13 +160,13 @@ export function applyForce(
  * Apply an instantaneous impulse: velocity += impulse / mass.
  */
 export function applyImpulse(
-	ecs: { entityManager: { getComponent(id: number, name: string): unknown | null } },
+	ecs: { entityManager: { getComponent(id: number, name: string): unknown | undefined } },
 	entityId: number,
 	ix: number,
 	iy: number,
 ): void {
-	const velocity = ecs.entityManager.getComponent(entityId, 'velocity') as Vector2D | null;
-	const rigidBody = ecs.entityManager.getComponent(entityId, 'rigidBody') as RigidBody | null;
+	const velocity = ecs.entityManager.getComponent(entityId, 'velocity') as Vector2D | undefined;
+	const rigidBody = ecs.entityManager.getComponent(entityId, 'rigidBody') as RigidBody | undefined;
 	if (!velocity || !rigidBody) return;
 	if (rigidBody.mass === Infinity || rigidBody.mass === 0) return;
 	velocity.x += ix / rigidBody.mass;
@@ -177,7 +177,7 @@ export function applyImpulse(
  * Directly set an entity's velocity.
  */
 export function setVelocity(
-	ecs: { entityManager: { getComponent(id: number, name: 'velocity'): Vector2D | null } },
+	ecs: { entityManager: { getComponent(id: number, name: 'velocity'): Vector2D | undefined } },
 	entityId: number,
 	vx: number,
 	vy: number,
@@ -198,7 +198,7 @@ interface Physics2DColliderInfo<L extends string = string> extends BaseColliderI
 // ==================== Collision Response ====================
 
 interface PhysicsEcsLike {
-	entityManager: { getComponent(id: number, name: string): unknown | null };
+	entityManager: { getComponent(id: number, name: string): unknown | undefined };
 	eventBus: { publish(event: 'physicsCollision', data: Physics2DCollisionEvent): void };
 	markChanged(entityId: number, componentName: string): void;
 }

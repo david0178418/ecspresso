@@ -566,11 +566,11 @@ describe('State Machine Bundle', () => {
 			expect(getStateMachineState(ecs, entity.id)).toBe('idle');
 		});
 
-		test('returns null for entity without stateMachine', () => {
+		test('returns undefined for entity without stateMachine', () => {
 			const ecs = createTestEcs();
 			const entity = ecs.spawn({ position: { x: 0, y: 0 } });
 
-			expect(getStateMachineState(ecs, entity.id)).toBeNull();
+			expect(getStateMachineState(ecs, entity.id)).toBeUndefined();
 		});
 	});
 

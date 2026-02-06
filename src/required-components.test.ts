@@ -437,7 +437,7 @@ describe('Required Components', () => {
 
 			const entity = ecs.spawn({ position: { x: 10, y: 20 } });
 			expect(entity.components.position).toEqual({ x: 10, y: 20 });
-			expect(ecs.entityManager.getComponent(entity.id, 'velocity')).toBeNull();
+			expect(ecs.entityManager.getComponent(entity.id, 'velocity')).toBeUndefined();
 		});
 
 		test('should not overwrite required component when re-adding trigger', () => {
@@ -470,7 +470,7 @@ describe('Required Components', () => {
 			ecs.registerRequired('position', 'velocity', () => ({ x: 0, y: 0 }));
 
 			// Existing entity should NOT be retroactively updated
-			expect(ecs.entityManager.getComponent(entity.id, 'velocity')).toBeNull();
+			expect(ecs.entityManager.getComponent(entity.id, 'velocity')).toBeUndefined();
 
 			// But new spawns should work
 			const e2 = ecs.spawn({ position: { x: 5, y: 5 } });

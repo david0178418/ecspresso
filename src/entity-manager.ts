@@ -237,12 +237,12 @@ class EntityManager<ComponentTypes> {
 		return this;
 	}
 
-	getComponent<ComponentName extends keyof ComponentTypes>(entityId: number, componentName: ComponentName): ComponentTypes[ComponentName] | null {
+	getComponent<ComponentName extends keyof ComponentTypes>(entityId: number, componentName: ComponentName): ComponentTypes[ComponentName] | undefined {
 		const entity = this.entities.get(entityId);
 
 		if (!entity) throw new Error(`Cannot get component '${String(componentName)}': Entity with ID ${entityId} does not exist`);
 
-		return entity.components[componentName] || null;
+		return entity.components[componentName];
 	}
 
 	getEntitiesWithQuery<
