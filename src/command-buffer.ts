@@ -1,5 +1,5 @@
 import type ECSpresso from './ecspresso';
-import type { RemoveEntityOptions } from './types';
+import type { Entity, RemoveEntityOptions } from './types';
 
 /**
  * CommandBuffer queues structural changes to be executed later.
@@ -28,42 +28,42 @@ export default class CommandBuffer<
 
 	/**
 	 * Queue an entity removal command
-	 * @param entityId The ID of the entity to remove
+	 * @param entityOrId The entity or entity ID to remove
 	 * @param options Optional removal options (cascade, etc.)
 	 */
-	removeEntity(entityId: number, options?: RemoveEntityOptions): void {
+	removeEntity(entityOrId: number | Entity<ComponentTypes>, options?: RemoveEntityOptions): void {
 		this.commands.push((ecs) => {
-			ecs.removeEntity(entityId, options);
+			ecs.removeEntity(entityOrId, options);
 		});
 	}
 
 	/**
 	 * Queue a component addition command
-	 * @param entityId The ID of the entity
+	 * @param entityOrId The entity or entity ID
 	 * @param componentName The name of the component to add
 	 * @param componentValue The component data
 	 */
 	addComponent<K extends keyof ComponentTypes>(
-		entityId: number,
+		entityOrId: number | Entity<ComponentTypes>,
 		componentName: K,
 		componentValue: ComponentTypes[K]
 	): void {
 		this.commands.push((ecs) => {
-			ecs.entityManager.addComponent(entityId, componentName, componentValue);
+			ecs.entityManager.addComponent(entityOrId, componentName, componentValue);
 		});
 	}
 
 	/**
 	 * Queue a component removal command
-	 * @param entityId The ID of the entity
+	 * @param entityOrId The entity or entity ID
 	 * @param componentName The name of the component to remove
 	 */
 	removeComponent<K extends keyof ComponentTypes>(
-		entityId: number,
+		entityOrId: number | Entity<ComponentTypes>,
 		componentName: K
 	): void {
 		this.commands.push((ecs) => {
-			ecs.entityManager.removeComponent(entityId, componentName);
+			ecs.entityManager.removeComponent(entityOrId, componentName);
 		});
 	}
 
@@ -82,61 +82,61 @@ export default class CommandBuffer<
 
 	/**
 	 * Queue a child entity spawn command
-	 * @param parentId The ID of the parent entity
+	 * @param parentOrId The parent entity or entity ID
 	 * @param components The initial components for the new child entity
 	 */
 	spawnChild<T extends { [K in keyof ComponentTypes]?: ComponentTypes[K] }>(
-		parentId: number,
+		parentOrId: number | Entity<ComponentTypes>,
 		components: T & Record<Exclude<keyof T, keyof ComponentTypes>, never>
 	): void {
 		this.commands.push((ecs) => {
-			ecs.spawnChild(parentId, components);
+			ecs.spawnChild(parentOrId, components);
 		});
 	}
 
 	/**
 	 * Queue multiple component additions
-	 * @param entityId The ID of the entity
+	 * @param entityOrId The entity or entity ID
 	 * @param components Object with component names as keys and component data as values
 	 */
 	addComponents<T extends { [K in keyof ComponentTypes]?: ComponentTypes[K] }>(
-		entityId: number,
+		entityOrId: number | Entity<ComponentTypes>,
 		components: T & Record<Exclude<keyof T, keyof ComponentTypes>, never>
 	): void {
 		this.commands.push((ecs) => {
-			ecs.entityManager.addComponents(entityId, components);
+			ecs.entityManager.addComponents(entityOrId, components);
 		});
 	}
 
 	/**
 	 * Queue a parent assignment command
-	 * @param childId The ID of the child entity
-	 * @param parentId The ID of the parent entity
+	 * @param childOrId The child entity or entity ID
+	 * @param parentOrId The parent entity or entity ID
 	 */
-	setParent(childId: number, parentId: number): void {
+	setParent(childOrId: number | Entity<ComponentTypes>, parentOrId: number | Entity<ComponentTypes>): void {
 		this.commands.push((ecs) => {
-			ecs.setParent(childId, parentId);
+			ecs.setParent(childOrId, parentOrId);
 		});
 	}
 
 	/**
 	 * Queue a markChanged command
-	 * @param entityId The ID of the entity
+	 * @param entityOrId The entity or entity ID
 	 * @param componentName The component to mark as changed
 	 */
-	markChanged<K extends keyof ComponentTypes>(entityId: number, componentName: K): void {
+	markChanged<K extends keyof ComponentTypes>(entityOrId: number | Entity<ComponentTypes>, componentName: K): void {
 		this.commands.push((ecs) => {
-			ecs.markChanged(entityId, componentName);
+			ecs.markChanged(entityOrId, componentName);
 		});
 	}
 
 	/**
 	 * Queue a parent removal command
-	 * @param childId The ID of the child entity
+	 * @param childOrId The child entity or entity ID
 	 */
-	removeParent(childId: number): void {
+	removeParent(childOrId: number | Entity<ComponentTypes>): void {
 		this.commands.push((ecs) => {
-			ecs.removeParent(childId);
+			ecs.removeParent(childOrId);
 		});
 	}
 

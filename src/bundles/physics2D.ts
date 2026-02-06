@@ -160,13 +160,16 @@ export function applyForce(
  * Apply an instantaneous impulse: velocity += impulse / mass.
  */
 export function applyImpulse(
-	ecs: { entityManager: { getComponent(id: number, name: string): unknown | undefined } },
+	ecs: { entityManager: {
+		getComponent(id: number, name: 'velocity'): Vector2D | undefined;
+		getComponent(id: number, name: 'rigidBody'): RigidBody | undefined;
+	} },
 	entityId: number,
 	ix: number,
 	iy: number,
 ): void {
-	const velocity = ecs.entityManager.getComponent(entityId, 'velocity') as Vector2D | undefined;
-	const rigidBody = ecs.entityManager.getComponent(entityId, 'rigidBody') as RigidBody | undefined;
+	const velocity = ecs.entityManager.getComponent(entityId, 'velocity');
+	const rigidBody = ecs.entityManager.getComponent(entityId, 'rigidBody');
 	if (!velocity || !rigidBody) return;
 	if (rigidBody.mass === Infinity || rigidBody.mass === 0) return;
 	velocity.x += ix / rigidBody.mass;
@@ -198,9 +201,11 @@ interface Physics2DColliderInfo<L extends string = string> extends BaseColliderI
 // ==================== Collision Response ====================
 
 interface PhysicsEcsLike {
-	entityManager: { getComponent(id: number, name: string): unknown | undefined };
+	entityManager: {
+		getComponent(id: number, name: 'localTransform'): { x: number; y: number } | undefined;
+	};
 	eventBus: { publish(event: 'physicsCollision', data: Physics2DCollisionEvent): void };
-	markChanged(entityId: number, componentName: string): void;
+	markChanged(entityId: number, componentName: 'localTransform' | 'velocity'): void;
 }
 
 /**
@@ -225,7 +230,8 @@ function resolvePhysicsContact(
 		const correctionScale = contact.depth / totalInvMass;
 
 		if (invMassA > 0) {
-			const ltA = ecs.entityManager.getComponent(a.entityId, 'localTransform') as { x: number; y: number };
+			const ltA = ecs.entityManager.getComponent(a.entityId, 'localTransform');
+			if (!ltA) return;
 			ltA.x -= correctionScale * invMassA * contact.normalX;
 			ltA.y -= correctionScale * invMassA * contact.normalY;
 			// Update cached position for subsequent pairs (collider offset already baked in)
@@ -234,7 +240,8 @@ function resolvePhysicsContact(
 		}
 
 		if (invMassB > 0) {
-			const ltB = ecs.entityManager.getComponent(b.entityId, 'localTransform') as { x: number; y: number };
+			const ltB = ecs.entityManager.getComponent(b.entityId, 'localTransform');
+			if (!ltB) return;
 			ltB.x += correctionScale * invMassB * contact.normalX;
 			ltB.y += correctionScale * invMassB * contact.normalY;
 			ecs.markChanged(b.entityId, 'localTransform');
