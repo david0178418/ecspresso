@@ -31,6 +31,54 @@ export interface BaseColliderInfo<L extends string = string> {
 	circle?: { radius: number };
 }
 
+// ==================== Collider Construction ====================
+
+/**
+ * Build a BaseColliderInfo from raw entity/collider component data.
+ * Returns null if the entity has neither an AABB nor circle collider.
+ * Shared by collision bundle (event-only) and physics2D bundle (impulse response).
+ */
+export function buildBaseColliderInfo<L extends string>(
+	entityId: number,
+	x: number,
+	y: number,
+	layer: L,
+	collidesWith: readonly L[],
+	aabb: { width: number; height: number; offsetX?: number; offsetY?: number } | undefined,
+	circle: { radius: number; offsetX?: number; offsetY?: number } | undefined,
+): BaseColliderInfo<L> | null {
+	if (!aabb && !circle) return null;
+
+	const info: BaseColliderInfo<L> = { entityId, x, y, layer, collidesWith };
+
+	if (aabb) {
+		info.x += aabb.offsetX ?? 0;
+		info.y += aabb.offsetY ?? 0;
+		info.aabb = { halfWidth: aabb.width / 2, halfHeight: aabb.height / 2 };
+	}
+
+	if (circle) {
+		info.x += circle.offsetX ?? 0;
+		info.y += circle.offsetY ?? 0;
+		info.circle = { radius: circle.radius };
+	}
+
+	return info;
+}
+
+// ==================== Spatial Index Lookup ====================
+
+/**
+ * Retrieve the optional spatialIndex resource, returning null when absent.
+ * Centralizes the cross-bundle typed lookup so individual bundles don't each
+ * need to import SpatialIndex or repeat the tryGetResource pattern.
+ */
+export function tryGetSpatialIndex(
+	tryGetResource: <T>(key: string) => T | undefined,
+): SpatialIndex | null {
+	return tryGetResource<SpatialIndex>('spatialIndex') ?? null;
+}
+
 // ==================== Narrowphase Tests ====================
 
 export function computeAABBvsAABB(

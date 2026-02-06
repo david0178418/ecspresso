@@ -5,6 +5,7 @@ import type { AssetDefinition } from './asset-types';
 import type { ScreenDefinition } from './screen-types';
 import type { BundlesAreCompatible } from './type-utils';
 import type { QueryDefinition } from './types';
+import { checkRequiredCycle } from './utils/check-required-cycle';
 
 /**
  * Generates a unique ID for a bundle
@@ -243,26 +244,11 @@ export default class Bundle<
 	 * @throws Error if adding the new edge would create a cycle
 	 */
 	private _checkRequiredCycle(trigger: string, newRequired: string): void {
-		const visited = new Set<string>();
-		const stack = [newRequired];
-
-		while (stack.length > 0) {
-			const current = stack.pop()!;
-			if (current === trigger) {
-				throw new Error(
-					`Circular required component dependency: '${trigger}' -> '${newRequired}' -> ... -> '${trigger}'`
-				);
-			}
-			if (visited.has(current)) continue;
-			visited.add(current);
-
-			const reqs = this._requiredComponents.get(current);
-			if (reqs) {
-				for (const r of reqs) {
-					stack.push(r.component);
-				}
-			}
-		}
+		checkRequiredCycle(
+			trigger,
+			newRequired,
+			(component) => this._requiredComponents.get(component),
+		);
 	}
 
 	/**

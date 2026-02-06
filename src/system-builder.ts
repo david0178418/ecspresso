@@ -1,6 +1,6 @@
 import Bundle from "./bundle";
 import ECSpresso from "./ecspresso";
-import type { FilteredEntity, System, SystemPhase } from "./types";
+import type { FilteredEntity, QueryDefinition, System, SystemPhase } from "./types";
 
 /**
  * Builder class for creating type-safe ECS Systems with proper query inference
@@ -384,21 +384,9 @@ export function registerSystemWithEcspresso<
 }
 
 // Helper type definitions
-type QueryDefinition<
-	ComponentTypes,
-	WithComponents extends keyof ComponentTypes = any,
-	WithoutComponents extends keyof ComponentTypes = any,
-	OptionalComponents extends keyof ComponentTypes = any,
-> = {
-	with: ReadonlyArray<WithComponents>;
-	without?: ReadonlyArray<WithoutComponents>;
-	changed?: ReadonlyArray<WithComponents>;
-	optional?: ReadonlyArray<OptionalComponents>;
-	parentHas?: ReadonlyArray<keyof ComponentTypes>;
-};
 
 type QueryResults<
-	ComponentTypes,
+	ComponentTypes extends Record<string, any>,
 	Queries extends Record<string, QueryDefinition<ComponentTypes>>,
 > = {
 	[QueryName in keyof Queries]: QueryName extends string

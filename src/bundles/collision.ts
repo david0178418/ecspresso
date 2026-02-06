@@ -9,8 +9,7 @@
 import { Bundle } from 'ecspresso';
 import type { SystemPhase } from 'ecspresso';
 import type { TransformComponentTypes } from './transform';
-import type { SpatialIndex } from '../utils/spatial-hash';
-import { detectCollisions, type Contact, type BaseColliderInfo } from '../utils/narrowphase';
+import { buildBaseColliderInfo, detectCollisions, tryGetSpatialIndex, type Contact, type BaseColliderInfo } from '../utils/narrowphase';
 
 // ==================== Component Types ====================
 
@@ -459,40 +458,16 @@ export function createCollisionBundle<L extends string, G extends string = 'phys
 
 			for (const entity of queries.collidables) {
 				const { worldTransform, collisionLayer } = entity.components;
-
-				const aabb = ecs.entityManager.getComponent(entity.id, 'aabbCollider');
-				const circle = ecs.entityManager.getComponent(entity.id, 'circleCollider');
-
-				if (!aabb && !circle) continue;
-
-				const info: BaseColliderInfo<L> = {
-					entityId: entity.id,
-					x: worldTransform.x,
-					y: worldTransform.y,
-					layer: collisionLayer.layer,
-					collidesWith: collisionLayer.collidesWith,
-				};
-
-				if (aabb) {
-					info.x += aabb.offsetX ?? 0;
-					info.y += aabb.offsetY ?? 0;
-					info.aabb = {
-						halfWidth: aabb.width / 2,
-						halfHeight: aabb.height / 2,
-					};
-				}
-
-				if (circle) {
-					info.x += circle.offsetX ?? 0;
-					info.y += circle.offsetY ?? 0;
-					info.circle = { radius: circle.radius };
-				}
-
-				colliders.push(info);
+				const info = buildBaseColliderInfo(
+					entity.id, worldTransform.x, worldTransform.y,
+					collisionLayer.layer, collisionLayer.collidesWith,
+					ecs.entityManager.getComponent(entity.id, 'aabbCollider'),
+					ecs.entityManager.getComponent(entity.id, 'circleCollider'),
+				);
+				if (info) colliders.push(info);
 			}
 
-			const si = ecs.tryGetResource<SpatialIndex>('spatialIndex') ?? null;
-
+			const si = tryGetSpatialIndex(ecs.tryGetResource.bind(ecs));
 			detectCollisions(colliders, si, onCollisionDetected<L>, ecs.eventBus);
 		})
 		.and();

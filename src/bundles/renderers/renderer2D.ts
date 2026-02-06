@@ -23,7 +23,7 @@ import type { CameraResourceTypes, CameraState } from 'ecspresso/bundles/camera'
 // Re-export transform and bounds types for convenience
 export type { LocalTransform, WorldTransform, TransformComponentTypes };
 export type { BoundsRect };
-export { createTransform, createLocalTransform, createWorldTransform } from 'ecspresso/bundles/transform';
+export { createTransform, createLocalTransform, createWorldTransform, DEFAULT_LOCAL_TRANSFORM, DEFAULT_WORLD_TRANSFORM } from 'ecspresso/bundles/transform';
 
 // Dynamic import for Application to avoid requiring pixi.js at bundle creation time
 // when using managed mode (init options instead of pre-initialized app)
@@ -194,30 +194,6 @@ export interface Renderer2DBundleManagedOptions<G extends string = 'renderer2d'>
  * ```
  */
 export type Renderer2DBundleOptions<G extends string = 'renderer2d'> = Renderer2DBundleAppOptions<G> | Renderer2DBundleManagedOptions<G>;
-
-// ==================== Default Values ====================
-
-/**
- * Default local transform values
- */
-export const DEFAULT_LOCAL_TRANSFORM: Readonly<LocalTransform> = {
-	x: 0,
-	y: 0,
-	rotation: 0,
-	scaleX: 1,
-	scaleY: 1,
-};
-
-/**
- * Default world transform values
- */
-export const DEFAULT_WORLD_TRANSFORM: Readonly<WorldTransform> = {
-	x: 0,
-	y: 0,
-	rotation: 0,
-	scaleX: 1,
-	scaleY: 1,
-};
 
 // ==================== Helper Utilities ====================
 

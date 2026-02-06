@@ -8,6 +8,7 @@ import CommandBuffer from "./command-buffer";
 import type { System, SystemPhase, FilteredEntity, Entity, RemoveEntityOptions, HierarchyEntry, HierarchyIteratorOptions } from "./types";
 import type Bundle from "./bundle";
 import { createEcspressoSystemBuilder } from "./system-builder";
+import { checkRequiredCycle } from "./utils/check-required-cycle";
 import { version } from "../package.json";
 import type { BundlesAreCompatible, TypesAreCompatible } from "./type-utils";
 import type { AssetDefinition, AssetHandle, AssetConfigurator, AssetsResource, AssetEvents } from "./asset-types";
@@ -1186,26 +1187,11 @@ export default class ECSpresso<
 		trigger: keyof ComponentTypes,
 		newRequired: keyof ComponentTypes
 	): void {
-		const visited = new Set<keyof ComponentTypes>();
-		const stack: Array<keyof ComponentTypes> = [newRequired];
-
-		while (stack.length > 0) {
-			const current = stack.pop()!;
-			if (current === trigger) {
-				throw new Error(
-					`Circular required component dependency: '${String(trigger)}' -> '${String(newRequired)}' -> ... -> '${String(trigger)}'`
-				);
-			}
-			if (visited.has(current)) continue;
-			visited.add(current);
-
-			const reqs = this._requiredComponents.get(current);
-			if (reqs) {
-				for (const r of reqs) {
-					stack.push(r.component);
-				}
-			}
-		}
+		checkRequiredCycle(
+			trigger,
+			newRequired,
+			(component) => this._requiredComponents.get(component),
+		);
 	}
 
 	// ==================== Component Lifecycle Hooks ====================
