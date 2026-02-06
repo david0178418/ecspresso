@@ -175,16 +175,21 @@ export default class HierarchyManager {
 	 */
 	getDescendants(entityId: number): readonly number[] {
 		const descendants: number[] = [];
-		const stack = [...(this.childrenMap.get(entityId) ?? [])];
+		const initialChildren = this.childrenMap.get(entityId);
+		if (!initialChildren) return descendants;
+
+		// Use push/pop (O(1)) instead of shift/unshift (O(n)).
+		// Seed stack in reverse so pop() yields children in original order.
+		const stack = initialChildren.slice().reverse();
 
 		while (stack.length > 0) {
-			const current = stack.shift();
-			if (current === undefined) continue;
+			const current = stack.pop() as number;
 			descendants.push(current);
 			const children = this.childrenMap.get(current);
 			if (children) {
-				// Insert children at the beginning for depth-first traversal
-				stack.unshift(...children);
+				for (let i = children.length - 1; i >= 0; i--) {
+					stack.push(children[i] as number);
+				}
 			}
 		}
 
