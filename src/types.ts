@@ -228,6 +228,12 @@ interface System<
 	 * System will be skipped if any required asset is not loaded.
 	 */
 	requiredAssets?: ReadonlyArray<keyof AssetTypes & string>;
+	/**
+	 * When true, the system's process function runs even when all queries
+	 * return zero entities. Default is false (system is skipped when all
+	 * queries are empty).
+	 */
+	runWhenEmpty?: boolean;
 	entityQueries?: {
 		[queryName: string]: QueryConfig<ComponentTypes, WithComponents, WithoutComponents>;
 	};

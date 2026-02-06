@@ -67,6 +67,7 @@ src/
 - **Phase Order**: `preUpdate` → `fixedUpdate` → `update` → `postUpdate` → `render`
 - **Per-Phase Command Buffer**: Commands play back between each phase — entities spawned in preUpdate are visible to fixedUpdate, etc.
 - **System Filtering**: `.inScreens([...])`, `.excludeScreens([...])`, `.requiresAssets([...])` — all type-safe against their respective key types
+- **Run When Empty**: `.runWhenEmpty()` — allows a system with queries to run even when all queries return zero entities. By default, such systems are skipped as an optimization.
 - **System Groups**: `.inGroup('name')`, `disableSystemGroup()`, `enableSystemGroup()`
 
 ### Change Detection

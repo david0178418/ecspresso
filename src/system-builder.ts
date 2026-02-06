@@ -44,6 +44,7 @@ export class SystemBuilder<
 	private _inScreens?: ReadonlyArray<keyof ScreenStates & string>;
 	private _excludeScreens?: ReadonlyArray<keyof ScreenStates & string>;
 	private _requiredAssets?: ReadonlyArray<keyof AssetTypes & string>;
+	private _runWhenEmpty = false;
 
 	constructor(
 		private _label: string,
@@ -133,6 +134,10 @@ export class SystemBuilder<
 			system.requiredAssets = this._requiredAssets;
 		}
 
+		if (this._runWhenEmpty) {
+			system.runWhenEmpty = true;
+		}
+
 		return system;
 	}
 
@@ -212,6 +217,15 @@ export class SystemBuilder<
 	 */
 	requiresAssets(assets: ReadonlyArray<keyof AssetTypes & string>): this {
 		this._requiredAssets = [...assets];
+		return this;
+	}
+
+	/**
+	 * Allow this system to run even when all queries return zero entities.
+	 * By default, systems with queries are skipped when no entities match.
+	 */
+	runWhenEmpty(): this {
+		this._runWhenEmpty = true;
 		return this;
 	}
 

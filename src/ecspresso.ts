@@ -399,13 +399,13 @@ export default class ECSpresso<
 			// Call the system's process function only if there are results or there is no query.
 			if (this._diagnosticsEnabled) {
 				const t0 = performance.now();
-				if (hasResults) {
+				if (hasResults || system.runWhenEmpty) {
 					system.process(queryResults, deltaTime, this);
 				} else if (!hasQueries) {
 					system.process(EmptyQueryResults, deltaTime, this);
 				}
 				this._systemTimings.set(system.label, performance.now() - t0);
-			} else if (hasResults) {
+			} else if (hasResults || system.runWhenEmpty) {
 				system.process(queryResults, deltaTime, this);
 			} else if (!hasQueries) {
 				system.process(EmptyQueryResults, deltaTime, this);
