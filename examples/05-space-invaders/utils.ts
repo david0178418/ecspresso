@@ -1,6 +1,6 @@
 import { Graphics, Sprite } from "pixi.js";
 import ECSpresso from "../../src";
-import { createSpriteComponents } from "../../src/bundles/renderers/renderer2D";
+import { createLocalTransform } from "../../src/bundles/renderers/renderer2D";
 import { createRigidBody } from "../../src/bundles/physics2D";
 import { createAABBCollider } from "../../src/bundles/collision";
 import { createClampToBounds } from "../../src/bundles/bounds";
@@ -37,7 +37,8 @@ export function spawnEnemyFormation(ecs: ECSpresso<Components, Events, Resources
 
 			ecs.spawn({
 				enemy: { type: enemyType, points, health },
-				...createSpriteComponents(enemySprite, { x: startX + col * spacing, y: startY + row * spacing }),
+				sprite: enemySprite,
+				...createLocalTransform(startX + col * spacing, startY + row * spacing),
 				...createRigidBody('kinematic'),
 				velocity: { x: config.enemySpeed, y: 0 },
 				...createAABBCollider(enemySprite.width, enemySprite.height),
@@ -117,7 +118,8 @@ export function spawnPlayer(ecs: ECSpresso<Components, Events, Resources>): numb
 	const playerSprite = createPlayerSprite(ecs);
 
 	const player = ecs.spawn({
-		...createSpriteComponents(playerSprite, { x: bounds.width / 2, y: bounds.height - 80 }),
+		sprite: playerSprite,
+		...createLocalTransform(bounds.width / 2, bounds.height - 80),
 		player: true,
 		...createRigidBody('kinematic'),
 		velocity: { x: 0, y: 0 },

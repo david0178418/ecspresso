@@ -43,7 +43,7 @@ export class ECSpressoBuilder<
 	/** Pending dispose callbacks to register during build */
 	private pendingDisposeCallbacks: Array<{ key: string; callback: (value: unknown) => void }> = [];
 	/** Pending required component registrations to apply during build */
-	private pendingRequiredComponents: Array<{ trigger: string; required: string; factory: () => unknown }> = [];
+	private pendingRequiredComponents: Array<{ trigger: string; required: string; factory: (triggerValue: any) => unknown }> = [];
 	/** Fixed timestep interval (null means use default 1/60) */
 	private _fixedDt: number | null = null;
 
@@ -201,12 +201,12 @@ export class ECSpressoBuilder<
 	>(
 		trigger: Trigger,
 		required: Required,
-		factory: () => C[Required]
+		factory: (triggerValue: C[Trigger]) => C[Required]
 	): this {
 		this.pendingRequiredComponents.push({
 			trigger,
 			required,
-			factory: factory as () => unknown,
+			factory: factory as (triggerValue: any) => unknown,
 		});
 		return this;
 	}

@@ -44,6 +44,9 @@ class EntityManager<ComponentTypes> {
 	// ==================== Batching Fields ====================
 	private _batchingDepth: number = 0;
 	private _batchedEntityIds: Set<number> = new Set();
+	/** Component keys being added in the current addComponents batch, if any.
+	 *  Used by required component resolution to skip auto-adding explicitly provided components. */
+	_pendingBatchKeys: ReadonlySet<keyof ComponentTypes> | null = null;
 
 	get entityCount(): number {
 		return this.entities.size;
@@ -174,6 +177,8 @@ class EntityManager<ComponentTypes> {
 			throw new Error(`Cannot add components: Entity with ID ${this.resolveEntityId(entityOrId)} does not exist`);
 		}
 
+		const outerPending = this._pendingBatchKeys;
+		this._pendingBatchKeys = new Set(Object.keys(components) as (keyof ComponentTypes)[]);
 		this._batchingDepth++;
 		for (const componentName in components) {
 			this.addComponent(
@@ -183,6 +188,7 @@ class EntityManager<ComponentTypes> {
 			);
 		}
 		this._batchingDepth--;
+		this._pendingBatchKeys = outerPending;
 
 		if (this._batchingDepth === 0) {
 			for (const entityId of this._batchedEntityIds) {

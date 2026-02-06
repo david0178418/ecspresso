@@ -1,5 +1,5 @@
 import Bundle from '../../../src/bundle';
-import { createSpriteComponents } from '../../../src/bundles/renderers/renderer2D';
+import { createLocalTransform } from '../../../src/bundles/renderers/renderer2D';
 import { createRigidBody } from '../../../src/bundles/physics2D';
 import { createAABBCollider } from '../../../src/bundles/collision';
 import { createDestroyOutOfBounds } from '../../../src/bundles/bounds';
@@ -28,10 +28,8 @@ export default function createSpawnerBundle() {
 					const projectileSprite = createProjectileSprite(ecs, 'player');
 
 					ecs.spawn({
-						...createSpriteComponents(projectileSprite, {
-							x: player.components.worldTransform.x,
-							y: player.components.worldTransform.y - 20
-						}),
+						sprite: projectileSprite,
+						...createLocalTransform(player.components.worldTransform.x, player.components.worldTransform.y - 20),
 						...createRigidBody('kinematic'),
 						velocity: { x: 0, y: -400 },
 						projectile: { owner: 'player', damage: 1 },
@@ -54,10 +52,8 @@ export default function createSpawnerBundle() {
 					const projectileSprite = createProjectileSprite(ecs, 'enemy');
 
 					ecs.spawn({
-						...createSpriteComponents(projectileSprite, {
-							x: enemyWorldTransform.x,
-							y: enemyWorldTransform.y + 20
-						}),
+						sprite: projectileSprite,
+						...createLocalTransform(enemyWorldTransform.x, enemyWorldTransform.y + 20),
 						...createRigidBody('kinematic'),
 						velocity: { x: 0, y: 400 },
 						projectile: { owner: 'enemy', damage: 1 },

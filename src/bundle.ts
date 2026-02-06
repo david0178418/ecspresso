@@ -35,7 +35,7 @@ export default class Bundle<
 	private _assetGroups: Map<string, Map<string, () => Promise<unknown>>> = new Map();
 	private _screens: Map<string, ScreenDefinition<any, any>> = new Map();
 	private _disposeCallbacks: Map<string, (value: unknown) => void> = new Map();
-	private _requiredComponents: Map<string, Array<{ component: string; factory: () => unknown }>> = new Map();
+	private _requiredComponents: Map<string, Array<{ component: string; factory: (triggerValue: any) => unknown }>> = new Map();
 	private _id: string;
 
 	constructor(id?: string) {
@@ -197,7 +197,7 @@ export default class Bundle<
 	>(
 		trigger: Trigger,
 		required: Required,
-		factory: () => ComponentTypes[Required]
+		factory: (triggerValue: ComponentTypes[Trigger]) => ComponentTypes[Required]
 	): this {
 		const triggerKey = trigger as string;
 		const requiredKey = required as string;
@@ -215,7 +215,7 @@ export default class Bundle<
 		// Cycle detection within this bundle's requirements
 		this._checkRequiredCycle(triggerKey, requiredKey);
 
-		existing.push({ component: requiredKey, factory: factory as () => unknown });
+		existing.push({ component: requiredKey, factory: factory as (triggerValue: any) => unknown });
 		this._requiredComponents.set(triggerKey, existing);
 		return this;
 	}
@@ -231,8 +231,8 @@ export default class Bundle<
 	/**
 	 * Get all registered required component mappings in this bundle
 	 */
-	getRequiredComponents(): Map<string, Array<{ component: string; factory: () => unknown }>> {
-		const result = new Map<string, Array<{ component: string; factory: () => unknown }>>();
+	getRequiredComponents(): Map<string, Array<{ component: string; factory: (triggerValue: any) => unknown }>> {
+		const result = new Map<string, Array<{ component: string; factory: (triggerValue: any) => unknown }>>();
 		for (const [trigger, reqs] of this._requiredComponents) {
 			result.set(trigger, [...reqs]);
 		}
@@ -287,7 +287,7 @@ export default class Bundle<
 	 * Internal method to add a required component entry
 	 * @internal Used by mergeBundles
 	 */
-	_addRequired(trigger: string, component: string, factory: () => unknown): void {
+	_addRequired(trigger: string, component: string, factory: (triggerValue: any) => unknown): void {
 		const existing = this._requiredComponents.get(trigger) ?? [];
 		if (!existing.some(r => r.component === component)) {
 			existing.push({ component, factory });

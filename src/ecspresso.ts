@@ -101,7 +101,7 @@ export default class ECSpresso<
 	/** Maximum fixed update steps per frame (spiral-of-death protection) */
 	private _maxFixedSteps: number = 8;
 	/** Registry of required component relationships: trigger -> [{component, factory}] */
-	private _requiredComponents: Map<keyof ComponentTypes, Array<{ component: keyof ComponentTypes; factory: () => any }>> = new Map();
+	private _requiredComponents: Map<keyof ComponentTypes, Array<{ component: keyof ComponentTypes; factory: (triggerValue: any) => any }>> = new Map();
 	/** Pending bundle assets awaiting manager creation at build time */
 	private _pendingBundleAssets: Array<[string, AssetDefinition<unknown>]> = [];
 	/** Pending bundle screens awaiting manager creation at build time */
@@ -144,9 +144,11 @@ export default class ECSpresso<
 			if (reqs) {
 				const entity = this._entityManager.getEntity(entityId);
 				if (entity) {
+					const triggerValue = entity.components[componentName];
 					for (const { component, factory } of reqs) {
+						if (this._entityManager._pendingBatchKeys?.has(component)) continue;
 						if (!(component in entity.components)) {
-							this._entityManager.addComponent(entityId, component, factory());
+							this._entityManager.addComponent(entityId, component, factory(triggerValue));
 						}
 					}
 				}
@@ -1159,7 +1161,7 @@ export default class ECSpresso<
 	>(
 		trigger: Trigger,
 		required: Required,
-		factory: () => ComponentTypes[Required]
+		factory: (triggerValue: ComponentTypes[Trigger]) => ComponentTypes[Required]
 	): void {
 		if (String(trigger) === String(required)) {
 			throw new Error(`Cannot require a component to depend on itself: '${String(trigger)}'`);

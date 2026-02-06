@@ -235,9 +235,9 @@ export function createTransformBundle<G extends string = 'transform'>(
 
 	const bundle = new Bundle<TransformComponentTypes, {}, {}>('transform');
 
-	// localTransform requires worldTransform — auto-add with matching defaults
-	bundle.registerRequired('localTransform', 'worldTransform', () => ({
-		...DEFAULT_WORLD_TRANSFORM,
+	// localTransform requires worldTransform — initialize from localTransform values
+	bundle.registerRequired('localTransform', 'worldTransform', (lt) => ({
+		x: lt.x, y: lt.y, rotation: lt.rotation, scaleX: lt.scaleX, scaleY: lt.scaleY,
 	}));
 
 	bundle
