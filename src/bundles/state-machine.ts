@@ -23,7 +23,7 @@ export interface StateMachineWorld {
 		getComponent(entityId: number, componentName: string): unknown | null;
 	};
 	eventBus: {
-		publish(eventType: string, data?: unknown): void;
+		publish(eventType: string, data: unknown): void;
 	};
 	spawn(components: Record<string, unknown>): { id: number };
 	removeEntity(entityOrId: number): boolean;

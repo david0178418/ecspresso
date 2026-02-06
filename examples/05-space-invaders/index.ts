@@ -48,4 +48,4 @@ const game = ECSpresso
 	.build();
 
 await game.initialize();
-game.eventBus.publish('gameInit');
+game.eventBus.publish('gameInit', true);

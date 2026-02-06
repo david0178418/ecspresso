@@ -392,3 +392,61 @@ describe('EventSystem', () => {
 		expect(removed).toBe(false);
 	});
 });
+
+describe('publish type safety', () => {
+	interface TypeSafetyEvents {
+		ping: void;
+		signal: undefined;
+		hit: { damage: number };
+		gameStart: true;
+	}
+
+	test('void events do not require data', () => {
+		const { eventBus } = new ECSpresso<TestComponents, TypeSafetyEvents>();
+		let called = false;
+		eventBus.subscribe('ping', () => { called = true; });
+		eventBus.publish('ping');
+		expect(called).toBe(true);
+	});
+
+	test('undefined events do not require data', () => {
+		const { eventBus } = new ECSpresso<TestComponents, TypeSafetyEvents>();
+		let called = false;
+		eventBus.subscribe('signal', () => { called = true; });
+		eventBus.publish('signal');
+		expect(called).toBe(true);
+	});
+
+	test('payload events require data', () => {
+		const { eventBus } = new ECSpresso<TestComponents, TypeSafetyEvents>();
+		// @ts-expect-error - data is required for hit events
+		eventBus.publish('hit');
+		eventBus.publish('hit', { damage: 10 });
+	});
+
+	test('literal events require data', () => {
+		const { eventBus } = new ECSpresso<TestComponents, TypeSafetyEvents>();
+		// @ts-expect-error - data is required for gameStart events
+		eventBus.publish('gameStart');
+		eventBus.publish('gameStart', true);
+	});
+
+	test('mixed types enforced independently', () => {
+		const { eventBus } = new ECSpresso<TestComponents, TypeSafetyEvents>();
+		eventBus.publish('ping');
+		eventBus.publish('signal');
+		// @ts-expect-error - data is required for hit events
+		eventBus.publish('hit');
+		// @ts-expect-error - data is required for gameStart events
+		eventBus.publish('gameStart');
+		eventBus.publish('hit', { damage: 5 });
+		eventBus.publish('gameStart', true);
+	});
+
+	test('wrong data type is rejected', () => {
+		const { eventBus } = new ECSpresso<TestComponents, TypeSafetyEvents>();
+		// @ts-expect-error - wrong data type for hit
+		eventBus.publish('hit', 'wrong');
+		eventBus.publish('hit', { damage: 1 });
+	});
+});

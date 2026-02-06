@@ -73,9 +73,13 @@ class EventBus<EventTypes> {
 		};
 	}
 
+	/**
+	 * Publish an event. Data is required unless EventTypes[E] extends void | undefined.
+	 */
 	publish<E extends keyof EventTypes>(
-		eventType: E,
-		data?: EventTypes[E]
+		...[eventType, data]: EventTypes[E] extends void | undefined
+			? [eventType: E, data?: EventTypes[E]]
+			: [eventType: E, data: EventTypes[E]]
 	): void {
 		const handlers = this.handlers.get(eventType);
 		if (!handlers) return;

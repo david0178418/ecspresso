@@ -46,7 +46,7 @@ export default function createCombatBundle(): Bundle<Components, Events, Resourc
 					'enemyProjectile:player': (projectileId, playerId, ecs) => {
 						ecs.commands.removeEntity(projectileId);
 						ecs.commands.removeEntity(playerId);
-						ecs.eventBus.publish('playerDeath');
+						ecs.eventBus.publish('playerDeath', {});
 					},
 				}),
 			},

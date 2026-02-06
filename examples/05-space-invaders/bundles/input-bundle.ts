@@ -46,9 +46,9 @@ export default function createInputProcessingBundle(): Bundle<Components, Events
 			if (!input.actions.justActivated('pause')) return;
 
 			const statusToEvent: Record<string, () => void> = {
-				'playing': () => ecs.eventBus.publish('gamePause'),
-				'paused': () => ecs.eventBus.publish('gameResume'),
-				'ready': () => ecs.eventBus.publish('gameStart'),
+				'playing': () => ecs.eventBus.publish('gamePause', true),
+				'paused': () => ecs.eventBus.publish('gameResume', true),
+				'ready': () => ecs.eventBus.publish('gameStart', true),
 			};
 
 			statusToEvent[gameState.status]?.();
