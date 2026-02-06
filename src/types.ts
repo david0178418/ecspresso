@@ -25,19 +25,6 @@ interface RemoveEntityOptions {
 }
 
 /**
- * Event data emitted when an entity's parent changes
- */
-export
-interface HierarchyChangedEvent {
-	/** The entity whose parent changed */
-	entityId: number;
-	/** The previous parent, or null if entity had no parent */
-	oldParent: number | null;
-	/** The new parent, or null if entity was orphaned */
-	newParent: number | null;
-}
-
-/**
  * Options for hierarchy traversal methods
  */
 export

@@ -533,14 +533,6 @@ class EntityManager<ComponentTypes> {
 		return this.changeSeqs.get(entityId)?.get(componentName) ?? -1;
 	}
 
-	/**
-	 * Clear all change sequences for an entity
-	 * @param entityId The entity ID
-	 */
-	clearChangeSeqs(entityId: number): void {
-		this.changeSeqs.delete(entityId);
-	}
-
 	// ==================== Hierarchy Methods ====================
 
 	/**
