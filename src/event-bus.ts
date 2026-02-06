@@ -75,6 +75,8 @@ class EventBus<EventTypes> {
 
 	/**
 	 * Publish an event. Data is required unless EventTypes[E] extends void | undefined.
+	 * Zero-allocation hot path: uses index-based iteration with a snapshot length
+	 * so handlers added mid-publish are not called in the same publish cycle.
 	 */
 	publish<E extends keyof EventTypes>(
 		...[eventType, data]: EventTypes[E] extends void | undefined
@@ -82,26 +84,23 @@ class EventBus<EventTypes> {
 			: [eventType: E, data: EventTypes[E]]
 	): void {
 		const handlers = this.handlers.get(eventType);
-		if (!handlers) return;
+		if (!handlers || handlers.length === 0) return;
 
-		// Create a copy of handlers to avoid issues with handlers that modify the array
-		const handlersToCall = [...handlers];
-
-		// Call all handlers and collect handlers to remove
-		const handlersToRemove: EventHandler<any>[] = [];
-
-		for (const handler of handlersToCall) {
+		// Snapshot length prevents calling handlers added mid-publish
+		let hasOnce = false;
+		const len = handlers.length;
+		for (let i = 0; i < len && i < handlers.length; i++) {
+			const handler = handlers[i];
+			if (!handler) continue;
 			handler.callback(data as EventTypes[E]);
-			if (handler.once) {
-				handlersToRemove.push(handler);
-			}
+			if (handler.once) hasOnce = true;
 		}
 
-		if (handlersToRemove.length > 0) {
-			for (const handler of handlersToRemove) {
-				const index = handlers.indexOf(handler);
-				if (index !== -1) {
-					handlers.splice(index, 1);
+		// Reverse splice to remove once-handlers without shifting earlier indices
+		if (hasOnce) {
+			for (let i = handlers.length - 1; i >= 0; i--) {
+				if (handlers[i]?.once) {
+					handlers.splice(i, 1);
 				}
 			}
 		}

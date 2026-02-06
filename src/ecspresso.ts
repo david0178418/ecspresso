@@ -10,8 +10,8 @@ import type Bundle from "./bundle";
 import { createEcspressoSystemBuilder } from "./system-builder";
 import { version } from "../package.json";
 import type { BundlesAreCompatible, TypesAreCompatible } from "./type-utils";
-import type { AssetDefinition, AssetHandle, AssetConfigurator, AssetsResource } from "./asset-types";
-import type { ScreenDefinition, ScreenConfigurator, ScreenResource } from "./screen-types";
+import type { AssetDefinition, AssetHandle, AssetConfigurator, AssetsResource, AssetEvents } from "./asset-types";
+import type { ScreenDefinition, ScreenConfigurator, ScreenResource, ScreenEvents } from "./screen-types";
 
 /**
 	* Interface declaration for ECSpresso constructor to ensure type augmentation works properly.
@@ -437,7 +437,7 @@ export default class ECSpresso<
 		// Key/value casts are needed because the class generic doesn't constrain ResourceTypes
 		// to contain $assets/$screen — the builder merges them into R at the type level.
 		if (this._assetManager) {
-			this._assetManager.setEventBus(this._eventBus as unknown as EventBus<any>);
+			this._assetManager.setEventBus(this._eventBus as unknown as EventBus<AssetEvents>);
 			await this._assetManager.loadEagerAssets();
 			this._resourceManager.add('$assets' as keyof ResourceTypes, this._assetManager.createResource() as unknown as ResourceTypes[keyof ResourceTypes]);
 		}
@@ -445,7 +445,7 @@ export default class ECSpresso<
 		// Set up screen manager if present
 		if (this._screenManager) {
 			this._screenManager.setDependencies(
-				this._eventBus as unknown as EventBus<any>,
+				this._eventBus as unknown as EventBus<ScreenEvents>,
 				this._assetManager,
 				this as unknown as ECSpresso<any, any, any, any, any>
 			);
@@ -643,14 +643,43 @@ export default class ECSpresso<
 	}
 
 	/**
-		* Get a resource if it exists, or undefined if not
-	*/
+	 * Get a resource by key. Throws if the resource is not found.
+	 * @param key The resource key
+	 * @returns The resource value
+	 * @throws Error if resource not found
+	 * @see tryGetResource — the non-throwing alternative that returns undefined
+	 */
 	getResource<K extends keyof ResourceTypes>(key: K): ResourceTypes[K] {
 		if (!this._resourceManager.has(key)) {
 			throw new Error(`Resource '${String(key)}' not found. Available resources: [${this.getResourceKeys().map(k => String(k)).join(', ')}]`);
 		}
 
 		return this._resourceManager.get(key, this);
+	}
+
+	/**
+	 * Try to get a resource by key. Returns undefined if the resource is not found.
+	 * Inspired by Bevy's `World::get_resource::<T>()` which returns `Option<&T>`.
+	 *
+	 * Two overloads:
+	 * 1. Known key — full type safety from `ResourceTypes`
+	 * 2. String key with explicit type param — for cross-bundle optional dependencies
+	 *
+	 * @example
+	 * ```typescript
+	 * // Known key (type inferred from ResourceTypes)
+	 * const score = ecs.tryGetResource('score'); // ScoreResource | undefined
+	 *
+	 * // Cross-bundle optional dependency (caller specifies expected type)
+	 * const si = ecs.tryGetResource<SpatialIndex>('spatialIndex') ?? null;
+	 * ```
+	 */
+	tryGetResource<K extends keyof ResourceTypes>(key: K): ResourceTypes[K] | undefined;
+	tryGetResource<T>(key: unknown extends T ? never : string): T | undefined;
+	tryGetResource(key: string): unknown {
+		const k = key as keyof ResourceTypes;
+		if (!this._resourceManager.has(k)) return undefined;
+		return this._resourceManager.get(k, this);
 	}
 
 	/**

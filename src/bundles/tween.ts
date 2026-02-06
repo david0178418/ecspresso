@@ -393,7 +393,7 @@ function applyStep(
 	progress: number,
 	entityComponents: Record<string, unknown>,
 	entityId: number,
-	markChanged: (entityId: number, componentName: string) => void,
+	ecs: { markChanged: (entityId: number, componentName: any) => void },
 ): void {
 	const easedT = step.easing(progress);
 
@@ -404,7 +404,7 @@ function applyStep(
 		const value = from + (target.to - from) * easedT;
 		const written = writeField(comp as Record<string, unknown>, target.path, value);
 		if (written) {
-			markChanged(entityId, target.component);
+			ecs.markChanged(entityId, target.component);
 		}
 	}
 }
@@ -416,14 +416,14 @@ function snapStepToEnd(
 	step: TweenStep,
 	entityComponents: Record<string, unknown>,
 	entityId: number,
-	markChanged: (entityId: number, componentName: string) => void,
+	ecs: { markChanged: (entityId: number, componentName: any) => void },
 ): void {
 	for (const target of step.targets) {
 		const comp = entityComponents[target.component];
 		if (!comp || typeof comp !== 'object') continue;
 		const written = writeField(comp as Record<string, unknown>, target.path, target.to);
 		if (written) {
-			markChanged(entityId, target.component);
+			ecs.markChanged(entityId, target.component);
 		}
 	}
 }
@@ -520,7 +520,7 @@ export function createTweenBundle<EventTypes extends Record<string, any> = Recor
 
 			// Zero-duration steps complete immediately
 			if (currentStep.duration <= 0) {
-				snapStepToEnd(currentStep, entityComponents, entityId, ecs.markChanged.bind(ecs));
+				snapStepToEnd(currentStep, entityComponents, entityId, ecs);
 				tween.elapsed = 0;
 
 				if (!advanceStep(tween, entityComponents, entityId, ecs)) return;
@@ -529,7 +529,7 @@ export function createTweenBundle<EventTypes extends Record<string, any> = Recor
 
 			if (tween.elapsed >= currentStep.duration) {
 				// Step complete — snap to end and carry overflow
-				snapStepToEnd(currentStep, entityComponents, entityId, ecs.markChanged.bind(ecs));
+				snapStepToEnd(currentStep, entityComponents, entityId, ecs);
 				const overflow = tween.elapsed - currentStep.duration;
 				tween.elapsed = overflow;
 
@@ -539,7 +539,7 @@ export function createTweenBundle<EventTypes extends Record<string, any> = Recor
 
 			// Step in progress — interpolate
 			const progress = clamp(tween.elapsed / currentStep.duration, 0, 1);
-			applyStep(currentStep, progress, entityComponents, entityId, ecs.markChanged.bind(ecs));
+			applyStep(currentStep, progress, entityComponents, entityId, ecs);
 			return;
 		}
 	}

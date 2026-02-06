@@ -1779,6 +1779,51 @@ describe('ECSpresso', () => {
 		});
 	});
 
+	describe('tryGetResource', () => {
+		test('returns undefined for non-existent resource', () => {
+			const world = ECSpresso.create<{}, {}, { score: number }>().build();
+			expect(world.tryGetResource('score')).toBeUndefined();
+		});
+
+		test('returns value for existing resource', () => {
+			const world = ECSpresso.create<{}, {}, { score: number }>()
+				.withResource('score', 42)
+				.build();
+			expect(world.tryGetResource('score')).toBe(42);
+		});
+
+		test('initializes factory resource on access', async () => {
+			const world = ECSpresso.create<{}, {}, { score: number }>()
+				.withResource('score', () => 42)
+				.build();
+			// Factory not yet initialized, but tryGetResource should lazily init
+			expect(world.tryGetResource('score')).toBe(42);
+		});
+
+		test('type: known key returns T | undefined', () => {
+			const world = ECSpresso.create<{}, {}, { score: number }>().build();
+			const result = world.tryGetResource('score');
+			// @ts-expect-error - result may be undefined, cannot use as number directly
+			const _n: number = result;
+			void _n;
+		});
+
+		test('type: rejects unknown string key without explicit type param', () => {
+			const world = ECSpresso.create<{}, {}, { score: number }>().build();
+			// @ts-expect-error - 'missing' is not a known key, and no explicit type param provided
+			world.tryGetResource('missing');
+		});
+
+		test('cross-bundle overload accepts string key with explicit type', () => {
+			const world = ECSpresso.create().build();
+			const result = world.tryGetResource<{ value: number }>('optionalResource');
+			expect(result).toBeUndefined();
+			// @ts-expect-error - result may be undefined, cannot assign to non-optional type
+			const _v: { value: number } = result;
+			void _v;
+		});
+	});
+
 	describe('Resource Disposal via ECSpresso', () => {
 		test('disposeResource() should dispose a single resource', async () => {
 			let disposed = false;

@@ -436,7 +436,6 @@ export function createStateMachineBundle<S extends string = string, G extends st
 	const bundle = new Bundle<StateMachineComponentTypes<S>, StateMachineEventTypes<S>, {}>('stateMachine');
 
 	const initialized = new Set<number>();
-	let cleanupRegistered = false;
 
 	bundle
 		.addSystem('state-machine-update')
@@ -446,15 +445,12 @@ export function createStateMachineBundle<S extends string = string, G extends st
 		.addQuery('machines', {
 			with: ['stateMachine'],
 		})
+		.setOnInitialize((ecs) => {
+			ecs.onComponentRemoved('stateMachine', (_value, entity) => {
+				initialized.delete(entity.id);
+			});
+		})
 		.setProcess((queries, deltaTime, ecs) => {
-			// Lazy-register cleanup listener on first tick
-			if (!cleanupRegistered) {
-				ecs.onComponentRemoved('stateMachine', (_value, entity) => {
-					initialized.delete(entity.id);
-				});
-				cleanupRegistered = true;
-			}
-
 			for (const entity of queries.machines) {
 				const sm = entity.components.stateMachine;
 				const states = sm.definition.states as Record<string, StateConfig<string>>;

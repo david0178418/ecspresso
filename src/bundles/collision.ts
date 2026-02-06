@@ -491,10 +491,7 @@ export function createCollisionBundle<L extends string, G extends string = 'phys
 				colliders.push(info);
 			}
 
-			const hasSpatial = (ecs as unknown as { hasResource(k: string): boolean }).hasResource('spatialIndex');
-			const si = hasSpatial
-				? (ecs as unknown as { getResource(k: string): SpatialIndex }).getResource('spatialIndex')
-				: null;
+			const si = ecs.tryGetResource<SpatialIndex>('spatialIndex') ?? null;
 
 			detectCollisions(colliders, si, onCollisionDetected<L>, ecs.eventBus);
 		})

@@ -98,13 +98,14 @@ export interface ScreenResource<Screens extends Record<string, ScreenDefinition<
 }
 
 /**
- * Events emitted by the screen system
+ * Events emitted by the screen system.
+ * @typeParam S - Screen name type (defaults to `string` for backward compatibility)
  */
-export interface ScreenEvents {
-	screenEnter: { screen: string; config: unknown };
-	screenExit: { screen: string };
-	screenPush: { screen: string; config: unknown };
-	screenPop: { screen: string };
+export interface ScreenEvents<S extends string = string> {
+	screenEnter: { screen: S; config: unknown };
+	screenExit: { screen: S };
+	screenPush: { screen: S; config: unknown };
+	screenPop: { screen: S };
 }
 
 /**

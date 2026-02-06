@@ -393,6 +393,85 @@ describe('EventSystem', () => {
 	});
 });
 
+describe('publish correctness', () => {
+	test('once-handler fires exactly once across multiple publishes', () => {
+		const { eventBus } = new ECSpresso<TestComponents, TestEvents>();
+		let count = 0;
+		eventBus.once('entityCreated', () => { count++; });
+
+		eventBus.publish('entityCreated', { entityId: 1 });
+		eventBus.publish('entityCreated', { entityId: 2 });
+		eventBus.publish('entityCreated', { entityId: 3 });
+
+		expect(count).toBe(1);
+	});
+
+	test('handler added during publish does not fire in same publish', () => {
+		const { eventBus } = new ECSpresso<TestComponents, TestEvents>();
+		let innerCalled = false;
+
+		eventBus.subscribe('entityCreated', () => {
+			eventBus.subscribe('entityCreated', () => {
+				innerCalled = true;
+			});
+		});
+
+		eventBus.publish('entityCreated', { entityId: 1 });
+		expect(innerCalled).toBe(false);
+
+		// Should fire on next publish
+		eventBus.publish('entityCreated', { entityId: 2 });
+		expect(innerCalled).toBe(true);
+	});
+
+	test('mid-publish unsubscribe of later handler does not crash', () => {
+		const { eventBus } = new ECSpresso<TestComponents, TestEvents>();
+
+		let laterCalls = 0;
+		const unsubLater = eventBus.subscribe('entityCreated', () => {
+			laterCalls++;
+		});
+
+		// Clear and re-register so the unsubscriber runs first
+		eventBus.clearEvent('entityCreated');
+
+		let firstCalled = false;
+		eventBus.subscribe('entityCreated', () => {
+			firstCalled = true;
+			unsubLater(); // unsubscribe the later handler mid-publish
+		});
+		eventBus.subscribe('entityCreated', () => {
+			laterCalls++;
+		});
+
+		// Should not throw — key invariant is no crash
+		eventBus.publish('entityCreated', { entityId: 1 });
+		expect(firstCalled).toBe(true);
+
+		// After publish, the later handler should be gone
+		laterCalls = 0;
+		eventBus.publish('entityCreated', { entityId: 2 });
+		expect(laterCalls).toBe(1); // only the second subscription remains
+	});
+
+	test('multiple once-handlers are all removed after publish', () => {
+		const { eventBus } = new ECSpresso<TestComponents, TestEvents>();
+		let count1 = 0;
+		let count2 = 0;
+
+		eventBus.once('entityCreated', () => { count1++; });
+		eventBus.once('entityCreated', () => { count2++; });
+
+		eventBus.publish('entityCreated', { entityId: 1 });
+		expect(count1).toBe(1);
+		expect(count2).toBe(1);
+
+		eventBus.publish('entityCreated', { entityId: 2 });
+		expect(count1).toBe(1);
+		expect(count2).toBe(1);
+	});
+});
+
 describe('publish type safety', () => {
 	interface TypeSafetyEvents {
 		ping: void;

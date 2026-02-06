@@ -154,11 +154,29 @@ class ResourceManager<
 	}
 
 	/**
+	 * Try to get a resource from the manager.
+	 * Returns the resource value if it exists, or undefined if not found.
+	 * Like `get`, initializes factory resources on first access.
+	 * @param label The resource key
+	 * @param context Context to pass to factory functions (usually the ECSpresso instance)
+	 * @returns The resource value, or undefined if not found
+	 * @see get — the throwing alternative
+	 */
+	tryGet<K extends keyof ResourceTypes>(
+		label: K,
+		...args: ContextArgs<Context>
+	): ResourceTypes[K] | undefined {
+		if (!this.has(label)) return undefined;
+		return this.get(label, ...args);
+	}
+
+	/**
 	 * Get a resource from the manager
 	 * @param label The resource key
 	 * @param context Context to pass to factory functions (usually the ECSpresso instance)
 	 * @returns The resource value
 	 * @throws Error if resource not found
+	 * @see tryGet — the non-throwing alternative
 	 */
 	get<K extends keyof ResourceTypes>(
 		label: K,

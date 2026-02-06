@@ -529,6 +529,33 @@ describe('State Machine Bundle', () => {
 			ecs.update(1 / 60);
 		});
 
+		test('component removal cleans up tracking even before first tick', async () => {
+			const ecs = createTestEcs();
+			let enterCount = 0;
+
+			const fsm = defineStateMachine('test', {
+				initial: 'idle',
+				states: {
+					idle: {
+						onEnter: () => { enterCount++; },
+					},
+				},
+			});
+
+			await ecs.initialize();
+
+			// Spawn, add the component, then remove it — all before any tick
+			const entity = ecs.spawn({ ...createStateMachine(fsm) });
+			ecs.entityManager.removeComponent(entity.id, 'stateMachine');
+
+			// Re-add the component
+			ecs.entityManager.addComponent(entity.id, 'stateMachine', createStateMachine(fsm).stateMachine);
+			ecs.update(1 / 60);
+
+			// onEnter should fire for the re-added component (entity treated as fresh)
+			expect(enterCount).toBe(1);
+		});
+
 		test('re-spawned entity gets fresh initialization', () => {
 			const ecs = createTestEcs();
 			let enterCount = 0;

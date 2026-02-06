@@ -584,9 +584,8 @@ export function createAudioBundle<Ch extends string, G extends string = 'audio'>
 			eventBusRef = ecs.eventBus;
 
 			// Resolve asset getter - works with $assets resource if available
-			const hasAssets = (ecs as unknown as { hasResource(k: string): boolean }).hasResource('$assets');
-			if (hasAssets) {
-				const assets = (ecs as unknown as { getResource(k: string): { get(k: string): unknown } }).getResource('$assets');
+			const assets = ecs.tryGetResource<{ get(k: string): unknown }>('$assets');
+			if (assets) {
 				getAsset = (key: string) => assets.get(key) as Howl;
 			}
 

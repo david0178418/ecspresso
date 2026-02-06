@@ -18,7 +18,7 @@ import {
 	type TransformBundleOptions,
 } from 'ecspresso/bundles/transform';
 import { createBounds, type BoundsRect } from 'ecspresso/bundles/bounds';
-import type { CameraResourceTypes } from 'ecspresso/bundles/camera';
+import type { CameraResourceTypes, CameraState } from 'ecspresso/bundles/camera';
 
 // Re-export transform and bounds types for convenience
 export type { LocalTransform, WorldTransform, TransformComponentTypes };
@@ -557,7 +557,9 @@ export function createRenderer2DBundle<G extends string = 'renderer2d'>(
 
 	// Container constructor captured during initialization via dynamic import
 	// Used by getOrCreateLayerContainer for lazy layer creation
-	let createLayerContainer: (label: string) => Container;
+	let createLayerContainer: (label: string) => Container = () => {
+		throw new Error('renderer2D: createLayerContainer called before initialization');
+	};
 
 	// Helper to get the PixiJS display object for an entity
 	function getPixiObject(entityId: number, ecs: ECSpresso<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes>): Container | null {
@@ -768,7 +770,8 @@ export function createRenderer2DBundle<G extends string = 'renderer2d'>(
 				viewportContainer.label = 'viewportContainer';
 
 				// Apply initial scale/offset
-				const vs = (ecs as unknown as ECSpresso<{}, {}, ViewportScaleResourceTypes>).getResource('viewportScale');
+				const vs = ecs.tryGetResource<ViewportScale>('viewportScale');
+				if (!vs) throw new Error('renderer2D: viewportScale resource not found');
 				viewportContainer.position.set(vs.offsetX, vs.offsetY);
 				viewportContainer.scale.set(vs.scaleX, vs.scaleY);
 
@@ -848,7 +851,8 @@ export function createRenderer2DBundle<G extends string = 'renderer2d'>(
 
 			// Set initial camera viewport dimensions
 			if (camera) {
-				const cameraState = (ecs as unknown as ECSpresso<{}, {}, CameraResourceTypes>).getResource('cameraState');
+				const cameraState = ecs.tryGetResource<CameraState>('cameraState');
+				if (!cameraState) throw new Error('renderer2D: cameraState resource not found');
 				cameraState.viewportWidth = hasScreenScale ? designWidth : pixiApp.screen.width;
 				cameraState.viewportHeight = hasScreenScale ? designHeight : pixiApp.screen.height;
 			}
@@ -858,7 +862,8 @@ export function createRenderer2DBundle<G extends string = 'renderer2d'>(
 				if (hasScreenScale) {
 					// Recompute viewport scale and apply to viewportContainer
 					const vs = computeViewportScale(width, height, designWidth, designHeight, screenScaleMode);
-					const vpResource = (ecs as unknown as ECSpresso<{}, {}, ViewportScaleResourceTypes>).getResource('viewportScale');
+					const vpResource = ecs.tryGetResource<ViewportScale>('viewportScale');
+					if (!vpResource) throw new Error('renderer2D: viewportScale resource not found');
 					vpResource.scaleX = vs.scaleX;
 					vpResource.scaleY = vs.scaleY;
 					vpResource.offsetX = vs.offsetX;
@@ -879,7 +884,8 @@ export function createRenderer2DBundle<G extends string = 'renderer2d'>(
 					bounds.height = height;
 
 					if (camera) {
-						const cameraState = (ecs as unknown as ECSpresso<{}, {}, CameraResourceTypes>).getResource('cameraState');
+						const cameraState = ecs.tryGetResource<CameraState>('cameraState');
+						if (!cameraState) throw new Error('renderer2D: cameraState resource not found');
 						cameraState.viewportWidth = width;
 						cameraState.viewportHeight = height;
 					}
@@ -903,7 +909,8 @@ export function createRenderer2DBundle<G extends string = 'renderer2d'>(
 			.inPhase('render')
 			.inGroup(systemGroup)
 			.setProcess((_queries, _dt, ecs) => {
-				const state = (ecs as unknown as ECSpresso<{}, {}, CameraResourceTypes>).getResource('cameraState');
+				const state = ecs.tryGetResource<CameraState>('cameraState');
+				if (!state) throw new Error('renderer2D: cameraState resource not found');
 				const root = ecs.getResource('rootContainer');
 				let centerW: number, centerH: number;
 				if (hasScreenScale) {

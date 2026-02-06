@@ -43,8 +43,8 @@ src/
 
 - **Components**: Data-only objects stored on entities
 - **Systems**: Process entities matching queries, use builder pattern
-- **Resources**: Global singleton state accessible to systems
-- **Events**: Decoupled pub/sub for inter-system communication
+- **Resources**: Global singleton state accessible to systems. `getResource(key)` throws if missing; `tryGetResource(key)` returns `T | undefined`
+- **Events**: Decoupled pub/sub for inter-system communication. `AssetEvents<K, G>` and `ScreenEvents<S>` accept optional type params to narrow event payload keys (default `string` for backward compat)
 - **Bundles**: Group related systems/resources for reusability
 - **Command Buffer**: Deferred structural changes executed between phases
 - **System Phases**: Named execution phases (preUpdate → fixedUpdate → update → postUpdate → render) with fixed-timestep simulation
@@ -87,6 +87,12 @@ src/
 - **Singleton**: `getSingleton(['player'])` throws on 0 or >1; `tryGetSingleton` returns `undefined` on 0
 - **Relationship**: `{ with: ['child'], parentHas: ['container'] }` — filters to entities whose parent has specified components
 - **Reactive**: `addReactiveQuery()` with `onEnter`/`onExit` callbacks. Reactive `parentHas` rechecks on hierarchy/component changes.
+
+### Resources
+- `getResource(key)` — throws if not found. Use for resources guaranteed to exist (registered by the same bundle or builder).
+- `tryGetResource<K>(key)` — returns `T | undefined`. Two overloads:
+  - Known key: `ecs.tryGetResource('score')` — type inferred from `ResourceTypes`, rejects unknown keys at compile time
+  - Cross-bundle: `ecs.tryGetResource<SpatialIndex>('spatialIndex')` — requires explicit type param, accepts any string key. Use for optional dependencies on resources from other bundles.
 
 ### Bundle Phase Flow
 Physics 2D marks `localTransform` (fixedUpdate) → Transform propagation reads changed, writes+marks `worldTransform` (postUpdate) → Renderer reads changed `worldTransform` (render)

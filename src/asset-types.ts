@@ -68,13 +68,15 @@ export interface AssetsResource<A extends Record<string, unknown>, G extends str
 }
 
 /**
- * Events emitted by the asset system
+ * Events emitted by the asset system.
+ * @typeParam K - Asset key type (defaults to `string` for backward compatibility)
+ * @typeParam G - Asset group name type (defaults to `string` for backward compatibility)
  */
-export interface AssetEvents {
-	assetLoaded: { key: string };
-	assetFailed: { key: string; error: Error };
-	assetGroupLoaded: { group: string };
-	assetGroupProgress: { group: string; progress: number; loaded: number; total: number };
+export interface AssetEvents<K extends string = string, G extends string = string> {
+	assetLoaded: { key: K };
+	assetFailed: { key: K; error: Error };
+	assetGroupLoaded: { group: G };
+	assetGroupProgress: { group: G; progress: number; loaded: number; total: number };
 }
 
 /**

@@ -550,6 +550,40 @@ describe('ResourceManager', () => {
 		});
 	});
 
+	describe('tryGet', () => {
+		test('returns undefined for non-existent resource', () => {
+			const rm = new ResourceManager<TestResources>();
+			expect(rm.tryGet('config')).toBeUndefined();
+		});
+
+		test('returns value for existing direct resource', () => {
+			const rm = new ResourceManager<TestResources>();
+			rm.add('config', { debug: true, maxEntities: 1000 });
+			expect(rm.tryGet('config')).toEqual({ debug: true, maxEntities: 1000 });
+		});
+
+		test('initializes factory resource on access (same as get)', () => {
+			const rm = new ResourceManager<TestResources>();
+			rm.add('config', () => ({ debug: false, maxEntities: 500 }));
+			const result = rm.tryGet('config');
+			expect(result).toEqual({ debug: false, maxEntities: 500 });
+		});
+
+		test('type: return type is T | undefined', () => {
+			const rm = new ResourceManager<TestResources>();
+			const result = rm.tryGet('config');
+			// @ts-expect-error - result may be undefined, cannot assign to non-optional type
+			const _n: { debug: boolean; maxEntities: number } = result;
+			void _n;
+		});
+
+		test('type: rejects invalid keys', () => {
+			const rm = new ResourceManager<TestResources>();
+			// @ts-expect-error - 'nonExistent' is not a valid key
+			rm.tryGet('nonExistent');
+		});
+	});
+
 	describe('Resource Disposal', () => {
 		test('disposeResource() should call onDispose callback with resource value', async () => {
 			const rm = new ResourceManager<{ db: { close: () => void } }>();

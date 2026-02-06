@@ -452,10 +452,7 @@ export function createPhysics2DBundle<L extends string = never, G extends string
 				colliders.push(info);
 			}
 
-			const hasSpatial = (ecs as unknown as { hasResource(k: string): boolean }).hasResource('spatialIndex');
-			const si = hasSpatial
-				? (ecs as unknown as { getResource(k: string): SpatialIndex }).getResource('spatialIndex')
-				: null;
+			const si = ecs.tryGetResource<SpatialIndex>('spatialIndex') ?? null;
 
 			detectCollisions(colliders, si, onPhysicsContact, ecs);
 		})
