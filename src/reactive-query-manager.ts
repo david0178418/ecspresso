@@ -146,27 +146,31 @@ export default class ReactiveQueryManager<ComponentTypes extends Record<string, 
 	}
 
 	/**
+	 * Apply enter/exit transitions for a single query against an entity.
+	 * Fires onEnter when entity starts matching, onExit when it stops.
+	 */
+	private _applyQueryTransition(entity: Entity<ComponentTypes>, query: StoredQuery<ComponentTypes>): void {
+		const wasMatching = query.matchingEntities.has(entity.id);
+		const nowMatches = this.entityMatchesQuery(entity, query.definition);
+
+		if (!wasMatching && nowMatches) {
+			query.matchingEntities.add(entity.id);
+			query.definition.onEnter?.(entity as FilteredEntity<ComponentTypes, any, any, any>);
+		} else if (wasMatching && !nowMatches) {
+			query.matchingEntities.delete(entity.id);
+			query.definition.onExit?.(entity.id);
+		}
+	}
+
+	/**
 	 * Called when a component is added to an entity
 	 * Checks all queries for potential enter/exit events
 	 */
 	onComponentAdded(entity: Entity<ComponentTypes>, _componentName: keyof ComponentTypes): void {
-		for (const [_name, query] of this.queries) {
-			const wasMatching = query.matchingEntities.has(entity.id);
-			const nowMatches = this.entityMatchesQuery(entity, query.definition);
-
-			if (!wasMatching && nowMatches) {
-				// Entity started matching - trigger onEnter
-				query.matchingEntities.add(entity.id);
-				query.definition.onEnter?.(entity as FilteredEntity<ComponentTypes, any, any, any>);
-			} else if (wasMatching && !nowMatches) {
-				// Entity stopped matching (added excluded component) - trigger onExit
-				query.matchingEntities.delete(entity.id);
-				query.definition.onExit?.(entity.id);
-			}
-			// If component was replaced (wasMatching && nowMatches), do nothing
+		for (const [, query] of this.queries) {
+			this._applyQueryTransition(entity, query);
 		}
 
-		// If any query uses parentHas, recheck children of this entity
 		if (this._hasParentHasQueries) {
 			this._recheckChildren(entity.id);
 		}
@@ -177,22 +181,10 @@ export default class ReactiveQueryManager<ComponentTypes extends Record<string, 
 	 * Checks all queries for potential enter/exit events
 	 */
 	onComponentRemoved(entity: Entity<ComponentTypes>, _componentName: keyof ComponentTypes): void {
-		for (const [_name, query] of this.queries) {
-			const wasMatching = query.matchingEntities.has(entity.id);
-			const nowMatches = this.entityMatchesQuery(entity, query.definition);
-
-			if (wasMatching && !nowMatches) {
-				// Entity stopped matching - trigger onExit
-				query.matchingEntities.delete(entity.id);
-				query.definition.onExit?.(entity.id);
-			} else if (!wasMatching && nowMatches) {
-				// Entity started matching (removed excluded component) - trigger onEnter
-				query.matchingEntities.add(entity.id);
-				query.definition.onEnter?.(entity as FilteredEntity<ComponentTypes, any, any, any>);
-			}
+		for (const [, query] of this.queries) {
+			this._applyQueryTransition(entity, query);
 		}
 
-		// If any query uses parentHas, recheck children of this entity
 		if (this._hasParentHasQueries) {
 			this._recheckChildren(entity.id);
 		}
@@ -216,19 +208,8 @@ export default class ReactiveQueryManager<ComponentTypes extends Record<string, 
 	 * Fires enter/exit callbacks as appropriate based on current state vs tracked state
 	 */
 	recheckEntity(entity: Entity<ComponentTypes>): void {
-		for (const [_name, query] of this.queries) {
-			const wasMatching = query.matchingEntities.has(entity.id);
-			const nowMatches = this.entityMatchesQuery(entity, query.definition);
-
-			if (!wasMatching && nowMatches) {
-				// Entity started matching - trigger onEnter
-				query.matchingEntities.add(entity.id);
-				query.definition.onEnter?.(entity as FilteredEntity<ComponentTypes, any, any, any>);
-			} else if (wasMatching && !nowMatches) {
-				// Entity stopped matching - trigger onExit
-				query.matchingEntities.delete(entity.id);
-				query.definition.onExit?.(entity.id);
-			}
+		for (const [, query] of this.queries) {
+			this._applyQueryTransition(entity, query);
 		}
 	}
 

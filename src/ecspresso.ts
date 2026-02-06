@@ -242,14 +242,7 @@ export default class ECSpresso<
 		const timing = this._diagnosticsEnabled;
 
 		// 1. preUpdate phase
-		if (timing) {
-			const t0 = performance.now();
-			this._executePhase(this._phaseSystems.preUpdate, deltaTime, currentScreen);
-			this._phaseTimings.preUpdate = performance.now() - t0;
-		} else {
-			this._executePhase(this._phaseSystems.preUpdate, deltaTime, currentScreen);
-		}
-		this._commandBuffer.playback(this);
+		this._runPhase('preUpdate', deltaTime, currentScreen, timing);
 
 		// 2. fixedUpdate phase — accumulate time and step N times
 		const fixedT0 = timing ? performance.now() : 0;
@@ -272,24 +265,10 @@ export default class ECSpresso<
 		this._interpolationAlpha = this._fixedAccumulator / this._fixedDt;
 
 		// 3. update phase
-		if (timing) {
-			const t0 = performance.now();
-			this._executePhase(this._phaseSystems.update, deltaTime, currentScreen);
-			this._phaseTimings.update = performance.now() - t0;
-		} else {
-			this._executePhase(this._phaseSystems.update, deltaTime, currentScreen);
-		}
-		this._commandBuffer.playback(this);
+		this._runPhase('update', deltaTime, currentScreen, timing);
 
 		// 4. postUpdate phase
-		if (timing) {
-			const t0 = performance.now();
-			this._executePhase(this._phaseSystems.postUpdate, deltaTime, currentScreen);
-			this._phaseTimings.postUpdate = performance.now() - t0;
-		} else {
-			this._executePhase(this._phaseSystems.postUpdate, deltaTime, currentScreen);
-		}
-		this._commandBuffer.playback(this);
+		this._runPhase('postUpdate', deltaTime, currentScreen, timing);
 
 		// 5. Post-update hooks (between postUpdate and render, preserving existing behavior)
 		for (const hook of this._postUpdateHooks) {
@@ -297,14 +276,7 @@ export default class ECSpresso<
 		}
 
 		// 6. render phase
-		if (timing) {
-			const t0 = performance.now();
-			this._executePhase(this._phaseSystems.render, deltaTime, currentScreen);
-			this._phaseTimings.render = performance.now() - t0;
-		} else {
-			this._executePhase(this._phaseSystems.render, deltaTime, currentScreen);
-		}
-		this._commandBuffer.playback(this);
+		this._runPhase('render', deltaTime, currentScreen, timing);
 
 		// Set change threshold to current sequence so that public
 		// getEntitiesWithQuery (called between updates) sees command
@@ -414,6 +386,26 @@ export default class ECSpresso<
 			// Record this system's last-seen sequence so it won't re-process these marks
 			this._systemLastSeqs.set(system, this._entityManager.changeSeq);
 		}
+	}
+
+	/**
+	 * Execute a non-fixed phase with optional timing, then play back the command buffer.
+	 * @private
+	 */
+	private _runPhase(
+		phase: SystemPhase,
+		deltaTime: number,
+		currentScreen: (keyof ScreenStates & string) | null,
+		timing: boolean
+	): void {
+		if (timing) {
+			const t0 = performance.now();
+			this._executePhase(this._phaseSystems[phase], deltaTime, currentScreen);
+			this._phaseTimings[phase] = performance.now() - t0;
+		} else {
+			this._executePhase(this._phaseSystems[phase], deltaTime, currentScreen);
+		}
+		this._commandBuffer.playback(this);
 	}
 
 	/**
@@ -1314,14 +1306,18 @@ export default class ECSpresso<
 
 	// ==================== Asset Management ====================
 
+	private requireAssetManager(): AssetManager<AssetTypes> {
+		if (!this._assetManager) {
+			throw new Error('Asset manager not configured. Use withAssets() in builder.');
+		}
+		return this._assetManager;
+	}
+
 	/**
 	 * Get a loaded asset by key. Throws if not loaded.
 	 */
 	getAsset<K extends keyof AssetTypes>(key: K): AssetTypes[K] {
-		if (!this._assetManager) {
-			throw new Error('Asset manager not configured. Use withAssets() in builder.');
-		}
-		return this._assetManager.get(key);
+		return this.requireAssetManager().get(key);
 	}
 
 	/**
@@ -1335,10 +1331,7 @@ export default class ECSpresso<
 	 * Get a handle to an asset with status information
 	 */
 	getAssetHandle<K extends keyof AssetTypes>(key: K): AssetHandle<AssetTypes[K]> {
-		if (!this._assetManager) {
-			throw new Error('Asset manager not configured. Use withAssets() in builder.');
-		}
-		return this._assetManager.getHandle(key);
+		return this.requireAssetManager().getHandle(key);
 	}
 
 	/**
@@ -1352,20 +1345,14 @@ export default class ECSpresso<
 	 * Load a single asset
 	 */
 	async loadAsset<K extends keyof AssetTypes>(key: K): Promise<AssetTypes[K]> {
-		if (!this._assetManager) {
-			throw new Error('Asset manager not configured. Use withAssets() in builder.');
-		}
-		return this._assetManager.loadAsset(key);
+		return this.requireAssetManager().loadAsset(key);
 	}
 
 	/**
 	 * Load all assets in a group
 	 */
 	async loadAssetGroup(groupName: AssetGroupNames): Promise<void> {
-		if (!this._assetManager) {
-			throw new Error('Asset manager not configured. Use withAssets() in builder.');
-		}
-		return this._assetManager.loadAssetGroup(groupName);
+		return this.requireAssetManager().loadAssetGroup(groupName);
 	}
 
 	/**
@@ -1384,6 +1371,13 @@ export default class ECSpresso<
 
 	// ==================== Screen Management ====================
 
+	private requireScreenManager(): ScreenManager<ScreenStates> {
+		if (!this._screenManager) {
+			throw new Error('Screen manager not configured. Use withScreens() in builder.');
+		}
+		return this._screenManager;
+	}
+
 	/**
 	 * Transition to a new screen, clearing the stack
 	 */
@@ -1391,10 +1385,7 @@ export default class ECSpresso<
 		name: K,
 		config: ScreenStates[K] extends ScreenDefinition<infer C, any> ? C : never
 	): Promise<void> {
-		if (!this._screenManager) {
-			throw new Error('Screen manager not configured. Use withScreens() in builder.');
-		}
-		return this._screenManager.setScreen(name, config);
+		return this.requireScreenManager().setScreen(name, config);
 	}
 
 	/**
@@ -1404,20 +1395,14 @@ export default class ECSpresso<
 		name: K,
 		config: ScreenStates[K] extends ScreenDefinition<infer C, any> ? C : never
 	): Promise<void> {
-		if (!this._screenManager) {
-			throw new Error('Screen manager not configured. Use withScreens() in builder.');
-		}
-		return this._screenManager.pushScreen(name, config);
+		return this.requireScreenManager().pushScreen(name, config);
 	}
 
 	/**
 	 * Pop the current screen and return to the previous one
 	 */
 	async popScreen(): Promise<void> {
-		if (!this._screenManager) {
-			throw new Error('Screen manager not configured. Use withScreens() in builder.');
-		}
-		return this._screenManager.popScreen();
+		return this.requireScreenManager().popScreen();
 	}
 
 	/**
@@ -1431,10 +1416,7 @@ export default class ECSpresso<
 	 * Get the current screen config (immutable)
 	 */
 	getScreenConfig<K extends keyof ScreenStates>(): ScreenStates[K] extends ScreenDefinition<infer C, any> ? Readonly<C> : never {
-		if (!this._screenManager) {
-			throw new Error('Screen manager not configured. Use withScreens() in builder.');
-		}
-		return this._screenManager.getConfig();
+		return this.requireScreenManager().getConfig();
 	}
 
 	/**
@@ -1448,10 +1430,7 @@ export default class ECSpresso<
 	 * Get the current screen state (mutable)
 	 */
 	getScreenState<K extends keyof ScreenStates>(): ScreenStates[K] extends ScreenDefinition<any, infer S> ? S : never {
-		if (!this._screenManager) {
-			throw new Error('Screen manager not configured. Use withScreens() in builder.');
-		}
-		return this._screenManager.getState();
+		return this.requireScreenManager().getState();
 	}
 
 	/**
@@ -1468,10 +1447,7 @@ export default class ECSpresso<
 		update: Partial<ScreenStates[K] extends ScreenDefinition<any, infer S> ? S : never> |
 			((current: ScreenStates[K] extends ScreenDefinition<any, infer S> ? S : never) => Partial<ScreenStates[K] extends ScreenDefinition<any, infer S> ? S : never>)
 	): void {
-		if (!this._screenManager) {
-			throw new Error('Screen manager not configured. Use withScreens() in builder.');
-		}
-		this._screenManager.updateState(update as any);
+		this.requireScreenManager().updateState(update as any);
 	}
 
 	/**

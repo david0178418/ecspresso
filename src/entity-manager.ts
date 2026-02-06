@@ -95,19 +95,24 @@ class EntityManager<ComponentTypes> {
 		}
 	}
 
+	private resolveEntity(entityOrId: number | Entity<ComponentTypes>): Entity<ComponentTypes> | undefined {
+		return typeof entityOrId === 'number' ? this.entities.get(entityOrId) : entityOrId;
+	}
+
+	private resolveEntityId(entityOrId: number | Entity<ComponentTypes>): number {
+		return typeof entityOrId === 'number' ? entityOrId : entityOrId.id;
+	}
+
 	// TODO: Component object pooling if(/when) garbage collection is an issue...?
 	addComponent<ComponentName extends keyof ComponentTypes>(
 		entityOrId: number | Entity<ComponentTypes>,
 		componentName: ComponentName,
 		data: ComponentTypes[ComponentName]
 	) {
-		const entity = typeof entityOrId === 'number' ?
-			this.entities.get(entityOrId) :
-			entityOrId;
+		const entity = this.resolveEntity(entityOrId);
 
 		if (!entity) {
-			const id = typeof entityOrId === 'number' ? entityOrId : entityOrId.id;
-			throw new Error(`Cannot add component '${String(componentName)}': Entity with ID ${id} does not exist`);
+			throw new Error(`Cannot add component '${String(componentName)}': Entity with ID ${this.resolveEntityId(entityOrId)} does not exist`);
 		}
 
 		// Dispose old value if replacing an existing component
@@ -163,13 +168,10 @@ class EntityManager<ComponentTypes> {
 		entityOrId: number | Entity<ComponentTypes>,
 		components: T & Record<Exclude<keyof T, keyof ComponentTypes>, never>
 	) {
-		const entity = typeof entityOrId === 'number' ?
-			this.entities.get(entityOrId) :
-			entityOrId;
+		const entity = this.resolveEntity(entityOrId);
 
 		if (!entity) {
-			const id = typeof entityOrId === 'number' ? entityOrId : entityOrId.id;
-			throw new Error(`Cannot add components: Entity with ID ${id} does not exist`);
+			throw new Error(`Cannot add components: Entity with ID ${this.resolveEntityId(entityOrId)} does not exist`);
 		}
 
 		this._batchingDepth++;
@@ -198,13 +200,10 @@ class EntityManager<ComponentTypes> {
 		entityOrId: number | Entity<ComponentTypes>,
 		componentName: ComponentName
 	) {
-		const entity = typeof entityOrId === 'number' ?
-			this.entities.get(entityOrId) :
-			entityOrId;
+		const entity = this.resolveEntity(entityOrId);
 
 		if (!entity) {
-			const id = typeof entityOrId === 'number' ? entityOrId : entityOrId.id;
-			throw new Error(`Cannot remove component '${String(componentName)}': Entity with ID ${id} does not exist`);
+			throw new Error(`Cannot remove component '${String(componentName)}': Entity with ID ${this.resolveEntityId(entityOrId)} does not exist`);
 		}
 		// Get old value for callbacks
 		const oldValue = entity.components[componentName] as ComponentTypes[ComponentName] | undefined;
@@ -341,9 +340,7 @@ class EntityManager<ComponentTypes> {
 	}
 
 	removeEntity(entityOrId: number | Entity<ComponentTypes>, options?: RemoveEntityOptions): boolean {
-		const entity = typeof entityOrId === 'number' ?
-			this.entities.get(entityOrId) :
-			entityOrId;
+		const entity = this.resolveEntity(entityOrId);
 
 		if (!entity) return false;
 
