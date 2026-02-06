@@ -237,21 +237,7 @@ export default class AssetManager<AssetTypes extends Record<string, unknown> = R
 	 * Get the loading progress of a group (0-1)
 	 */
 	getGroupProgress(groupName: AssetGroupNames): number {
-		const groupKeys = this.groups.get(groupName);
-
-		if (!groupKeys || groupKeys.size === 0) {
-			return 0;
-		}
-
-		let loaded = 0;
-		for (const key of groupKeys) {
-			const entry = this.assets.get(key);
-			if (entry?.status === 'loaded') {
-				loaded++;
-			}
-		}
-
-		return loaded / groupKeys.size;
+		return this.getGroupProgressDetails(groupName).progress;
 	}
 
 	/**

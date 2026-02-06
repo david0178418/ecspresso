@@ -77,17 +77,9 @@ export class SystemBuilder<
 	private _autoRegister(): void {
 		if (this._isRegistered || !this._ecspresso) return;
 
-		const system = this._buildSystemObject();
+		const system = this._createSystemObject();
 		registerSystemWithEcspresso(system, this._ecspresso);
 		this._isRegistered = true;
-	}
-
-	/**
-	 * Create the system object without registering it
-	 * @private
-	 */
-	private _buildSystemObject(): System<ComponentTypes, any, any, EventTypes, ResourceTypes, AssetTypes, ScreenStates> {
-		return this._createSystemObject();
 	}
 
 	/**
