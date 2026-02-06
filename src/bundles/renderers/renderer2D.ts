@@ -628,6 +628,15 @@ export function createRenderer2DBundle<G extends string = 'renderer2d'>(
 		container.removeFromParent();
 	});
 
+	// Display objects require localTransform (which transitively requires worldTransform
+	// via the transform bundle) and visible. Explicit values on spawn always win.
+	rendererBundle.registerRequired('sprite', 'localTransform', () => createLocalTransformInternal());
+	rendererBundle.registerRequired('sprite', 'visible', () => createVisibleComponent());
+	rendererBundle.registerRequired('graphics', 'localTransform', () => createLocalTransformInternal());
+	rendererBundle.registerRequired('graphics', 'visible', () => createVisibleComponent());
+	rendererBundle.registerRequired('container', 'localTransform', () => createLocalTransformInternal());
+	rendererBundle.registerRequired('container', 'visible', () => createVisibleComponent());
+
 	// Helper to update parent in scene graph
 	function updateSceneGraphParent(
 		entityId: number,

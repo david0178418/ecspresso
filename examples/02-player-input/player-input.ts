@@ -3,20 +3,17 @@ import ECSpresso from "../../src";
 import { createInputBundle } from "../../src/bundles/input";
 import {
 	createRenderer2DBundle,
-	createSpriteComponents,
+	createLocalTransform,
 } from "../../src/bundles/renderers/renderer2D";
-import {
-	createPhysics2DBundle,
-	createRigidBody,
-} from "../../src/bundles/physics2D";
 
-const ecs = ECSpresso
-	.create()
+// -- Build the world --
+// Building on example 01, we add the input bundle for keyboard handling.
+// Actions map named intents to physical keys — systems read actions, not raw keys.
+const ecs = ECSpresso.create()
 	.withBundle(createRenderer2DBundle({
 		init: { background: '#1099bb', resizeTo: window },
 		container: document.body,
 	}))
-	.withBundle(createPhysics2DBundle())
 	.withBundle(createInputBundle({
 		actions: {
 			moveUp: { keys: ['w', 'ArrowUp'] },
@@ -25,46 +22,57 @@ const ecs = ECSpresso
 			moveRight: { keys: ['d', 'ArrowRight'] },
 		},
 	}))
-	.withComponentTypes<{ speed: number }>()
+	.withComponentTypes<{
+		velocity: { x: number; y: number };
+		speed: number;
+	}>()
 	.build();
 
-ecs
-	.addSystem('player-input')
-	.inPhase('preUpdate')
-	.addQuery('playerInputEntities', {
-		with: ['localTransform', 'velocity', 'speed'],
-	})
-	.setProcess((queries, _deltaTime, ecs) => {
-		const input = ecs.getResource('inputState');
-		const [player] = queries.playerInputEntities;
+// -- Systems --
 
+// Input: reads action state from the inputState resource and sets velocity.
+// Runs in preUpdate so velocity is ready before the movement system.
+ecs.addSystem('player-input')
+	.inPhase('preUpdate')
+	.addQuery('players', { with: ['velocity', 'speed'] })
+	.setProcess((queries, _dt, ecs) => {
+		const input = ecs.getResource('inputState');
+		const [player] = queries.players;
 		if (!player) return;
 
 		const { velocity, speed } = player.components;
-
-		velocity.y = input.actions.isActive('moveUp') ? -speed : input.actions.isActive('moveDown') ? speed : 0;
 		velocity.x = input.actions.isActive('moveLeft') ? -speed : input.actions.isActive('moveRight') ? speed : 0;
+		velocity.y = input.actions.isActive('moveUp') ? -speed : input.actions.isActive('moveDown') ? speed : 0;
 	})
-	.build();
+	.and();
 
+// Movement: applies velocity to position (same pattern as example 01)
+ecs.addSystem('movement')
+	.addQuery('moving', { with: ['localTransform', 'velocity'] })
+	.setProcess((queries, dt) => {
+		for (const entity of queries.moving) {
+			const { localTransform, velocity } = entity.components;
+			localTransform.x += velocity.x * dt;
+			localTransform.y += velocity.y * dt;
+		}
+	})
+	.and();
+
+// -- Initialize and spawn --
 await ecs.initialize();
 
 const pixiApp = ecs.getResource('pixiApp');
-
-// Create ball entity
 const ballRadius = 30;
 const sprite = new Sprite(
 	pixiApp.renderer.generateTexture(
 		new Graphics().circle(0, 0, ballRadius).fill(0x0000FF)
 	)
 );
+sprite.anchor.set(0.5, 0.5);
 
 ecs.spawn({
-	...createSpriteComponents(sprite, {
-		x: pixiApp.screen.width / 2,
-		y: pixiApp.screen.height / 2,
-	}, { anchor: { x: 0.5, y: 0.5 } }),
-	...createRigidBody('kinematic'),
-	speed: 500,
+	sprite,
+	...createLocalTransform(pixiApp.screen.width / 2, pixiApp.screen.height / 2),
 	velocity: { x: 0, y: 0 },
+	speed: 500,
 });

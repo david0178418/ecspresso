@@ -257,12 +257,12 @@ export function createTransformBundle<G extends string = 'transform'>(
  * Propagate transforms through the hierarchy.
  * Parent-first traversal ensures parents are computed before children.
  *
- * Only recomputes entities whose localTransform changed since this system
- * last ran, or whose parent's worldTransform changed (cascade).
- * Uses per-system monotonic sequence threshold for change detection.
+ * Runs unconditionally for all entities with transforms — user code can
+ * freely mutate localTransform without needing to call markChanged.
+ * Marks worldTransform as changed so downstream systems (e.g. renderer
+ * sync) pick up the updated values.
  */
 function propagateTransforms(ecs: ECSpresso<TransformComponentTypes>): void {
-	const threshold = ecs.changeThreshold;
 	const em = ecs.entityManager;
 
 	// Use parent-first traversal for entities in hierarchy
@@ -271,12 +271,6 @@ function propagateTransforms(ecs: ECSpresso<TransformComponentTypes>): void {
 		const worldTransform = em.getComponent(entityId, 'worldTransform');
 
 		if (!localTransform || !worldTransform) return;
-
-		const localChanged = em.getChangeSeq(entityId, 'localTransform') > threshold;
-		const parentWorldChanged = parentId !== null
-			&& em.getChangeSeq(parentId, 'worldTransform') > threshold;
-
-		if (!localChanged && !parentWorldChanged) return;
 
 		if (parentId === null) {
 			// Root entity: world transform equals local transform
@@ -301,9 +295,6 @@ function propagateTransforms(ecs: ECSpresso<TransformComponentTypes>): void {
 		const parentId = ecs.getParent(entity.id);
 		// Only process if truly orphaned (no parent and not a root with children)
 		if (parentId === null && ecs.getChildren(entity.id).length === 0) {
-			const localChanged = em.getChangeSeq(entity.id, 'localTransform') > threshold;
-			if (!localChanged) continue;
-
 			const { localTransform, worldTransform } = entity.components;
 			copyTransform(localTransform, worldTransform);
 			ecs.markChanged(entity.id, 'worldTransform');

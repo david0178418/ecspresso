@@ -256,7 +256,7 @@ describe('Transform Bundle', () => {
 			expect(world?.x).toBe(300);
 		});
 
-		test('should skip propagation when localTransform unchanged', () => {
+		test('should propagate unconditionally even when localTransform not explicitly marked', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
 				.withBundle(createTransformBundle())
@@ -266,19 +266,19 @@ describe('Transform Bundle', () => {
 				...createTransform(100, 200),
 			});
 
-			// Flush spawn marks (single update expires them)
+			// First update propagates spawn
 			ecs.update(0.016);
 
-			// Manually set worldTransform to a sentinel without marking anything
+			// Mutate localTransform without calling markChanged
+			const local = ecs.entityManager.getComponent(entity.id, 'localTransform');
+			if (!local) throw new Error('localTransform missing');
+			local.x = 300;
+
+			// Next update: propagation runs unconditionally
+			ecs.update(0.016);
+
 			const world = ecs.entityManager.getComponent(entity.id, 'worldTransform');
-			if (!world) throw new Error('worldTransform missing');
-			world.x = 999;
-
-			// Next update: no localTransform change → propagation should skip
-			ecs.update(0.016);
-
-			// Sentinel value should persist (propagation didn't overwrite)
-			expect(world.x).toBe(999);
+			expect(world?.x).toBe(300);
 		});
 
 		test('should propagate entities spawned before first update', () => {
@@ -325,7 +325,7 @@ describe('Transform Bundle', () => {
 			expect(childWorld?.x).toBe(250); // 200 + 50
 		});
 
-		test('should NOT cascade: parent NOT moved → child NOT re-propagated', () => {
+		test('should cascade unconditionally: child worldTransform recomputed every frame', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
 				.withBundle(createTransformBundle())
@@ -334,19 +334,19 @@ describe('Transform Bundle', () => {
 			const parent = ecs.spawn({ ...createTransform(100, 0) });
 			const child = ecs.spawnChild(parent.id, { ...createTransform(50, 0) });
 
-			// Single update settles hierarchy — no cascade amplification
+			// First update propagates spawn
 			ecs.update(0.016);
 
-			// Set sentinel on child worldTransform without marking anything
+			// Mutate parent localTransform without calling markChanged
+			const parentLocal = ecs.entityManager.getComponent(parent.id, 'localTransform');
+			if (!parentLocal) throw new Error('parent localTransform missing');
+			parentLocal.x = 200;
+
+			// Next update: propagation runs unconditionally, child picks up parent change
+			ecs.update(0.016);
+
 			const childWorld = ecs.entityManager.getComponent(child.id, 'worldTransform');
-			if (!childWorld) throw new Error('child worldTransform missing');
-			childWorld.x = 999;
-
-			// Next update: neither parent nor child changed → propagation skipped
-			ecs.update(0.016);
-
-			// Sentinel should persist
-			expect(childWorld.x).toBe(999);
+			expect(childWorld?.x).toBe(250); // 200 + 50
 		});
 	});
 

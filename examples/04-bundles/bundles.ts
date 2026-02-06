@@ -1,240 +1,103 @@
 import { Graphics, Sprite } from 'pixi.js';
 import ECSpresso, { Bundle } from "../../src";
-import { createInputBundle } from "../../src/bundles/input";
-import type { InputResourceTypes } from "../../src/bundles/input";
 import {
 	createRenderer2DBundle,
-	createSpriteComponents,
+	createLocalTransform,
+	type TransformComponentTypes,
+	type BoundsRect,
 } from "../../src/bundles/renderers/renderer2D";
-import type { Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes } from "../../src/bundles/renderers/renderer2D";
-import {
-	createTimerBundle,
-	createRepeatingTimer,
-} from "../../src/bundles/timers";
-import type { TimerComponentTypes } from "../../src/bundles/timers";
-import {
-	createPhysics2DBundle,
-	createRigidBody,
-} from "../../src/bundles/physics2D";
-import type { Physics2DComponentTypes } from "../../src/bundles/physics2D";
-import {
-	createBoundsBundle,
-	createWrapAtBounds,
-} from "../../src/bundles/bounds";
-import type { BoundsComponentTypes, BoundsEventTypes } from "../../src/bundles/bounds";
-import {
-	createCollisionBundle,
-	createCollisionPairHandler,
-	defineCollisionLayers,
-	createCircleCollider,
-} from "../../src/bundles/collision";
-import type { CollisionComponentTypes, CollisionEventTypes, LayersOf } from "../../src/bundles/collision";
 
-// App-specific types (not from bundles)
-interface AppEvents {
-	initializeGame: { someRandomData: Date };
-	initializeMap: void;
-	startGame: void;
+// -- Custom bundle --
+// A bundle packages related components, events, and systems into a reusable unit.
+// Type parameters declare what component/event/resource types the bundle's systems use.
+
+interface BouncingComponents extends TransformComponentTypes {
+	velocity: { x: number; y: number };
+	radius: number;
 }
 
-interface AppComponents {
-	player: true;
-	speed: number;
-	enemySpawner: true;
-	enemy: true;
+interface BouncingEvents {
+	wallHit: { x: number; y: number };
 }
 
-// Aggregate types — needed by custom Bundle<> instances below.
-// Bundle types are also added automatically via .withBundle() in the builder chain.
-type Events = AppEvents & Renderer2DEventTypes & BoundsEventTypes & CollisionEventTypes<Layer>;
-type Components = AppComponents & Renderer2DComponentTypes & TimerComponentTypes<Events> & Physics2DComponentTypes<Layer> & BoundsComponentTypes & CollisionComponentTypes<Layer>;
-type Resources = Renderer2DResourceTypes & InputResourceTypes;
+// The bundle reads the 'bounds' resource (provided by the renderer bundle).
+// Declaring it here gives the bundle's systems type-safe access.
+interface BouncingResources {
+	bounds: BoundsRect;
+}
 
-const bundleLayers = defineCollisionLayers({ player: ['enemy'], enemy: ['player'] });
-type Layer = LayersOf<typeof bundleLayers>;
+function createBouncingBundle() {
+	return new Bundle<BouncingComponents, BouncingEvents, BouncingResources>('bouncing')
+		.addSystem('movement')
+		.addQuery('moving', { with: ['localTransform', 'velocity'] })
+		.setProcess((queries, dt) => {
+			for (const entity of queries.moving) {
+				const { localTransform, velocity } = entity.components;
+				localTransform.x += velocity.x * dt;
+				localTransform.y += velocity.y * dt;
+			}
+		})
+		.and()
+		.addSystem('bounce')
+		.addQuery('bouncing', { with: ['localTransform', 'velocity', 'radius'] })
+		.setProcess((queries, _dt, ecs) => {
+			const bounds = ecs.getResource('bounds');
+			for (const entity of queries.bouncing) {
+				const { localTransform, velocity, radius } = entity.components;
+				if (localTransform.x > bounds.width - radius || localTransform.x < radius) {
+					velocity.x *= -1;
+					ecs.eventBus.publish('wallHit', { x: localTransform.x, y: localTransform.y });
+				}
+				if (localTransform.y > bounds.height - radius || localTransform.y < radius) {
+					velocity.y *= -1;
+					ecs.eventBus.publish('wallHit', { x: localTransform.x, y: localTransform.y });
+				}
+			}
+		})
+		.and();
+}
 
-const BALL_RADIUS = 30;
-
-// Create an ECSpresso instance with our game bundles
-const ecs = ECSpresso
-	.create()
+// -- Build the world --
+// .withBundle() installs the bundle and merges its types into the world.
+// The bouncing bundle's velocity, radius, and wallHit types are now available.
+const ecs = ECSpresso.create()
 	.withBundle(createRenderer2DBundle({
 		init: { background: '#1099bb', resizeTo: window },
 		container: document.body,
 	}))
-	.withBundle(createTimerBundle<Events>())
-	.withBundle(createInputBundle({
-		actions: {
-			moveUp: { keys: ['w', 'ArrowUp'] },
-			moveDown: { keys: ['s', 'ArrowDown'] },
-			moveLeft: { keys: ['a', 'ArrowLeft'] },
-			moveRight: { keys: ['d', 'ArrowRight'] },
-		},
-	}))
-	.withBundle(createPhysics2DBundle())
-	.withBundle(createBoundsBundle())
-	.withBundle(createCollisionBundle({ layers: bundleLayers }))
-	.withComponentTypes<AppComponents>()
-	.withEventTypes<AppEvents>()
-	.withBundle(createGameInitBundle())
-	.withBundle(createCollisionHandlerBundle())
-	.withBundle(createEnemyControllerBundle())
-	.withBundle(createPlayerControllerBundle())
+	.withBundle(createBouncingBundle())
 	.build();
 
+// Systems on the world can use types provided by any installed bundle.
+// This system uses the wallHit event declared by the bouncing bundle.
+ecs.addSystem('trail-spawner')
+	.setEventHandlers({
+		wallHit: {
+			handler({ x, y }, ecs) {
+				ecs.spawn({
+					graphics: new Graphics().circle(0, 0, 4).fill(0xFFFF00),
+					...createLocalTransform(x, y),
+				});
+			},
+		},
+	})
+	.and();
+
+// -- Initialize and spawn --
 await ecs.initialize();
 
-// Trigger game initialization
-ecs.eventBus.publish('initializeGame', { someRandomData: new Date() });
+const pixiApp = ecs.getResource('pixiApp');
+const ballRadius = 30;
+const sprite = new Sprite(
+	pixiApp.renderer.generateTexture(
+		new Graphics().circle(0, 0, ballRadius).fill(0x0000FF)
+	)
+);
+sprite.anchor.set(0.5, 0.5);
 
-function createCircleSprite(color: number): Sprite {
-	const texture = ecs.getResource('pixiApp').renderer.generateTexture(
-		new Graphics().circle(0, 0, BALL_RADIUS).fill(color)
-	);
-	return new Sprite(texture);
-}
-
-function randomInt(min: number, max?: number): number {
-	if (max === undefined) {
-		max = min;
-		min = 0;
-	}
-	return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
-function createGameInitBundle() {
-	return new Bundle<Components, Events, Resources>()
-		.addSystem('init')
-		.setEventHandlers({
-			initializeGame: {
-				handler(data, ecs) {
-					console.log(`initializing at ${data.someRandomData.toLocaleDateString()}`);
-					ecs.eventBus.publish('initializeMap');
-				},
-			},
-			initializeMap: {
-				handler(_eventData, ecs) {
-					console.log('initializing map triggered');
-
-					const sprite = createCircleSprite(0x0000FF);
-
-					ecs.spawn({
-						...createSpriteComponents(sprite, { x: 100, y: 100 }),
-						...createRigidBody('kinematic'),
-						...createWrapAtBounds(),
-						...createCircleCollider(BALL_RADIUS),
-						...bundleLayers.player(),
-						player: true,
-						speed: 500,
-						velocity: { x: 0, y: 0 },
-					});
-
-					ecs.eventBus.publish('startGame');
-				},
-			},
-			startGame: {
-				handler(_eventData, ecs) {
-					// Spawn enemy spawner entity with a repeating 5-second timer
-					const spawnerEntity = ecs.spawn({
-						...createRepeatingTimer<Events>(5),
-						enemySpawner: true,
-					});
-
-					// Trigger initial spawn
-					const spawner = ecs.entityManager.getComponent(spawnerEntity.id, 'timer');
-					if (spawner) {
-						spawner.justFinished = true;
-					}
-				}
-			},
-		})
-		.and();
-}
-
-function createCollisionHandlerBundle() {
-	return new Bundle<Components, Events, Resources>()
-		.addSystem('collision-handler')
-		.setEventHandlers({
-			collision: {
-				handler: createCollisionPairHandler<ECSpresso<Components, Events, Resources>>({
-					'player:enemy': (_playerId, enemyId, ecs) => {
-						console.log('collision detected');
-						ecs.removeEntity(enemyId);
-					},
-				}),
-			},
-		})
-		.and();
-}
-
-function createEnemyControllerBundle() {
-	return new Bundle<Components, Events, Resources>()
-		.addSystem('enemy-spawner')
-		.addQuery('spawners', {
-			with: ['timer', 'enemySpawner'],
-		})
-		.setProcess((queries, _deltaTimeMs, ecs) => {
-			for (const spawner of queries.spawners) {
-				if (!spawner.components.timer.justFinished) continue;
-
-				console.log('spawning enemy triggered');
-				const pixiApp = ecs.getResource('pixiApp');
-
-				const sprite = createCircleSprite(0xFF0000);
-				const speed = randomInt(300, 550);
-
-				ecs.spawn({
-					...createSpriteComponents(sprite, {
-						x: randomInt(pixiApp.renderer.width),
-						y: randomInt(pixiApp.renderer.height),
-					}),
-					...createRigidBody('kinematic'),
-					...createRepeatingTimer<Events>(randomInt(3, 8)),
-					...createWrapAtBounds(),
-					...createCircleCollider(BALL_RADIUS),
-					...bundleLayers.enemy(),
-					speed,
-					velocity: {
-						x: randomInt(-speed, speed),
-						y: randomInt(-speed, speed),
-					},
-					enemy: true,
-				});
-			}
-		})
-		.and()
-		.addSystem('enemy-direction-change')
-		.addQuery('enemies', {
-			with: ['timer', 'velocity', 'speed', 'enemy'],
-		})
-		.setProcess((queries) => {
-			for (const { components } of queries.enemies) {
-				if (!components.timer.justFinished) continue;
-
-				components.velocity.x = randomInt(-components.speed, components.speed);
-				components.velocity.y = randomInt(-components.speed, components.speed);
-			}
-		})
-		.and();
-}
-
-function createPlayerControllerBundle() {
-	return new Bundle<Components, Events, Resources>()
-		.addSystem('player-control')
-		.inPhase('preUpdate')
-		.addQuery('players', {
-			with: ['speed', 'localTransform', 'velocity'],
-		})
-		.setProcess((queries, _deltaTimeMs, ecs) => {
-			const input = ecs.getResource('inputState');
-			const [player] = queries.players;
-
-			if (!player) return;
-
-			const { velocity, speed } = player.components;
-
-			velocity.y = input.actions.isActive('moveUp') ? -speed : input.actions.isActive('moveDown') ? speed : 0;
-			velocity.x = input.actions.isActive('moveLeft') ? -speed : input.actions.isActive('moveRight') ? speed : 0;
-		})
-		.and();
-}
+ecs.spawn({
+	sprite,
+	...createLocalTransform(pixiApp.screen.width / 2, pixiApp.screen.height / 2),
+	velocity: { x: 300, y: 250 },
+	radius: ballRadius,
+});
