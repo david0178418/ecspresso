@@ -96,6 +96,21 @@ export type AssetGroupNamesOf<B> = B extends import('./bundle').default<any, any
 export type ReactiveQueryNamesOf<B> = B extends import('./bundle').default<any, any, any, any, any, any, any, any, infer RQ extends string> ? RQ : never;
 
 /**
+ * Extract AssetTypes from a Bundle instance
+ */
+export type AssetTypesOf<B> = B extends import('./bundle').default<any, any, any, infer A extends Record<string, unknown>, any, any, any, any, any> ? A : never;
+
+/**
+ * Extract ScreenStates from a Bundle instance
+ */
+export type ScreenStatesOf<B> = B extends import('./bundle').default<any, any, any, any, infer S extends Record<string, import('./screen-types').ScreenDefinition<any, any>>, any, any, any, any> ? S : never;
+
+/**
+ * Extract ScreenStates from an ECSpresso world instance type
+ */
+export type ScreenStatesOfWorld<W> = W extends import('./ecspresso').default<any, any, any, any, infer S extends Record<string, import('./screen-types').ScreenDefinition<any, any>>, any, any, any, any> ? S : never;
+
+/**
  * Extract ComponentTypes from an ECSpresso world instance type.
  */
 export type ComponentsOfWorld<W> = W extends import('./ecspresso').default<

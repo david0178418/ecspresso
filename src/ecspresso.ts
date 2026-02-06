@@ -10,7 +10,7 @@ import type Bundle from "./bundle";
 import { createEcspressoSystemBuilder } from "./system-builder";
 import { version } from "../package.json";
 import type { BundlesAreCompatible, TypesAreCompatible } from "./type-utils";
-import type { AssetHandle, AssetConfigurator, AssetsResource } from "./asset-types";
+import type { AssetDefinition, AssetHandle, AssetConfigurator, AssetsResource } from "./asset-types";
 import type { ScreenDefinition, ScreenConfigurator, ScreenResource } from "./screen-types";
 
 /**
@@ -101,6 +101,10 @@ export default class ECSpresso<
 	private _maxFixedSteps: number = 8;
 	/** Registry of required component relationships: trigger -> [{component, factory}] */
 	private _requiredComponents: Map<keyof ComponentTypes, Array<{ component: keyof ComponentTypes; factory: () => any }>> = new Map();
+	/** Pending bundle assets awaiting manager creation at build time */
+	private _pendingBundleAssets: Array<[string, AssetDefinition<unknown>]> = [];
+	/** Pending bundle screens awaiting manager creation at build time */
+	private _pendingBundleScreens: Array<[string, ScreenDefinition<any, any>]> = [];
 	/** Whether diagnostics timing collection is enabled */
 	private _diagnosticsEnabled: boolean = false;
 	/** Per-system timing in ms, populated when diagnostics enabled */
@@ -1465,19 +1469,37 @@ export default class ECSpresso<
 	// ==================== Internal Methods ====================
 
 	/**
-	 * Internal method to set the asset manager
+	 * Internal method to set the asset manager and drain pending bundle assets
 	 * @internal Used by ECSpressoBuilder
 	 */
 	_setAssetManager(manager: AssetManager<AssetTypes>): void {
 		this._assetManager = manager;
+		for (const [key, definition] of this._pendingBundleAssets) {
+			this._assetManager.register(key, definition as any);
+		}
+		this._pendingBundleAssets = [];
 	}
 
 	/**
-	 * Internal method to set the screen manager
+	 * Internal method to set the screen manager and drain pending bundle screens
 	 * @internal Used by ECSpressoBuilder
 	 */
 	_setScreenManager(manager: ScreenManager<ScreenStates>): void {
 		this._screenManager = manager;
+		for (const [name, definition] of this._pendingBundleScreens) {
+			this._screenManager.register(name, definition as any);
+		}
+		this._pendingBundleScreens = [];
+	}
+
+	/** @internal */
+	_hasPendingBundleAssets(): boolean {
+		return this._pendingBundleAssets.length > 0;
+	}
+
+	/** @internal */
+	_hasPendingBundleScreens(): boolean {
+		return this._pendingBundleScreens.length > 0;
 	}
 
 	/**
@@ -1542,20 +1564,16 @@ export default class ECSpresso<
 			this._resourceManager.add(key as string, value);
 		}
 
-		// Register assets from the bundle if asset manager exists
-		if (this._assetManager) {
-			const assets = bundle.getAssets();
-			for (const [key, definition] of assets.entries()) {
-				this._assetManager.register(key, definition as any);
-			}
+		// Store bundle assets for deferred registration (manager created at build time)
+		const assets = bundle.getAssets();
+		for (const [key, definition] of assets.entries()) {
+			this._pendingBundleAssets.push([key, definition]);
 		}
 
-		// Register screens from the bundle if screen manager exists
-		if (this._screenManager) {
-			const screens = bundle.getScreens();
-			for (const [name, definition] of screens.entries()) {
-				this._screenManager.register(name, definition as any);
-			}
+		// Store bundle screens for deferred registration (manager created at build time)
+		const screens = bundle.getScreens();
+		for (const [name, definition] of screens.entries()) {
+			this._pendingBundleScreens.push([name, definition]);
 		}
 
 		return this;
@@ -1567,12 +1585,14 @@ export default class ECSpresso<
 	* Handles type checking during build process to ensure type safety.
 */
 /**
- * Helper type: replace the $assets entry in R with finalized AssetGroupNames
+ * Helper type: finalize built-in resources ($assets, $screen) in the resource map.
+ * Auto-injects $assets/$screen when bundles contribute asset/screen types even without
+ * explicit withAssets()/withScreens(). Also narrows the AssetGroupNames on $assets.
  */
-type NarrowAssetsResource<R, AG extends string> =
-	R extends { $assets: AssetsResource<infer A extends Record<string, unknown>, any> }
-		? Omit<R, '$assets'> & { $assets: AssetsResource<A, AG> }
-		: R;
+type FinalizeBuiltinResources<R, A extends Record<string, unknown>, S extends Record<string, ScreenDefinition<any, any>>, AG extends string> =
+	Omit<R, '$assets' | '$screen'>
+	& ([keyof A] extends [never] ? {} : { $assets: AssetsResource<A, AG> })
+	& ([keyof S] extends [never] ? {} : { $screen: ScreenResource<S> });
 
 export class ECSpressoBuilder<
 	C extends Record<string, any> = {},
@@ -1612,14 +1632,16 @@ export class ECSpressoBuilder<
 		BC extends Record<string, any>,
 		BE extends Record<string, any>,
 		BR extends Record<string, any>,
+		BA extends Record<string, unknown> = {},
+		BS extends Record<string, ScreenDefinition<any, any>> = {},
 		BL extends string = never,
 		BG extends string = never,
 		BAG extends string = never,
 		BRQ extends string = never,
 	>(
 		this: ECSpressoBuilder<{}, {}, {}, A, S, Labels, Groups, AssetGroupNames, ReactiveQueryNames>,
-		bundle: Bundle<BC, BE, BR, any, any, BL, BG, BAG, BRQ>
-	): ECSpressoBuilder<BC, BE, BR, A, S, Labels | BL, Groups | BG, AssetGroupNames | BAG, ReactiveQueryNames | BRQ>;
+		bundle: Bundle<BC, BE, BR, BA, BS, BL, BG, BAG, BRQ>
+	): ECSpressoBuilder<BC, BE, BR, A & BA, S & BS, Labels | BL, Groups | BG, AssetGroupNames | BAG, ReactiveQueryNames | BRQ>;
 
 	/**
 		* Add a subsequent bundle with type checking.
@@ -1629,15 +1651,17 @@ export class ECSpressoBuilder<
 		BC extends Record<string, any>,
 		BE extends Record<string, any>,
 		BR extends Record<string, any>,
+		BA extends Record<string, unknown> = {},
+		BS extends Record<string, ScreenDefinition<any, any>> = {},
 		BL extends string = never,
 		BG extends string = never,
 		BAG extends string = never,
 		BRQ extends string = never,
 	>(
-		bundle: BundlesAreCompatible<C, BC, E, BE, R, BR> extends true
-			? Bundle<BC, BE, BR, any, any, BL, BG, BAG, BRQ>
+		bundle: BundlesAreCompatible<C, BC, E, BE, R, BR, A, BA, S, BS> extends true
+			? Bundle<BC, BE, BR, BA, BS, BL, BG, BAG, BRQ>
 			: never
-	): ECSpressoBuilder<C & BC, E & BE, R & BR, A, S, Labels | BL, Groups | BG, AssetGroupNames | BAG, ReactiveQueryNames | BRQ>;
+	): ECSpressoBuilder<C & BC, E & BE, R & BR, A & BA, S & BS, Labels | BL, Groups | BG, AssetGroupNames | BAG, ReactiveQueryNames | BRQ>;
 
 	/**
 		* Implementation of both overloads.
@@ -1648,19 +1672,21 @@ export class ECSpressoBuilder<
 		BC extends Record<string, any>,
 		BE extends Record<string, any>,
 		BR extends Record<string, any>,
+		BA extends Record<string, unknown> = {},
+		BS extends Record<string, ScreenDefinition<any, any>> = {},
 		BL extends string = never,
 		BG extends string = never,
 		BAG extends string = never,
 		BRQ extends string = never,
 	>(
-		bundle: Bundle<BC, BE, BR, any, any, BL, BG, BAG, BRQ>
-	): ECSpressoBuilder<C & BC, E & BE, R & BR, A, S, Labels | BL, Groups | BG, AssetGroupNames | BAG, ReactiveQueryNames | BRQ> {
+		bundle: Bundle<BC, BE, BR, BA, BS, BL, BG, BAG, BRQ>
+	): ECSpressoBuilder<C & BC, E & BE, R & BR, A & BA, S & BS, Labels | BL, Groups | BG, AssetGroupNames | BAG, ReactiveQueryNames | BRQ> {
 		// Install the bundle
 		// Type compatibility is guaranteed by method overloads
 		this.ecspresso._installBundle(bundle);
 
 		// Return a builder with the updated type parameters
-		return this as unknown as ECSpressoBuilder<C & BC, E & BE, R & BR, A, S, Labels | BL, Groups | BG, AssetGroupNames | BAG, ReactiveQueryNames | BRQ>;
+		return this as unknown as ECSpressoBuilder<C & BC, E & BE, R & BR, A & BA, S & BS, Labels | BL, Groups | BG, AssetGroupNames | BAG, ReactiveQueryNames | BRQ>;
 	}
 
 	/**
@@ -1833,7 +1859,7 @@ export class ECSpressoBuilder<
 	*/
 	build(): ECSpresso<
 		C, E,
-		NarrowAssetsResource<R, [AssetGroupNames] extends [never] ? string : AssetGroupNames>,
+		FinalizeBuiltinResources<R, A, S, [AssetGroupNames] extends [never] ? string : AssetGroupNames>,
 		A, S,
 		[Labels] extends [never] ? string : Labels,
 		[Groups] extends [never] ? string : Groups,
@@ -1859,14 +1885,18 @@ export class ECSpressoBuilder<
 			);
 		}
 
-		// Set up asset manager if configured
+		// Set up asset manager if configured via withAssets(), or auto-create if bundles contributed assets
 		if (this.assetConfigurator) {
 			this.ecspresso._setAssetManager(this.assetConfigurator.getManager() as unknown as AssetManager<A>);
+		} else if (this.ecspresso._hasPendingBundleAssets()) {
+			this.ecspresso._setAssetManager(new AssetManager() as unknown as AssetManager<A>);
 		}
 
-		// Set up screen manager if configured
+		// Set up screen manager if configured via withScreens(), or auto-create if bundles contributed screens
 		if (this.screenConfigurator) {
 			this.ecspresso._setScreenManager(this.screenConfigurator.getManager() as unknown as ScreenManager<S>);
+		} else if (this.ecspresso._hasPendingBundleScreens()) {
+			this.ecspresso._setScreenManager(new ScreenManager() as unknown as ScreenManager<S>);
 		}
 
 		// Set fixed timestep if configured
@@ -1876,7 +1906,7 @@ export class ECSpressoBuilder<
 
 		return this.ecspresso as unknown as ECSpresso<
 			C, E,
-			NarrowAssetsResource<R, [AssetGroupNames] extends [never] ? string : AssetGroupNames>,
+			FinalizeBuiltinResources<R, A, S, [AssetGroupNames] extends [never] ? string : AssetGroupNames>,
 			A, S,
 			[Labels] extends [never] ? string : Labels,
 			[Groups] extends [never] ? string : Groups,

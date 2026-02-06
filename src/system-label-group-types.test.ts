@@ -1,7 +1,7 @@
 import { test, expect } from 'bun:test';
 import ECSpresso from './ecspresso';
 import Bundle, { mergeBundles } from './bundle';
-import type { LabelsOf, GroupsOf, ComponentsOf, EventsOf, ResourcesOf, AssetGroupNamesOf, ReactiveQueryNamesOf } from './type-utils';
+import type { LabelsOf, GroupsOf, ComponentsOf, EventsOf, ResourcesOf, AssetGroupNamesOf, ReactiveQueryNamesOf, AssetTypesOf, ScreenStatesOf } from './type-utils';
 import { createTransformBundle } from './bundles/transform';
 
 // ==================== Type-level assertion helpers ====================
@@ -403,4 +403,77 @@ test('type-level: isSystemGroupEnabled and getSystemsInGroup accept typed groups
 	ecs.getSystemsInGroup('wrong');
 
 	expect(true).toBe(true);
+});
+
+// ==================== AssetTypesOf / ScreenStatesOf extraction ====================
+
+// 17. AssetTypesOf extracts asset types from addAsset()
+test('type-level: AssetTypesOf extracts asset types from addAsset()', () => {
+	const bundle = new Bundle<{ pos: { x: number } }, {}, {}>('test')
+		.addAsset('sprite', () => Promise.resolve('sprite-data'))
+		.addAsset('config', () => Promise.resolve({ debug: true }));
+
+	assertType<IsEqual<AssetTypesOf<typeof bundle>, { sprite: string; config: { debug: boolean } }>>();
+
+	expect(bundle).toBeDefined();
+});
+
+// 18. AssetTypesOf extracts asset types from addAssetGroup()
+test('type-level: AssetTypesOf extracts asset types from addAssetGroup()', () => {
+	const bundle = new Bundle<{ pos: { x: number } }, {}, {}>('test')
+		.addAssetGroup('level1', {
+			bg: () => Promise.resolve('bg-data'),
+			music: () => Promise.resolve(42),
+		});
+
+	assertType<IsEqual<AssetTypesOf<typeof bundle>, { bg: string; music: number }>>();
+
+	expect(bundle).toBeDefined();
+});
+
+// 19. ScreenStatesOf extracts screen types from addScreen()
+test('type-level: ScreenStatesOf extracts screen types from addScreen()', () => {
+	const bundle = new Bundle<{}, {}, {}>('test')
+		.addScreen('menu', { initialState: () => ({ selected: 0 }) })
+		.addScreen('play', { initialState: () => ({ score: 0 }) });
+
+	type Extracted = ScreenStatesOf<typeof bundle>;
+	// Verify keys are present
+	assertType<IsEqual<keyof Extracted, 'menu' | 'play'>>();
+
+	expect(bundle).toBeDefined();
+});
+
+// 20. AssetTypesOf returns {} for bundle with no assets
+test('type-level: AssetTypesOf returns {} for bundle with no assets', () => {
+	const bundle = new Bundle<{ a: number }, {}, {}>('test');
+
+	assertType<IsEqual<AssetTypesOf<typeof bundle>, {}>>();
+
+	expect(bundle).toBeDefined();
+});
+
+// 21. ScreenStatesOf returns {} for bundle with no screens
+test('type-level: ScreenStatesOf returns {} for bundle with no screens', () => {
+	const bundle = new Bundle<{ a: number }, {}, {}>('test');
+
+	assertType<IsEqual<ScreenStatesOf<typeof bundle>, {}>>();
+
+	expect(bundle).toBeDefined();
+});
+
+// 22. mergeBundles preserves asset/screen types
+test('type-level: mergeBundles preserves asset/screen types', () => {
+	const bundleA = new Bundle<{ a: number }, {}, {}>('a')
+		.addAsset('sprite', () => Promise.resolve('data'));
+
+	const bundleB = new Bundle<{ b: number }, {}, {}>('b')
+		.addScreen('menu', { initialState: () => ({}) });
+
+	const merged = mergeBundles('merged', bundleA, bundleB);
+
+	assertType<IsEqual<AssetTypesOf<typeof merged>, { sprite: string }>>();
+	assertType<IsEqual<keyof ScreenStatesOf<typeof merged>, 'menu'>>();
+
+	expect(merged).toBeDefined();
 });

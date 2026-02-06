@@ -5,6 +5,7 @@ import { createTimerBundle } from './bundles/timers';
 import { createTransformBundle, type TransformComponentTypes } from './bundles/transform';
 import type { ComponentsOf, EventsOf, ResourcesOf } from './types';
 import type { AssetsResource } from './asset-types';
+import Bundle from './bundle';
 
 describe('Builder Type Inference', () => {
 	test('withComponentTypes adds app component types', () => {
@@ -381,5 +382,167 @@ describe('Built-in Resource Typing ($assets / $screen)', () => {
 		const screen = ecs.getResource('$screen');
 		expect(screen).toBeDefined();
 		expect(screen.current).toBeNull();
+	});
+});
+
+describe('withBundle() asset/screen type propagation', () => {
+	test('withBundle(bundleWithAssets) + withAssets() merges both asset types', () => {
+		const assetBundle = new Bundle<{ pos: { x: number } }, {}, {}>('asset-bundle')
+			.addAsset('bundleSprite', () => Promise.resolve('bundle-sprite'));
+
+		const ecs = ECSpresso.create()
+			.withBundle(assetBundle)
+			.withAssets(a => a.add('appTexture', () => Promise.resolve('app-texture')))
+			.build();
+
+		function _typeCheck(world: typeof ecs) {
+			const assets: AssetsResource<{ bundleSprite: string; appTexture: string }> = world.getResource('$assets');
+			return assets;
+		}
+		void _typeCheck;
+	});
+
+	test('withBundle(bundleWithAssets) without withAssets() auto-injects $assets', () => {
+		const assetBundle = new Bundle<{ pos: { x: number } }, {}, {}>('asset-bundle')
+			.addAsset('bundleSprite', () => Promise.resolve('bundle-sprite'));
+
+		const ecs = ECSpresso.create()
+			.withBundle(assetBundle)
+			.build();
+
+		function _typeCheck(world: typeof ecs) {
+			const assets: AssetsResource<{ bundleSprite: string }> = world.getResource('$assets');
+			return assets;
+		}
+		void _typeCheck;
+	});
+
+	test('withBundle(bundleWithScreens) + withScreens() merges both screen types', () => {
+		const screenBundle = new Bundle<{}, {}, {}>('screen-bundle')
+			.addScreen('loading', { initialState: () => ({ progress: 0 }) });
+
+		const ecs = ECSpresso.create()
+			.withBundle(screenBundle)
+			.withScreens(s => s.add('menu', { initialState: () => ({}) }))
+			.build();
+
+		function _typeCheck(world: typeof ecs) {
+			const screen = world.getResource('$screen');
+			const _check1: boolean = screen.isCurrent('loading');
+			const _check2: boolean = screen.isCurrent('menu');
+			return { _check1, _check2 };
+		}
+		void _typeCheck;
+	});
+
+	test('withBundle(bundleWithScreens) without withScreens() auto-injects $screen', () => {
+		const screenBundle = new Bundle<{}, {}, {}>('screen-bundle')
+			.addScreen('loading', { initialState: () => ({ progress: 0 }) });
+
+		const ecs = ECSpresso.create()
+			.withBundle(screenBundle)
+			.build();
+
+		function _typeCheck(world: typeof ecs) {
+			const screen = world.getResource('$screen');
+			const _check: boolean = screen.isCurrent('loading');
+			return _check;
+		}
+		void _typeCheck;
+	});
+
+	test('two bundles with compatible asset types work', () => {
+		const bundleA = new Bundle<{ a: number }, {}, {}>('a')
+			.addAsset('spriteA', () => Promise.resolve('a'));
+
+		const bundleB = new Bundle<{ b: number }, {}, {}>('b')
+			.addAsset('spriteB', () => Promise.resolve('b'));
+
+		const ecs = ECSpresso.create()
+			.withBundle(bundleA)
+			.withBundle(bundleB)
+			.build();
+
+		function _typeCheck(world: typeof ecs) {
+			const assets: AssetsResource<{ spriteA: string; spriteB: string }> = world.getResource('$assets');
+			return assets;
+		}
+		void _typeCheck;
+	});
+
+	test('two bundles with conflicting asset types produce error', () => {
+		const bundleA = new Bundle<{ a: number }, {}, {}>('a')
+			.addAsset('sprite', () => Promise.resolve('string-data'));
+
+		const bundleB = new Bundle<{ b: number }, {}, {}>('b')
+			.addAsset('sprite', () => Promise.resolve(42));
+
+		ECSpresso.create()
+			.withBundle(bundleA)
+			// @ts-expect-error conflicting asset types (sprite: string vs sprite: number)
+			.withBundle(bundleB);
+	});
+
+	test('runtime: bundle assets accessible after build() + initialize()', async () => {
+		const assetBundle = new Bundle<{}, {}, {}>('asset-bundle')
+			.addAsset('mySprite', () => Promise.resolve('sprite-data'));
+
+		const ecs = ECSpresso.create()
+			.withBundle(assetBundle)
+			.build();
+
+		await ecs.initialize();
+		const assets = ecs.getResource('$assets');
+		expect(assets).toBeDefined();
+		expect(assets.isLoaded('mySprite')).toBe(true);
+		expect(assets.get('mySprite')).toBe('sprite-data');
+	});
+
+	test('runtime: bundle screens accessible after build() + initialize()', async () => {
+		const screenBundle = new Bundle<{}, {}, {}>('screen-bundle')
+			.addScreen('menu', { initialState: () => ({ selected: 0 }) });
+
+		const ecs = ECSpresso.create()
+			.withBundle(screenBundle)
+			.build();
+
+		await ecs.initialize();
+		const screen = ecs.getResource('$screen');
+		expect(screen).toBeDefined();
+		expect(screen.current).toBeNull();
+	});
+
+	test('$assets not in ResourceTypes when no bundle assets and no withAssets()', () => {
+		const bundle = new Bundle<{ a: number }, {}, {}>('no-assets')
+			.addSystem('sys')
+			.setProcess(() => {})
+			.and();
+
+		const ecs = ECSpresso.create()
+			.withBundle(bundle)
+			.build();
+
+		function _typeCheck(world: typeof ecs) {
+			// @ts-expect-error - $assets should not be present
+			world.getResource('$assets');
+		}
+		void _typeCheck;
+	});
+
+	test('$screen not in ResourceTypes when no bundle screens and no withScreens()', () => {
+		const bundle = new Bundle<{ a: number }, {}, {}>('no-screens')
+			.addSystem('sys')
+			.setProcess(() => {})
+			.and();
+
+		const ecs = ECSpresso.create()
+			.withBundle(bundle)
+			.build();
+
+		function _typeCheck(world: typeof ecs) {
+			// @ts-expect-error - $screen should not be present
+			world.getResource('$screen');
+		}
+		void _typeCheck;
 	});
 });
