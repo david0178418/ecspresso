@@ -62,6 +62,10 @@
 		"./bundles/audio": {
 			"import": "./dist/bundles/audio.js",
 			"types": "./dist/bundles/audio.d.ts"
+		},
+		"./bundles/sprite-animation": {
+			"import": "./dist/bundles/sprite-animation.js",
+			"types": "./dist/bundles/sprite-animation.d.ts"
 		}
 	},
 	"publishConfig": {

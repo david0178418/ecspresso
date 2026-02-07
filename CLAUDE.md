@@ -34,7 +34,8 @@ src/
     │   ├── collision.ts  # Layer-based collision detection + pair handler routing (uses shared narrowphase)
     │   ├── state-machine.ts # Per-entity finite state machines with guards and lifecycle hooks
     │   ├── tween.ts      # Declarative property animation with easing, sequences, and loops
-    │   └── audio.ts      # Howler.js audio integration with channels, SFX, and music
+    │   ├── audio.ts      # Howler.js audio integration with channels, SFX, and music
+    │   └── sprite-animation.ts # Frame-based sprite animation with loop modes and texture sync
     └── renderers/
         └── renderer2D.ts  # PixiJS scene graph wiring
 ```
@@ -97,7 +98,7 @@ src/
 ### Bundle Phase Flow
 Physics 2D marks `localTransform` (fixedUpdate) → Transform propagation reads changed, writes+marks `worldTransform` (postUpdate) → Renderer reads changed `worldTransform` (render)
 
-### Kit Pattern (shared across state-machine, tween, audio)
+### Kit Pattern (shared across state-machine, tween, audio, sprite-animation)
 `createXxxKit<W>()` captures world type once; returned helpers validate component/field/sound names at compile time. Standalone untyped versions remain available. Read bundle source files for per-bundle API details.
 
 ### Bundle Type Parameters
