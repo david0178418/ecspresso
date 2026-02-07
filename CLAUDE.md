@@ -35,7 +35,8 @@ src/
     │   ├── state-machine.ts # Per-entity finite state machines with guards and lifecycle hooks
     │   ├── tween.ts      # Declarative property animation with easing, sequences, and loops
     │   ├── audio.ts      # Howler.js audio integration with channels, SFX, and music
-    │   └── sprite-animation.ts # Frame-based sprite animation with loop modes and texture sync
+    │   ├── sprite-animation.ts # Frame-based sprite animation with loop modes and texture sync
+    │   └── particles.ts  # High-performance pooled particle system with PixiJS ParticleContainer rendering
     └── renderers/
         └── renderer2D.ts  # PixiJS scene graph wiring
 ```

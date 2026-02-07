@@ -66,6 +66,10 @@
 		"./bundles/sprite-animation": {
 			"import": "./dist/bundles/sprite-animation.js",
 			"types": "./dist/bundles/sprite-animation.d.ts"
+		},
+		"./bundles/particles": {
+			"import": "./dist/bundles/particles.js",
+			"types": "./dist/bundles/particles.d.ts"
 		}
 	},
 	"publishConfig": {
