@@ -41,7 +41,7 @@ export class ECSpressoBuilder<
 	/** Pending resources to add during build */
 	private pendingResources: Array<{ key: string; value: unknown }> = [];
 	/** Pending dispose callbacks to register during build */
-	private pendingDisposeCallbacks: Array<{ key: string; callback: (value: unknown) => void }> = [];
+	private pendingDisposeCallbacks: Array<{ key: string; callback: (value: unknown, entityId: number) => void }> = [];
 	/** Pending required component registrations to apply during build */
 	private pendingRequiredComponents: Array<{ trigger: string; required: string; factory: (triggerValue: any) => unknown }> = [];
 	/** Fixed timestep interval (null means use default 1/60) */
@@ -180,9 +180,9 @@ export class ECSpressoBuilder<
 	 */
 	withDispose<K extends keyof C & string>(
 		componentName: K,
-		callback: (value: C[K]) => void
+		callback: (value: C[K], entityId: number) => void
 	): this {
-		this.pendingDisposeCallbacks.push({ key: componentName, callback: callback as (value: unknown) => void });
+		this.pendingDisposeCallbacks.push({ key: componentName, callback: callback as (value: unknown, entityId: number) => void });
 		return this;
 	}
 
@@ -304,7 +304,7 @@ export class ECSpressoBuilder<
 
 		// Apply pending dispose callbacks
 		for (const { key, callback } of this.pendingDisposeCallbacks) {
-			this.ecspresso.registerDispose(key as keyof C, callback as (value: C[keyof C]) => void);
+			this.ecspresso.registerDispose(key as keyof C, callback as (value: C[keyof C], entityId: number) => void);
 		}
 
 		// Apply pending required component registrations

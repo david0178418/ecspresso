@@ -44,7 +44,7 @@ export default class Bundle<
 	private _assets: Map<string, AssetDefinition<unknown>> = new Map();
 	private _assetGroups: Map<string, Map<string, () => Promise<unknown>>> = new Map();
 	private _screens: Map<string, ScreenDefinition<any, any>> = new Map();
-	private _disposeCallbacks: Map<string, (value: unknown) => void> = new Map();
+	private _disposeCallbacks: Map<string, (value: unknown, entityId: number) => void> = new Map();
 	private _requiredComponents: Map<string, Array<{ component: string; factory: (triggerValue: any) => unknown }>> = new Map();
 	private _id: string;
 
@@ -174,21 +174,21 @@ export default class Bundle<
 	 * Register a dispose callback for a component type in this bundle.
 	 * Called when a component is removed (explicit removal, entity destruction, or replacement).
 	 * @param componentName The component type to register disposal for
-	 * @param callback Function receiving the component value being disposed
+	 * @param callback Function receiving the component value being disposed and the entity ID
 	 * @returns This bundle for method chaining
 	 */
 	registerDispose<K extends keyof ComponentTypes>(
 		componentName: K,
-		callback: (value: ComponentTypes[K]) => void
+		callback: (value: ComponentTypes[K], entityId: number) => void
 	): this {
-		this._disposeCallbacks.set(componentName as string, callback as (value: unknown) => void);
+		this._disposeCallbacks.set(componentName as string, callback as (value: unknown, entityId: number) => void);
 		return this;
 	}
 
 	/**
 	 * Get all registered dispose callbacks in this bundle
 	 */
-	getDisposeCallbacks(): Map<string, (value: unknown) => void> {
+	getDisposeCallbacks(): Map<string, (value: unknown, entityId: number) => void> {
 		return new Map(this._disposeCallbacks);
 	}
 
@@ -265,7 +265,7 @@ export default class Bundle<
 	 * Internal method to set a dispose callback
 	 * @internal Used by mergeBundles
 	 */
-	_setDisposeCallback(name: string, callback: (value: unknown) => void): void {
+	_setDisposeCallback(name: string, callback: (value: unknown, entityId: number) => void): void {
 		this._disposeCallbacks.set(name, callback);
 	}
 

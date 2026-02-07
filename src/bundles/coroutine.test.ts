@@ -121,79 +121,9 @@ describe('Basic Generator Processing', () => {
 		ecs.update(0.016); // init runs to completion immediately
 		expect(tickCount).toBe(1);
 
-		ecs.update(0.016); // justFinished frame + removal
+		ecs.update(0.016); // finished guard + removal
 		ecs.update(0.016); // should not tick — component removed
 		expect(tickCount).toBe(1);
-	});
-});
-
-// ==================== justFinished Flag ====================
-
-describe('justFinished Flag', () => {
-	test('true for one frame after completion (observable by lower-priority system)', () => {
-		const ecs = ECSpresso
-			.create<TestComponents, TestEvents, TestResources>()
-			.withBundle(createCoroutineBundle())
-			.build();
-
-		let sawJustFinished = false;
-
-		ecs
-			.addSystem('observer')
-			.inPhase('update')
-			.setPriority(-1)
-			.addQuery('coroutines', { with: ['coroutine'] })
-			.setProcess((queries) => {
-				for (const entity of queries.coroutines) {
-					if (entity.components.coroutine.justFinished) {
-						sawJustFinished = true;
-					}
-				}
-			})
-			.and();
-
-		function* testGen(): CoroutineGenerator {
-			yield;
-		}
-
-		ecs.spawn({ ...createCoroutine(testGen()) });
-
-		ecs.update(0.016); // init + resume → done → justFinished=true → observer sees it
-		expect(sawJustFinished).toBe(true);
-	});
-
-	test('false while running', () => {
-		const ecs = ECSpresso
-			.create<TestComponents, TestEvents, TestResources>()
-			.withBundle(createCoroutineBundle())
-			.build();
-
-		let sawJustFinished = false;
-
-		ecs
-			.addSystem('observer')
-			.inPhase('update')
-			.setPriority(-1)
-			.addQuery('coroutines', { with: ['coroutine'] })
-			.setProcess((queries) => {
-				for (const entity of queries.coroutines) {
-					if (entity.components.coroutine.justFinished) {
-						sawJustFinished = true;
-					}
-				}
-			})
-			.and();
-
-		function* testGen(): CoroutineGenerator {
-			yield;
-			yield;
-			yield;
-		}
-
-		ecs.spawn({ ...createCoroutine(testGen()) });
-
-		ecs.update(0.016);
-		expect(sawJustFinished).toBe(false);
 	});
 });
 
@@ -213,7 +143,7 @@ describe('Component Removal on Completion', () => {
 		});
 
 		ecs.update(0.016); // completes, queues removal
-		ecs.update(0.016); // justFinished frame
+		ecs.update(0.016); // finished guard frame
 		ecs.update(0.016); // removal executed
 
 		expect(ecs.hasComponent(entity.id, 'coroutine')).toBe(false);

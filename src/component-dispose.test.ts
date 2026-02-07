@@ -287,6 +287,99 @@ describe('Component Dispose', () => {
 		expect(disposedTextures[0]).toBe(textureValue);
 	});
 
+	test('dispose passes entity ID on removeComponent', () => {
+		const ecs = createWorld();
+		const received: Array<{ value: TestComponents['mesh']; entityId: number }> = [];
+		ecs.registerDispose('mesh', (mesh, entityId) => { received.push({ value: mesh, entityId }); });
+
+		const meshValue = { vertices: [1, 2, 3], dispose: () => {} };
+		const entity = ecs.spawn({ mesh: meshValue });
+		ecs.entityManager.removeComponent(entity.id, 'mesh');
+
+		expect(received).toHaveLength(1);
+		expect(received[0]!.entityId).toBe(entity.id);
+		expect(received[0]!.value).toBe(meshValue);
+	});
+
+	test('dispose passes entity ID on removeEntity', () => {
+		const ecs = createWorld();
+		const received: Array<{ value: TestComponents['mesh']; entityId: number }> = [];
+		ecs.registerDispose('mesh', (mesh, entityId) => { received.push({ value: mesh, entityId }); });
+
+		const meshValue = { vertices: [1], dispose: () => {} };
+		const entity = ecs.spawn({ mesh: meshValue });
+		ecs.removeEntity(entity.id);
+
+		expect(received).toHaveLength(1);
+		expect(received[0]!.entityId).toBe(entity.id);
+	});
+
+	test('dispose passes entity ID on component replacement', () => {
+		const ecs = createWorld();
+		const received: Array<{ value: TestComponents['mesh']; entityId: number }> = [];
+		ecs.registerDispose('mesh', (mesh, entityId) => { received.push({ value: mesh, entityId }); });
+
+		const oldMesh = { vertices: [1], dispose: () => {} };
+		const newMesh = { vertices: [2], dispose: () => {} };
+
+		const entity = ecs.spawn({ mesh: oldMesh });
+		ecs.entityManager.addComponent(entity.id, 'mesh', newMesh);
+
+		expect(received).toHaveLength(1);
+		expect(received[0]!.entityId).toBe(entity.id);
+		expect(received[0]!.value).toBe(oldMesh);
+	});
+
+	test('dispose passes correct entity IDs on cascade deletion', () => {
+		const ecs = createWorld();
+		const received: Array<{ entityId: number }> = [];
+		ecs.registerDispose('mesh', (_mesh, entityId) => { received.push({ entityId }); });
+
+		const parent = ecs.spawn({ mesh: { vertices: [1], dispose: () => {} } });
+		const child = ecs.spawnChild(parent.id, { mesh: { vertices: [2], dispose: () => {} } });
+
+		ecs.removeEntity(parent.id);
+
+		expect(received).toHaveLength(2);
+		const entityIds = received.map(r => r.entityId);
+		expect(entityIds).toContain(parent.id);
+		expect(entityIds).toContain(child.id);
+	});
+
+	test('bundle-registered dispose receives entity ID', () => {
+		const bundle = new Bundle<TestComponents>('test-dispose-bundle');
+		const received: Array<{ entityId: number }> = [];
+
+		bundle.registerDispose('mesh', (_mesh, entityId) => { received.push({ entityId }); });
+
+		const ecs = ECSpresso.create()
+			.withBundle(bundle)
+			.build();
+
+		const meshValue = { vertices: [1], dispose: () => {} };
+		const entity = ecs.spawn({ mesh: meshValue });
+		ecs.removeEntity(entity.id);
+
+		expect(received).toHaveLength(1);
+		expect(received[0]!.entityId).toBe(entity.id);
+	});
+
+	test('builder withDispose receives entity ID', () => {
+		const received: Array<{ entityId: number }> = [];
+
+		const ecs = ECSpresso.create()
+			.withComponentTypes<TestComponents>()
+			.withDispose('mesh', (_mesh, entityId) => { received.push({ entityId }); })
+			.build();
+
+		const meshValue = { vertices: [1], dispose: () => {} };
+		const entity = ecs.spawn({ mesh: meshValue });
+		ecs.removeEntity(entity.id);
+
+		expect(received).toHaveLength(1);
+		expect(received[0]!.entityId).toBe(entity.id);
+	});
+
 	test('type safety — component name constrained, callback value typed', () => {
 		const ecs = createWorld();
 

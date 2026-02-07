@@ -22,7 +22,7 @@ class EntityManager<ComponentTypes> {
 	 * Per-type component dispose callbacks.
 	 * Called when a component is removed (explicit removal, entity destruction, or replacement).
 	 */
-	private disposeCallbacks: Map<keyof ComponentTypes, (value: any) => void> = new Map();
+	private disposeCallbacks: Map<keyof ComponentTypes, (value: any, entityId: number) => void> = new Map();
 	/**
 	 * Per-entity per-component change sequence tracking.
 	 * Maps entityId -> (componentName -> sequence number when last changed)
@@ -64,11 +64,11 @@ class EntityManager<ComponentTypes> {
 	 * Called when a component is removed (explicit removal, entity destruction, or replacement).
 	 * Later registrations replace earlier ones for the same component type.
 	 * @param componentName The component type to register disposal for
-	 * @param callback Function receiving the component value being disposed
+	 * @param callback Function receiving the component value being disposed and the entity ID
 	 */
 	registerDispose<ComponentName extends keyof ComponentTypes>(
 		componentName: ComponentName,
-		callback: (value: ComponentTypes[ComponentName]) => void
+		callback: (value: ComponentTypes[ComponentName], entityId: number) => void
 	): void {
 		this.disposeCallbacks.set(componentName, callback);
 	}
@@ -77,7 +77,7 @@ class EntityManager<ComponentTypes> {
 	 * Get all registered dispose callbacks.
 	 * @internal Used by ECSpresso for bundle installation
 	 */
-	getDisposeCallbacks(): Map<keyof ComponentTypes, (value: any) => void> {
+	getDisposeCallbacks(): Map<keyof ComponentTypes, (value: any, entityId: number) => void> {
 		return this.disposeCallbacks;
 	}
 
@@ -87,12 +87,13 @@ class EntityManager<ComponentTypes> {
 	 */
 	private invokeDispose<ComponentName extends keyof ComponentTypes>(
 		componentName: ComponentName,
-		value: ComponentTypes[ComponentName]
+		value: ComponentTypes[ComponentName],
+		entityId: number
 	): void {
 		const cb = this.disposeCallbacks.get(componentName);
 		if (!cb) return;
 		try {
-			cb(value);
+			cb(value, entityId);
 		} catch (error) {
 			console.warn(`Component dispose callback for '${String(componentName)}' threw:`, error);
 		}
@@ -121,7 +122,7 @@ class EntityManager<ComponentTypes> {
 		// Dispose old value if replacing an existing component
 		const existing = entity.components[componentName];
 		if (existing !== undefined) {
-			this.invokeDispose(componentName, existing as ComponentTypes[ComponentName]);
+			this.invokeDispose(componentName, existing as ComponentTypes[ComponentName], entity.id);
 		}
 
 		entity.components[componentName] = data;
@@ -216,7 +217,7 @@ class EntityManager<ComponentTypes> {
 
 		// Invoke dispose before deletion and removal callbacks
 		if (oldValue !== undefined) {
-			this.invokeDispose(componentName, oldValue);
+			this.invokeDispose(componentName, oldValue, entity.id);
 		}
 
 		delete entity.components[componentName];
@@ -395,7 +396,7 @@ class EntityManager<ComponentTypes> {
 
 			if (oldValue !== undefined) {
 				// Invoke dispose before removal callbacks
-				this.invokeDispose(componentName, oldValue as ComponentTypes[keyof ComponentTypes]);
+				this.invokeDispose(componentName, oldValue as ComponentTypes[keyof ComponentTypes], entity.id);
 
 				// Trigger removed callbacks (iterate over copy to allow mid-iteration unsubscribe)
 				const removeCbs = this.removedCallbacks.get(componentName);

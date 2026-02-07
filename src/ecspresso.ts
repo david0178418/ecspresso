@@ -1192,11 +1192,11 @@ export default class ECSpresso<
 	 * Called when a component is removed (explicit removal, entity destruction, or replacement).
 	 * Later registrations replace earlier ones for the same component type.
 	 * @param componentName The component type to register disposal for
-	 * @param callback Function receiving the component value being disposed
+	 * @param callback Function receiving the component value being disposed and the entity ID
 	 */
 	registerDispose<K extends keyof ComponentTypes>(
 		componentName: K,
-		callback: (value: ComponentTypes[K]) => void
+		callback: (value: ComponentTypes[K], entityId: number) => void
 	): void {
 		this._entityManager.registerDispose(componentName, callback);
 	}

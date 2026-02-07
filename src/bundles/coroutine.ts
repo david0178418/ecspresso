@@ -31,7 +31,6 @@ export interface CoroutineEventData {
 export interface CoroutineState<ET extends Record<string, any> = Record<string, any>> {
 	generator: CoroutineGenerator;
 	onComplete?: EventNameMatching<ET, CoroutineEventData>;
-	justFinished: boolean;
 }
 
 export interface CoroutineComponentTypes<ET extends Record<string, any> = Record<string, any>> {
@@ -70,7 +69,6 @@ export function createCoroutine<ET extends Record<string, any> = Record<string, 
 		coroutine: {
 			generator,
 			onComplete: options?.onComplete,
-			justFinished: false,
 		},
 	};
 }
@@ -278,8 +276,7 @@ export function createCoroutineKit<W extends AnyECSpresso, G extends string = 'c
  *
  * This bundle provides:
  * - Coroutine system that ticks all generator-based coroutines each frame
- * - Automatic cleanup via onComponentRemoved (triggers finally blocks)
- * - `justFinished` flag for one-frame completion detection
+ * - Automatic cleanup via dispose callback (triggers generator finally blocks)
  * - `onComplete` event publishing
  * - Component removal on completion
  */
@@ -294,8 +291,13 @@ export function createCoroutineBundle<ET extends Record<string, any> = Record<st
 
 	const bundle = new Bundle<CoroutineComponentTypes<ET>, ET, {}>('coroutines');
 
-	bundle.registerDispose('coroutine', (value) => {
+	// Tracks entities whose coroutine completed this frame to prevent re-ticking
+	// before the command buffer removes the component.
+	const finished = new Set<number>();
+
+	bundle.registerDispose('coroutine', (value, entityId) => {
 		value.generator.return();
+		finished.delete(entityId);
 	});
 
 	bundle
@@ -311,25 +313,25 @@ export function createCoroutineBundle<ET extends Record<string, any> = Record<st
 		})
 		.setProcess((queries, deltaTime, ecs) => {
 			for (const entity of queries.coroutines) {
-				const state = entity.components.coroutine;
-
-				// justFinished was true last frame — reset and skip (removal already queued)
-				if (state.justFinished) {
-					state.justFinished = false;
+				// Already completed — skip until command buffer removes the component
+				if (finished.has(entity.id)) {
+					finished.delete(entity.id);
 					continue;
 				}
+
+				const state = entity.components.coroutine;
 
 				// Tick the generator
 				try {
 					const result = state.generator.next(deltaTime);
 					if (result.done) {
-						state.justFinished = true;
+						finished.add(entity.id);
 						publishCoroutineEvent(ecs, entity.id, state);
 						ecs.commands.removeComponent(entity.id, 'coroutine');
 					}
 				} catch (error) {
 					console.warn(`Coroutine error on entity ${entity.id}:`, error);
-					state.justFinished = true;
+					finished.add(entity.id);
 					ecs.commands.removeComponent(entity.id, 'coroutine');
 				}
 			}
