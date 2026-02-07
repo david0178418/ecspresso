@@ -14,6 +14,7 @@ import tweens from './13-tweens/tweens.html';
 import screens from './14-screens/screens.html';
 import diagnostics from './15-diagnostics/diagnostics.html';
 import audio from './16-audio/audio.html';
+import coroutines from './17-coroutines/coroutines.html';
 
 const examplesDir = import.meta.dir;
 
@@ -37,6 +38,7 @@ const server = serve({
 		'/screens/': screens,
 		'/diagnostics/': diagnostics,
 		'/audio/': audio,
+		'/coroutines/': coroutines,
 	},
 	async fetch(request) {
 		// Serve static assets (e.g. .wav, .mp3) from example directories

@@ -56,6 +56,16 @@ export default class ECSpresso<
 	AssetGroupNames extends string = string,
 	ReactiveQueryNames extends string = string,
 > {
+	// Phantom type properties for structural type extraction (no runtime cost).
+	// Only the 5 externally-extracted type params get phantom properties.
+	// Labels, Groups, AssetGroupNames, ReactiveQueryNames are internal to
+	// the builder and continue using positional inference in type-utils.ts.
+	declare readonly _componentTypes: ComponentTypes;
+	declare readonly _eventTypes: EventTypes;
+	declare readonly _resourceTypes: ResourceTypes;
+	declare readonly _assetTypes: AssetTypes;
+	declare readonly _screenStates: ScreenStates;
+
 	/** Library version*/
 	public static readonly VERSION = version;
 

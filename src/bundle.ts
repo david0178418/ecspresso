@@ -29,6 +29,16 @@ export default class Bundle<
 	AssetGroupNames extends string = never,
 	ReactiveQueryNames extends string = never,
 > {
+	// Phantom type properties for structural type extraction (no runtime cost).
+	// Only the 5 externally-extracted type params get phantom properties.
+	// Labels, Groups, AssetGroupNames, ReactiveQueryNames are internal to
+	// the builder and continue using positional inference in type-utils.ts.
+	declare readonly _componentTypes: ComponentTypes;
+	declare readonly _eventTypes: EventTypes;
+	declare readonly _resourceTypes: ResourceTypes;
+	declare readonly _assetTypes: AssetTypes;
+	declare readonly _screenStates: ScreenStates;
+
 	private _systems: SystemBuilderWithBundle<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, any, any, any, any, any, any, any>[] = [];
 	private _resources: Map<keyof ResourceTypes, ResourceTypes[keyof ResourceTypes]> = new Map();
 	private _assets: Map<string, AssetDefinition<unknown>> = new Map();

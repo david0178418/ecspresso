@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Coroutines</title>
+	<link rel="stylesheet" href="../styles.css">
+	<script src="./coroutines.ts" type="module" defer></script>
+	<style>
+		#replay-btn {
+			position: absolute;
+			bottom: 20px;
+			right: 20px;
+			z-index: 10;
+			padding: 10px 24px;
+			font-family: monospace;
+			font-size: 14px;
+			background: #3a3a5e;
+			color: #ddd;
+			border: 1px solid #555;
+			border-radius: 6px;
+			cursor: pointer;
+		}
+		#replay-btn:hover { background: #4a4a6e; }
+		#replay-btn:active { background: #5a5a7e; }
+	</style>
+</head>
+<body>
+	<a class="back" href="/">Back</a>
+	<button id="replay-btn">Replay</button>
+</body>
+</html>

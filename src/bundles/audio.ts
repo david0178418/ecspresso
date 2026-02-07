@@ -7,7 +7,7 @@
  */
 
 import { Bundle } from 'ecspresso';
-import type { SystemPhase, AssetsOfWorld } from 'ecspresso';
+import type { SystemPhase, AssetsOfWorld, AnyECSpresso } from 'ecspresso';
 import type { Howl } from 'howler';
 
 // ==================== Channel Definition ====================
@@ -672,8 +672,6 @@ export function createAudioBundle<Ch extends string, G extends string = 'audio'>
 }
 
 // ==================== Kit Pattern ====================
-
-type AnyECSpresso = import('ecspresso').default<any, any, any, any, any, any, any>;
 
 /**
  * Kit result from createAudioKit.

@@ -6,7 +6,7 @@
  */
 
 import { Bundle } from 'ecspresso';
-import type { SystemPhase } from 'ecspresso';
+import type { SystemPhase, EventNameMatching } from 'ecspresso';
 
 // ==================== Event Types ====================
 
@@ -33,13 +33,6 @@ export interface TimerEventData {
 
 // ==================== Component Types ====================
 
-/**
- * Extracts event names from EventTypes that have TimerEventData as their payload.
- * This ensures only compatible events can be used with timer.onComplete.
- */
-export type TimerEventName<EventTypes extends Record<string, any>> = {
-	[K in keyof EventTypes]: EventTypes[K] extends TimerEventData ? K : never
-}[keyof EventTypes];
 
 /**
  * Timer component data structure.
@@ -59,7 +52,7 @@ export interface Timer<EventTypes extends Record<string, any>> {
 	/** True for one frame after timer completes */
 	justFinished: boolean;
 	/** Optional event name to publish when timer completes. Must be an event with TimerEventData payload. */
-	onComplete?: TimerEventName<EventTypes>;
+	onComplete?: EventNameMatching<EventTypes, TimerEventData>;
 }
 
 /**
@@ -104,7 +97,7 @@ export interface TimerBundleOptions<G extends string = 'timers'> {
  */
 export interface TimerOptions<EventTypes extends Record<string, any>> {
 	/** Event name to publish when timer completes. Must be an event with TimerEventData payload. */
-	onComplete?: TimerEventName<EventTypes>;
+	onComplete?: EventNameMatching<EventTypes, TimerEventData>;
 }
 
 /**
@@ -276,7 +269,7 @@ export function createTimerBundle<EventTypes extends Record<string, any>, G exte
 
 	/**
 	 * Publishes timer completion event if onComplete is specified.
-	 * Type assertion needed: TypeScript can't infer that TimerEventName<EventTypes>
+	 * Type assertion needed: TypeScript can't infer that EventNameMatching<EventTypes, TimerEventData>
 	 * maps to events with TimerEventData payloads, even though that's what the type enforces.
 	 */
 	function publishTimerEvent(

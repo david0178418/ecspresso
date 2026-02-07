@@ -6,7 +6,7 @@
  */
 
 import { Bundle } from 'ecspresso';
-import type { SystemPhase, ComponentsOfWorld, EventsOfWorld } from 'ecspresso';
+import type { SystemPhase, ComponentsOfWorld, EventsOfWorld, AnyECSpresso, EventNameMatching } from 'ecspresso';
 import { linear, type EasingFn } from '../utils/easing';
 
 // ==================== Event Types ====================
@@ -22,15 +22,6 @@ export interface TweenEventData {
 	stepCount: number;
 }
 
-/**
- * Extracts event names from EventTypes that have TweenEventData as their payload.
- * This ensures only compatible events can be used with tween.onComplete.
- * Uses `keyof EventTypes & string` to exclude number/symbol keys, ensuring the
- * result is always a string subtype and Tween<E> is assignable to Tween<Record<string, any>>.
- */
-export type TweenEventName<EventTypes extends Record<string, any>> = {
-	[K in keyof EventTypes & string]: EventTypes[K] extends TweenEventData ? K : never
-}[keyof EventTypes & string];
 
 // ==================== Component Types ====================
 
@@ -60,7 +51,7 @@ export interface Tween<EventTypes extends Record<string, any> = Record<string, a
 	completedLoops: number;
 	direction: 1 | -1;
 	state: 'pending' | 'active' | 'complete';
-	onComplete?: TweenEventName<EventTypes>;
+	onComplete?: EventNameMatching<EventTypes, TweenEventData>;
 	justFinished: boolean;
 }
 
@@ -96,7 +87,7 @@ export interface TweenOptions<EventTypes extends Record<string, any> = Record<st
 	/** Number of loops. -1 = infinite (default: 1) */
 	loops?: number;
 	/** Event name to publish when tween completes */
-	onComplete?: TweenEventName<EventTypes>;
+	onComplete?: EventNameMatching<EventTypes, TweenEventData>;
 }
 
 /**
@@ -166,7 +157,7 @@ export interface TweenSequenceOptions<EventTypes extends Record<string, any> = R
 	/** Number of loops. -1 = infinite (default: 1) */
 	loops?: number;
 	/** Event name to publish when tween completes */
-	onComplete?: TweenEventName<EventTypes>;
+	onComplete?: EventNameMatching<EventTypes, TweenEventData>;
 }
 
 /**
@@ -212,8 +203,6 @@ export function createTweenSequence<EventTypes extends Record<string, any> = Rec
 }
 
 // ==================== Kit Types ====================
-
-type AnyECSpresso = import('ecspresso').default<any, any, any, any, any, any, any>;
 
 /**
  * Recursively produce a union of dot-separated paths that resolve to `number`
