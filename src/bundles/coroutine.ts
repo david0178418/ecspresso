@@ -32,8 +32,6 @@ export interface CoroutineState<ET extends Record<string, any> = Record<string, 
 	generator: CoroutineGenerator;
 	onComplete?: EventNameMatching<ET, CoroutineEventData>;
 	justFinished: boolean;
-	/** @internal Whether the generator has been initialized (first .next() called) */
-	_initialized: boolean;
 }
 
 export interface CoroutineComponentTypes<ET extends Record<string, any> = Record<string, any>> {
@@ -73,7 +71,6 @@ export function createCoroutine<ET extends Record<string, any> = Record<string, 
 			generator,
 			onComplete: options?.onComplete,
 			justFinished: false,
-			_initialized: false,
 		},
 	};
 }
@@ -309,6 +306,9 @@ export function createCoroutineBundle<ET extends Record<string, any> = Record<st
 		.addQuery('coroutines', {
 			with: ['coroutine'],
 		})
+		.setOnEntityEnter('coroutines', (entity) => {
+			entity.components.coroutine.generator.next(0);
+		})
 		.setProcess((queries, deltaTime, ecs) => {
 			for (const entity of queries.coroutines) {
 				const state = entity.components.coroutine;
@@ -317,12 +317,6 @@ export function createCoroutineBundle<ET extends Record<string, any> = Record<st
 				if (state.justFinished) {
 					state.justFinished = false;
 					continue;
-				}
-
-				// Initialize on first tick
-				if (!state._initialized) {
-					state._initialized = true;
-					state.generator.next(0);
 				}
 
 				// Tick the generator

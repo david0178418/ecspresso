@@ -269,6 +269,14 @@ interface System<
 	): void;
 
 	/**
+	 * Per-query callbacks that fire once per entity the first time it appears
+	 * in a query's results. Fires before process. Automatic cleanup when
+	 * entity leaves query (component removed, entity destroyed) so re-entry
+	 * fires the callback again.
+	 */
+	onEntityEnter?: Record<string, (entity: FilteredEntity<ComponentTypes, WithComponents, WithoutComponents>, ecs: ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>) => void>;
+
+	/**
 	 * Event handlers for specific event types
 	 */
 	eventHandlers?: {

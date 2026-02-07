@@ -45,6 +45,7 @@ export class SystemBuilder<
 	private _excludeScreens?: ReadonlyArray<keyof ScreenStates & string>;
 	private _requiredAssets?: ReadonlyArray<keyof AssetTypes & string>;
 	private _runWhenEmpty = false;
+	private _entityEnterHandlers: Record<string, (entity: any, ecs: any) => void> = {};
 
 	constructor(
 		private _label: string,
@@ -128,6 +129,10 @@ export class SystemBuilder<
 
 		if (this._runWhenEmpty) {
 			system.runWhenEmpty = true;
+		}
+
+		if (Object.keys(this._entityEnterHandlers).length > 0) {
+			system.onEntityEnter = { ...this._entityEnterHandlers };
 		}
 
 		return system;
@@ -264,6 +269,30 @@ export class SystemBuilder<
 		process: ProcessFunction<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, Queries>
 	): this {
 		this.processFunction = process;
+		return this;
+	}
+
+	/**
+	 * Register a callback that fires once per entity the first time it appears
+	 * in a query's results. Fires before process. Automatic cleanup when entity
+	 * leaves the query so re-entry fires the callback again.
+	 * @param queryName Name of a query previously added via addQuery
+	 * @param callback Function called with the entity and ecs instance
+	 * @returns This SystemBuilder instance for method chaining
+	 */
+	setOnEntityEnter<QN extends keyof Queries & string>(
+		queryName: QN,
+		callback: (
+			entity: FilteredEntity<
+				ComponentTypes,
+				Queries[QN] extends QueryDefinition<ComponentTypes, infer W> ? W : never,
+				Queries[QN] extends QueryDefinition<ComponentTypes, any, infer WO> ? WO : never,
+				Queries[QN] extends QueryDefinition<ComponentTypes, any, any, infer O> ? O : never
+			>,
+			ecs: ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>
+		) => void,
+	): this {
+		this._entityEnterHandlers[queryName] = callback;
 		return this;
 	}
 

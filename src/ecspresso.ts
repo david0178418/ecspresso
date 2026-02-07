@@ -124,6 +124,10 @@ export default class ECSpresso<
 	private _phaseTimings: Record<SystemPhase, number> = {
 		preUpdate: 0, fixedUpdate: 0, update: 0, postUpdate: 0, render: 0,
 	};
+	/** Per-system per-query seen entity IDs for onEntityEnter tracking */
+	private _entityEnterTracking: Map<object, Map<string, Set<number>>> = new Map();
+	/** Shared reusable set for per-tick entity enter comparison (avoids allocation) */
+	private _entityEnterFrameSet: Set<number> = new Set();
 
 	/**
 		* Creates a new ECSpresso instance.
@@ -310,7 +314,7 @@ export default class ECSpresso<
 		currentScreen: (keyof ScreenStates & string) | null
 	): void {
 		for (const system of systems) {
-			if (!system.process) continue;
+			if (!system.process && !system.onEntityEnter) continue;
 
 			// Group filtering - skip if any of the system's groups is disabled
 			if (system.groups?.length) {
@@ -381,19 +385,52 @@ export default class ECSpresso<
 				}
 			}
 
+			// Fire onEntityEnter callbacks before process
+			const enterTracking = this._entityEnterTracking.get(system);
+			if (enterTracking && system.onEntityEnter) {
+				for (const queryName in system.onEntityEnter) {
+					const results = queryResults[queryName];
+					const seenEntities = enterTracking.get(queryName);
+					if (!results || !seenEntities) continue;
+
+					const callback = system.onEntityEnter[queryName]!;
+
+					// Build set of current entity IDs for pruning
+					const frameSet = this._entityEnterFrameSet;
+					frameSet.clear();
+
+					for (const entity of results) {
+						frameSet.add(entity.id);
+						if (!seenEntities.has(entity.id)) {
+							seenEntities.add(entity.id);
+							callback(entity, this);
+						}
+					}
+
+					// Prune stale entries (entities no longer in query results)
+					for (const id of seenEntities) {
+						if (!frameSet.has(id)) {
+							seenEntities.delete(id);
+						}
+					}
+				}
+			}
+
 			// Call the system's process function only if there are results or there is no query.
-			if (this._diagnosticsEnabled) {
-				const t0 = performance.now();
-				if (hasResults || system.runWhenEmpty) {
+			if (system.process) {
+				if (this._diagnosticsEnabled) {
+					const t0 = performance.now();
+					if (hasResults || system.runWhenEmpty) {
+						system.process(queryResults, deltaTime, this);
+					} else if (!hasQueries) {
+						system.process(EmptyQueryResults, deltaTime, this);
+					}
+					this._systemTimings.set(system.label, performance.now() - t0);
+				} else if (hasResults || system.runWhenEmpty) {
 					system.process(queryResults, deltaTime, this);
 				} else if (!hasQueries) {
 					system.process(EmptyQueryResults, deltaTime, this);
 				}
-				this._systemTimings.set(system.label, performance.now() - t0);
-			} else if (hasResults || system.runWhenEmpty) {
-				system.process(queryResults, deltaTime, this);
-			} else if (!hasQueries) {
-				system.process(EmptyQueryResults, deltaTime, this);
 			}
 
 			// Record this system's last-seen sequence so it won't re-process these marks
@@ -604,9 +641,10 @@ export default class ECSpresso<
 			system.onDetach(this);
 		}
 
-		// Remove system and clean up per-system sequence tracking
+		// Remove system and clean up per-system tracking
 		this._systems.splice(index, 1);
 		this._systemLastSeqs.delete(system);
+		this._entityEnterTracking.delete(system);
 
 		// Re-sort systems
 		this._rebuildPhaseSystems();
@@ -626,6 +664,15 @@ export default class ECSpresso<
 		// systems added later don't see stale marks.
 		this._systemLastSeqs.set(system, this._changeThreshold);
 		this._rebuildPhaseSystems();
+
+		// Set up entity enter tracking if the system has onEntityEnter handlers
+		if (system.onEntityEnter) {
+			const queryMap = new Map<string, Set<number>>();
+			for (const queryName in system.onEntityEnter) {
+				queryMap.set(queryName, new Set());
+			}
+			this._entityEnterTracking.set(system, queryMap);
+		}
 
 		// Set up event handlers if they exist
 		if (!system.eventHandlers) return;

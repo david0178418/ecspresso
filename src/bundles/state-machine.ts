@@ -435,8 +435,6 @@ export function createStateMachineBundle<S extends string = string, G extends st
 
 	const bundle = new Bundle<StateMachineComponentTypes<S>, StateMachineEventTypes<S>, {}>('stateMachine');
 
-	const initialized = new Set<number>();
-
 	bundle
 		.addSystem('state-machine-update')
 		.setPriority(priority)
@@ -445,22 +443,16 @@ export function createStateMachineBundle<S extends string = string, G extends st
 		.addQuery('machines', {
 			with: ['stateMachine'],
 		})
-		.setOnInitialize((ecs) => {
-			ecs.onComponentRemoved('stateMachine', (_value, entity) => {
-				initialized.delete(entity.id);
-			});
+		.setOnEntityEnter('machines', (entity, ecs) => {
+			const sm = entity.components.stateMachine;
+			const states = sm.definition.states as Record<string, StateConfig<string>>;
+			states[sm.current]?.onEnter?.(ecs as unknown as StateMachineWorld, entity.id);
 		})
 		.setProcess((queries, deltaTime, ecs) => {
 			for (const entity of queries.machines) {
 				const sm = entity.components.stateMachine;
 				const states = sm.definition.states as Record<string, StateConfig<string>>;
 				const ecsWorld = ecs as unknown as StateMachineWorld;
-
-				// Initialize: fire onEnter for initial state on first tick
-				if (!initialized.has(entity.id)) {
-					initialized.add(entity.id);
-					states[sm.current]?.onEnter?.(ecsWorld, entity.id);
-				}
 
 				// Accumulate state time
 				sm.stateTime += deltaTime;
