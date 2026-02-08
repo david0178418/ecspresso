@@ -72,13 +72,11 @@ const ecs = ECSpresso.create()
 // This system uses the wallHit event declared by the bouncing bundle.
 ecs.addSystem('trail-spawner')
 	.setEventHandlers({
-		wallHit: {
-			handler({ x, y }, ecs) {
-				ecs.spawn({
-					graphics: new Graphics().circle(0, 0, 4).fill(0xFFFF00),
-					...createLocalTransform(x, y),
-				});
-			},
+		wallHit({ x, y }, ecs) {
+			ecs.spawn({
+				graphics: new Graphics().circle(0, 0, 4).fill(0xFFFF00),
+				...createLocalTransform(x, y),
+			});
 		},
 	})
 	.and();

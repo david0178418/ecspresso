@@ -215,19 +215,17 @@ describe('ResourceManager', () => {
 			.addResource('logger', logger)
 			.addSystem('EventSystem')
 			.setEventHandlers({
-				resourceUpdated: {
-					handler: (data, ecs) => {
-						// Use resources in the event handler
-						const logger = ecs.getResource('logger');
-						const gameState = ecs.getResource('gameState');
+				resourceUpdated: (data, ecs) => {
+					// Use resources in the event handler
+					const logger = ecs.getResource('logger');
+					const gameState = ecs.getResource('gameState');
 
-						// Log the event
-						logger.log(`Resource ${data.resourceName} updated to ${data.newValue} (game state: ${gameState.current})`);
+					// Log the event
+					logger.log(`Resource ${data.resourceName} updated to ${data.newValue} (game state: ${gameState.current})`);
 
-						// Update game state
-						gameState.previous = gameState.current;
-						gameState.current = 'updated';
-					}
+					// Update game state
+					gameState.previous = gameState.current;
+					gameState.current = 'updated';
 				}
 			})
 			.bundle;

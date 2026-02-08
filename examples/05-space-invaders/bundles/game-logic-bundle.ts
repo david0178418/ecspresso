@@ -13,114 +13,96 @@ export default function createGameLogicBundle() {
 	return new Bundle<Components, Events, Resources>('game-logic-bundle')
 		.addSystem('game-state')
 		.setEventHandlers({
-			gameInit: {
-				handler(_data, ecs) {
-					const gameState = ecs.getResource('gameState');
-					const score = ecs.getResource('score');
+			gameInit(_data, ecs) {
+				const gameState = ecs.getResource('gameState');
+				const score = ecs.getResource('score');
 
-					gameState.status = 'ready';
-					gameState.level = 1;
-					gameState.lives = 3;
-					score.value = 0;
+				gameState.status = 'ready';
+				gameState.level = 1;
+				gameState.lives = 3;
+				score.value = 0;
 
-					ecs.eventBus.publish('updateScore', { points: 0 });
-					ecs.eventBus.publish('updateLives', { lives: gameState.lives });
-				}
+				ecs.eventBus.publish('updateScore', { points: 0 });
+				ecs.eventBus.publish('updateLives', { lives: gameState.lives });
 			},
 
-			gameStart: {
-				handler(_data, ecs) {
-					const gameState = ecs.getResource('gameState');
-					gameState.status = 'playing';
-					ecs.enableSystemGroup('gameplay');
+			gameStart(_data, ecs) {
+				const gameState = ecs.getResource('gameState');
+				gameState.status = 'playing';
+				ecs.enableSystemGroup('gameplay');
 
-					const movementState = ecs.getResource('enemyMovementState');
-					movementState.isMovingDown = false;
-					movementState.currentDirection = 'right';
-					movementState.lastEdgeHit = null;
+				const movementState = ecs.getResource('enemyMovementState');
+				movementState.isMovingDown = false;
+				movementState.currentDirection = 'right';
+				movementState.lastEdgeHit = null;
 
-					spawnEnemyFormation(ecs);
-					ecs.eventBus.publish('enemyMove', { direction: 'right' });
-				}
+				spawnEnemyFormation(ecs);
+				ecs.eventBus.publish('enemyMove', { direction: 'right' });
 			},
 
-			gamePause: {
-				handler(_data, ecs) {
-					ecs.getResource('gameState').status = 'paused';
-					ecs.disableSystemGroup('gameplay');
-				}
+			gamePause(_data, ecs) {
+				ecs.getResource('gameState').status = 'paused';
+				ecs.disableSystemGroup('gameplay');
 			},
 
-			gameResume: {
-				handler(_data, ecs) {
-					ecs.getResource('gameState').status = 'playing';
-					ecs.enableSystemGroup('gameplay');
-				}
+			gameResume(_data, ecs) {
+				ecs.getResource('gameState').status = 'playing';
+				ecs.enableSystemGroup('gameplay');
 			},
 
-			gameOver: {
-				handler(_data, ecs) {
-					ecs.getResource('gameState').status = 'gameOver';
-					ecs.disableSystemGroup('gameplay');
-				}
+			gameOver(_data, ecs) {
+				ecs.getResource('gameState').status = 'gameOver';
+				ecs.disableSystemGroup('gameplay');
 			},
 
-			levelComplete: {
-				handler(_data, ecs) {
-					ecs.getResource('gameState').level += 1;
-					ecs.spawn(createTimer<Events>(1.5, { onComplete: 'levelTransitionComplete' }));
-				}
+			levelComplete(_data, ecs) {
+				ecs.getResource('gameState').level += 1;
+				ecs.spawn(createTimer<Events>(1.5, { onComplete: 'levelTransitionComplete' }));
 			},
 
-			levelTransitionComplete: {
-				handler(_data, ecs) {
-					const gameState = ecs.getResource('gameState');
-					if (gameState.status !== 'playing') return;
+			levelTransitionComplete(_data, ecs) {
+				const gameState = ecs.getResource('gameState');
+				if (gameState.status !== 'playing') return;
 
-					const movementState = ecs.getResource('enemyMovementState');
-					movementState.isMovingDown = false;
-					movementState.currentDirection = 'right';
-					movementState.lastEdgeHit = null;
+				const movementState = ecs.getResource('enemyMovementState');
+				movementState.isMovingDown = false;
+				movementState.currentDirection = 'right';
+				movementState.lastEdgeHit = null;
 
-					spawnEnemyFormation(ecs);
-					ecs.eventBus.publish('enemyMove', { direction: 'right' });
-				}
+				spawnEnemyFormation(ecs);
+				ecs.eventBus.publish('enemyMove', { direction: 'right' });
 			},
 
-			descentComplete: {
-				handler(_data, ecs) {
-					const movementState = ecs.getResource('enemyMovementState');
-					const enemies = ecs.getEntitiesWithQuery(['enemy', 'worldTransform']);
+			descentComplete(_data, ecs) {
+				const movementState = ecs.getResource('enemyMovementState');
+				const enemies = ecs.getEntitiesWithQuery(['enemy', 'worldTransform']);
 
-					let minX = Number.MAX_VALUE;
-					for (const enemy of enemies) {
-						const worldTransform = enemy.components['worldTransform'];
-						if (worldTransform) minX = Math.min(minX, worldTransform.x);
-					}
-
-					movementState.isMovingDown = false;
-					movementState.currentDirection = minX < 30 ? 'right' : 'left';
-					ecs.eventBus.publish('enemyMove', { direction: movementState.currentDirection });
+				let minX = Number.MAX_VALUE;
+				for (const enemy of enemies) {
+					const worldTransform = enemy.components['worldTransform'];
+					if (worldTransform) minX = Math.min(minX, worldTransform.x);
 				}
+
+				movementState.isMovingDown = false;
+				movementState.currentDirection = minX < 30 ? 'right' : 'left';
+				ecs.eventBus.publish('enemyMove', { direction: movementState.currentDirection });
 			},
 
-			enemyMove: {
-				handler(data, ecs) {
-					const config = ecs.getResource('config');
-					const gameState = ecs.getResource('gameState');
-					const enemies = ecs.getEntitiesWithQuery(['enemy', 'velocity']);
+			enemyMove(data, ecs) {
+				const config = ecs.getResource('config');
+				const gameState = ecs.getResource('gameState');
+				const enemies = ecs.getEntitiesWithQuery(['enemy', 'velocity']);
 
-					const speedMultiplier = 1.0 + (gameState.level - 1) * 0.2;
-					const baseSpeed = config.enemySpeed * speedMultiplier;
-					const velocityMultiplier = DIRECTION_VELOCITIES[data.direction];
-					if (!velocityMultiplier) return;
+				const speedMultiplier = 1.0 + (gameState.level - 1) * 0.2;
+				const baseSpeed = config.enemySpeed * speedMultiplier;
+				const velocityMultiplier = DIRECTION_VELOCITIES[data.direction];
+				if (!velocityMultiplier) return;
 
-					for (const enemy of enemies) {
-						const enemyVel = enemy.components['velocity'];
-						if (!enemyVel) continue;
-						enemyVel.x = velocityMultiplier.x * baseSpeed;
-						enemyVel.y = velocityMultiplier.y * baseSpeed;
-					}
+				for (const enemy of enemies) {
+					const enemyVel = enemy.components['velocity'];
+					if (!enemyVel) continue;
+					enemyVel.x = velocityMultiplier.x * baseSpeed;
+					enemyVel.y = velocityMultiplier.y * baseSpeed;
 				}
 			}
 		})

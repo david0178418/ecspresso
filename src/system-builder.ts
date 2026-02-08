@@ -24,18 +24,16 @@ export class SystemBuilder<
 	private detachFunction?: LifecycleFunction<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>;
 	private initializeFunction?: LifecycleFunction<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>;
 	private eventHandlers?: {
-		[EventName in keyof EventTypes]?: {
-			handler(
-				data: EventTypes[EventName],
-				ecs: ECSpresso<
-					ComponentTypes,
-					EventTypes,
-					ResourceTypes,
-					AssetTypes,
-					ScreenStates
-				>,
-			): void;
-		};
+		[EventName in keyof EventTypes]?: (
+			data: EventTypes[EventName],
+			ecs: ECSpresso<
+				ComponentTypes,
+				EventTypes,
+				ResourceTypes,
+				AssetTypes,
+				ScreenStates
+			>,
+		) => void;
 	};
 	private _priority = 0; // Default priority is 0
 	private _phase: SystemPhase = 'update'; // Default phase is 'update'
@@ -363,12 +361,10 @@ export class SystemBuilder<
 	 */
 	setEventHandlers(
 		handlers: {
-			[EventName in keyof EventTypes]?: {
-				handler(
-					data: EventTypes[EventName],
-					ecs: ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>
-				): void;
-			};
+			[EventName in keyof EventTypes]?: (
+				data: EventTypes[EventName],
+				ecs: ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>
+			) => void;
 		}
 	): this {
 		this.eventHandlers = handlers;

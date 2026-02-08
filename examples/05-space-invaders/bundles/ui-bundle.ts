@@ -65,99 +65,81 @@ export default function createUIBundle() {
 		})
 		.setEventHandlers({
 			// Update score display
-			updateScore: {
-				handler(data, ecs) {
-					const uiElements = ecs.getResource('uiElements');
-					uiElements.scoreText.text = `Score: ${data.points}`;
-				}
+			updateScore(data, ecs) {
+				const uiElements = ecs.getResource('uiElements');
+				uiElements.scoreText.text = `Score: ${data.points}`;
 			},
 
 			// Update lives display
-			updateLives: {
-				handler(data, ecs) {
-					const uiElements = ecs.getResource('uiElements');
-					uiElements.livesText.text = `Lives: ${data.lives}`;
-				}
+			updateLives(data, ecs) {
+				const uiElements = ecs.getResource('uiElements');
+				uiElements.livesText.text = `Lives: ${data.lives}`;
 			},
 
 			// Handle game state changes
-			gameInit: {
-				handler(_data, ecs) {
-					const uiElements = ecs.getResource('uiElements');
-					const bounds = ecs.getResource('bounds');
+			gameInit(_data, ecs) {
+				const uiElements = ecs.getResource('uiElements');
+				const bounds = ecs.getResource('bounds');
 
-					uiElements.messageText.text = 'PRESS P TO START';
-					uiElements.messageText.x = (bounds.width - uiElements.messageText.width) / 2;
-					uiElements.messageText.y = bounds.height / 2 - 50;
-					uiElements.messageText.visible = true;
-				}
+				uiElements.messageText.text = 'PRESS P TO START';
+				uiElements.messageText.x = (bounds.width - uiElements.messageText.width) / 2;
+				uiElements.messageText.y = bounds.height / 2 - 50;
+				uiElements.messageText.visible = true;
 			},
 
-			gameStart: {
-				handler(_data, ecs) {
+			gameStart(_data, ecs) {
+				const uiElements = ecs.getResource('uiElements');
+				uiElements.messageText.visible = false;
+			},
+
+			gamePause(_data, ecs) {
+				const uiElements = ecs.getResource('uiElements');
+				const bounds = ecs.getResource('bounds');
+
+				uiElements.messageText.text = 'PAUSED';
+				uiElements.messageText.x = (bounds.width - uiElements.messageText.width) / 2;
+				uiElements.messageText.y = bounds.height / 2 - 50;
+				uiElements.messageText.visible = true;
+			},
+
+			gameResume(_data, ecs) {
+				const uiElements = ecs.getResource('uiElements');
+				uiElements.messageText.visible = false;
+			},
+
+			gameOver(data, ecs) {
+				const uiElements = ecs.getResource('uiElements');
+				const bounds = ecs.getResource('bounds');
+
+				uiElements.messageText.text = data.win
+					? `YOU WIN!\nFINAL SCORE: ${data.score}`
+					: `GAME OVER\nFINAL SCORE: ${data.score}`;
+
+				uiElements.messageText.x = (bounds.width - uiElements.messageText.width) / 2;
+				uiElements.messageText.y = bounds.height / 2 - 50;
+				uiElements.messageText.visible = true;
+			},
+
+			levelComplete(data, ecs) {
+				const uiElements = ecs.getResource('uiElements');
+				const bounds = ecs.getResource('bounds');
+
+				uiElements.messageText.text = `LEVEL ${data.level} COMPLETE!`;
+				uiElements.messageText.x = (bounds.width - uiElements.messageText.width) / 2;
+				uiElements.messageText.y = bounds.height / 2 - 50;
+				uiElements.messageText.visible = true;
+
+				// Spawn timer to hide message after delay with event-based completion
+				ecs.spawn({
+					...createTimer<Events>(1.5, { onComplete: 'messageHide' }),
+				});
+			},
+
+			messageHide(_data, ecs) {
+				const gameState = ecs.getResource('gameState');
+				if (gameState.status === 'playing') {
 					const uiElements = ecs.getResource('uiElements');
 					uiElements.messageText.visible = false;
-				}
-			},
-
-			gamePause: {
-				handler(_data, ecs) {
-					const uiElements = ecs.getResource('uiElements');
-					const bounds = ecs.getResource('bounds');
-
-					uiElements.messageText.text = 'PAUSED';
-					uiElements.messageText.x = (bounds.width - uiElements.messageText.width) / 2;
-					uiElements.messageText.y = bounds.height / 2 - 50;
-					uiElements.messageText.visible = true;
-				}
-			},
-
-			gameResume: {
-				handler(_data, ecs) {
-					const uiElements = ecs.getResource('uiElements');
-					uiElements.messageText.visible = false;
-				}
-			},
-
-			gameOver: {
-				handler(data, ecs) {
-					const uiElements = ecs.getResource('uiElements');
-					const bounds = ecs.getResource('bounds');
-
-					uiElements.messageText.text = data.win
-						? `YOU WIN!\nFINAL SCORE: ${data.score}`
-						: `GAME OVER\nFINAL SCORE: ${data.score}`;
-
-					uiElements.messageText.x = (bounds.width - uiElements.messageText.width) / 2;
-					uiElements.messageText.y = bounds.height / 2 - 50;
-					uiElements.messageText.visible = true;
-				}
-			},
-
-			levelComplete: {
-				handler(data, ecs) {
-					const uiElements = ecs.getResource('uiElements');
-					const bounds = ecs.getResource('bounds');
-
-					uiElements.messageText.text = `LEVEL ${data.level} COMPLETE!`;
-					uiElements.messageText.x = (bounds.width - uiElements.messageText.width) / 2;
-					uiElements.messageText.y = bounds.height / 2 - 50;
-					uiElements.messageText.visible = true;
-
-					// Spawn timer to hide message after delay with event-based completion
-					ecs.spawn({
-						...createTimer<Events>(1.5, { onComplete: 'messageHide' }),
-					});
-				}
-			},
-
-			messageHide: {
-				handler(_data, ecs) {
-					const gameState = ecs.getResource('gameState');
-					if (gameState.status === 'playing') {
-						const uiElements = ecs.getResource('uiElements');
-						uiElements.messageText.visible = false;
-					}
 				}
 			}
 		})

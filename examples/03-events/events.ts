@@ -60,13 +60,11 @@ ecs.addSystem('bounce')
 // This system has no query and no process — it only reacts to events.
 ecs.addSystem('trail-spawner')
 	.setEventHandlers({
-		wallHit: {
-			handler({ x, y }, ecs) {
-				ecs.spawn({
-					graphics: new Graphics().circle(0, 0, 4).fill(0xFFFF00),
-					...createLocalTransform(x, y),
-				});
-			},
+		wallHit({ x, y }, ecs) {
+			ecs.spawn({
+				graphics: new Graphics().circle(0, 0, 4).fill(0xFFFF00),
+				...createLocalTransform(x, y),
+			});
 		},
 	})
 	.and();

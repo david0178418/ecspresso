@@ -678,7 +678,7 @@ export default class ECSpresso<
 		if (!system.eventHandlers) return;
 
 		for (const eventName in system.eventHandlers) {
-			const handler = system.eventHandlers[eventName]?.handler;
+			const handler = system.eventHandlers[eventName];
 			if (handler) {
 				this._eventBus.subscribe(eventName, (data) => {
 					handler(data, this);

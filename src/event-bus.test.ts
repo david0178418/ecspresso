@@ -119,12 +119,10 @@ describe('EventSystem', () => {
 		const bundle = new Bundle<TestComponents, TestEvents>()
 			.addSystem('health-system')
 			.setEventHandlers({
-				playerDamaged: {
-					handler: (data: { entityId: number; amount: number }) => {
-						// Event handler for player damage
-						eventHandlerCalled = true;
-						expect(data.amount).toBe(10);
-					}
+				playerDamaged: (data: { entityId: number; amount: number }) => {
+					// Event handler for player damage
+					eventHandlerCalled = true;
+					expect(data.amount).toBe(10);
 				}
 			})
 			.bundle;
@@ -157,11 +155,9 @@ describe('EventSystem', () => {
 		const bundle = new Bundle<TestComponents, TestEvents>()
 			.addSystem('ParameterTestSystem')
 			.setEventHandlers({
-				healthChanged: {
-					handler: (data, ecs) => {
-						receivedData = data;
-						receivedEntityManager = ecs.entityManager;
-					}
+				healthChanged: (data, ecs) => {
+					receivedData = data;
+					receivedEntityManager = ecs.entityManager;
 				}
 			})
 			.bundle;
@@ -249,59 +245,55 @@ describe('EventSystem', () => {
 		const bundle = new Bundle<TestComponents, TestEvents>()
 			.addSystem('EventDrivenDamageSystem')
 			.setEventHandlers({
-				collision: {
-					handler: (data, ecs) => {
-						// Collision should reduce health of both entities
-						const entity1 = ecs.entityManager.getEntity(data.entity1Id);
-						const entity2 = ecs.entityManager.getEntity(data.entity2Id);
+				collision: (data, ecs) => {
+					// Collision should reduce health of both entities
+					const entity1 = ecs.entityManager.getEntity(data.entity1Id);
+					const entity2 = ecs.entityManager.getEntity(data.entity2Id);
 
-						if (entity1 && entity2) {
-							if (ecs.entityManager.getComponent(entity1.id, 'health') &&
-								ecs.entityManager.getComponent(entity2.id, 'health')) {
+					if (entity1 && entity2) {
+						if (ecs.entityManager.getComponent(entity1.id, 'health') &&
+							ecs.entityManager.getComponent(entity2.id, 'health')) {
 
-								// Get current health values
-								const health1 = ecs.entityManager.getComponent(entity1.id, 'health');
-								const health2 = ecs.entityManager.getComponent(entity2.id, 'health');
+							// Get current health values
+							const health1 = ecs.entityManager.getComponent(entity1.id, 'health');
+							const health2 = ecs.entityManager.getComponent(entity2.id, 'health');
 
-								if (health1 && health2) {
-									// Log the damage
-									damageLog[entity1.id] = damageLog[entity1.id] || [];
-									damageLog[entity2.id] = damageLog[entity2.id] || [];
-									damageLog[entity1.id]?.push(`health=${health1.value}`);
-									damageLog[entity2.id]?.push(`health=${health2.value}`);
+							if (health1 && health2) {
+								// Log the damage
+								damageLog[entity1.id] = damageLog[entity1.id] || [];
+								damageLog[entity2.id] = damageLog[entity2.id] || [];
+								damageLog[entity1.id]?.push(`health=${health1.value}`);
+								damageLog[entity2.id]?.push(`health=${health2.value}`);
 
-									// Apply damage
-									const newHealth1 = { value: Math.max(0, health1.value - 10) };
-									const newHealth2 = { value: Math.max(0, health2.value - 10) };
+								// Apply damage
+								const newHealth1 = { value: Math.max(0, health1.value - 10) };
+								const newHealth2 = { value: Math.max(0, health2.value - 10) };
 
-									ecs.entityManager.addComponent(entity1.id, 'health', newHealth1);
-									ecs.entityManager.addComponent(entity2.id, 'health', newHealth2);
+								ecs.entityManager.addComponent(entity1.id, 'health', newHealth1);
+								ecs.entityManager.addComponent(entity2.id, 'health', newHealth2);
 
-									// Emit health changed events
-									ecs.eventBus.publish('healthChanged', {
-										entityId: entity1.id,
-										oldValue: health1.value,
-										newValue: newHealth1.value
-									});
+								// Emit health changed events
+								ecs.eventBus.publish('healthChanged', {
+									entityId: entity1.id,
+									oldValue: health1.value,
+									newValue: newHealth1.value
+								});
 
-									ecs.eventBus.publish('healthChanged', {
-										entityId: entity2.id,
-										oldValue: health2.value,
-										newValue: newHealth2.value
-									});
-								}
+								ecs.eventBus.publish('healthChanged', {
+									entityId: entity2.id,
+									oldValue: health2.value,
+									newValue: newHealth2.value
+								});
 							}
 						}
 					}
 				},
-				healthChanged: {
-					handler(data) {
-						// Log health changes
-						if (!damageLog[data.entityId]) {
-							damageLog[data.entityId] = [];
-						}
-						damageLog[data.entityId]?.push(`healthChanged=${data.newValue}`);
+				healthChanged(data) {
+					// Log health changes
+					if (!damageLog[data.entityId]) {
+						damageLog[data.entityId] = [];
 					}
+					damageLog[data.entityId]?.push(`healthChanged=${data.newValue}`);
 				}
 			})
 			.bundle;

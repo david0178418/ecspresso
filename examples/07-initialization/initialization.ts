@@ -116,21 +116,17 @@ function createGameBundle() {
 			ecs.eventBus.publish('gameReady');
 		})
 		.setEventHandlers({
-			gameReady: {
-				handler(_data, _ecs) {
-					console.log("Game is ready to start!");
-				}
+			gameReady(_data, _ecs) {
+				console.log("Game is ready to start!");
 			},
-			gameStart: {
-				handler(_data, ecs) {
-					console.log("Game started!");
-					const gameState = ecs.getResource('gameState');
-					gameState.status = 'playing';
-					gameState.startTime = Date.now();
+			gameStart(_data, ecs) {
+				console.log("Game started!");
+				const gameState = ecs.getResource('gameState');
+				gameState.status = 'playing';
+				gameState.startTime = Date.now();
 
-					// Enable gameplay systems when game starts
-					ecs.enableSystemGroup('gameplay');
-				}
+				// Enable gameplay systems when game starts
+				ecs.enableSystemGroup('gameplay');
 			}
 		})
 		.and();
@@ -157,21 +153,19 @@ function createPlayerBundle() {
 			ecs.disableSystemGroup('gameplay');
 		})
 		.setEventHandlers({
-			playerMove: {
-				handler(data, ecs) {
-					const sensitivity = ecs.getResource('controlSettings').sensitivity;
-					const playerEntities = ecs.getEntitiesWithQuery(['position', 'velocity', 'sprite']);
+			playerMove(data, ecs) {
+				const sensitivity = ecs.getResource('controlSettings').sensitivity;
+				const playerEntities = ecs.getEntitiesWithQuery(['position', 'velocity', 'sprite']);
 
-					if (playerEntities.length === 0) return;
+				if (playerEntities.length === 0) return;
 
-					const player = playerEntities[0];
-					if (!player) return;
+				const player = playerEntities[0];
+				if (!player) return;
 
-					player.components.velocity.x = data.dx * sensitivity * 10;
-					player.components.velocity.y = data.dy * sensitivity * 10;
+				player.components.velocity.x = data.dx * sensitivity * 10;
+				player.components.velocity.y = data.dy * sensitivity * 10;
 
-					console.log(`Player moving: vx=${player.components.velocity.x}, vy=${player.components.velocity.y}`);
-				}
+				console.log(`Player moving: vx=${player.components.velocity.x}, vy=${player.components.velocity.y}`);
 			}
 		})
 		.addQuery('players', { with: ['position', 'velocity'] })

@@ -280,23 +280,16 @@ interface System<
 	 * Event handlers for specific event types
 	 */
 	eventHandlers?: {
-		[EventName in keyof EventTypes]?: {
-			/**
-			 * Event handler function
-			 * @param data The event data specific to this event type
-			 * @param ecs The ECSpresso instance providing access to all ECS functionality
-			 */
-			handler(
-				data: EventTypes[EventName],
-				ecs: ECSpresso<
-					ComponentTypes,
-					EventTypes,
-					ResourceTypes,
-					AssetTypes,
-					ScreenStates
-				>
-			): void;
-		};
+		[EventName in keyof EventTypes]?: (
+			data: EventTypes[EventName],
+			ecs: ECSpresso<
+				ComponentTypes,
+				EventTypes,
+				ResourceTypes,
+				AssetTypes,
+				ScreenStates
+			>
+		) => void;
 	};
 }
 

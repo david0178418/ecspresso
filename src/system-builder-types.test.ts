@@ -183,16 +183,14 @@ describe('SystemBuilder Type Safety for AssetTypes and ScreenStates', () => {
 
 		ecs.addSystem('eventTyped')
 			.setEventHandlers({
-				damage: {
-					handler(_data, ecsParam) {
-						// Asset access is typed
-						const _asset = ecsParam.getAsset('playerTexture');
-						void _asset;
+				damage(_data, ecsParam) {
+					// Asset access is typed
+					const _asset = ecsParam.getAsset('playerTexture');
+					void _asset;
 
-						// Screen access is typed
-						const _screen = ecsParam.getCurrentScreen();
-						void _screen;
-					},
+					// Screen access is typed
+					const _screen = ecsParam.getCurrentScreen();
+					void _screen;
 				},
 			})
 			.setProcess((_queries, _dt, _ecs) => {})

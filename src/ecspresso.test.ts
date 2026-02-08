@@ -231,14 +231,12 @@ describe('ECSpresso', () => {
 				})
 				.setEventHandlers({
 					// @ts-expect-error // TypeScript should complain if we try to add an event handler for a non-existent event
-					nonExistentEvent: {},
-					playerDamaged: {
-						handler(data) {
-							data.amount.toFixed(); // TypeScript should know that data has an amount property
+					nonExistentEvent: () => {},
+					playerDamaged(data) {
+						data.amount.toFixed(); // TypeScript should know that data has an amount property
 
-							// @ts-expect-error // TypeScript should complain if we try to access a non-existent property
-							data.nonExistentProperty;
-						}
+						// @ts-expect-error // TypeScript should complain if we try to access a non-existent property
+						data.nonExistentProperty;
 					}
 				});
 
@@ -279,18 +277,14 @@ describe('ECSpresso', () => {
 					],
 				})
 				.setEventHandlers({
-					evtFromB1: {
-						handler(data) {
-							data.data.toFixed();
-						}
+					evtFromB1(data) {
+						data.data.toFixed();
 					},
-					evtFromB2: {
-						handler(data) {
-							data.data.toUpperCase();
-						}
+					evtFromB2(data) {
+						data.data.toUpperCase();
 					},
 					// @ts-expect-error // TypeScript should complain if we try to add an event handler for a non-existent event
-					nonExistentEvent: {},
+					nonExistentEvent: () => {},
 				});
 
 			merged.getResource('resFromB1');
@@ -321,18 +315,14 @@ describe('ECSpresso', () => {
 					],
 				})
 				.setEventHandlers({
-					evtFromB1: {
-						handler(data) {
-							data.data.toFixed();
-						}
+					evtFromB1(data) {
+						data.data.toFixed();
 					},
-					evtFromB2: {
-						handler(data) {
-							data.data.toUpperCase();
-						}
+					evtFromB2(data) {
+						data.data.toUpperCase();
 					},
 					// @ts-expect-error // TypeScript should complain if we try to add an event handler for a non-existent event
-					nonExistentEvent: {},
+					nonExistentEvent: () => {},
 				});
 
 			// @ts-expect-error // TypeScript should complain if we try to publish a non-existent event
@@ -795,12 +785,10 @@ describe('ECSpresso', () => {
 					}
 				})
 				.setEventHandlers({
-					playerDamaged: {
-						handler: (data) => {
-							eventHandled = true;
-							expect(data.entityId).toBe(123);
-							expect(data.amount).toBe(10);
-						}
+					playerDamaged: (data) => {
+						eventHandled = true;
+						expect(data.entityId).toBe(123);
+						expect(data.amount).toBe(10);
 					}
 				});
 

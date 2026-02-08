@@ -636,21 +636,17 @@ export function createAudioBundle<Ch extends string, G extends string = 'audio'>
 			});
 		})
 		.setEventHandlers({
-			playSound: {
-				handler(data, ecs) {
-					const audio = ecs.getResource('audioState');
-					audio.play(data.sound, {
-						channel: data.channel,
-						volume: data.volume,
-						loop: data.loop,
-					});
-				},
+			playSound(data, ecs) {
+				const audio = ecs.getResource('audioState');
+				audio.play(data.sound, {
+					channel: data.channel,
+					volume: data.volume,
+					loop: data.loop,
+				});
 			},
-			stopMusic: {
-				handler(data, ecs) {
-					const audio = ecs.getResource('audioState');
-					audio.stopMusic(data.channel);
-				},
+			stopMusic(data, ecs) {
+				const audio = ecs.getResource('audioState');
+				audio.stopMusic(data.channel);
 			},
 		})
 		.setOnDetach(() => {

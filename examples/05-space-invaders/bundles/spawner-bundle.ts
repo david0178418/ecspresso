@@ -14,63 +14,55 @@ export default function createSpawnerBundle() {
 	return new Bundle<Components, Events, Resources>('spawner-bundle')
 		.addSystem('entity-spawner')
 		.setEventHandlers({
-			gameInit: {
-				handler(_data, ecs) {
+			gameInit(_data, ecs) {
+				spawnPlayer(ecs);
+			},
+
+			playerShoot(_data, ecs) {
+				const [player] = ecs.getEntitiesWithQuery(['player', 'worldTransform']);
+				if (!player) return;
+
+				const projectileSprite = createProjectileSprite(ecs, 'player');
+
+				ecs.spawn({
+					sprite: projectileSprite,
+					...createLocalTransform(player.components.worldTransform.x, player.components.worldTransform.y - 20),
+					...createRigidBody('kinematic'),
+					velocity: { x: 0, y: -400 },
+					projectile: { owner: 'player', damage: 1 },
+					...createAABBCollider(projectileSprite.width, projectileSprite.height),
+					...collisionLayers.playerProjectile(),
+					...createDestroyOutOfBounds(20),
+					renderLayer: 'game',
+				});
+			},
+
+			enemyShoot(data, ecs) {
+				const enemyEntity = ecs.entityManager.getEntity(data.enemyId);
+				if (!enemyEntity) return;
+
+				const enemyWorldTransform = enemyEntity.components['worldTransform'];
+				if (!enemyWorldTransform) return;
+
+				const projectileSprite = createProjectileSprite(ecs, 'enemy');
+
+				ecs.spawn({
+					sprite: projectileSprite,
+					...createLocalTransform(enemyWorldTransform.x, enemyWorldTransform.y + 20),
+					...createRigidBody('kinematic'),
+					velocity: { x: 0, y: 400 },
+					projectile: { owner: 'enemy', damage: 1 },
+					...createAABBCollider(projectileSprite.width, projectileSprite.height),
+					...collisionLayers.enemyProjectile(),
+					...createDestroyOutOfBounds(20),
+					renderLayer: 'game',
+				});
+			},
+
+			playerRespawn(_data, ecs) {
+				const gameState = ecs.getResource('gameState');
+				if (gameState.status === 'playing') {
 					spawnPlayer(ecs);
-				},
-			},
-
-			playerShoot: {
-				handler(_data, ecs) {
-					const [player] = ecs.getEntitiesWithQuery(['player', 'worldTransform']);
-					if (!player) return;
-
-					const projectileSprite = createProjectileSprite(ecs, 'player');
-
-					ecs.spawn({
-						sprite: projectileSprite,
-						...createLocalTransform(player.components.worldTransform.x, player.components.worldTransform.y - 20),
-						...createRigidBody('kinematic'),
-						velocity: { x: 0, y: -400 },
-						projectile: { owner: 'player', damage: 1 },
-						...createAABBCollider(projectileSprite.width, projectileSprite.height),
-						...collisionLayers.playerProjectile(),
-						...createDestroyOutOfBounds(20),
-						renderLayer: 'game',
-					});
-				}
-			},
-
-			enemyShoot: {
-				handler(data, ecs) {
-					const enemyEntity = ecs.entityManager.getEntity(data.enemyId);
-					if (!enemyEntity) return;
-
-					const enemyWorldTransform = enemyEntity.components['worldTransform'];
-					if (!enemyWorldTransform) return;
-
-					const projectileSprite = createProjectileSprite(ecs, 'enemy');
-
-					ecs.spawn({
-						sprite: projectileSprite,
-						...createLocalTransform(enemyWorldTransform.x, enemyWorldTransform.y + 20),
-						...createRigidBody('kinematic'),
-						velocity: { x: 0, y: 400 },
-						projectile: { owner: 'enemy', damage: 1 },
-						...createAABBCollider(projectileSprite.width, projectileSprite.height),
-						...collisionLayers.enemyProjectile(),
-						...createDestroyOutOfBounds(20),
-						renderLayer: 'game',
-					});
-				}
-			},
-
-			playerRespawn: {
-				handler(_data, ecs) {
-					const gameState = ecs.getResource('gameState');
-					if (gameState.status === 'playing') {
-						spawnPlayer(ecs);
-					}
 				}
 			}
 		})

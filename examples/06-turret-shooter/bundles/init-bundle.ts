@@ -134,41 +134,39 @@ export default async function createInitBundle() {
 		})
 		.setEventHandlers({
 			// Initialize the game when gameInit event is fired
-			gameInit: {
-				handler(_, ecs) {
-					// Start animation loop
-					const renderer = ecs.getResource('renderer');
-					const scene = ecs.getResource('scene');
-					const camera = ecs.getResource('camera');
+			gameInit(_, ecs) {
+				// Start animation loop
+				const renderer = ecs.getResource('renderer');
+				const scene = ecs.getResource('scene');
+				const camera = ecs.getResource('camera');
 
-					// Animation loop
-					function animate(time: number) {
-						requestAnimationFrame(animate);
-						// Convert time to seconds for the ECS update
-						ecs.update(time / 1000);
-						// Render the scene
-						renderer.render(scene, camera);
-					}
+				// Animation loop
+				function animate(time: number) {
+					requestAnimationFrame(animate);
+					// Convert time to seconds for the ECS update
+					ecs.update(time / 1000);
+					// Render the scene
+					renderer.render(scene, camera);
+				}
 
-					// Start animation loop
-					animate(0);
+				// Start animation loop
+				animate(0);
 
-					// Show ready message
-					const uiElements = ecs.getResource('uiElements');
-					if (uiElements.messageElement) {
-						uiElements.messageElement.style.top = '25%';
-						uiElements.messageElement.style.opacity = '1';
-						setTimeout(() => {
-							if (uiElements.messageElement) {
-								uiElements.messageElement.style.opacity = '0';
-								// Start the game after message disappears
-								setTimeout(() => {
-									ecs.eventBus.publish('gameStart', true);
-								}, 500);
-							}
-						}, 2000);
-					}
-				},
+				// Show ready message
+				const uiElements = ecs.getResource('uiElements');
+				if (uiElements.messageElement) {
+					uiElements.messageElement.style.top = '25%';
+					uiElements.messageElement.style.opacity = '1';
+					setTimeout(() => {
+						if (uiElements.messageElement) {
+							uiElements.messageElement.style.opacity = '0';
+							// Start the game after message disappears
+							setTimeout(() => {
+								ecs.eventBus.publish('gameStart', true);
+							}, 500);
+						}
+					}, 2000);
+				}
 			},
 		})
 		.bundle;
