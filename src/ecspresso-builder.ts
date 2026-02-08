@@ -2,7 +2,7 @@ import type ECSpresso from "./ecspresso";
 import AssetManager, { AssetConfiguratorImpl, createAssetConfigurator } from "./asset-manager";
 import ScreenManager, { ScreenConfiguratorImpl, createScreenConfigurator } from "./screen-manager";
 import type { ResourceFactoryWithDeps } from "./resource-manager";
-import type { Plugin } from "./plugin";
+import { definePlugin, type Plugin } from "./plugin";
 import type { PluginsAreCompatible, TypesAreCompatible } from "./type-utils";
 import type { AssetConfigurator, AssetsResource } from "./asset-types";
 import type { ScreenDefinition, ScreenConfigurator, ScreenResource } from "./screen-types";
@@ -265,6 +265,23 @@ export class ECSpressoBuilder<
 	 */
 	withReactiveQueryNames<N extends string>(): ECSpressoBuilder<C, E, R, A, S, Labels, Groups, AssetGroupNames, ReactiveQueryNames | N> {
 		return this as unknown as ECSpressoBuilder<C, E, R, A, S, Labels, Groups, AssetGroupNames, ReactiveQueryNames | N>;
+	}
+
+	/**
+	 * Create a plugin factory from the builder's accumulated types.
+	 * Returns a definePlugin equivalent with no manual type parameters.
+	 * Replaces the `createPluginFactory<C, E, R>()` + manual types.ts pattern.
+	 */
+	pluginFactory(): <
+		PL extends string = never,
+		PG extends string = never,
+		PAG extends string = never,
+		PRQ extends string = never,
+	>(config: {
+		id: string;
+		install: (world: ECSpresso<C, E, R, A, S>) => void;
+	}) => Plugin<C, E, R, A, S, PL, PG, PAG, PRQ> {
+		return definePlugin as ReturnType<ECSpressoBuilder<C, E, R, A, S>['pluginFactory']>;
 	}
 
 	/**

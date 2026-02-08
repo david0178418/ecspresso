@@ -44,7 +44,7 @@ export interface Events extends CollisionEventTypes<Layer> {
  * All component types used in the Space Invaders game
  */
 export interface Components
-	extends TimerComponentTypes<Events>,
+	extends TimerComponentTypes,
 	        TransformComponentTypes,
 	        Physics2DComponentTypes<Layer>,
 	        BoundsComponentTypes,

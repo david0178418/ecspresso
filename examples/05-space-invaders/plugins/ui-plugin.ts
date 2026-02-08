@@ -1,6 +1,6 @@
 import { Container, Text, TextStyle } from 'pixi.js';
 import { createTimer } from '../../../src/plugins/timers';
-import { definePlugin, type Events } from '../types';
+import { definePlugin } from '../types';
 
 export default function createUIPlugin() {
 	return definePlugin({
@@ -132,7 +132,7 @@ export default function createUIPlugin() {
 
 						// Spawn timer to hide message after delay with event-based completion
 						ecs.spawn({
-							...createTimer<Events>(1.5, { onComplete: 'messageHide' }),
+							...createTimer(1.5, { onComplete: 'messageHide' }),
 						});
 					},
 

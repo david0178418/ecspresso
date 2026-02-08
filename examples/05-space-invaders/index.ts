@@ -10,7 +10,6 @@ import createInputProcessingPlugin, { createInputPlugin } from './plugins/input-
 import createSpawnerPlugin from './plugins/spawner-plugin';
 import createUIPlugin from './plugins/ui-plugin';
 import createGameLogicPlugin from './plugins/game-logic-plugin';
-import type { Events } from './types';
 
 const game = ECSpresso
 	.create()
@@ -29,7 +28,7 @@ const game = ECSpresso
 		currentDirection: 'right',
 		lastEdgeHit: null,
 	})
-	.withPlugin(createTimerPlugin<Events>())
+	.withPlugin(createTimerPlugin())
 	.withPlugin(createRenderer2DPlugin({
 		init: { background: '#000000', resizeTo: window },
 		container: '#game-container',

@@ -1,6 +1,6 @@
 import { Vector3 } from 'three';
 import { createTimer } from '../../../src/plugins/timers';
-import { definePlugin, type Events } from '../types';
+import { definePlugin } from '../types';
 
 export default function createAIPlugin() {
 	return definePlugin({
@@ -59,7 +59,7 @@ export default function createAIPlugin() {
 								});
 
 								// Add timer for pending destruction (visual effect delay)
-								ecs.entityManager.addComponent(enemy.id, 'timer', createTimer<Events>(0.5).timer);
+								ecs.entityManager.addComponent(enemy.id, 'timer', createTimer(0.5).timer);
 								ecs.entityManager.addComponent(enemy.id, 'pendingDestroy', true);
 							}
 						} else {

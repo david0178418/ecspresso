@@ -61,7 +61,7 @@ export default function createCombatPlugin() {
 								score: ecs.getResource('score').value,
 							});
 						} else {
-							ecs.spawn(createTimer<Events>(1.0, { onComplete: 'playerRespawn' }));
+							ecs.spawn(createTimer(1.0, { onComplete: 'playerRespawn' }));
 						}
 					},
 				})

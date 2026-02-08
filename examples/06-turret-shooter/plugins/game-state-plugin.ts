@@ -1,5 +1,5 @@
 import { createTimer, createRepeatingTimer } from '../../../src/plugins/timers';
-import { definePlugin, type Events } from '../types';
+import { definePlugin } from '../types';
 import { updateUI } from '../utils';
 
 export default function createGameStatePlugin() {
@@ -38,7 +38,7 @@ export default function createGameStatePlugin() {
 						// Spawn enemy spawner entity with repeating timer
 						const spawnInterval = 1 / config.enemySpawnRate;
 						ecs.spawn({
-							...createRepeatingTimer<Events>(spawnInterval),
+							...createRepeatingTimer(spawnInterval),
 							enemySpawner: true,
 						});
 
@@ -49,7 +49,7 @@ export default function createGameStatePlugin() {
 							uiElements.messageElement.style.opacity = '1';
 							uiElements.messageElement.style.top = '25%';
 							ecs.spawn({
-								...createTimer<Events>(2),
+								...createTimer(2),
 								messageTimer: true,
 							});
 						}
@@ -171,7 +171,7 @@ export default function createGameStatePlugin() {
 							uiElements.messageElement.style.opacity = '1';
 							uiElements.messageElement.style.top = '25%';
 							ecs.spawn({
-								...createTimer<Events>(2),
+								...createTimer(2),
 								messageTimer: true,
 							});
 						}
@@ -227,7 +227,7 @@ export default function createGameStatePlugin() {
 							// Add timer for pending destruction if not already pending
 							// (enemies reaching player already have pendingDestroy from ai-plugin)
 							if (!entity.components.pendingDestroy) {
-								ecs.entityManager.addComponent(data.entityId, 'timer', createTimer<Events>(0.2).timer);
+								ecs.entityManager.addComponent(data.entityId, 'timer', createTimer(0.2).timer);
 								ecs.entityManager.addComponent(data.entityId, 'pendingDestroy', true);
 							}
 

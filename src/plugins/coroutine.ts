@@ -28,13 +28,13 @@ export interface CoroutineEventData {
 
 // ==================== Component Types ====================
 
-export interface CoroutineState<ET extends Record<string, any> = Record<string, any>> {
+export interface CoroutineState {
 	generator: CoroutineGenerator;
-	onComplete?: EventNameMatching<ET, CoroutineEventData>;
+	onComplete?: string;
 }
 
-export interface CoroutineComponentTypes<ET extends Record<string, any> = Record<string, any>> {
-	coroutine: CoroutineState<ET>;
+export interface CoroutineComponentTypes {
+	coroutine: CoroutineState;
 }
 
 // ==================== Plugin Options ====================
@@ -50,8 +50,8 @@ export interface CoroutinePluginOptions<G extends string = 'coroutines'> {
 
 // ==================== Component Factory ====================
 
-export interface CoroutineOptions<ET extends Record<string, any> = Record<string, any>> {
-	onComplete?: EventNameMatching<ET, CoroutineEventData>;
+export interface CoroutineOptions {
+	onComplete?: string;
 }
 
 /**
@@ -61,10 +61,10 @@ export interface CoroutineOptions<ET extends Record<string, any> = Record<string
  * @param options - Optional configuration (onComplete event)
  * @returns Component object suitable for spreading into spawn()
  */
-export function createCoroutine<ET extends Record<string, any> = Record<string, any>>(
+export function createCoroutine(
 	generator: CoroutineGenerator,
-	options?: CoroutineOptions<ET>,
-): Pick<CoroutineComponentTypes<ET>, 'coroutine'> {
+	options?: CoroutineOptions,
+): Pick<CoroutineComponentTypes, 'coroutine'> {
 	return {
 		coroutine: {
 			generator,
@@ -236,14 +236,17 @@ export function cancelCoroutine(ecs: CoroutineWorld, entityId: number): boolean 
 	return true;
 }
 
-// ==================== Kit Pattern ====================
+// ==================== Typed Helpers (replaces Kit Pattern) ====================
 
-export interface CoroutineKit<W extends AnyECSpresso, G extends string = 'coroutines'> {
-	plugin: Plugin<CoroutineComponentTypes<EventsOfWorld<W>>, EventsOfWorld<W>, {}, {}, {}, 'coroutine-update', G>;
+/**
+ * Type-safe coroutine helpers that validate event names against a world's event types.
+ * Use `createCoroutineHelpers<typeof ecs>()` to get compile-time validation.
+ */
+export interface CoroutineHelpers<W extends AnyECSpresso> {
 	createCoroutine: (
 		generator: CoroutineGenerator,
-		options?: CoroutineOptions<EventsOfWorld<W>>,
-	) => Pick<CoroutineComponentTypes<EventsOfWorld<W>>, 'coroutine'>;
+		options?: { onComplete?: EventNameMatching<EventsOfWorld<W>, CoroutineEventData> },
+	) => Pick<CoroutineComponentTypes, 'coroutine'>;
 	waitForEvent: <E extends keyof EventsOfWorld<W> & string>(
 		eventBus: { subscribe(type: E, cb: (data: EventsOfWorld<W>[E]) => void): () => void },
 		eventType: E,
@@ -252,33 +255,37 @@ export interface CoroutineKit<W extends AnyECSpresso, G extends string = 'corout
 }
 
 /**
- * Create a typed coroutine kit that captures the world type W.
+ * Create typed coroutine helpers that validate event names at compile time.
  *
- * @template W - Concrete ECS world type (e.g. `typeof ecs`)
- * @template G - System group name (default: 'coroutines')
- * @param options - Optional plugin configuration
- * @returns A kit object with plugin, createCoroutine, waitForEvent
+ * @example
+ * ```typescript
+ * const { createCoroutine, waitForEvent } = createCoroutineHelpers<typeof ecs>();
+ * ecs.spawn({ ...createCoroutine(myGen(), { onComplete: 'coroutineDone' }) });
+ * ```
  */
-export function createCoroutineKit<W extends AnyECSpresso, G extends string = 'coroutines'>(
-	options?: CoroutinePluginOptions<G>,
-): CoroutineKit<W, G> {
+export function createCoroutineHelpers<W extends AnyECSpresso>(_world?: W): CoroutineHelpers<W> {
 	return {
-		plugin: createCoroutinePlugin<EventsOfWorld<W>, G>(options),
-		createCoroutine: createCoroutine as CoroutineKit<W, G>['createCoroutine'],
-		waitForEvent: waitForEvent as CoroutineKit<W, G>['waitForEvent'],
+		createCoroutine: createCoroutine as CoroutineHelpers<W>['createCoroutine'],
+		waitForEvent: waitForEvent as CoroutineHelpers<W>['waitForEvent'],
 	};
 }
 
 // ==================== Plugin Factory ====================
 
-function publishCoroutineEvent<ET extends Record<string, any>>(
-	ecs: { eventBus: { publish: (...args: any[]) => void } },
+/**
+ * Publishes coroutine completion event if onComplete is specified.
+ * Cast bypasses the typed publish signature since the plugin
+ * no longer carries event types — safety is enforced at the
+ * call site via CoroutineHelpers.
+ */
+function publishCoroutineEvent(
+	eventBus: { publish: Function },
 	entityId: number,
-	state: CoroutineState<ET>,
+	state: CoroutineState,
 ): void {
 	if (!state.onComplete) return;
 	const eventData: CoroutineEventData = { entityId };
-	ecs.eventBus.publish(state.onComplete, eventData);
+	eventBus.publish(state.onComplete, eventData);
 }
 
 /**
@@ -290,9 +297,9 @@ function publishCoroutineEvent<ET extends Record<string, any>>(
  * - `onComplete` event publishing
  * - Component removal on completion
  */
-export function createCoroutinePlugin<ET extends Record<string, any> = Record<string, any>, G extends string = 'coroutines'>(
+export function createCoroutinePlugin<G extends string = 'coroutines'>(
 	options?: CoroutinePluginOptions<G>,
-): Plugin<CoroutineComponentTypes<ET>, ET, {}, {}, {}, 'coroutine-update', G> {
+): Plugin<CoroutineComponentTypes, {}, {}, {}, {}, 'coroutine-update', G> {
 	const {
 		systemGroup = 'coroutines',
 		priority = 0,
@@ -303,7 +310,7 @@ export function createCoroutinePlugin<ET extends Record<string, any> = Record<st
 	// before the command buffer removes the component.
 	const finished = new Set<number>();
 
-	return definePlugin<CoroutineComponentTypes<ET>, ET, {}, {}, {}, 'coroutine-update', G>({
+	return definePlugin<CoroutineComponentTypes, {}, {}, {}, {}, 'coroutine-update', G>({
 		id: 'coroutines',
 		install(world) {
 			world.registerDispose('coroutine', (value, entityId) => {
@@ -337,7 +344,7 @@ export function createCoroutinePlugin<ET extends Record<string, any> = Record<st
 							const result = state.generator.next(deltaTime);
 							if (result.done) {
 								finished.add(entity.id);
-								publishCoroutineEvent(ecs, entity.id, state);
+								publishCoroutineEvent(ecs.eventBus, entity.id, state);
 								ecs.commands.removeComponent(entity.id, 'coroutine');
 							}
 						} catch (error) {

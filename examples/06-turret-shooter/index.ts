@@ -8,14 +8,13 @@ import createAIPlugin from './plugins/ai-plugin';
 import createGameplayPlugin from './plugins/gameplay-plugin';
 import createUIPlugin from './plugins/ui-plugin';
 import createGameStatePlugin from './plugins/game-state-plugin';
-import type { Events } from './types';
 
 // Create and initialize the game
 async function initGame() {
 	// Create ECS instance with our types
 	const game = ECSpresso
 		.create()
-		.withPlugin(createTimerPlugin<Events>())
+		.withPlugin(createTimerPlugin())
 		.withPlugin(await createInitPlugin())
 		.withPlugin(createInputPlugin())
 		.withPlugin(createRenderPlugin())

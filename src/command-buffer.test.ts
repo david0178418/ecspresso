@@ -409,7 +409,7 @@ describe('CommandBuffer', () => {
 
 			const ecs = ECSpresso
 				.create<TestComponents, TimerTestEvents, TestResources>()
-				.withPlugin(createTimerPlugin<TimerTestEvents>())
+				.withPlugin(createTimerPlugin())
 				.build();
 
 			const targetEntity = ecs.spawn({ position: { x: 0, y: 0 }, tag: true });
@@ -421,7 +421,7 @@ describe('CommandBuffer', () => {
 
 			// Create timer that passes the entity ID in the event
 			const timerEntity = ecs.spawn({
-				...createTimer<TimerTestEvents>(0.5, { onComplete: 'cleanup' }),
+				...createTimer(0.5, { onComplete: 'cleanup' }),
 				position: { x: 1, y: 1 },
 			});
 
@@ -457,7 +457,7 @@ describe('CommandBuffer', () => {
 
 			const ecs = ECSpresso
 				.create<TestComponents, MultiTimerEvents, TestResources>()
-				.withPlugin(createTimerPlugin<MultiTimerEvents>())
+				.withPlugin(createTimerPlugin())
 				.build();
 
 			// Event handler that spawns entity via commands (closure captures ecs)
@@ -466,8 +466,8 @@ describe('CommandBuffer', () => {
 			});
 
 			// Create timers
-			ecs.spawn({ ...createTimer<MultiTimerEvents>(0.3, { onComplete: 'spawnEntity' }) });
-			ecs.spawn({ ...createTimer<MultiTimerEvents>(0.5, { onComplete: 'spawnEntity' }) });
+			ecs.spawn({ ...createTimer(0.3, { onComplete: 'spawnEntity' }) });
+			ecs.spawn({ ...createTimer(0.5, { onComplete: 'spawnEntity' }) });
 
 			// Before update, no entities with health
 			expect(ecs.getEntitiesWithQuery(['health']).length).toBe(0);
@@ -487,7 +487,7 @@ describe('CommandBuffer', () => {
 
 			const ecs = ECSpresso
 				.create<TestComponents, Events, TestResources>()
-				.withPlugin(createTimerPlugin<Events>())
+				.withPlugin(createTimerPlugin())
 				.build();
 
 			// Create several entities
@@ -504,7 +504,7 @@ describe('CommandBuffer', () => {
 			});
 
 			// Timer that fires the event
-			ecs.spawn({ ...createTimer<Events>(1.0, { onComplete: 'removeAll' }) });
+			ecs.spawn({ ...createTimer(1.0, { onComplete: 'removeAll' }) });
 
 			// All entities exist before update
 			expect(ecs.getEntitiesWithQuery(['tag']).length).toBe(3);

@@ -2,7 +2,7 @@ import { expect, describe, test } from 'bun:test';
 import ECSpresso from './ecspresso';
 import type { TimerEventData } from './plugins/timers';
 import { createTimerPlugin } from './plugins/timers';
-import { createTransformPlugin, type TransformComponentTypes } from './plugins/transform';
+import { createTransformPlugin, createLocalTransform, type TransformComponentTypes } from './plugins/transform';
 import type { ComponentsOf, EventsOf, ResourcesOf } from './types';
 import type { AssetsResource } from './asset-types';
 import { definePlugin } from './plugin';
@@ -107,15 +107,13 @@ describe('Builder Type Inference', () => {
 		ecs.on('miss', () => {});
 	});
 
-	test('timer plugin with narrow event types in the chain', () => {
-		type AppEvents = {
-			playerRespawn: TimerEventData;
-			scoreUpdate: { points: number };
-		};
-
+	test('timer plugin with event types in the chain', () => {
 		const ecs = ECSpresso.create()
-			.withPlugin(createTimerPlugin<AppEvents>())
-			.withEventTypes<{ scoreUpdate: { points: number } }>()
+			.withPlugin(createTimerPlugin())
+			.withEventTypes<{
+				playerRespawn: TimerEventData;
+				scoreUpdate: { points: number };
+			}>()
 			.build();
 
 		// Timer component works
@@ -126,7 +124,7 @@ describe('Builder Type Inference', () => {
 				repeat: false,
 				active: true,
 				justFinished: false,
-				onComplete: 'playerRespawn' as const,
+				onComplete: 'playerRespawn',
 			},
 		});
 		expect(entity.components.timer.duration).toBe(1);
@@ -139,7 +137,7 @@ describe('Builder Type Inference', () => {
 	});
 
 	test('ComponentsOf, EventsOf, ResourcesOf extract correctly', () => {
-		const timerPlugin = createTimerPlugin<{ tick: TimerEventData }>();
+		const timerPlugin = createTimerPlugin();
 		const transformPlugin = createTransformPlugin();
 
 		// These are compile-time checks — if they compile, the types are correct.
@@ -149,8 +147,9 @@ describe('Builder Type Inference', () => {
 		};
 		expect(_timerCCheck.timer.duration).toBe(1);
 
-		const _timerECheck: EventsOf<typeof timerPlugin> = { tick: { entityId: 0, duration: 1, elapsed: 1 } };
-		expect(_timerECheck.tick.entityId).toBe(0);
+		// Timer plugin no longer carries event types (loosened to {})
+		const _timerECheck: EventsOf<typeof timerPlugin> = {};
+		expect(_timerECheck).toEqual({});
 
 		const _transformCCheck: ComponentsOf<typeof transformPlugin> = {
 			localTransform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1 },
@@ -764,5 +763,52 @@ describe('withResourceTypes', () => {
 		await ecs.initialize();
 		expect(ecs.getResource('score')).toBe(100);
 		expect(ecs.getResource('config').debug).toBe(true);
+	});
+});
+
+describe('pluginFactory()', () => {
+	test('produces type-safe definePlugin from builder state', () => {
+		const base = ECSpresso.create()
+			.withPlugin(createTransformPlugin())
+			.withPlugin(createTimerPlugin())
+			.withComponentTypes<{ player: true }>()
+			.withEventTypes<{ gameStart: true }>();
+
+		const define = base.pluginFactory();
+
+		const testPlugin = define({
+			id: 'test',
+			install(world) {
+				world.spawn({ ...createLocalTransform(0, 0), player: true as const });
+				world.eventBus.publish('gameStart', true);
+			},
+		});
+
+		const ecs = base.withPlugin(testPlugin).build();
+		expect(ecs).toBeDefined();
+	});
+
+	test('rejects invalid component/event usage at compile time', () => {
+		const base = ECSpresso.create()
+			.withComponentTypes<{ position: { x: number; y: number } }>()
+			.withEventTypes<{ hit: { damage: number } }>();
+
+		const define = base.pluginFactory();
+
+		define({
+			id: 'valid',
+			install(world) {
+				world.spawn({ position: { x: 0, y: 0 } });
+				world.eventBus.publish('hit', { damage: 10 });
+			},
+		});
+
+		define({
+			id: 'invalid',
+			install(world) {
+				// @ts-expect-error - 'velocity' not in accumulated types
+				world.spawn({ velocity: { x: 1, y: 1 } });
+			},
+		});
 	});
 });

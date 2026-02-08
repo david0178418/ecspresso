@@ -1,5 +1,5 @@
 import { createTimer } from '../../../src/plugins/timers';
-import { definePlugin, type Events } from '../types';
+import { definePlugin } from '../types';
 import { spawnEnemyFormation } from '../utils';
 
 const DIRECTION_VELOCITIES: Record<string, { x: number; y: number }> = {
@@ -58,7 +58,7 @@ export default function createGameLogicPlugin() {
 
 					levelComplete(_data, ecs) {
 						ecs.getResource('gameState').level += 1;
-						ecs.spawn(createTimer<Events>(1.5, { onComplete: 'levelTransitionComplete' }));
+						ecs.spawn(createTimer(1.5, { onComplete: 'levelTransitionComplete' }));
 					},
 
 					levelTransitionComplete(_data, ecs) {
@@ -148,7 +148,7 @@ export default function createGameLogicPlugin() {
 						movementState.lastEdgeHit = currentEdge;
 						movementState.isMovingDown = true;
 						ecs.eventBus.publish('enemyMove', { direction: 'down' });
-						ecs.spawn(createTimer<Events>(0.5, { onComplete: 'descentComplete' }));
+						ecs.spawn(createTimer(0.5, { onComplete: 'descentComplete' }));
 					}
 
 					// Random enemy shooting

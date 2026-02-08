@@ -3,7 +3,7 @@ import ECSpresso from '../ecspresso';
 import {
 	createCoroutinePlugin,
 	createCoroutine,
-	createCoroutineKit,
+	createCoroutineHelpers,
 	cancelCoroutine,
 	waitSeconds,
 	waitFrames,
@@ -41,7 +41,7 @@ function createTestEcs() {
 function createTestEcsWithEvents() {
 	return ECSpresso
 		.create<TestComponents, TestEvents, TestResources>()
-		.withPlugin(createCoroutinePlugin<TestEvents>())
+		.withPlugin(createCoroutinePlugin())
 		.build();
 }
 
@@ -187,7 +187,7 @@ describe('onComplete Event', () => {
 		}
 
 		const entity = ecs.spawn({
-			...createCoroutine<TestEvents>(testGen(), { onComplete: 'coroutineDone' }),
+			...createCoroutine(testGen(), { onComplete: 'coroutineDone' }),
 		});
 
 		ecs.update(0.016);
@@ -209,7 +209,7 @@ describe('onComplete Event', () => {
 		}
 
 		ecs.spawn({
-			...createCoroutine<TestEvents>(testGen(), { onComplete: 'coroutineDone' }),
+			...createCoroutine(testGen(), { onComplete: 'coroutineDone' }),
 		});
 
 		ecs.update(0.016);
@@ -885,62 +885,59 @@ describe('Cancellation', () => {
 	});
 });
 
-// ==================== Kit Type Safety ====================
+// ==================== Helpers Type Safety ====================
 
-describe('Kit Type Safety', () => {
+describe('Helpers Type Safety', () => {
 	test('rejects invalid onComplete event name', () => {
-		const kit = createCoroutineKit<ReturnType<typeof createTestEcsWithEvents>>();
+		const helpers = createCoroutineHelpers<ReturnType<typeof createTestEcsWithEvents>>();
 
 		function* testGen(): CoroutineGenerator {
 			yield;
 		}
 
 		// @ts-expect-error - 'badEvent' payload does not extend CoroutineEventData
-		kit.createCoroutine(testGen(), { onComplete: 'badEvent' });
+		helpers.createCoroutine(testGen(), { onComplete: 'badEvent' });
 	});
 
 	test('accepts valid onComplete event name', () => {
-		const kit = createCoroutineKit<ReturnType<typeof createTestEcsWithEvents>>();
+		const helpers = createCoroutineHelpers<ReturnType<typeof createTestEcsWithEvents>>();
 
 		function* testGen(): CoroutineGenerator {
 			yield;
 		}
 
 		// Should compile without error
-		kit.createCoroutine(testGen(), { onComplete: 'coroutineDone' });
+		helpers.createCoroutine(testGen(), { onComplete: 'coroutineDone' });
 	});
 
 	test('rejects invalid waitForEvent event type', () => {
-		const kit = createCoroutineKit<ReturnType<typeof createTestEcsWithEvents>>();
+		const helpers = createCoroutineHelpers<ReturnType<typeof createTestEcsWithEvents>>();
 		const ecs = createTestEcsWithEvents();
 
 		// @ts-expect-error - 'nonExistent' is not a valid event type
-		kit.waitForEvent(ecs.eventBus, 'nonExistent');
+		helpers.waitForEvent(ecs.eventBus, 'nonExistent');
 	});
 
 	test('accepts valid event type in waitForEvent', () => {
-		const kit = createCoroutineKit<ReturnType<typeof createTestEcsWithEvents>>();
+		const helpers = createCoroutineHelpers<ReturnType<typeof createTestEcsWithEvents>>();
 		const ecs = createTestEcsWithEvents();
 
 		// Should compile without error
-		kit.waitForEvent(ecs.eventBus, 'coroutineDone');
+		helpers.waitForEvent(ecs.eventBus, 'coroutineDone');
 	});
 
-	test('plugin installs and processes coroutines (runtime)', () => {
-		const kit = createCoroutineKit<ReturnType<typeof createTestEcsWithEvents>>();
+	test('helpers work at runtime', () => {
+		const helpers = createCoroutineHelpers<ReturnType<typeof createTestEcsWithEvents>>();
 		let done = false;
 
-		const ecs = ECSpresso
-			.create<TestComponents, TestEvents, TestResources>()
-			.withPlugin(kit.plugin)
-			.build();
+		const ecs = createTestEcsWithEvents();
 
 		function* testGen(): CoroutineGenerator {
 			yield;
 			done = true;
 		}
 
-		ecs.spawn({ ...kit.createCoroutine(testGen(), { onComplete: 'coroutineDone' }) });
+		ecs.spawn({ ...helpers.createCoroutine(testGen(), { onComplete: 'coroutineDone' }) });
 
 		ecs.update(0.016);
 		expect(done).toBe(true);

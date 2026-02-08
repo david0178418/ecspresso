@@ -77,7 +77,7 @@ export interface Events {
 /**
  * All component types used in the 3D Turret Shooter game
  */
-export interface Components extends TimerComponentTypes<Events> {
+export interface Components extends TimerComponentTypes {
 	// Timer tags
 	enemySpawner: true;
 	pendingDestroy: true;

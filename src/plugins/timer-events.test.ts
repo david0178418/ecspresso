@@ -1,6 +1,6 @@
 import { describe, test, expect } from 'bun:test';
 import ECSpresso from '../ecspresso';
-import { createTimer, createRepeatingTimer, createTimerPlugin, type TimerEventData } from './timers';
+import { createTimer, createRepeatingTimer, createTimerPlugin, createTimerHelpers, type TimerEventData } from './timers';
 
 interface TestComponents {
 	position: { x: number; y: number };
@@ -292,7 +292,7 @@ describe('Timer Events', () => {
 		test('createTimer should accept onComplete option', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
-				.withPlugin(createTimerPlugin<TestEvents>())
+				.withPlugin(createTimerPlugin())
 				.build();
 
 			let eventFired = false;
@@ -302,7 +302,7 @@ describe('Timer Events', () => {
 			});
 
 			ecs.spawn({
-				...createTimer<TestEvents>(0.5, { onComplete: 'oneShotComplete' })
+				...createTimer(0.5, { onComplete: 'oneShotComplete' })
 			});
 
 			ecs.update(0.6);
@@ -313,7 +313,7 @@ describe('Timer Events', () => {
 		test('createRepeatingTimer should accept onComplete option', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
-				.withPlugin(createTimerPlugin<TestEvents>())
+				.withPlugin(createTimerPlugin())
 				.build();
 
 			let fireCount = 0;
@@ -323,7 +323,7 @@ describe('Timer Events', () => {
 			});
 
 			ecs.spawn({
-				...createRepeatingTimer<TestEvents>(0.3, { onComplete: 'repeatingTimer' })
+				...createRepeatingTimer(0.3, { onComplete: 'repeatingTimer' })
 			});
 
 			ecs.update(1.0); // Should fire 3 times (0.3, 0.6, 0.9)
@@ -520,5 +520,42 @@ describe('Timer Events', () => {
 			// Should not throw even though no one is listening
 			expect(() => { ecs.update(1.0); }).not.toThrow();
 		});
+	});
+});
+
+describe('TimerHelpers Type Safety', () => {
+	function createTypedEcs() {
+		return ECSpresso
+			.create<TestComponents, TestEvents, TestResources>()
+			.withPlugin(createTimerPlugin())
+			.build();
+	}
+
+	test('rejects invalid onComplete event name via createTimer', () => {
+		const helpers = createTimerHelpers<ReturnType<typeof createTypedEcs>>();
+
+		// @ts-expect-error - 'counter' payload (number) does not extend TimerEventData
+		helpers.createTimer(1.0, { onComplete: 'counter' });
+	});
+
+	test('accepts valid onComplete event name via createTimer', () => {
+		const helpers = createTimerHelpers<ReturnType<typeof createTypedEcs>>();
+
+		// Should compile without error
+		helpers.createTimer(1.0, { onComplete: 'timerComplete' });
+	});
+
+	test('rejects invalid onComplete event name via createRepeatingTimer', () => {
+		const helpers = createTimerHelpers<ReturnType<typeof createTypedEcs>>();
+
+		// @ts-expect-error - 'counter' payload (number) does not extend TimerEventData
+		helpers.createRepeatingTimer(1.0, { onComplete: 'counter' });
+	});
+
+	test('accepts valid onComplete event name via createRepeatingTimer', () => {
+		const helpers = createTimerHelpers<ReturnType<typeof createTypedEcs>>();
+
+		// Should compile without error
+		helpers.createRepeatingTimer(1.0, { onComplete: 'repeatingTimer' });
 	});
 });

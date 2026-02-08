@@ -849,21 +849,19 @@ interface Events {
   spawnWave: TimerEventData;
 }
 
-interface Components extends TimerComponentTypes<Events> {
-  position: { x: number; y: number };
-}
-
 const world = ECSpresso
-  .create<Components, Events>()
-  .withPlugin(createTimerPlugin<Events>())
+  .create()
+  .withPlugin(createTimerPlugin())
+  .withComponentTypes<{ position: { x: number; y: number } }>()
+  .withEventTypes<Events>()
   .build();
 
 // One-shot timer (poll justFinished or use onComplete event)
-world.spawn({ ...createTimer<Events>(2.0), position: { x: 0, y: 0 } });
-world.spawn({ ...createTimer<Events>(1.5, { onComplete: 'hideMessage' }) });
+world.spawn({ ...createTimer(2.0), position: { x: 0, y: 0 } });
+world.spawn({ ...createTimer(1.5, { onComplete: 'hideMessage' }) });
 
 // Repeating timer
-world.spawn({ ...createRepeatingTimer<Events>(5.0, { onComplete: 'spawnWave' }) });
+world.spawn({ ...createRepeatingTimer(5.0, { onComplete: 'spawnWave' }) });
 ```
 
 Timer components expose `elapsed`, `duration`, `repeat`, `active`, `justFinished`, and optional `onComplete` for runtime control.
