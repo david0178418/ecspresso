@@ -1,10 +1,9 @@
-import { definePlugin } from '../../../src/plugin';
 import { createTimer, createRepeatingTimer } from '../../../src/plugins/timers';
-import type { Components, Events, Resources } from '../types';
+import { definePlugin, type Events } from '../types';
 import { updateUI } from '../utils';
 
 export default function createGameStatePlugin() {
-	return definePlugin<Components, Events, Resources>({
+	return definePlugin({
 		id: 'game-state-plugin',
 		install(world) {
 			// Game state system

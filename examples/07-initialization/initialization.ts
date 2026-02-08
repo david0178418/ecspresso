@@ -1,4 +1,4 @@
-import ECSpresso, { definePlugin } from "../../src";
+import ECSpresso, { createPluginFactory } from "../../src";
 
 interface Components {
 	position: { x: number; y: number };
@@ -29,6 +29,8 @@ interface Resources {
 		invertY: boolean;
 	};
 }
+
+const definePlugin = createPluginFactory<Components, Events, Resources>();
 
 async function main() {
 	console.log("Running initialization example");
@@ -99,7 +101,7 @@ async function main() {
 }
 
 function createGamePlugin() {
-	return definePlugin<Components, Events, Resources>({
+	return definePlugin({
 		id: 'game-plugin',
 		install(world) {
 			world.addSystem('gameController')
@@ -137,7 +139,7 @@ function createGamePlugin() {
 }
 
 function createPlayerPlugin() {
-	return definePlugin<Components, Events, Resources>({
+	return definePlugin({
 		id: 'player-plugin',
 		install(world) {
 			world.addSystem('playerController')
@@ -192,7 +194,7 @@ function createPlayerPlugin() {
 }
 
 function createRenderingPlugin() {
-	return definePlugin<Components, Events, Resources>({
+	return definePlugin({
 		id: 'rendering-plugin',
 		install(world) {
 			world.addSystem('renderer')

@@ -1,6 +1,5 @@
 import { createInputPlugin as createLibInputPlugin } from '../../../src/plugins/input';
-import { definePlugin } from '../../../src/plugin';
-import type { Components, Events, Resources } from '../types';
+import { definePlugin } from '../types';
 
 /**
  * Returns the library input plugin pre-configured with Space Invaders key bindings.
@@ -21,7 +20,7 @@ export function createInputPlugin() {
  * Polls inputState each frame and publishes game events (shoot, pause/resume/start).
  */
 export default function createInputProcessingPlugin() {
-	return definePlugin<Components, Events, Resources>({
+	return definePlugin({
 		id: 'input-processing-plugin',
 		install(world) {
 			world.addSystem('input-actions')

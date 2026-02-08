@@ -1,9 +1,8 @@
 import { Vector3, Euler, Quaternion } from 'three';
-import { definePlugin } from '../../../src/plugin';
-import type { Components, Events, Resources } from '../types';
+import { definePlugin } from '../types';
 
 export default function createInputPlugin() {
-	return definePlugin<Components, Events, Resources>({
+	return definePlugin({
 		id: 'input-plugin',
 		install(world) {
 			world.addSystem('input-handler')

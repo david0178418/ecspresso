@@ -48,7 +48,7 @@ npm install ecspresso
 - [Entity Hierarchy](#entity-hierarchy) -- [Traversal](#traversal), [Parent-First Traversal](#parent-first-traversal), [Cascade Deletion](#cascade-deletion)
 - [Change Detection](#change-detection) -- [Marking Changes](#marking-changes), [Changed Query Filter](#changed-query-filter), [Sequence Timing](#sequence-timing)
 - [Command Buffer](#command-buffer) -- [Available Commands](#available-commands)
-- [Plugins](#plugins) -- [Required Components](#required-components), [Built-in Plugins](#built-in-plugins), [Timer Plugin](#timer-plugin)
+- [Plugins](#plugins) -- [Plugin Factory](#plugin-factory), [Required Components](#required-components), [Built-in Plugins](#built-in-plugins), [Timer Plugin](#timer-plugin)
 - [Asset Management](#asset-management)
 - [Screen Management](#screen-management) -- [Screen-Scoped Systems](#screen-scoped-systems), [Screen Resource](#screen-resource)
 - [Type Safety](#type-safety)
@@ -657,28 +657,32 @@ Commands execute in FIFO order. If a command fails (e.g., entity doesn't exist),
 Organize related systems and resources into reusable plugins:
 
 ```typescript
-import { Plugin } from 'ecspresso';
+import { definePlugin } from 'ecspresso';
 
-const physicsPlugin = new Plugin<GameComponents, {}, GameResources>('physics')
-  .addSystem('applyVelocity')
-  .addQuery('moving', { with: ['position', 'velocity'] })
-  .setProcess((queries, deltaTime) => {
-    for (const entity of queries.moving) {
-      entity.components.position.x += entity.components.velocity.x * deltaTime;
-      entity.components.position.y += entity.components.velocity.y * deltaTime;
-    }
-  })
-  .and()
-  .addSystem('applyGravity')
-  .addQuery('falling', { with: ['velocity'] })
-  .setProcess((queries, deltaTime, ecs) => {
-    const gravity = ecs.getResource('gravity');
-    for (const entity of queries.falling) {
-      entity.components.velocity.y += gravity.value * deltaTime;
-    }
-  })
-  .and()
-  .addResource('gravity', { value: 9.8 });
+const physicsPlugin = definePlugin<GameComponents, {}, GameResources>({
+  id: 'physics',
+  install(world) {
+    world.addSystem('applyVelocity')
+      .addQuery('moving', { with: ['position', 'velocity'] })
+      .setProcess((queries, deltaTime) => {
+        for (const entity of queries.moving) {
+          entity.components.position.x += entity.components.velocity.x * deltaTime;
+          entity.components.position.y += entity.components.velocity.y * deltaTime;
+        }
+      })
+      .and()
+      .addSystem('applyGravity')
+      .addQuery('falling', { with: ['velocity'] })
+      .setProcess((queries, deltaTime, ecs) => {
+        const gravity = ecs.getResource('gravity');
+        for (const entity of queries.falling) {
+          entity.components.velocity.y += gravity.value * deltaTime;
+        }
+      })
+      .and()
+      .addResource('gravity', { value: 9.8 });
+  },
+});
 
 // Register plugins with the world
 const game = ECSpresso.create<GameComponents, {}, GameResources>()
@@ -686,15 +690,54 @@ const game = ECSpresso.create<GameComponents, {}, GameResources>()
   .build();
 ```
 
+### Plugin Factory
+
+When multiple plugins share the same types (common in application code), use `createPluginFactory` to capture the type parameters once:
+
+```typescript
+import { createPluginFactory } from 'ecspresso';
+
+// types.ts — capture types once
+const definePlugin = createPluginFactory<Components, Events, Resources>();
+export { definePlugin };
+
+// movement-plugin.ts — no type params needed
+import { definePlugin } from './types';
+
+export const movementPlugin = definePlugin({
+  id: 'movement',
+  install(world) {
+    world.addSystem('movement')
+      .addQuery('moving', { with: ['position', 'velocity'] })
+      .setProcess((queries, dt) => { /* ... */ })
+      .and();
+  },
+});
+```
+
+You can also pass a world type directly to `definePlugin` as a one-off alternative:
+
+```typescript
+type MyWorld = typeof ecs; // derive from a built world
+const plugin = definePlugin<MyWorld>({
+  id: 'my-plugin',
+  install(world) { /* world is fully typed */ },
+});
+```
+
 ### Required Components
 
 Plugins can declare that certain components depend on others. When an entity gains a trigger component, any required components that aren't already present are auto-added with default values:
 
 ```typescript
-const transformPlugin = new Plugin<TransformComponents>('transform')
-  .registerRequired('localTransform', 'worldTransform', () => ({
-    x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1,
-  }));
+const transformPlugin = definePlugin<TransformComponents>({
+  id: 'transform',
+  install(world) {
+    world.registerRequired('localTransform', 'worldTransform', () => ({
+      x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1,
+    }));
+  },
+});
 
 const world = ECSpresso.create()
   .withPlugin(transformPlugin)
@@ -984,8 +1027,12 @@ world.addSystem('example')
   .build();
 
 // Plugin type compatibility - conflicting types error at compile time
-const plugin1 = new Plugin<{position: {x: number, y: number}}>('p1');
-const plugin2 = new Plugin<{velocity: {x: number, y: number}}>('p2');
+const plugin1 = definePlugin<{position: {x: number, y: number}}>({
+  id: 'p1', install() {},
+});
+const plugin2 = definePlugin<{velocity: {x: number, y: number}}>({
+  id: 'p2', install() {},
+});
 const world = ECSpresso.create()
   .withPlugin(plugin1)
   .withPlugin(plugin2)  // Types merge successfully

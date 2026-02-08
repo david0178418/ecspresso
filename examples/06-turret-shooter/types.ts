@@ -6,6 +6,7 @@ import {
 	Vector3
 } from 'three';
 import type { TimerComponentTypes } from '../../src/plugins/timers';
+import { createPluginFactory } from '../../src/plugin';
 
 /**
  * All event types used in the 3D Turret Shooter game
@@ -230,3 +231,5 @@ export interface Resources {
 		contextmenu: (event: MouseEvent) => void;
 	};
 }
+
+export const definePlugin = createPluginFactory<Components, Events, Resources>();

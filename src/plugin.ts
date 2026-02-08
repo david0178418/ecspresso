@@ -1,5 +1,13 @@
 import type ECSpresso from './ecspresso';
 import type { ScreenDefinition } from './screen-types';
+import type {
+	AnyECSpresso,
+	ComponentsOf,
+	EventsOf,
+	ResourcesOf,
+	AssetTypesOf,
+	ScreenStatesOf,
+} from './type-utils';
 
 /**
  * Plugin interface for ECSpresso. A plugin is a plain object with an `install`
@@ -40,18 +48,37 @@ export interface Plugin<
  *
  * @example
  * ```typescript
+ * // Option 1: Explicit type params (original)
  * const myPlugin = definePlugin<MyComponents, MyEvents, MyResources>({
  *   id: 'my-plugin',
- *   install(world) {
- *     world.addSystem('mySystem')
- *       .addQuery('entities', { with: ['position'] })
- *       .setProcess((queries) => { ... })
- *       .and();
- *     world.addResource('myResource', { value: 42 });
- *   },
+ *   install(world) { ... },
+ * });
+ *
+ * // Option 2: Single world type param (extracts C/E/R/A/S automatically)
+ * type MyWorld = typeof ecs;
+ * const myPlugin = definePlugin<MyWorld>({
+ *   id: 'my-plugin',
+ *   install(world) { ... },
  * });
  * ```
  */
+
+// Overload: single world type param
+export function definePlugin<
+	W extends AnyECSpresso,
+	Labels extends string = never,
+	Groups extends string = never,
+	AssetGroupNames extends string = never,
+	ReactiveQueryNames extends string = never,
+>(
+	config: { id: string; install: (world: W) => void }
+): Plugin<
+	ComponentsOf<W>, EventsOf<W>, ResourcesOf<W>,
+	AssetTypesOf<W>, ScreenStatesOf<W>,
+	Labels, Groups, AssetGroupNames, ReactiveQueryNames
+>;
+
+// Overload: explicit C/E/R/A/S type params (original)
 export function definePlugin<
 	C extends Record<string, any> = {},
 	E extends Record<string, any> = {},
@@ -64,6 +91,63 @@ export function definePlugin<
 	ReactiveQueryNames extends string = never,
 >(
 	config: { id: string; install: (world: ECSpresso<C, E, R, A, S>) => void }
-): Plugin<C, E, R, A, S, Labels, Groups, AssetGroupNames, ReactiveQueryNames> {
-	return config as Plugin<C, E, R, A, S, Labels, Groups, AssetGroupNames, ReactiveQueryNames>;
+): Plugin<C, E, R, A, S, Labels, Groups, AssetGroupNames, ReactiveQueryNames>;
+
+// Implementation
+export function definePlugin(
+	config: { id: string; install: (world: any) => void }
+): Plugin {
+	return config as Plugin;
+}
+
+/**
+ * Creates a plugin factory function with types captured once.
+ * Returns a `definePlugin`-equivalent that no longer requires type params.
+ *
+ * @example
+ * ```typescript
+ * // Capture types once from a world type
+ * type MyWorld = typeof ecs;
+ * const define = createPluginFactory<MyWorld>();
+ *
+ * // Every plugin call is zero-param
+ * const movementPlugin = define({
+ *   id: 'movement',
+ *   install(world) { ... },
+ * });
+ * ```
+ */
+
+// Overload: world type param
+export function createPluginFactory<W extends AnyECSpresso>(): <
+	Labels extends string = never,
+	Groups extends string = never,
+	AssetGroupNames extends string = never,
+	ReactiveQueryNames extends string = never,
+>(config: { id: string; install: (world: W) => void }) =>
+	Plugin<
+		ComponentsOf<W>, EventsOf<W>, ResourcesOf<W>,
+		AssetTypesOf<W>, ScreenStatesOf<W>,
+		Labels, Groups, AssetGroupNames, ReactiveQueryNames
+	>;
+
+// Overload: explicit C/E/R/A/S type params
+export function createPluginFactory<
+	C extends Record<string, any> = {},
+	E extends Record<string, any> = {},
+	R extends Record<string, any> = {},
+	A extends Record<string, unknown> = {},
+	S extends Record<string, ScreenDefinition<any, any>> = {},
+>(): <
+	Labels extends string = never,
+	Groups extends string = never,
+	AssetGroupNames extends string = never,
+	ReactiveQueryNames extends string = never,
+>(config: { id: string; install: (world: ECSpresso<C, E, R, A, S>) => void }) =>
+	Plugin<C, E, R, A, S, Labels, Groups, AssetGroupNames, ReactiveQueryNames>;
+
+// Implementation
+export function createPluginFactory() {
+	return (config: { id: string; install: (world: any) => void }) =>
+		definePlugin(config);
 }

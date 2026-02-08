@@ -1,8 +1,7 @@
-import { definePlugin } from '../../../src/plugin';
 import type ECSpresso from '../../../src/ecspresso';
 import { createTimer } from '../../../src/plugins/timers';
 import { createCollisionPairHandler } from '../../../src/plugins/collision';
-import type { Components, Events, Resources } from '../types';
+import { definePlugin, type Components, type Events, type Resources } from '../types';
 import type collisionLayers from '../collision-layers';
 
 type ECS = ECSpresso<Components, Events, Resources>;
@@ -13,7 +12,7 @@ type Layer = keyof typeof collisionLayers;
  * Collision detection is provided by the collision plugin.
  */
 export default function createCombatPlugin() {
-	return definePlugin<Components, Events, Resources>({
+	return definePlugin({
 		id: 'combat-plugin',
 		install(world) {
 			world.addSystem('combat')

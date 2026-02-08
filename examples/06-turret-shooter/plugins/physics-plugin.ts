@@ -1,8 +1,7 @@
-import { definePlugin } from '../../../src/plugin';
-import type { Components, Events, Resources } from '../types';
+import { definePlugin } from '../types';
 
 export default function createPhysicsPlugin() {
-	return definePlugin<Components, Events, Resources>({
+	return definePlugin({
 		id: 'physics-plugin',
 		install(world) {
 			// Movement system - in gameplay group so it pauses automatically

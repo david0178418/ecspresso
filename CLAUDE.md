@@ -102,8 +102,11 @@ Physics 2D marks `localTransform` (fixedUpdate) → Transform propagation reads 
 ### Kit Pattern (shared across state-machine, tween, audio, sprite-animation)
 `createXxxKit<W>()` captures world type once; returned helpers validate component/field/sound names at compile time. Standalone untyped versions remain available. Read plugin source files for per-plugin API details.
 
+### Application Plugin Factory
+`createPluginFactory<C, E, R>()` (or `createPluginFactory<WorldType>()`) captures types once; the returned function is a zero-param `definePlugin` equivalent. Eliminates repeated `<Components, Events, Resources>` across application-level plugins. `definePlugin<WorldType>({...})` is also available as a single-call alternative when a factory isn't needed. Library plugins (src/plugins/) remain generic and don't use this pattern.
+
 ### Plugin Type Parameters
-Most plugins are parameterized with a string union (e.g. `L extends string` for collision layers, `S extends string` for state names, `Ch extends string` for audio channels, `A extends string` for input actions). Defaults allow backward-compatible untyped usage; narrowed unions enable compile-time validation.
+Most library plugins are parameterized with a string union (e.g. `L extends string` for collision layers, `S extends string` for state names, `Ch extends string` for audio channels, `A extends string` for input actions). Defaults allow backward-compatible untyped usage; narrowed unions enable compile-time validation.
 
 ## Commands
 

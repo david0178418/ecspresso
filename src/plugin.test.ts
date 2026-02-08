@@ -1,6 +1,6 @@
 import { expect, describe, test } from 'bun:test';
 import ECSpresso from './ecspresso';
-import { definePlugin } from './plugin';
+import { definePlugin, createPluginFactory } from './plugin';
 
 // Define test component and resource types
 interface PositionComponents {
@@ -149,5 +149,103 @@ describe('Plugin', () => {
 
 		expect(world.installedPlugins).toContain('test');
 		expect(world.hasResource('gravity')).toBe(true);
+	});
+
+	test('definePlugin with world type param should produce a compatible plugin', () => {
+		// Build a world with known types
+		const baseWorld = ECSpresso.create()
+			.withComponentTypes<PositionComponents & PlayerComponents>()
+			.withResourceTypes<PositionResources & PlayerResources>()
+			.build();
+
+		type World = typeof baseWorld;
+
+		// Use the world-type overload — no need to repeat C/E/R
+		const plugin = definePlugin<World>({
+			id: 'world-typed',
+			install(world) {
+				world.addResource('gravity', { value: 9.8 });
+				world.addSystem('movement')
+					.addQuery('movers', { with: ['position', 'velocity'] })
+					.setProcess(() => {})
+					.and();
+			},
+		});
+
+		expect(plugin.id).toBe('world-typed');
+
+		// The plugin should be installable via withPlugin on a compatible builder
+		const world = ECSpresso.create()
+			.withPlugin(plugin)
+			.build();
+
+		expect(world.installedPlugins).toContain('world-typed');
+		expect(world.hasResource('gravity')).toBe(true);
+	});
+
+	test('createPluginFactory with explicit type params should produce correctly-typed plugins', () => {
+		const define = createPluginFactory<PositionComponents, {}, PositionResources>();
+
+		const gravityPlugin = define({
+			id: 'gravity',
+			install(world) {
+				world.addResource('gravity', { value: 9.8 });
+			},
+		});
+
+		const movementPlugin = define({
+			id: 'movement',
+			install(world) {
+				world.addSystem('movement')
+					.addQuery('movers', { with: ['position', 'velocity'] })
+					.setProcess(() => {})
+					.and();
+			},
+		});
+
+		expect(gravityPlugin.id).toBe('gravity');
+		expect(movementPlugin.id).toBe('movement');
+
+		const world = ECSpresso.create()
+			.withPlugin(gravityPlugin)
+			.withPlugin(movementPlugin)
+			.build();
+
+		expect(world.installedPlugins).toContain('gravity');
+		expect(world.installedPlugins).toContain('movement');
+		expect(world.hasResource('gravity')).toBe(true);
+	});
+
+	test('createPluginFactory with world type param should produce correctly-typed plugins', () => {
+		const baseWorld = ECSpresso.create()
+			.withComponentTypes<PositionComponents & PlayerComponents>()
+			.withResourceTypes<PositionResources & PlayerResources>()
+			.build();
+
+		type World = typeof baseWorld;
+
+		const define = createPluginFactory<World>();
+
+		const plugin = define({
+			id: 'factory-world-typed',
+			install(world) {
+				world.addResource('gravity', { value: 9.8 });
+				world.addResource('playerControls', { up: false, down: false, left: false, right: false });
+				world.addSystem('physics')
+					.addQuery('movers', { with: ['position', 'velocity'] })
+					.setProcess(() => {})
+					.and();
+			},
+		});
+
+		expect(plugin.id).toBe('factory-world-typed');
+
+		const world = ECSpresso.create()
+			.withPlugin(plugin)
+			.build();
+
+		expect(world.installedPlugins).toContain('factory-world-typed');
+		expect(world.hasResource('gravity')).toBe(true);
+		expect(world.hasResource('playerControls')).toBe(true);
 	});
 });

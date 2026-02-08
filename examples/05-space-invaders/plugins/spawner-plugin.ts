@@ -1,9 +1,8 @@
-import { definePlugin } from '../../../src/plugin';
 import { createLocalTransform } from '../../../src/plugins/renderers/renderer2D';
 import { createRigidBody } from '../../../src/plugins/physics2D';
 import { createAABBCollider } from '../../../src/plugins/collision';
 import { createDestroyOutOfBounds } from '../../../src/plugins/bounds';
-import type { Components, Events, Resources } from '../types';
+import { definePlugin } from '../types';
 import { spawnPlayer, createProjectileSprite } from '../utils';
 import collisionLayers from '../collision-layers';
 
@@ -11,7 +10,7 @@ import collisionLayers from '../collision-layers';
  * Handles entity spawning in response to game events.
  */
 export default function createSpawnerPlugin() {
-	return definePlugin<Components, Events, Resources>({
+	return definePlugin({
 		id: 'spawner-plugin',
 		install(world) {
 			world.addSystem('entity-spawner')

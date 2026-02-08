@@ -1,10 +1,9 @@
 import { Container, Text, TextStyle } from 'pixi.js';
-import { definePlugin } from '../../../src/plugin';
 import { createTimer } from '../../../src/plugins/timers';
-import type { Components, Events, Resources } from '../types';
+import { definePlugin, type Events } from '../types';
 
 export default function createUIPlugin() {
-	return definePlugin<Components, Events, Resources>({
+	return definePlugin({
 		id: 'ui-plugin',
 		install(world) {
 			world.addSystem('ui-manager')

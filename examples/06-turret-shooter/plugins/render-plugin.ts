@@ -1,6 +1,5 @@
 import { Group, Mesh, Vector3, Material, Object3D, SphereGeometry, MeshBasicMaterial } from 'three';
-import { definePlugin } from '../../../src/plugin';
-import type { Components, Events, Resources } from '../types';
+import { definePlugin } from '../types';
 import {
 	createTurret,
 	createGroundEnemy,
@@ -10,7 +9,7 @@ import {
 } from '../utils';
 
 export default function createRenderPlugin() {
-	return definePlugin<Components, Events, Resources>({
+	return definePlugin({
 		id: 'render-plugin',
 		install(world) {
 			// Automatically remove 3D models from the scene graph when the component

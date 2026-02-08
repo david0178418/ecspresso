@@ -1,10 +1,9 @@
 import { Vector3 } from 'three';
-import { definePlugin } from '../../../src/plugin';
 import { createTimer } from '../../../src/plugins/timers';
-import type { Components, Events, Resources } from '../types';
+import { definePlugin, type Events } from '../types';
 
 export default function createAIPlugin() {
-	return definePlugin<Components, Events, Resources>({
+	return definePlugin({
 		id: 'ai-plugin',
 		install(world) {
 			// Enemy AI system - in gameplay group so it pauses automatically

@@ -1,6 +1,5 @@
-import { definePlugin } from '../../../src/plugin';
 import { createTimer } from '../../../src/plugins/timers';
-import type { Components, Events, Resources } from '../types';
+import { definePlugin, type Events } from '../types';
 import { spawnEnemyFormation } from '../utils';
 
 const DIRECTION_VELOCITIES: Record<string, { x: number; y: number }> = {
@@ -10,7 +9,7 @@ const DIRECTION_VELOCITIES: Record<string, { x: number; y: number }> = {
 };
 
 export default function createGameLogicPlugin() {
-	return definePlugin<Components, Events, Resources>({
+	return definePlugin({
 		id: 'game-logic-plugin',
 		install(world) {
 			world.addSystem('game-state')

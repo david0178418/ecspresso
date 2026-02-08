@@ -7,6 +7,7 @@ import type { CollisionComponentTypes, CollisionEventTypes, LayersOf } from '../
 import type collisionLayers from './collision-layers';
 import type { Renderer2DComponentTypes, Renderer2DResourceTypes } from '../../src/plugins/renderers/renderer2D';
 import type { InputResourceTypes } from '../../src/plugins/input';
+import { createPluginFactory } from '../../src/plugin';
 
 type Layer = LayersOf<typeof collisionLayers>;
 
@@ -89,3 +90,5 @@ export interface Resources extends Renderer2DResourceTypes, InputResourceTypes {
 		messageText: Text;
 	};
 }
+
+export const definePlugin = createPluginFactory<Components, Events, Resources>();

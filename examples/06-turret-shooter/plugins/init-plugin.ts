@@ -3,8 +3,7 @@ import {
 	WebGLRenderer,
 	PerspectiveCamera,
 } from 'three';
-import { definePlugin } from '../../../src/plugin';
-import type { Components, Events, Resources } from '../types';
+import { definePlugin, type Resources } from '../types';
 import { createGround, createSkybox, createUIElement, setupLighting } from '../utils';
 
 export default async function createInitPlugin() {
@@ -21,7 +20,7 @@ export default async function createInitPlugin() {
 	camera.position.set(0, 5, 0); // Position at turret height
 	camera.lookAt(0, 5, -10); // Look forward
 
-	return definePlugin<Components, Events, Resources>({
+	return definePlugin({
 		id: 'init-plugin',
 		install(world) {
 			world

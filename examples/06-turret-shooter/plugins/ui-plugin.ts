@@ -1,8 +1,7 @@
-import { definePlugin } from '../../../src/plugin';
-import type { Components, Events, Resources } from '../types';
+import { definePlugin } from '../types';
 
 export default function createUIPlugin() {
-	return definePlugin<Components, Events, Resources>({
+	return definePlugin({
 		id: 'ui-plugin',
 		install(world) {
 			// Radar system
