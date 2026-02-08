@@ -1,6 +1,6 @@
 # ECSpresso
 
-A type-safe ECS (Entity-Component-System) library for TypeScript. Uses Bun as runtime/test runner. Emphasizes strong typing, modular bundles, and fluent builder API.
+A type-safe ECS (Entity-Component-System) library for TypeScript. Uses Bun as runtime/test runner. Emphasizes strong typing, modular plugins, and fluent builder API.
 
 ## Source Structure
 
@@ -10,7 +10,7 @@ src/
 ├── entity-manager.ts  # Entity storage, component indexing, queries
 ├── hierarchy-manager.ts # Parent-child relationships, traversal
 ├── system-builder.ts  # Fluent builder for systems
-├── bundle.ts          # Grouping systems/resources for modularity
+├── plugin.ts          # Grouping systems/resources for modularity
 ├── event-bus.ts       # Pub/sub event system
 ├── resource-manager.ts # Global state, factory detection, lazy init
 ├── command-buffer.ts  # Deferred structural changes (spawn, remove, etc.)
@@ -20,12 +20,12 @@ src/
 ├── screen-types.ts    # Screen type definitions
 ├── reactive-query-manager.ts # Reactive queries with enter/exit callbacks
 ├── types.ts           # Core type definitions
-├── type-utils.ts      # Bundle compatibility type utilities
+├── type-utils.ts      # Plugin compatibility type utilities
 ├── math.ts            # Vector2D type + pure vector math functions
 ├── index.ts           # Public API exports
-└── bundles/
+└── plugins/
     ├── utils/
-    │   ├── timers.ts     # Timer bundle with event-based completion
+    │   ├── timers.ts     # Timer plugin with event-based completion
     │   ├── transform.ts  # Hierarchical local/world transform propagation
     │   ├── physics2D.ts  # ECS-native 2D arcade physics (gravity, forces, drag, collision response via shared narrowphase)
     │   ├── input.ts      # Frame-accurate keyboard/pointer input with action mapping
@@ -47,23 +47,23 @@ src/
 - **Systems**: Process entities matching queries, use builder pattern
 - **Resources**: Global singleton state accessible to systems. `getResource(key)` throws if missing; `tryGetResource(key)` returns `T | undefined`
 - **Events**: Decoupled pub/sub for inter-system communication. `AssetEvents<K, G>` and `ScreenEvents<S>` accept optional type params to narrow event payload keys (default `string` for backward compat)
-- **Bundles**: Group related systems/resources for reusability
+- **Plugins**: Group related systems/resources for reusability
 - **Command Buffer**: Deferred structural changes executed between phases
 - **System Phases**: Named execution phases (preUpdate → fixedUpdate → update → postUpdate → render) with fixed-timestep simulation
 - **Assets**: Eager/lazy loaded resources with groups and progress tracking
 - **Screens**: Game state management with transitions and overlay stack
 - **Entity Hierarchy**: Parent-child relationships with traversal and cascade deletion
-- **Timer Bundle**: ECS-native timers with optional event-based completion
+- **Timer Plugin**: ECS-native timers with optional event-based completion
 
 ## Key Patterns
 
 ### Builder & Type Inference
-- **Builder Pattern**: `world.addSystem().addQuery().setProcess().and()` — `.and()` returns parent (ECSpresso or Bundle)
-- **Generic Type Parameters**: `<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>` — prefer builder inference (`.withBundle()`, `.withComponentTypes<T>()`, `.withEventTypes<T>()`, `.withResource()`) over explicit type params to `create<>()`
-- **Type-Level Builder Methods**: `withComponentTypes<T>()`, `withEventTypes<T>()` — no runtime cost, accumulate via intersection with bundle types
-- **Inferred World Type**: `const ecs = ECSpresso.create().withBundle(...).build(); type ECS = typeof ecs;` — derive full world type from the builder chain
+- **Builder Pattern**: `world.addSystem().addQuery().setProcess().and()` — `.and()` returns parent (ECSpresso or Plugin)
+- **Generic Type Parameters**: `<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>` — prefer builder inference (`.withPlugin()`, `.withComponentTypes<T>()`, `.withEventTypes<T>()`, `.withResource()`) over explicit type params to `create<>()`
+- **Type-Level Builder Methods**: `withComponentTypes<T>()`, `withEventTypes<T>()` — no runtime cost, accumulate via intersection with plugin types
+- **Inferred World Type**: `const ecs = ECSpresso.create().withPlugin(...).build(); type ECS = typeof ecs;` — derive full world type from the builder chain
 - **Built-in Resource Typing**: `.withAssets()` merges `$assets` into `ResourceTypes`; `.withScreens()` merges `$screen`. Without these builder calls, those keys are absent from `ResourceTypes`.
-- **Type Extraction**: `ComponentsOf<B>`, `EventsOf<B>`, `ResourcesOf<B>` for bundles; `ComponentsOfWorld<W>`, `EventsOfWorld<W>`, `AssetsOfWorld<W>` for ECSpresso instances
+- **Type Extraction**: `ComponentsOf<B>`, `EventsOf<B>`, `ResourcesOf<B>` for plugins; `ComponentsOfWorld<W>`, `EventsOfWorld<W>`, `AssetsOfWorld<W>` for ECSpresso instances
 
 ### System Execution
 - **Phase Order**: `preUpdate` → `fixedUpdate` → `update` → `postUpdate` → `render`
@@ -82,7 +82,7 @@ src/
 ### Required Components
 - `registerRequired(trigger, required, factory)` — auto-adds dependent components on spawn/addComponent. Enforced at insertion time only.
 - Explicit values win (never overwritten). Transitive resolution (A→B→C). Cycle detection at registration.
-- Built-in: transform bundle (`localTransform` → `worldTransform`), physics 2D (`rigidBody` → `velocity` + `force`)
+- Built-in: transform plugin (`localTransform` → `worldTransform`), physics 2D (`rigidBody` → `velocity` + `force`)
 
 ### Queries
 - **Optional**: `{ with: ['position'], optional: ['health'] }` — optional components are `T | undefined`, don't affect matching
@@ -91,19 +91,19 @@ src/
 - **Reactive**: `addReactiveQuery()` with `onEnter`/`onExit` callbacks. Reactive `parentHas` rechecks on hierarchy/component changes.
 
 ### Resources
-- `getResource(key)` — throws if not found. Use for resources guaranteed to exist (registered by the same bundle or builder).
+- `getResource(key)` — throws if not found. Use for resources guaranteed to exist (registered by the same plugin or builder).
 - `tryGetResource<K>(key)` — returns `T | undefined`. Two overloads:
   - Known key: `ecs.tryGetResource('score')` — type inferred from `ResourceTypes`, rejects unknown keys at compile time
-  - Cross-bundle: `ecs.tryGetResource<SpatialIndex>('spatialIndex')` — requires explicit type param, accepts any string key. Use for optional dependencies on resources from other bundles.
+  - Cross-plugin: `ecs.tryGetResource<SpatialIndex>('spatialIndex')` — requires explicit type param, accepts any string key. Use for optional dependencies on resources from other plugins.
 
-### Bundle Phase Flow
+### Plugin Phase Flow
 Physics 2D marks `localTransform` (fixedUpdate) → Transform propagation reads changed, writes+marks `worldTransform` (postUpdate) → Renderer reads changed `worldTransform` (render)
 
 ### Kit Pattern (shared across state-machine, tween, audio, sprite-animation)
-`createXxxKit<W>()` captures world type once; returned helpers validate component/field/sound names at compile time. Standalone untyped versions remain available. Read bundle source files for per-bundle API details.
+`createXxxKit<W>()` captures world type once; returned helpers validate component/field/sound names at compile time. Standalone untyped versions remain available. Read plugin source files for per-plugin API details.
 
-### Bundle Type Parameters
-Most bundles are parameterized with a string union (e.g. `L extends string` for collision layers, `S extends string` for state names, `Ch extends string` for audio channels, `A extends string` for input actions). Defaults allow backward-compatible untyped usage; narrowed unions enable compile-time validation.
+### Plugin Type Parameters
+Most plugins are parameterized with a string union (e.g. `L extends string` for collision layers, `S extends string` for state names, `Ch extends string` for audio channels, `A extends string` for input actions). Defaults allow backward-compatible untyped usage; narrowed unions enable compile-time validation.
 
 ## Commands
 

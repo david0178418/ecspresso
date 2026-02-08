@@ -1,6 +1,6 @@
 import { expect, describe, test } from 'bun:test';
 import ECSpresso from './ecspresso';
-import Bundle from './bundle';
+import { definePlugin } from './plugin';
 
 interface TestComponents {
 	position: { x: number; y: number };
@@ -112,24 +112,24 @@ describe('EventSystem', () => {
 	});
 
 	test('should auto-register event handlers from systems', () => {
-		// Track if event handler is called
 		let eventHandlerCalled = false;
 
-		// Create a bundle with event handlers
-		const bundle = new Bundle<TestComponents, TestEvents>()
-			.addSystem('health-system')
-			.setEventHandlers({
-				playerDamaged: (data: { entityId: number; amount: number }) => {
-					// Event handler for player damage
-					eventHandlerCalled = true;
-					expect(data.amount).toBe(10);
-				}
-			})
-			.bundle;
+		const plugin = definePlugin<TestComponents, TestEvents, {}>({
+			id: 'health',
+			install(world) {
+				world.addSystem('health-system')
+					.setEventHandlers({
+						playerDamaged: (data: { entityId: number; amount: number }) => {
+							eventHandlerCalled = true;
+							expect(data.amount).toBe(10);
+						}
+					})
+					.and();
+			},
+		});
 
-		// Create the world with the bundle
 		const world = ECSpresso.create<TestComponents, TestEvents>()
-			.withBundle(bundle)
+			.withPlugin(plugin)
 			.build();
 
 		// Create an entity
@@ -147,24 +147,25 @@ describe('EventSystem', () => {
 	});
 
 	test('should provide eventBus and entityManager parameters to event handlers', () => {
-		// Track what the event handler receives
 		let receivedEntityManager: any = null;
 		let receivedData: any = null;
 
-		// Create a bundle with event handlers
-		const bundle = new Bundle<TestComponents, TestEvents>()
-			.addSystem('ParameterTestSystem')
-			.setEventHandlers({
-				healthChanged: (data, ecs) => {
-					receivedData = data;
-					receivedEntityManager = ecs.entityManager;
-				}
-			})
-			.bundle;
+		const plugin = definePlugin<TestComponents, TestEvents, {}>({
+			id: 'param-test',
+			install(world) {
+				world.addSystem('ParameterTestSystem')
+					.setEventHandlers({
+						healthChanged: (data, ecs) => {
+							receivedData = data;
+							receivedEntityManager = ecs.entityManager;
+						}
+					})
+					.and();
+			},
+		});
 
-		// Create the world with the bundle
 		const world = ECSpresso.create<TestComponents, TestEvents>()
-			.withBundle(bundle)
+			.withPlugin(plugin)
 			.build();
 
 		// Create an entity with health component
@@ -238,69 +239,64 @@ describe('EventSystem', () => {
 	});
 
 	test('should integrate event system with ECS for event-driven behavior', () => {
-		// Track damage changes
 		const damageLog: Record<number, string[]> = {};
 
-		// Create a bundle with event handlers for damage system
-		const bundle = new Bundle<TestComponents, TestEvents>()
-			.addSystem('EventDrivenDamageSystem')
-			.setEventHandlers({
-				collision: (data, ecs) => {
-					// Collision should reduce health of both entities
-					const entity1 = ecs.entityManager.getEntity(data.entity1Id);
-					const entity2 = ecs.entityManager.getEntity(data.entity2Id);
+		const plugin = definePlugin<TestComponents, TestEvents, {}>({
+			id: 'damage',
+			install(world) {
+				world.addSystem('EventDrivenDamageSystem')
+					.setEventHandlers({
+						collision: (data, ecs) => {
+							const entity1 = ecs.entityManager.getEntity(data.entity1Id);
+							const entity2 = ecs.entityManager.getEntity(data.entity2Id);
 
-					if (entity1 && entity2) {
-						if (ecs.entityManager.getComponent(entity1.id, 'health') &&
-							ecs.entityManager.getComponent(entity2.id, 'health')) {
+							if (entity1 && entity2) {
+								if (ecs.entityManager.getComponent(entity1.id, 'health') &&
+									ecs.entityManager.getComponent(entity2.id, 'health')) {
 
-							// Get current health values
-							const health1 = ecs.entityManager.getComponent(entity1.id, 'health');
-							const health2 = ecs.entityManager.getComponent(entity2.id, 'health');
+									const health1 = ecs.entityManager.getComponent(entity1.id, 'health');
+									const health2 = ecs.entityManager.getComponent(entity2.id, 'health');
 
-							if (health1 && health2) {
-								// Log the damage
-								damageLog[entity1.id] = damageLog[entity1.id] || [];
-								damageLog[entity2.id] = damageLog[entity2.id] || [];
-								damageLog[entity1.id]?.push(`health=${health1.value}`);
-								damageLog[entity2.id]?.push(`health=${health2.value}`);
+									if (health1 && health2) {
+										damageLog[entity1.id] = damageLog[entity1.id] || [];
+										damageLog[entity2.id] = damageLog[entity2.id] || [];
+										damageLog[entity1.id]?.push(`health=${health1.value}`);
+										damageLog[entity2.id]?.push(`health=${health2.value}`);
 
-								// Apply damage
-								const newHealth1 = { value: Math.max(0, health1.value - 10) };
-								const newHealth2 = { value: Math.max(0, health2.value - 10) };
+										const newHealth1 = { value: Math.max(0, health1.value - 10) };
+										const newHealth2 = { value: Math.max(0, health2.value - 10) };
 
-								ecs.entityManager.addComponent(entity1.id, 'health', newHealth1);
-								ecs.entityManager.addComponent(entity2.id, 'health', newHealth2);
+										ecs.entityManager.addComponent(entity1.id, 'health', newHealth1);
+										ecs.entityManager.addComponent(entity2.id, 'health', newHealth2);
 
-								// Emit health changed events
-								ecs.eventBus.publish('healthChanged', {
-									entityId: entity1.id,
-									oldValue: health1.value,
-									newValue: newHealth1.value
-								});
+										ecs.eventBus.publish('healthChanged', {
+											entityId: entity1.id,
+											oldValue: health1.value,
+											newValue: newHealth1.value
+										});
 
-								ecs.eventBus.publish('healthChanged', {
-									entityId: entity2.id,
-									oldValue: health2.value,
-									newValue: newHealth2.value
-								});
+										ecs.eventBus.publish('healthChanged', {
+											entityId: entity2.id,
+											oldValue: health2.value,
+											newValue: newHealth2.value
+										});
+									}
+								}
 							}
+						},
+						healthChanged(data) {
+							if (!damageLog[data.entityId]) {
+								damageLog[data.entityId] = [];
+							}
+							damageLog[data.entityId]?.push(`healthChanged=${data.newValue}`);
 						}
-					}
-				},
-				healthChanged(data) {
-					// Log health changes
-					if (!damageLog[data.entityId]) {
-						damageLog[data.entityId] = [];
-					}
-					damageLog[data.entityId]?.push(`healthChanged=${data.newValue}`);
-				}
-			})
-			.bundle;
+					})
+					.and();
+			},
+		});
 
-		// Create the world with the bundle
 		const world = ECSpresso.create<TestComponents, TestEvents>()
-			.withBundle(bundle)
+			.withPlugin(plugin)
 			.build();
 
 		// Create entities to test with

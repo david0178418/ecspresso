@@ -30,7 +30,11 @@ async function main() {
 	console.log("Resource Management Example");
 	console.log("===========================");
 
-	const world = ECSpresso.create<Components, Events, Resources>().build();
+	const world = ECSpresso.create()
+		.withComponentTypes<Components>()
+		.withEventTypes<Events>()
+		.withResourceTypes<Resources>()
+		.build();
 
 	// 1. Adding resources directly
 	console.log("\n1. Adding resources directly:");

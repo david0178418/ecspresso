@@ -1,6 +1,6 @@
 import { expect, describe, test, spyOn } from 'bun:test';
 import ECSpresso from './ecspresso';
-import Bundle, { mergeBundles } from './bundle';
+import { definePlugin } from './plugin';
 
 interface TestComponents {
 	mesh: { vertices: number[]; dispose: () => void };
@@ -196,14 +196,18 @@ describe('Component Dispose', () => {
 		expect(disposed[0]).toBe(meshValue);
 	});
 
-	test('bundle-registered dispose installed and fires correctly', () => {
-		const bundle = new Bundle<TestComponents>('test-dispose-bundle');
+	test('plugin-registered dispose installed and fires correctly', () => {
 		const disposed: Array<TestComponents['mesh']> = [];
 
-		bundle.registerDispose('mesh', (mesh) => { disposed.push(mesh); });
+		const plugin = definePlugin<TestComponents, {}, {}>({
+			id: 'test-dispose-plugin',
+			install(world) {
+				world.registerDispose('mesh', (mesh) => { disposed.push(mesh); });
+			},
+		});
 
 		const ecs = ECSpresso.create()
-			.withBundle(bundle)
+			.withPlugin(plugin)
 			.build();
 
 		const meshValue = { vertices: [1], dispose: () => {} };
@@ -259,20 +263,34 @@ describe('Component Dispose', () => {
 		expect(ecs.hasComponent(entity.id, 'mesh')).toBe(false);
 	});
 
-	test('mergeBundles carries dispose registrations', () => {
-		const bundle1 = new Bundle<Pick<TestComponents, 'mesh'>>('bundle1');
-		const bundle2 = new Bundle<Pick<TestComponents, 'texture'>>('bundle2');
-
+	test('composite plugin carries dispose registrations', () => {
 		const disposedMeshes: Array<TestComponents['mesh']> = [];
 		const disposedTextures: Array<TestComponents['texture']> = [];
 
-		bundle1.registerDispose('mesh', (mesh) => { disposedMeshes.push(mesh); });
-		bundle2.registerDispose('texture', (texture) => { disposedTextures.push(texture); });
+		const plugin1 = definePlugin<Pick<TestComponents, 'mesh'>, {}, {}>({
+			id: 'plugin1',
+			install(world) {
+				world.registerDispose('mesh', (mesh) => { disposedMeshes.push(mesh); });
+			},
+		});
 
-		const merged = mergeBundles('merged', bundle1, bundle2);
+		const plugin2 = definePlugin<Pick<TestComponents, 'texture'>, {}, {}>({
+			id: 'plugin2',
+			install(world) {
+				world.registerDispose('texture', (texture) => { disposedTextures.push(texture); });
+			},
+		});
+
+		const composite = definePlugin<Pick<TestComponents, 'mesh' | 'texture'>, {}, {}>({
+			id: 'composite',
+			install(world) {
+				world.installPlugin(plugin1);
+				world.installPlugin(plugin2);
+			},
+		});
 
 		const ecs = ECSpresso.create()
-			.withBundle(merged)
+			.withPlugin(composite)
 			.build();
 
 		const meshValue = { vertices: [1], dispose: () => {} };
@@ -346,14 +364,18 @@ describe('Component Dispose', () => {
 		expect(entityIds).toContain(child.id);
 	});
 
-	test('bundle-registered dispose receives entity ID', () => {
-		const bundle = new Bundle<TestComponents>('test-dispose-bundle');
+	test('plugin-registered dispose receives entity ID', () => {
 		const received: Array<{ entityId: number }> = [];
 
-		bundle.registerDispose('mesh', (_mesh, entityId) => { received.push({ entityId }); });
+		const plugin = definePlugin<TestComponents, {}, {}>({
+			id: 'test-dispose-plugin',
+			install(world) {
+				world.registerDispose('mesh', (_mesh, entityId) => { received.push({ entityId }); });
+			},
+		});
 
 		const ecs = ECSpresso.create()
-			.withBundle(bundle)
+			.withPlugin(plugin)
 			.build();
 
 		const meshValue = { vertices: [1], dispose: () => {} };

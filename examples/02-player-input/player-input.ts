@@ -1,20 +1,20 @@
 import { Graphics, Sprite } from 'pixi.js';
 import ECSpresso from "../../src";
-import { createInputBundle } from "../../src/bundles/input";
+import { createInputPlugin } from "../../src/plugins/input";
 import {
-	createRenderer2DBundle,
+	createRenderer2DPlugin,
 	createLocalTransform,
-} from "../../src/bundles/renderers/renderer2D";
+} from "../../src/plugins/renderers/renderer2D";
 
 // -- Build the world --
-// Building on example 01, we add the input bundle for keyboard handling.
+// Building on example 01, we add the input plugin for keyboard handling.
 // Actions map named intents to physical keys — systems read actions, not raw keys.
 const ecs = ECSpresso.create()
-	.withBundle(createRenderer2DBundle({
+	.withPlugin(createRenderer2DPlugin({
 		init: { background: '#1099bb', resizeTo: window },
 		container: document.body,
 	}))
-	.withBundle(createInputBundle({
+	.withPlugin(createInputPlugin({
 		actions: {
 			moveUp: { keys: ['w', 'ArrowUp'] },
 			moveDown: { keys: ['s', 'ArrowDown'] },

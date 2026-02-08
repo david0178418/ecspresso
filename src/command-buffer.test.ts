@@ -1,7 +1,7 @@
 import { describe, test, expect, spyOn } from 'bun:test';
 import ECSpresso from './ecspresso';
 import CommandBuffer from './command-buffer';
-import { createTimer, createTimerBundle, type TimerEventData } from './bundles/timers';
+import { createTimer, createTimerPlugin, type TimerEventData } from './plugins/timers';
 
 interface TestComponents {
 	position: { x: number; y: number };
@@ -409,7 +409,7 @@ describe('CommandBuffer', () => {
 
 			const ecs = ECSpresso
 				.create<TestComponents, TimerTestEvents, TestResources>()
-				.withBundle(createTimerBundle<TimerTestEvents>())
+				.withPlugin(createTimerPlugin<TimerTestEvents>())
 				.build();
 
 			const targetEntity = ecs.spawn({ position: { x: 0, y: 0 }, tag: true });
@@ -457,7 +457,7 @@ describe('CommandBuffer', () => {
 
 			const ecs = ECSpresso
 				.create<TestComponents, MultiTimerEvents, TestResources>()
-				.withBundle(createTimerBundle<MultiTimerEvents>())
+				.withPlugin(createTimerPlugin<MultiTimerEvents>())
 				.build();
 
 			// Event handler that spawns entity via commands (closure captures ecs)
@@ -487,7 +487,7 @@ describe('CommandBuffer', () => {
 
 			const ecs = ECSpresso
 				.create<TestComponents, Events, TestResources>()
-				.withBundle(createTimerBundle<Events>())
+				.withPlugin(createTimerPlugin<Events>())
 				.build();
 
 			// Create several entities

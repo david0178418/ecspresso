@@ -1,21 +1,21 @@
 import { Graphics, Sprite } from 'pixi.js';
 import ECSpresso from "../../src";
 import {
-	createRenderer2DBundle,
+	createRenderer2DPlugin,
 	createSpriteComponents,
-} from "../../src/bundles/renderers/renderer2D";
+} from "../../src/plugins/renderers/renderer2D";
 import {
-	createPhysics2DBundle,
+	createPhysics2DPlugin,
 	createRigidBody,
-} from "../../src/bundles/physics2D";
+} from "../../src/plugins/physics2D";
 import {
 	defineCollisionLayers,
 	createCircleCollider,
-} from "../../src/bundles/collision";
+} from "../../src/plugins/collision";
 import {
-	createDiagnosticsBundle,
+	createDiagnosticsPlugin,
 	createDiagnosticsOverlay,
-} from "../../src/bundles/diagnostics";
+} from "../../src/plugins/diagnostics";
 
 // -- Constants --
 
@@ -34,12 +34,12 @@ const layers = defineCollisionLayers({
 // -- ECS setup --
 
 const ecs = ECSpresso.create()
-	.withBundle(createRenderer2DBundle({
+	.withPlugin(createRenderer2DPlugin({
 		init: { background: '#1a1a2e', width: SCREEN_W, height: SCREEN_H },
 		container: document.body,
 	}))
-	.withBundle(createPhysics2DBundle({ gravity: { x: 0, y: 400 }, collisionSystemGroup: 'collision', layers }))
-	.withBundle(createDiagnosticsBundle())
+	.withPlugin(createPhysics2DPlugin({ gravity: { x: 0, y: 400 }, collisionSystemGroup: 'collision', layers }))
+	.withPlugin(createDiagnosticsPlugin())
 	.withComponentTypes<{ radius: number; color: number }>()
 	.build();
 

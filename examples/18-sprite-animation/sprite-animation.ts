@@ -1,7 +1,7 @@
 /**
  * Sprite Animation Example
  *
- * Demonstrates the sprite animation bundle with procedurally generated frames.
+ * Demonstrates the sprite animation plugin with procedurally generated frames.
  *
  * Features shown:
  *   - defineSpriteAnimation (single clip)
@@ -15,11 +15,11 @@
 import { Graphics, Sprite, Text, TextStyle, Texture, type Renderer } from 'pixi.js';
 import ECSpresso from '../../src';
 import {
-	createRenderer2DBundle,
+	createRenderer2DPlugin,
 	createSpriteComponents,
-} from '../../src/bundles/renderers/renderer2D';
+} from '../../src/plugins/renderers/renderer2D';
 import {
-	createSpriteAnimationBundle,
+	createSpriteAnimationPlugin,
 	defineSpriteAnimation,
 	defineSpriteAnimations,
 	createSpriteAnimation,
@@ -28,7 +28,7 @@ import {
 	resumeAnimation,
 	type SpriteAnimationEventData,
 	type SpriteAnimationComponentTypes,
-} from '../../src/bundles/sprite-animation';
+} from '../../src/plugins/sprite-animation';
 
 // ==================== Constants ====================
 
@@ -139,11 +139,11 @@ interface AppEvents {
 
 const ecs = ECSpresso
 	.create()
-	.withBundle(createRenderer2DBundle({
+	.withPlugin(createRenderer2DPlugin({
 		init: { background: '#1a1a2e', width: SCREEN_W, height: SCREEN_H },
 		container: document.body,
 	}))
-	.withBundle(createSpriteAnimationBundle())
+	.withPlugin(createSpriteAnimationPlugin())
 	.withComponentTypes<SpriteAnimationComponentTypes>()
 	.withEventTypes<AppEvents>()
 	.build();

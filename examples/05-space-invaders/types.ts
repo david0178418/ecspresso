@@ -1,12 +1,12 @@
 import { Container, Text } from 'pixi.js';
-import type { TimerComponentTypes, TimerEventData } from '../../src/bundles/timers';
-import type { TransformComponentTypes } from '../../src/bundles/transform';
-import type { Physics2DComponentTypes } from '../../src/bundles/physics2D';
-import type { BoundsComponentTypes } from '../../src/bundles/bounds';
-import type { CollisionComponentTypes, CollisionEventTypes, LayersOf } from '../../src/bundles/collision';
+import type { TimerComponentTypes, TimerEventData } from '../../src/plugins/timers';
+import type { TransformComponentTypes } from '../../src/plugins/transform';
+import type { Physics2DComponentTypes } from '../../src/plugins/physics2D';
+import type { BoundsComponentTypes } from '../../src/plugins/bounds';
+import type { CollisionComponentTypes, CollisionEventTypes, LayersOf } from '../../src/plugins/collision';
 import type collisionLayers from './collision-layers';
-import type { Renderer2DComponentTypes, Renderer2DResourceTypes } from '../../src/bundles/renderers/renderer2D';
-import type { InputResourceTypes } from '../../src/bundles/input';
+import type { Renderer2DComponentTypes, Renderer2DResourceTypes } from '../../src/plugins/renderers/renderer2D';
+import type { InputResourceTypes } from '../../src/plugins/input';
 
 type Layer = LayersOf<typeof collisionLayers>;
 

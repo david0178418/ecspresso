@@ -1,5 +1,5 @@
 /**
- * Coroutine Bundle Example
+ * Coroutine Plugin Example
  *
  * Demonstrates a scripted "boss entrance" sequence using generator-based coroutines.
  * Shows: sequential steps, waitSeconds, parallel, frame-by-frame interpolation,
@@ -9,16 +9,16 @@
 import { Graphics, Sprite, Text, TextStyle } from 'pixi.js';
 import ECSpresso from '../../src';
 import {
-	createRenderer2DBundle,
+	createRenderer2DPlugin,
 	createSpriteComponents,
-} from '../../src/bundles/renderers/renderer2D';
+} from '../../src/plugins/renderers/renderer2D';
 import {
-	createCoroutineBundle,
+	createCoroutinePlugin,
 	createCoroutine,
 	waitSeconds,
 	parallel,
 	type CoroutineGenerator,
-} from '../../src/bundles/coroutine';
+} from '../../src/plugins/coroutine';
 
 // ==================== Constants ====================
 
@@ -33,11 +33,11 @@ const CIRCLE_COLOR = 0xe53935;
 
 const ecs = ECSpresso
 	.create()
-	.withBundle(createRenderer2DBundle({
+	.withPlugin(createRenderer2DPlugin({
 		init: { background: '#1a1a2e', width: SCREEN_W, height: SCREEN_H },
 		container: document.body,
 	}))
-	.withBundle(createCoroutineBundle())
+	.withPlugin(createCoroutinePlugin())
 	.build();
 
 await ecs.initialize();

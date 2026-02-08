@@ -1,5 +1,5 @@
 /**
- * Audio Bundle Example
+ * Audio Plugin Example
  *
  * Demonstrates:
  * - User-defined audio channels (sfx, music) with type-safe names
@@ -14,7 +14,7 @@
 import ECSpresso from '../../src';
 import {
 	defineAudioChannels,
-	createAudioBundle,
+	createAudioPlugin,
 	createAudioSource,
 	loadSound,
 	type ChannelsOf,
@@ -22,7 +22,7 @@ import {
 	type AudioEventTypes,
 	type AudioResourceTypes,
 	type SoundEndedEvent,
-} from '../../src/bundles/audio';
+} from '../../src/plugins/audio';
 
 // ==================== Channel Definition ====================
 
@@ -51,7 +51,7 @@ const ecs = ECSpresso
 		.add('explosion', loadSound('/16-audio/assets/explosion.wav'))
 		.add('bgm', loadSound('/16-audio/assets/bgm.wav'))
 	)
-	.withBundle(createAudioBundle({ channels }))
+	.withPlugin(createAudioPlugin({ channels }))
 	.build();
 
 await ecs.initialize();
@@ -175,4 +175,4 @@ muteBtn.addEventListener('click', () => {
 
 // ==================== Ready ====================
 
-log('Audio bundle initialized. Click buttons to play sounds.');
+log('Audio plugin initialized. Click buttons to play sounds.');

@@ -1,5 +1,5 @@
 /**
- * Camera Bundle Example
+ * Camera Plugin Example
  *
  * Demonstrates:
  * - Camera following a player entity with smooth tracking and deadzone
@@ -12,24 +12,24 @@
 import { Graphics, Container, Text, TextStyle } from 'pixi.js';
 import ECSpresso from '../../src';
 import {
-	createRenderer2DBundle,
+	createRenderer2DPlugin,
 	createGraphicsComponents,
 	createContainerComponents,
-} from '../../src/bundles/renderers/renderer2D';
+} from '../../src/plugins/renderers/renderer2D';
 import {
-	createPhysics2DBundle,
+	createPhysics2DPlugin,
 	createRigidBody,
-} from '../../src/bundles/physics2D';
-import { createInputBundle } from '../../src/bundles/input';
+} from '../../src/plugins/physics2D';
+import { createInputPlugin } from '../../src/plugins/input';
 import {
-	createCameraBundle,
+	createCameraPlugin,
 	createCamera,
 	createCameraFollow,
 	createCameraShake,
 	createCameraBounds,
 	addTrauma,
 	screenToWorld,
-} from '../../src/bundles/camera';
+} from '../../src/plugins/camera';
 
 // ==================== Constants ====================
 
@@ -43,14 +43,14 @@ const VIEWPORT_HEIGHT = 600;
 // ==================== ECS Setup ====================
 
 const ecs = ECSpresso.create()
-	.withBundle(createRenderer2DBundle({
+	.withPlugin(createRenderer2DPlugin({
 		init: { background: 0x1a1a2e, resizeTo: window },
 		container: document.body,
 		startLoop: true,
 		camera: true,
 	}))
-	.withBundle(createPhysics2DBundle())
-	.withBundle(createInputBundle({
+	.withPlugin(createPhysics2DPlugin())
+	.withPlugin(createInputPlugin({
 		actions: {
 			moveUp:    { keys: ['w', 'ArrowUp'] },
 			moveDown:  { keys: ['s', 'ArrowDown'] },
@@ -59,7 +59,7 @@ const ecs = ECSpresso.create()
 			shake:     { keys: [' '] },
 		},
 	}))
-	.withBundle(createCameraBundle({
+	.withPlugin(createCameraPlugin({
 		viewportWidth: VIEWPORT_WIDTH,
 		viewportHeight: VIEWPORT_HEIGHT,
 	}))

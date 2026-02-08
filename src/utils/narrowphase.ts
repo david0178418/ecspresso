@@ -2,8 +2,8 @@
  * Shared Narrowphase Module
  *
  * Provides contact-computing narrowphase tests and a generic collision
- * iteration pipeline used by both the collision bundle (event-only) and
- * the physics2D bundle (impulse response).
+ * iteration pipeline used by both the collision plugin (event-only) and
+ * the physics2D plugin (impulse response).
  */
 
 import type { SpatialIndex } from './spatial-hash';
@@ -36,7 +36,7 @@ export interface BaseColliderInfo<L extends string = string> {
 /**
  * Build a BaseColliderInfo from raw entity/collider component data.
  * Returns null if the entity has neither an AABB nor circle collider.
- * Shared by collision bundle (event-only) and physics2D bundle (impulse response).
+ * Shared by collision plugin (event-only) and physics2D plugin (impulse response).
  */
 export function buildBaseColliderInfo<L extends string>(
 	entityId: number,
@@ -70,7 +70,7 @@ export function buildBaseColliderInfo<L extends string>(
 
 /**
  * Retrieve the optional spatialIndex resource, returning null when absent.
- * Centralizes the cross-bundle typed lookup so individual bundles don't each
+ * Centralizes the cross-plugin typed lookup so individual plugins don't each
  * need to import SpatialIndex or repeat the tryGetResource pattern.
  */
 export function tryGetSpatialIndex(

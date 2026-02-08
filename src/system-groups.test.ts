@@ -1,6 +1,6 @@
 import { expect, describe, test } from 'bun:test';
 import ECSpresso from './ecspresso';
-import Bundle from './bundle';
+import { definePlugin } from './plugin';
 
 interface TestComponents {
 	position: { x: number; y: number };
@@ -172,31 +172,35 @@ describe('System Groups', () => {
 	});
 
 	describe('integration', () => {
-		test('should work with bundled systems', () => {
-			const bundle = new Bundle<TestComponents>()
-				.addSystem('bundledSystem')
-				.inGroup('bundleGroup')
-				.addQuery('entities', { with: ['position'] })
-				.setProcess(() => { bundleRan = true; })
-				.bundle;
+		test('should work with plugin-installed systems', () => {
+			let pluginRan = false;
+
+			const plugin = definePlugin<TestComponents, {}, {}>({
+				id: 'grouped-plugin',
+				install(world) {
+					world.addSystem('pluginSystem')
+						.inGroup('pluginGroup')
+						.addQuery('entities', { with: ['position'] })
+						.setProcess(() => { pluginRan = true; })
+						.and();
+				},
+			});
 
 			const world = ECSpresso.create<TestComponents>()
-				.withBundle(bundle)
+				.withPlugin(plugin)
 				.build();
 
 			world.spawn({ position: { x: 0, y: 0 } });
 
-			let bundleRan = false;
-
-			world.disableSystemGroup('bundleGroup');
+			world.disableSystemGroup('pluginGroup');
 			world.update(1/60);
 
-			expect(bundleRan).toBe(false);
+			expect(pluginRan).toBe(false);
 
-			world.enableSystemGroup('bundleGroup');
+			world.enableSystemGroup('pluginGroup');
 			world.update(1/60);
 
-			expect(bundleRan).toBe(true);
+			expect(pluginRan).toBe(true);
 		});
 
 		test('system in multiple groups - any disabled should skip', () => {

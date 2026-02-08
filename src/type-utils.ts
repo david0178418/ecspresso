@@ -24,11 +24,11 @@ export type TypesAreCompatible<T extends Record<string, any>, U extends Record<s
 			: true;
 
 /**
- * Bundle compatibility checker.
- * Returns true if bundles can be merged without type conflicts.
+ * Plugin compatibility checker.
+ * Returns true if plugins can be merged without type conflicts.
  * All overlapping keys across all type categories must have identical types.
  */
-export type BundlesAreCompatible<
+export type PluginsAreCompatible<
 	C1 extends Record<string, any>,
 	C2 extends Record<string, any>,
 	E1 extends Record<string, any>,
@@ -78,71 +78,70 @@ export type AnyECSpresso = {
 };
 
 /**
- * Wildcard Bundle type that any concrete bundle is assignable to.
- * Matches the phantom type properties declared on the Bundle class.
+ * Wildcard Plugin type that any concrete plugin is assignable to.
+ * Matches the phantom type properties declared on the Plugin interface.
  */
-export type AnyBundle = {
-	readonly _componentTypes: any;
-	readonly _eventTypes: any;
-	readonly _resourceTypes: any;
-	readonly _assetTypes: any;
-	readonly _screenStates: any;
+export type AnyPlugin = {
+	readonly _componentTypes?: any;
+	readonly _eventTypes?: any;
+	readonly _resourceTypes?: any;
+	readonly _assetTypes?: any;
+	readonly _screenStates?: any;
 };
 
 // ==================== Structural Type Extraction ====================
 // These use phantom type properties for positional-independence.
-// Works for both Bundle and ECSpresso instances since both declare
+// Works for both Plugin and ECSpresso instances since both declare
 // the same phantom properties.
 
 /**
- * Extract the ComponentTypes from a Bundle or ECSpresso instance
+ * Extract the ComponentTypes from a Plugin or ECSpresso instance
  */
-export type ComponentsOf<B> = B extends { readonly _componentTypes: infer C extends Record<string, any> } ? C : never;
+export type ComponentsOf<B> = B extends { readonly _componentTypes: infer C extends Record<string, any> } ? C : B extends { readonly _componentTypes?: infer C extends Record<string, any> } ? C : never;
 
 /**
- * Extract the EventTypes from a Bundle or ECSpresso instance
+ * Extract the EventTypes from a Plugin or ECSpresso instance
  */
-export type EventsOf<B> = B extends { readonly _eventTypes: infer E extends Record<string, any> } ? E : never;
+export type EventsOf<B> = B extends { readonly _eventTypes: infer E extends Record<string, any> } ? E : B extends { readonly _eventTypes?: infer E extends Record<string, any> } ? E : never;
 
 /**
- * Extract the ResourceTypes from a Bundle or ECSpresso instance
+ * Extract the ResourceTypes from a Plugin or ECSpresso instance
  */
-export type ResourcesOf<B> = B extends { readonly _resourceTypes: infer R extends Record<string, any> } ? R : never;
+export type ResourcesOf<B> = B extends { readonly _resourceTypes: infer R extends Record<string, any> } ? R : B extends { readonly _resourceTypes?: infer R extends Record<string, any> } ? R : never;
 
 /**
- * Extract AssetTypes from a Bundle or ECSpresso instance
+ * Extract AssetTypes from a Plugin or ECSpresso instance
  */
-export type AssetTypesOf<B> = B extends { readonly _assetTypes: infer A extends Record<string, unknown> } ? A : never;
+export type AssetTypesOf<B> = B extends { readonly _assetTypes: infer A extends Record<string, unknown> } ? A : B extends { readonly _assetTypes?: infer A extends Record<string, unknown> } ? A : never;
 
 /**
- * Extract ScreenStates from a Bundle or ECSpresso instance
+ * Extract ScreenStates from a Plugin or ECSpresso instance
  */
-export type ScreenStatesOf<B> = B extends { readonly _screenStates: infer S extends Record<string, ScreenDefinition<any, any>> } ? S : never;
+export type ScreenStatesOf<B> = B extends { readonly _screenStates: infer S extends Record<string, ScreenDefinition<any, any>> } ? S : B extends { readonly _screenStates?: infer S extends Record<string, ScreenDefinition<any, any>> } ? S : never;
 
-// ==================== Positional Type Extraction ====================
-// These use positional inference against the full generic signature.
-// Used for builder-internal type parameters (Labels, Groups, etc.)
-// that don't have phantom type properties.
-
-/**
- * Extract the system Labels from a Bundle instance
- */
-export type LabelsOf<B> = B extends import('./bundle').default<any, any, any, any, any, infer L extends string, any, any, any> ? L : never;
+// ==================== Phantom Type Extraction ====================
+// These use phantom type properties for Labels, Groups, AssetGroupNames,
+// and ReactiveQueryNames from Plugin instances.
 
 /**
- * Extract the system Groups from a Bundle instance
+ * Extract the system Labels from a Plugin instance
  */
-export type GroupsOf<B> = B extends import('./bundle').default<any, any, any, any, any, any, infer G extends string, any, any> ? G : never;
+export type LabelsOf<B> = B extends { readonly _labels?: infer L } ? L extends string ? L : never : never;
 
 /**
- * Extract the AssetGroupNames from a Bundle instance
+ * Extract the system Groups from a Plugin instance
  */
-export type AssetGroupNamesOf<B> = B extends import('./bundle').default<any, any, any, any, any, any, any, infer AG extends string, any> ? AG : never;
+export type GroupsOf<B> = B extends { readonly _groups?: infer G } ? G extends string ? G : never : never;
 
 /**
- * Extract the ReactiveQueryNames from a Bundle instance
+ * Extract the AssetGroupNames from a Plugin instance
  */
-export type ReactiveQueryNamesOf<B> = B extends import('./bundle').default<any, any, any, any, any, any, any, any, infer RQ extends string> ? RQ : never;
+export type AssetGroupNamesOf<B> = B extends { readonly _assetGroupNames?: infer AG } ? AG extends string ? AG : never : never;
+
+/**
+ * Extract the ReactiveQueryNames from a Plugin instance
+ */
+export type ReactiveQueryNamesOf<B> = B extends { readonly _reactiveQueryNames?: infer RQ } ? RQ extends string ? RQ : never : never;
 
 // ==================== World Type Extraction ====================
 // Convenience aliases that read better for ECSpresso world instances.
@@ -173,7 +172,7 @@ export type ScreenStatesOfWorld<W> = W extends { readonly _screenStates: infer S
 
 /**
  * Extract event names from an EventTypes record whose payload extends the given shape.
- * Eliminates the need for each bundle to define its own mapped filter type.
+ * Eliminates the need for each plugin to define its own mapped filter type.
  *
  * @example
  * ```typescript

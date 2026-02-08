@@ -1,7 +1,7 @@
 /**
  * State Machine Example
  *
- * Demonstrates the state machine bundle with enemies that patrol, chase,
+ * Demonstrates the state machine plugin with enemies that patrol, chase,
  * and attack based on proximity to the player.
  *
  * States:
@@ -13,21 +13,21 @@
 import { Graphics, Sprite } from 'pixi.js';
 import ECSpresso from '../../src';
 import {
-	createRenderer2DBundle,
+	createRenderer2DPlugin,
 	createSpriteComponents,
-} from '../../src/bundles/renderers/renderer2D';
+} from '../../src/plugins/renderers/renderer2D';
 import {
-	createPhysics2DBundle,
+	createPhysics2DPlugin,
 	createRigidBody,
 	setVelocity,
-} from '../../src/bundles/physics2D';
-import { createInputBundle } from '../../src/bundles/input';
+} from '../../src/plugins/physics2D';
+import { createInputPlugin } from '../../src/plugins/input';
 import {
-	createStateMachineBundle,
+	createStateMachinePlugin,
 	createStateMachine,
 	createStateMachineHelpers,
 	getStateMachineState,
-} from '../../src/bundles/state-machine';
+} from '../../src/plugins/state-machine';
 
 // ==================== Types ====================
 
@@ -56,12 +56,12 @@ const STATE_COLORS = {
 
 const ecs = ECSpresso
 	.create()
-	.withBundle(createRenderer2DBundle({
+	.withPlugin(createRenderer2DPlugin({
 		init: { background: '#111122', resizeTo: window },
 		container: document.body,
 	}))
-	.withBundle(createPhysics2DBundle({ gravity: { x: 0, y: 0 } }))
-	.withBundle(createInputBundle({
+	.withPlugin(createPhysics2DPlugin({ gravity: { x: 0, y: 0 } }))
+	.withPlugin(createInputPlugin({
 		actions: {
 			moveUp: { keys: ['w', 'ArrowUp'] },
 			moveDown: { keys: ['s', 'ArrowDown'] },
@@ -69,13 +69,13 @@ const ecs = ECSpresso
 			moveRight: { keys: ['d', 'ArrowRight'] },
 		},
 	}))
-	.withBundle(createStateMachineBundle())
+	.withPlugin(createStateMachinePlugin())
 	.withComponentTypes<AppComponents>()
 	.build();
 
 type ECS = typeof ecs;
 
-const { defineStateMachine } = createStateMachineHelpers<ECS>();
+const { defineStateMachine } = ecs.getHelpers(createStateMachineHelpers);
 
 // ==================== Helpers ====================
 

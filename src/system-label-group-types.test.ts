@@ -1,8 +1,8 @@
 import { test, expect } from 'bun:test';
 import ECSpresso from './ecspresso';
-import Bundle, { mergeBundles } from './bundle';
+import { definePlugin } from './plugin';
 import type { LabelsOf, GroupsOf, ComponentsOf, EventsOf, ResourcesOf, AssetGroupNamesOf, ReactiveQueryNamesOf, AssetTypesOf, ScreenStatesOf } from './type-utils';
-import { createTransformBundle } from './bundles/transform';
+import { createTransformPlugin } from './plugins/transform';
 
 // ==================== Type-level assertion helpers ====================
 
@@ -16,56 +16,71 @@ type IsEqual<T, U> = [T] extends [U] ? [U] extends [T] ? true : false : false;
 
 // ==================== Type-level tests ====================
 
-// 1. Bundle accumulates labels
-test('type-level: Bundle accumulates labels', () => {
-	const bundle = new Bundle<{ pos: { x: number } }, {}, {}>('test')
-		.addSystem('move')
-		.setProcess(() => {})
-		.and()
-		.addSystem('render')
-		.setProcess(() => {})
-		.and();
+// 1. Plugin accumulates labels
+test('type-level: Plugin accumulates labels', () => {
+	const plugin = definePlugin<{ pos: { x: number } }, {}, {}, {}, {}, 'move' | 'render', never>({
+		id: 'test',
+		install(world) {
+			world.addSystem('move')
+				.setProcess(() => {})
+				.and()
+				.addSystem('render')
+				.setProcess(() => {})
+				.and();
+		},
+	});
 
-	assertType<IsEqual<LabelsOf<typeof bundle>, 'move' | 'render'>>();
+	assertType<IsEqual<LabelsOf<typeof plugin>, 'move' | 'render'>>();
 
-	// Runtime: bundle exists
-	expect(bundle).toBeDefined();
+	expect(plugin).toBeDefined();
 });
 
-// 2. Bundle accumulates groups
-test('type-level: Bundle accumulates groups', () => {
-	const bundle = new Bundle<{ pos: { x: number } }, {}, {}>('test')
-		.addSystem('sys1')
-		.inGroup('rendering')
-		.setProcess(() => {})
-		.and()
-		.addSystem('sys2')
-		.inGroup('physics')
-		.setProcess(() => {})
-		.and();
+// 2. Plugin accumulates groups
+test('type-level: Plugin accumulates groups', () => {
+	const plugin = definePlugin<{ pos: { x: number } }, {}, {}, {}, {}, 'sys1' | 'sys2', 'rendering' | 'physics'>({
+		id: 'test',
+		install(world) {
+			world.addSystem('sys1')
+				.inGroup('rendering')
+				.setProcess(() => {})
+				.and()
+				.addSystem('sys2')
+				.inGroup('physics')
+				.setProcess(() => {})
+				.and();
+		},
+	});
 
-	assertType<IsEqual<GroupsOf<typeof bundle>, 'rendering' | 'physics'>>();
+	assertType<IsEqual<GroupsOf<typeof plugin>, 'rendering' | 'physics'>>();
 
-	expect(bundle).toBeDefined();
+	expect(plugin).toBeDefined();
 });
 
-// 3. Builder accumulates from multiple bundles
-test('type-level: Builder accumulates labels/groups from multiple bundles', () => {
-	const bundleA = new Bundle<{ a: number }, {}, {}>('a')
-		.addSystem('sysA')
-		.inGroup('groupA')
-		.setProcess(() => {})
-		.and();
+// 3. Builder accumulates from multiple plugins
+test('type-level: Builder accumulates labels/groups from multiple plugins', () => {
+	const pluginA = definePlugin<{ a: number }, {}, {}, {}, {}, 'sysA', 'groupA'>({
+		id: 'a',
+		install(world) {
+			world.addSystem('sysA')
+				.inGroup('groupA')
+				.setProcess(() => {})
+				.and();
+		},
+	});
 
-	const bundleB = new Bundle<{ b: number }, {}, {}>('b')
-		.addSystem('sysB')
-		.inGroup('groupB')
-		.setProcess(() => {})
-		.and();
+	const pluginB = definePlugin<{ b: number }, {}, {}, {}, {}, 'sysB', 'groupB'>({
+		id: 'b',
+		install(world) {
+			world.addSystem('sysB')
+				.inGroup('groupB')
+				.setProcess(() => {})
+				.and();
+		},
+	});
 
 	const ecs = ECSpresso.create()
-		.withBundle(bundleA)
-		.withBundle(bundleB)
+		.withPlugin(pluginA)
+		.withPlugin(pluginB)
 		.build();
 
 	// Should accept known labels
@@ -81,13 +96,17 @@ test('type-level: Builder accumulates labels/groups from multiple bundles', () =
 
 // 4. @ts-expect-error on invalid labels
 test('type-level: invalid label produces compile error', () => {
-	const bundle = new Bundle<{ a: number }, {}, {}>('test')
-		.addSystem('validLabel')
-		.setProcess(() => {})
-		.and();
+	const plugin = definePlugin<{ a: number }, {}, {}, {}, {}, 'validLabel'>({
+		id: 'test',
+		install(world) {
+			world.addSystem('validLabel')
+				.setProcess(() => {})
+				.and();
+		},
+	});
 
 	const ecs = ECSpresso.create()
-		.withBundle(bundle)
+		.withPlugin(plugin)
 		.build();
 
 	// Valid - should compile
@@ -102,14 +121,18 @@ test('type-level: invalid label produces compile error', () => {
 
 // 5. @ts-expect-error on invalid groups
 test('type-level: invalid group produces compile error', () => {
-	const bundle = new Bundle<{ a: number }, {}, {}>('test')
-		.addSystem('sys')
-		.inGroup('validGroup')
-		.setProcess(() => {})
-		.and();
+	const plugin = definePlugin<{ a: number }, {}, {}, {}, {}, 'sys', 'validGroup'>({
+		id: 'test',
+		install(world) {
+			world.addSystem('sys')
+				.inGroup('validGroup')
+				.setProcess(() => {})
+				.and();
+		},
+	});
 
 	const ecs = ECSpresso.create()
-		.withBundle(bundle)
+		.withPlugin(plugin)
 		.build();
 
 	// Valid - should compile
@@ -122,11 +145,11 @@ test('type-level: invalid group produces compile error', () => {
 	expect(true).toBe(true);
 });
 
-// 6. No bundles → string (backward compat)
-test('type-level: no bundles defaults to string for labels and groups', () => {
+// 6. No plugins → string (backward compat)
+test('type-level: no plugins defaults to string for labels and groups', () => {
 	const ecs = ECSpresso.create().build();
 
-	// Should accept any string when no bundles contribute labels/groups
+	// Should accept any string when no plugins contribute labels/groups
 	ecs.removeSystem('anything');
 	ecs.disableSystemGroup('anything');
 	ecs.enableSystemGroup('anything');
@@ -151,14 +174,18 @@ test('type-level: direct construction defaults to string', () => {
 
 // 8. withComponentTypes preserves labels/groups
 test('type-level: withComponentTypes preserves labels/groups', () => {
-	const bundle = new Bundle<{ a: number }, {}, {}>('test')
-		.addSystem('mySystem')
-		.inGroup('myGroup')
-		.setProcess(() => {})
-		.and();
+	const plugin = definePlugin<{ a: number }, {}, {}, {}, {}, 'mySystem', 'myGroup'>({
+		id: 'test',
+		install(world) {
+			world.addSystem('mySystem')
+				.inGroup('myGroup')
+				.setProcess(() => {})
+				.and();
+		},
+	});
 
 	const ecs = ECSpresso.create()
-		.withBundle(bundle)
+		.withPlugin(plugin)
 		.withComponentTypes<{ player: true }>()
 		.build();
 
@@ -177,78 +204,105 @@ test('type-level: withComponentTypes preserves labels/groups', () => {
 
 // 9. Multiple groups per system
 test('type-level: multiple groups per system tracked', () => {
-	const bundle = new Bundle<{ a: number }, {}, {}>('test')
-		.addSystem('sys')
-		.inGroup('groupA')
-		.inGroup('groupB')
-		.setProcess(() => {})
-		.and();
+	const plugin = definePlugin<{ a: number }, {}, {}, {}, {}, 'sys', 'groupA' | 'groupB'>({
+		id: 'test',
+		install(world) {
+			world.addSystem('sys')
+				.inGroup('groupA')
+				.inGroup('groupB')
+				.setProcess(() => {})
+				.and();
+		},
+	});
 
-	assertType<IsEqual<GroupsOf<typeof bundle>, 'groupA' | 'groupB'>>();
+	assertType<IsEqual<GroupsOf<typeof plugin>, 'groupA' | 'groupB'>>();
 
-	expect(bundle).toBeDefined();
+	expect(plugin).toBeDefined();
 });
 
-// 10. mergeBundles unions labels/groups
-test('type-level: mergeBundles unions labels/groups', () => {
-	const bundleA = new Bundle<{ a: number }, {}, {}>('a')
-		.addSystem('sysA')
-		.inGroup('groupA')
-		.setProcess(() => {})
-		.and();
+// 10. Composite plugin unions labels/groups
+test('type-level: composite plugin unions labels/groups', () => {
+	const pluginA = definePlugin<{ a: number }, {}, {}, {}, {}, 'sysA', 'groupA'>({
+		id: 'a',
+		install(world) {
+			world.addSystem('sysA')
+				.inGroup('groupA')
+				.setProcess(() => {})
+				.and();
+		},
+	});
 
-	const bundleB = new Bundle<{ b: number }, {}, {}>('b')
-		.addSystem('sysB')
-		.inGroup('groupB')
-		.setProcess(() => {})
-		.and();
+	const pluginB = definePlugin<{ b: number }, {}, {}, {}, {}, 'sysB', 'groupB'>({
+		id: 'b',
+		install(world) {
+			world.addSystem('sysB')
+				.inGroup('groupB')
+				.setProcess(() => {})
+				.and();
+		},
+	});
 
-	const merged = mergeBundles('merged', bundleA, bundleB);
+	const composite = definePlugin<
+		{ a: number } & { b: number }, {}, {},
+		{}, {},
+		'sysA' | 'sysB',
+		'groupA' | 'groupB'
+	>({
+		id: 'composite',
+		install(world) {
+			world.installPlugin(pluginA);
+			world.installPlugin(pluginB);
+		},
+	});
 
-	assertType<IsEqual<LabelsOf<typeof merged>, 'sysA' | 'sysB'>>();
-	assertType<IsEqual<GroupsOf<typeof merged>, 'groupA' | 'groupB'>>();
+	assertType<IsEqual<LabelsOf<typeof composite>, 'sysA' | 'sysB'>>();
+	assertType<IsEqual<GroupsOf<typeof composite>, 'groupA' | 'groupB'>>();
 
-	expect(merged).toBeDefined();
+	expect(composite).toBeDefined();
 });
 
 // 11. LabelsOf/GroupsOf extraction utilities
 test('type-level: LabelsOf and GroupsOf extraction', () => {
-	const bundle = new Bundle<{ x: number }, { click: true }, { db: object }>('test')
-		.addSystem('alpha')
-		.inGroup('grp1')
-		.setProcess(() => {})
-		.and()
-		.addSystem('beta')
-		.inGroup('grp2')
-		.setProcess(() => {})
-		.and();
+	const plugin = definePlugin<{ x: number }, { click: true }, { db: object }, {}, {}, 'alpha' | 'beta', 'grp1' | 'grp2'>({
+		id: 'test',
+		install(world) {
+			world.addSystem('alpha')
+				.inGroup('grp1')
+				.setProcess(() => {})
+				.and()
+				.addSystem('beta')
+				.inGroup('grp2')
+				.setProcess(() => {})
+				.and();
+		},
+	});
 
-	assertType<IsEqual<LabelsOf<typeof bundle>, 'alpha' | 'beta'>>();
-	assertType<IsEqual<GroupsOf<typeof bundle>, 'grp1' | 'grp2'>>();
-	assertType<IsEqual<ComponentsOf<typeof bundle>, { x: number }>>();
-	assertType<IsEqual<EventsOf<typeof bundle>, { click: true }>>();
-	assertType<IsEqual<ResourcesOf<typeof bundle>, { db: object }>>();
-	assertType<IsEqual<AssetGroupNamesOf<typeof bundle>, never>>();
-	assertType<IsEqual<ReactiveQueryNamesOf<typeof bundle>, never>>();
+	assertType<IsEqual<LabelsOf<typeof plugin>, 'alpha' | 'beta'>>();
+	assertType<IsEqual<GroupsOf<typeof plugin>, 'grp1' | 'grp2'>>();
+	assertType<IsEqual<ComponentsOf<typeof plugin>, { x: number }>>();
+	assertType<IsEqual<EventsOf<typeof plugin>, { click: true }>>();
+	assertType<IsEqual<ResourcesOf<typeof plugin>, { db: object }>>();
+	assertType<IsEqual<AssetGroupNamesOf<typeof plugin>, never>>();
+	assertType<IsEqual<ReactiveQueryNamesOf<typeof plugin>, never>>();
 
-	expect(bundle).toBeDefined();
+	expect(plugin).toBeDefined();
 });
 
-// 12. Built-in bundle labels/groups flow through
-test('type-level: built-in bundle labels/groups flow through', () => {
-	const transformBundle = createTransformBundle();
+// 12. Built-in plugin labels/groups flow through
+test('type-level: built-in plugin labels/groups flow through', () => {
+	const transformPlugin = createTransformPlugin();
 
-	assertType<IsEqual<LabelsOf<typeof transformBundle>, 'transform-propagation'>>();
-	assertType<IsEqual<GroupsOf<typeof transformBundle>, 'transform'>>();
+	assertType<IsEqual<LabelsOf<typeof transformPlugin>, 'transform-propagation'>>();
+	assertType<IsEqual<GroupsOf<typeof transformPlugin>, 'transform'>>();
 
 	const ecs = ECSpresso.create()
-		.withBundle(transformBundle)
+		.withPlugin(transformPlugin)
 		.build();
 
 	ecs.removeSystem('transform-propagation');
 	ecs.disableSystemGroup('transform');
 
-	// @ts-expect-error not a label from transform bundle
+	// @ts-expect-error not a label from transform plugin
 	ecs.removeSystem('nonexistent');
 
 	expect(ecs).toBeDefined();
@@ -258,13 +312,17 @@ test('type-level: built-in bundle labels/groups flow through', () => {
 
 // 13. removeSystem works correctly
 test('runtime: removeSystem returns true/false', () => {
-	const bundle = new Bundle<{ pos: { x: number } }, {}, {}>('test')
-		.addSystem('mySys')
-		.setProcess(() => {})
-		.and();
+	const plugin = definePlugin<{ pos: { x: number } }, {}, {}, {}, {}, 'mySys'>({
+		id: 'test',
+		install(world) {
+			world.addSystem('mySys')
+				.setProcess(() => {})
+				.and();
+		},
+	});
 
 	const ecs = ECSpresso.create()
-		.withBundle(bundle)
+		.withPlugin(plugin)
 		.build();
 
 	expect(ecs.removeSystem('mySys')).toBe(true);
@@ -273,14 +331,18 @@ test('runtime: removeSystem returns true/false', () => {
 
 // 14. disableSystemGroup/enableSystemGroup work correctly
 test('runtime: disableSystemGroup/enableSystemGroup', () => {
-	const bundle = new Bundle<{ pos: { x: number } }, {}, {}>('test')
-		.addSystem('grouped')
-		.inGroup('myGroup')
-		.setProcess(() => {})
-		.and();
+	const plugin = definePlugin<{ pos: { x: number } }, {}, {}, {}, {}, 'grouped', 'myGroup'>({
+		id: 'test',
+		install(world) {
+			world.addSystem('grouped')
+				.inGroup('myGroup')
+				.setProcess(() => {})
+				.and();
+		},
+	});
 
 	const ecs = ECSpresso.create()
-		.withBundle(bundle)
+		.withPlugin(plugin)
 		.build();
 
 	expect(ecs.isSystemGroupEnabled('myGroup')).toBe(true);
@@ -292,21 +354,25 @@ test('runtime: disableSystemGroup/enableSystemGroup', () => {
 
 // 15. getSystemsInGroup returns correct labels
 test('runtime: getSystemsInGroup returns correct labels', () => {
-	const bundle = new Bundle<{ pos: { x: number } }, {}, {}>('test')
-		.addSystem('a')
-		.inGroup('grp')
-		.setProcess(() => {})
-		.and()
-		.addSystem('b')
-		.inGroup('grp')
-		.setProcess(() => {})
-		.and()
-		.addSystem('c')
-		.setProcess(() => {})
-		.and();
+	const plugin = definePlugin<{ pos: { x: number } }, {}, {}, {}, {}, 'a' | 'b' | 'c', 'grp'>({
+		id: 'test',
+		install(world) {
+			world.addSystem('a')
+				.inGroup('grp')
+				.setProcess(() => {})
+				.and()
+				.addSystem('b')
+				.inGroup('grp')
+				.setProcess(() => {})
+				.and()
+				.addSystem('c')
+				.setProcess(() => {})
+				.and();
+		},
+	});
 
 	const ecs = ECSpresso.create()
-		.withBundle(bundle)
+		.withPlugin(plugin)
 		.build();
 
 	const inGroup = ecs.getSystemsInGroup('grp');
@@ -318,13 +384,17 @@ test('runtime: getSystemsInGroup returns correct labels', () => {
 
 // 16. updateSystemPhase/updateSystemPriority work correctly
 test('runtime: updateSystemPhase and updateSystemPriority', () => {
-	const bundle = new Bundle<{ pos: { x: number } }, {}, {}>('test')
-		.addSystem('mover')
-		.setProcess(() => {})
-		.and();
+	const plugin = definePlugin<{ pos: { x: number } }, {}, {}, {}, {}, 'mover'>({
+		id: 'test',
+		install(world) {
+			world.addSystem('mover')
+				.setProcess(() => {})
+				.and();
+		},
+	});
 
 	const ecs = ECSpresso.create()
-		.withBundle(bundle)
+		.withPlugin(plugin)
 		.build();
 
 	expect(ecs.updateSystemPhase('mover', 'render')).toBe(true);
@@ -336,14 +406,18 @@ test('runtime: updateSystemPhase and updateSystemPriority', () => {
 
 // Additional: withEventTypes preserves labels/groups
 test('type-level: withEventTypes preserves labels/groups', () => {
-	const bundle = new Bundle<{ a: number }, {}, {}>('test')
-		.addSystem('sys1')
-		.inGroup('grp1')
-		.setProcess(() => {})
-		.and();
+	const plugin = definePlugin<{ a: number }, {}, {}, {}, {}, 'sys1', 'grp1'>({
+		id: 'test',
+		install(world) {
+			world.addSystem('sys1')
+				.inGroup('grp1')
+				.setProcess(() => {})
+				.and();
+		},
+	});
 
 	const ecs = ECSpresso.create()
-		.withBundle(bundle)
+		.withPlugin(plugin)
 		.withEventTypes<{ boom: { power: number } }>()
 		.build();
 
@@ -360,14 +434,18 @@ test('type-level: withEventTypes preserves labels/groups', () => {
 
 // Additional: withResource preserves labels/groups
 test('type-level: withResource preserves labels/groups', () => {
-	const bundle = new Bundle<{ a: number }, {}, {}>('test')
-		.addSystem('sys1')
-		.inGroup('grp1')
-		.setProcess(() => {})
-		.and();
+	const plugin = definePlugin<{ a: number }, {}, {}, {}, {}, 'sys1', 'grp1'>({
+		id: 'test',
+		install(world) {
+			world.addSystem('sys1')
+				.inGroup('grp1')
+				.setProcess(() => {})
+				.and();
+		},
+	});
 
 	const ecs = ECSpresso.create()
-		.withBundle(bundle)
+		.withPlugin(plugin)
 		.withResource('score', 0)
 		.build();
 
@@ -384,14 +462,18 @@ test('type-level: withResource preserves labels/groups', () => {
 
 // Additional: isSystemGroupEnabled and getSystemsInGroup have typed params
 test('type-level: isSystemGroupEnabled and getSystemsInGroup accept typed groups', () => {
-	const bundle = new Bundle<{ a: number }, {}, {}>('test')
-		.addSystem('sys')
-		.inGroup('myGroup')
-		.setProcess(() => {})
-		.and();
+	const plugin = definePlugin<{ a: number }, {}, {}, {}, {}, 'sys', 'myGroup'>({
+		id: 'test',
+		install(world) {
+			world.addSystem('sys')
+				.inGroup('myGroup')
+				.setProcess(() => {})
+				.and();
+		},
+	});
 
 	const ecs = ECSpresso.create()
-		.withBundle(bundle)
+		.withPlugin(plugin)
 		.build();
 
 	ecs.isSystemGroupEnabled('myGroup');
@@ -407,73 +489,30 @@ test('type-level: isSystemGroupEnabled and getSystemsInGroup accept typed groups
 
 // ==================== AssetTypesOf / ScreenStatesOf extraction ====================
 
-// 17. AssetTypesOf extracts asset types from addAsset()
-test('type-level: AssetTypesOf extracts asset types from addAsset()', () => {
-	const bundle = new Bundle<{ pos: { x: number } }, {}, {}>('test')
-		.addAsset('sprite', () => Promise.resolve('sprite-data'))
-		.addAsset('config', () => Promise.resolve({ debug: true }));
+// 17-22: Asset/Screen type extraction tests
+// These tests relied on Plugin.addAsset/addScreen/addAssetGroup which
+// don't exist on the plugin pattern. The plugin install function uses
+// world._registerAsset and world._registerScreen instead.
+// Asset/screen type propagation is tested via the builder in builder-type-inference.test.ts.
 
-	assertType<IsEqual<AssetTypesOf<typeof bundle>, { sprite: string; config: { debug: boolean } }>>();
+test('type-level: AssetTypesOf returns {} for plugin with no assets', () => {
+	const plugin = definePlugin<{ a: number }, {}, {}>({
+		id: 'test',
+		install() {},
+	});
 
-	expect(bundle).toBeDefined();
+	assertType<IsEqual<AssetTypesOf<typeof plugin>, {}>>();
+
+	expect(plugin).toBeDefined();
 });
 
-// 18. AssetTypesOf extracts asset types from addAssetGroup()
-test('type-level: AssetTypesOf extracts asset types from addAssetGroup()', () => {
-	const bundle = new Bundle<{ pos: { x: number } }, {}, {}>('test')
-		.addAssetGroup('level1', {
-			bg: () => Promise.resolve('bg-data'),
-			music: () => Promise.resolve(42),
-		});
+test('type-level: ScreenStatesOf returns {} for plugin with no screens', () => {
+	const plugin = definePlugin<{ a: number }, {}, {}>({
+		id: 'test',
+		install() {},
+	});
 
-	assertType<IsEqual<AssetTypesOf<typeof bundle>, { bg: string; music: number }>>();
+	assertType<IsEqual<ScreenStatesOf<typeof plugin>, {}>>();
 
-	expect(bundle).toBeDefined();
-});
-
-// 19. ScreenStatesOf extracts screen types from addScreen()
-test('type-level: ScreenStatesOf extracts screen types from addScreen()', () => {
-	const bundle = new Bundle<{}, {}, {}>('test')
-		.addScreen('menu', { initialState: () => ({ selected: 0 }) })
-		.addScreen('play', { initialState: () => ({ score: 0 }) });
-
-	type Extracted = ScreenStatesOf<typeof bundle>;
-	// Verify keys are present
-	assertType<IsEqual<keyof Extracted, 'menu' | 'play'>>();
-
-	expect(bundle).toBeDefined();
-});
-
-// 20. AssetTypesOf returns {} for bundle with no assets
-test('type-level: AssetTypesOf returns {} for bundle with no assets', () => {
-	const bundle = new Bundle<{ a: number }, {}, {}>('test');
-
-	assertType<IsEqual<AssetTypesOf<typeof bundle>, {}>>();
-
-	expect(bundle).toBeDefined();
-});
-
-// 21. ScreenStatesOf returns {} for bundle with no screens
-test('type-level: ScreenStatesOf returns {} for bundle with no screens', () => {
-	const bundle = new Bundle<{ a: number }, {}, {}>('test');
-
-	assertType<IsEqual<ScreenStatesOf<typeof bundle>, {}>>();
-
-	expect(bundle).toBeDefined();
-});
-
-// 22. mergeBundles preserves asset/screen types
-test('type-level: mergeBundles preserves asset/screen types', () => {
-	const bundleA = new Bundle<{ a: number }, {}, {}>('a')
-		.addAsset('sprite', () => Promise.resolve('data'));
-
-	const bundleB = new Bundle<{ b: number }, {}, {}>('b')
-		.addScreen('menu', { initialState: () => ({}) });
-
-	const merged = mergeBundles('merged', bundleA, bundleB);
-
-	assertType<IsEqual<AssetTypesOf<typeof merged>, { sprite: string }>>();
-	assertType<IsEqual<keyof ScreenStatesOf<typeof merged>, 'menu'>>();
-
-	expect(merged).toBeDefined();
+	expect(plugin).toBeDefined();
 });

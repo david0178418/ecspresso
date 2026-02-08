@@ -1,9 +1,9 @@
 import { Graphics, Sprite, Text, TextStyle } from 'pixi.js';
 import ECSpresso from "../../src";
 import {
-	createRenderer2DBundle,
+	createRenderer2DPlugin,
 	createSpriteComponents,
-} from "../../src/bundles/renderers/renderer2D";
+} from "../../src/plugins/renderers/renderer2D";
 import {
 	linear,
 	easeInQuad,
@@ -14,11 +14,11 @@ import {
 	easeOutBack,
 } from "../../src/utils/easing";
 import {
-	createTweenBundle,
+	createTweenPlugin,
 	createTween,
 	createTweenSequence,
 	type LoopMode,
-} from "../../src/bundles/tween";
+} from "../../src/plugins/tween";
 
 // -- Layout constants --
 
@@ -33,11 +33,11 @@ const BALL_RADIUS = 14;
 
 const ecs = ECSpresso
 	.create()
-	.withBundle(createRenderer2DBundle({
+	.withPlugin(createRenderer2DPlugin({
 		init: { background: '#1a1a2e', width: SCREEN_W, height: SCREEN_H },
 		container: document.body,
 	}))
-	.withBundle(createTweenBundle())
+	.withPlugin(createTweenPlugin())
 	.build();
 
 await ecs.initialize();

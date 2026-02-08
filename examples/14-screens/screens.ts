@@ -1,9 +1,9 @@
 import { Graphics, Text, TextStyle, Container, Sprite } from 'pixi.js';
 import ECSpresso from "../../src";
 import {
-	createRenderer2DBundle,
+	createRenderer2DPlugin,
 	createSpriteComponents,
-} from "../../src/bundles/renderers/renderer2D";
+} from "../../src/plugins/renderers/renderer2D";
 
 // -- Constants --
 
@@ -20,7 +20,7 @@ const activeDots = new Set<number>();
 
 const ecs = ECSpresso
 	.create()
-	.withBundle(createRenderer2DBundle({
+	.withPlugin(createRenderer2DPlugin({
 		init: { background: '#1a1a2e', width: SCREEN_W, height: SCREEN_H },
 		container: document.body,
 	}))

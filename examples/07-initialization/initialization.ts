@@ -1,4 +1,4 @@
-import ECSpresso, { Bundle } from "../../src";
+import ECSpresso, { definePlugin } from "../../src";
 
 interface Components {
 	position: { x: number; y: number };
@@ -33,12 +33,12 @@ interface Resources {
 async function main() {
 	console.log("Running initialization example");
 
-	// Create the world with the various game bundles
+	// Create the world with the various game plugins
 	const world = ECSpresso
-		.create<Components, Events, Resources>()
-		.withBundle(createGameBundle())
-		.withBundle(createPlayerBundle())
-		.withBundle(createRenderingBundle())
+		.create()
+		.withPlugin(createGamePlugin())
+		.withPlugin(createPlayerPlugin())
+		.withPlugin(createRenderingPlugin())
 		.build()
 		// Add resources using factory functions
 		.addResource('gameState', {
@@ -98,108 +98,120 @@ async function main() {
 	}
 }
 
-function createGameBundle() {
-	return new Bundle<Components, Events, Resources>('game-bundle')
-		.addSystem('gameController')
-		.setOnInitialize(async (ecs) => {
-			console.log("Initializing game controller system...");
+function createGamePlugin() {
+	return definePlugin<Components, Events, Resources>({
+		id: 'game-plugin',
+		install(world) {
+			world.addSystem('gameController')
+				.setOnInitialize(async (ecs) => {
+					console.log("Initializing game controller system...");
 
-			// Access resources that were initialized
-			const assets = ecs.getResource('assets');
-			console.log(`Game assets loaded: ${Object.keys(assets.sprites).length} sprites and ${Object.keys(assets.sounds).length} sounds`);
+					// Access resources that were initialized
+					const assets = ecs.getResource('assets');
+					console.log(`Game assets loaded: ${Object.keys(assets.sprites).length} sprites and ${Object.keys(assets.sounds).length} sounds`);
 
-			// Update game state
-			const gameState = ecs.getResource('gameState');
-			gameState.status = 'ready';
+					// Update game state
+					const gameState = ecs.getResource('gameState');
+					gameState.status = 'ready';
 
-			// Publish that the game is ready
-			ecs.eventBus.publish('gameReady');
-		})
-		.setEventHandlers({
-			gameReady(_data, _ecs) {
-				console.log("Game is ready to start!");
-			},
-			gameStart(_data, ecs) {
-				console.log("Game started!");
-				const gameState = ecs.getResource('gameState');
-				gameState.status = 'playing';
-				gameState.startTime = Date.now();
+					// Publish that the game is ready
+					ecs.eventBus.publish('gameReady');
+				})
+				.setEventHandlers({
+					gameReady(_data, _ecs) {
+						console.log("Game is ready to start!");
+					},
+					gameStart(_data, ecs) {
+						console.log("Game started!");
+						const gameState = ecs.getResource('gameState');
+						gameState.status = 'playing';
+						gameState.startTime = Date.now();
 
-				// Enable gameplay systems when game starts
-				ecs.enableSystemGroup('gameplay');
-			}
-		})
-		.and();
+						// Enable gameplay systems when game starts
+						ecs.enableSystemGroup('gameplay');
+					}
+				})
+				.and();
+		},
+	});
 }
 
-function createPlayerBundle() {
-	return new Bundle<Components, Events, Resources>('player-bundle')
-		.addSystem('playerController')
-		.inGroup('gameplay')
-		.setOnInitialize((ecs) => {
-			console.log("Initializing player controller system...");
+function createPlayerPlugin() {
+	return definePlugin<Components, Events, Resources>({
+		id: 'player-plugin',
+		install(world) {
+			world.addSystem('playerController')
+				.inGroup('gameplay')
+				.setOnInitialize((ecs) => {
+					console.log("Initializing player controller system...");
 
-			// Create a player entity
-			const playerEntity = ecs.spawn({
-				position: { x: 50, y: 50 },
-				velocity: { x: 0, y: 0 },
-				sprite: { id: 'player', scale: 1.0 },
-				health: 100
-			});
+					// Create a player entity
+					const playerEntity = ecs.spawn({
+						position: { x: 50, y: 50 },
+						velocity: { x: 0, y: 0 },
+						sprite: { id: 'player', scale: 1.0 },
+						health: 100
+					});
 
-			console.log("Player entity created with ID:", playerEntity.id);
+					console.log("Player entity created with ID:", playerEntity.id);
 
-			// Disable gameplay systems until game starts
-			ecs.disableSystemGroup('gameplay');
-		})
-		.setEventHandlers({
-			playerMove(data, ecs) {
-				const sensitivity = ecs.getResource('controlSettings').sensitivity;
-				const playerEntities = ecs.getEntitiesWithQuery(['position', 'velocity', 'sprite']);
+					// Disable gameplay systems until game starts
+					ecs.disableSystemGroup('gameplay');
+				})
+				.setEventHandlers({
+					playerMove(data, ecs) {
+						const sensitivity = ecs.getResource('controlSettings').sensitivity;
+						const playerEntities = ecs.getEntitiesWithQuery(['position', 'velocity', 'sprite']);
 
-				if (playerEntities.length === 0) return;
+						if (playerEntities.length === 0) return;
 
-				const player = playerEntities[0];
-				if (!player) return;
+						const player = playerEntities[0];
+						if (!player) return;
 
-				player.components.velocity.x = data.dx * sensitivity * 10;
-				player.components.velocity.y = data.dy * sensitivity * 10;
+						player.components.velocity.x = data.dx * sensitivity * 10;
+						player.components.velocity.y = data.dy * sensitivity * 10;
 
-				console.log(`Player moving: vx=${player.components.velocity.x}, vy=${player.components.velocity.y}`);
-			}
-		})
-		.addQuery('players', { with: ['position', 'velocity'] })
-		.setProcess((queries, deltaTime, _ecs) => {
-			// Update player positions based on velocity
-			for (const entity of queries.players) {
-				entity.components.position.x += entity.components.velocity.x * deltaTime;
-				entity.components.position.y += entity.components.velocity.y * deltaTime;
+						console.log(`Player moving: vx=${player.components.velocity.x}, vy=${player.components.velocity.y}`);
+					}
+				})
+				.addQuery('players', { with: ['position', 'velocity'] })
+				.setProcess((queries, deltaTime, _ecs) => {
+					// Update player positions based on velocity
+					for (const entity of queries.players) {
+						entity.components.position.x += entity.components.velocity.x * deltaTime;
+						entity.components.position.y += entity.components.velocity.y * deltaTime;
 
-				// Apply drag to slow down movement
-				entity.components.velocity.x *= 0.9;
-				entity.components.velocity.y *= 0.9;
-			}
-		})
-		.and();
+						// Apply drag to slow down movement
+						entity.components.velocity.x *= 0.9;
+						entity.components.velocity.y *= 0.9;
+					}
+				})
+				.and();
+		},
+	});
 }
 
-function createRenderingBundle() {
-	return new Bundle<Components, Events, Resources>('rendering-bundle')
-		.addSystem('renderer')
-		.inGroup('gameplay')
-		.setOnInitialize((_ecs) => {
-			console.log("Initializing rendering system...");
-		})
-		.addQuery('renderables', { with: ['position', 'sprite'] })
-		.setProcess((queries, _deltaTime, _ecs) => {
-			// Simple rendering to console
-			for (const entity of queries.renderables) {
-				const pos = entity.components.position;
-				const sprite = entity.components.sprite;
-				console.log(`Rendering sprite ${sprite.id} at position (${Math.round(pos.x)}, ${Math.round(pos.y)}), scale: ${sprite.scale}`);
-			}
-		})
-		.and();
+function createRenderingPlugin() {
+	return definePlugin<Components, Events, Resources>({
+		id: 'rendering-plugin',
+		install(world) {
+			world.addSystem('renderer')
+				.inGroup('gameplay')
+				.setOnInitialize((_ecs) => {
+					console.log("Initializing rendering system...");
+				})
+				.addQuery('renderables', { with: ['position', 'sprite'] })
+				.setProcess((queries, _deltaTime, _ecs) => {
+					// Simple rendering to console
+					for (const entity of queries.renderables) {
+						const pos = entity.components.position;
+						const sprite = entity.components.sprite;
+						console.log(`Rendering sprite ${sprite.id} at position (${Math.round(pos.x)}, ${Math.round(pos.y)}), scale: ${sprite.scale}`);
+					}
+				})
+				.and();
+		},
+	});
 }
 
 // Run the example

@@ -75,7 +75,7 @@ class EntityManager<ComponentTypes> {
 
 	/**
 	 * Get all registered dispose callbacks.
-	 * @internal Used by ECSpresso for bundle installation
+	 * @internal Used by ECSpresso for plugin installation
 	 */
 	getDisposeCallbacks(): Map<keyof ComponentTypes, (value: any, entityId: number) => void> {
 		return this.disposeCallbacks;

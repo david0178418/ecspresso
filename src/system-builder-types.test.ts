@@ -1,6 +1,6 @@
 import { expect, describe, test } from 'bun:test';
 import ECSpresso from './ecspresso';
-import Bundle from './bundle';
+import { definePlugin } from './plugin';
 import type { ScreenDefinition } from './screen-types';
 
 type TestComponents = {
@@ -216,18 +216,25 @@ describe('SystemBuilder Type Safety for AssetTypes and ScreenStates', () => {
 		expect(true).toBe(true);
 	});
 
-	test('bundle-defined systems thread A/S correctly', () => {
-		const bundle = new Bundle<TestComponents, TestEvents, TestResources, TestAssets, TestScreens>('test-bundle');
+	test('plugin-defined systems thread A/S correctly', () => {
+		const plugin = definePlugin<TestComponents, TestEvents, TestResources, TestAssets, TestScreens>({
+			id: 'test-plugin',
+			install(world) {
+				world.addSystem('pluginSystem')
+					.inScreens(['gameplay'])
+					.requiresAssets(['playerTexture'])
+					.setProcess((_queries, _dt, _ecs) => {})
+					.and();
 
-		bundle.addSystem('bundleSystem')
-			.inScreens(['gameplay'])
-			.requiresAssets(['playerTexture'])
-			.setProcess((_queries, _dt, _ecs) => {})
-			.and();
+				world.addSystem('invalidPlugin')
+					// @ts-expect-error - invalid screen name in plugin system
+					.inScreens(['nonexistent']);
+			},
+		});
 
-		bundle.addSystem('invalidBundle')
-			// @ts-expect-error - invalid screen name in bundle system
-			.inScreens(['nonexistent']);
+		ECSpresso.create()
+			.withPlugin(plugin)
+			.build();
 
 		expect(true).toBe(true);
 	});

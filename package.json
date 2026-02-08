@@ -11,65 +11,65 @@
 			"import": "./dist/index.js",
 			"types": "./dist/index.d.ts"
 		},
-		"./bundles/renderers/renderer2D": {
-			"import": "./dist/bundles/renderers/renderer2D.js",
-			"types": "./dist/bundles/renderers/renderer2D.d.ts"
+		"./plugins/renderers/renderer2D": {
+			"import": "./dist/plugins/renderers/renderer2D.js",
+			"types": "./dist/plugins/renderers/renderer2D.d.ts"
 		},
-		"./bundles/bounds": {
-			"import": "./dist/bundles/bounds.js",
-			"types": "./dist/bundles/bounds.d.ts"
+		"./plugins/bounds": {
+			"import": "./dist/plugins/bounds.js",
+			"types": "./dist/plugins/bounds.d.ts"
 		},
-		"./bundles/camera": {
-			"import": "./dist/bundles/camera.js",
-			"types": "./dist/bundles/camera.d.ts"
+		"./plugins/camera": {
+			"import": "./dist/plugins/camera.js",
+			"types": "./dist/plugins/camera.d.ts"
 		},
-		"./bundles/collision": {
-			"import": "./dist/bundles/collision.js",
-			"types": "./dist/bundles/collision.d.ts"
+		"./plugins/collision": {
+			"import": "./dist/plugins/collision.js",
+			"types": "./dist/plugins/collision.d.ts"
 		},
-		"./bundles/diagnostics": {
-			"import": "./dist/bundles/diagnostics.js",
-			"types": "./dist/bundles/diagnostics.d.ts"
+		"./plugins/diagnostics": {
+			"import": "./dist/plugins/diagnostics.js",
+			"types": "./dist/plugins/diagnostics.d.ts"
 		},
-		"./bundles/input": {
-			"import": "./dist/bundles/input.js",
-			"types": "./dist/bundles/input.d.ts"
+		"./plugins/input": {
+			"import": "./dist/plugins/input.js",
+			"types": "./dist/plugins/input.d.ts"
 		},
-		"./bundles/physics2D": {
-			"import": "./dist/bundles/physics2D.js",
-			"types": "./dist/bundles/physics2D.d.ts"
+		"./plugins/physics2D": {
+			"import": "./dist/plugins/physics2D.js",
+			"types": "./dist/plugins/physics2D.d.ts"
 		},
-		"./bundles/spatial-index": {
-			"import": "./dist/bundles/spatial-index.js",
-			"types": "./dist/bundles/spatial-index.d.ts"
+		"./plugins/spatial-index": {
+			"import": "./dist/plugins/spatial-index.js",
+			"types": "./dist/plugins/spatial-index.d.ts"
 		},
-		"./bundles/state-machine": {
-			"import": "./dist/bundles/state-machine.js",
-			"types": "./dist/bundles/state-machine.d.ts"
+		"./plugins/state-machine": {
+			"import": "./dist/plugins/state-machine.js",
+			"types": "./dist/plugins/state-machine.d.ts"
 		},
-		"./bundles/timers": {
-			"import": "./dist/bundles/timers.js",
-			"types": "./dist/bundles/timers.d.ts"
+		"./plugins/timers": {
+			"import": "./dist/plugins/timers.js",
+			"types": "./dist/plugins/timers.d.ts"
 		},
-		"./bundles/transform": {
-			"import": "./dist/bundles/transform.js",
-			"types": "./dist/bundles/transform.d.ts"
+		"./plugins/transform": {
+			"import": "./dist/plugins/transform.js",
+			"types": "./dist/plugins/transform.d.ts"
 		},
-		"./bundles/tween": {
-			"import": "./dist/bundles/tween.js",
-			"types": "./dist/bundles/tween.d.ts"
+		"./plugins/tween": {
+			"import": "./dist/plugins/tween.js",
+			"types": "./dist/plugins/tween.d.ts"
 		},
-		"./bundles/audio": {
-			"import": "./dist/bundles/audio.js",
-			"types": "./dist/bundles/audio.d.ts"
+		"./plugins/audio": {
+			"import": "./dist/plugins/audio.js",
+			"types": "./dist/plugins/audio.d.ts"
 		},
-		"./bundles/sprite-animation": {
-			"import": "./dist/bundles/sprite-animation.js",
-			"types": "./dist/bundles/sprite-animation.d.ts"
+		"./plugins/sprite-animation": {
+			"import": "./dist/plugins/sprite-animation.js",
+			"types": "./dist/plugins/sprite-animation.d.ts"
 		},
-		"./bundles/particles": {
-			"import": "./dist/bundles/particles.js",
-			"types": "./dist/bundles/particles.d.ts"
+		"./plugins/particles": {
+			"import": "./dist/plugins/particles.js",
+			"types": "./dist/plugins/particles.d.ts"
 		}
 	},
 	"publishConfig": {

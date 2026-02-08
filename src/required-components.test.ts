@@ -1,6 +1,6 @@
 import { expect, describe, test } from 'bun:test';
-import ECSpresso, { Bundle } from './index';
-import { mergeBundles } from './bundle';
+import ECSpresso from './index';
+import { definePlugin } from './plugin';
 
 interface TestComponents {
 	position: { x: number; y: number };
@@ -215,13 +215,17 @@ describe('Required Components', () => {
 		});
 	});
 
-	describe('bundle registration', () => {
-		test('should register required components from bundle', () => {
-			const bundle = new Bundle<TestComponents>('test');
-			bundle.registerRequired('position', 'velocity', () => ({ x: 0, y: 0 }));
+	describe('plugin registration', () => {
+		test('should register required components from plugin', () => {
+			const plugin = definePlugin<TestComponents, {}, {}>({
+				id: 'test',
+				install(world) {
+					world.registerRequired('position', 'velocity', () => ({ x: 0, y: 0 }));
+				},
+			});
 
 			const ecs = ECSpresso.create()
-				.withBundle(bundle)
+				.withPlugin(plugin)
 				.build();
 
 			const entity = ecs.spawn({ position: { x: 10, y: 20 } });
@@ -229,16 +233,24 @@ describe('Required Components', () => {
 			expect(vel).toEqual({ x: 0, y: 0 });
 		});
 
-		test('should merge required components from multiple bundles', () => {
-			const bundle1 = new Bundle<Pick<TestComponents, 'position' | 'velocity'>>('b1');
-			bundle1.registerRequired('position', 'velocity', () => ({ x: 0, y: 0 }));
+		test('should merge required components from multiple plugins', () => {
+			const plugin1 = definePlugin<Pick<TestComponents, 'position' | 'velocity'>, {}, {}>({
+				id: 'b1',
+				install(world) {
+					world.registerRequired('position', 'velocity', () => ({ x: 0, y: 0 }));
+				},
+			});
 
-			const bundle2 = new Bundle<Pick<TestComponents, 'componentA' | 'componentB'>>('b2');
-			bundle2.registerRequired('componentA', 'componentB', () => ({ b: 0 }));
+			const plugin2 = definePlugin<Pick<TestComponents, 'componentA' | 'componentB'>, {}, {}>({
+				id: 'b2',
+				install(world) {
+					world.registerRequired('componentA', 'componentB', () => ({ b: 0 }));
+				},
+			});
 
 			const ecs = ECSpresso.create()
-				.withBundle(bundle1)
-				.withBundle(bundle2)
+				.withPlugin(plugin1)
+				.withPlugin(plugin2)
 				.build();
 
 			const e1 = ecs.spawn({ position: { x: 1, y: 1 } });
@@ -248,30 +260,37 @@ describe('Required Components', () => {
 			expect(ecs.entityManager.getComponent(e2.id, 'componentB')).toEqual({ b: 0 });
 		});
 
-		test('should propagate required components through mergeBundles', () => {
-			const bundle1 = new Bundle<Pick<TestComponents, 'position' | 'velocity'>>('b1');
-			bundle1.registerRequired('position', 'velocity', () => ({ x: 0, y: 0 }));
+		test('should propagate required components through composite plugin', () => {
+			const plugin1 = definePlugin<Pick<TestComponents, 'position' | 'velocity'>, {}, {}>({
+				id: 'b1',
+				install(world) {
+					world.registerRequired('position', 'velocity', () => ({ x: 0, y: 0 }));
+				},
+			});
 
-			const bundle2 = new Bundle<Pick<TestComponents, 'componentA' | 'componentB'>>('b2');
-			bundle2.registerRequired('componentA', 'componentB', () => ({ b: 0 }));
+			const plugin2 = definePlugin<Pick<TestComponents, 'componentA' | 'componentB'>, {}, {}>({
+				id: 'b2',
+				install(world) {
+					world.registerRequired('componentA', 'componentB', () => ({ b: 0 }));
+				},
+			});
 
-			const merged = mergeBundles('merged', bundle1 as Bundle<any>, bundle2 as Bundle<any>);
+			const composite = definePlugin<
+				Pick<TestComponents, 'position' | 'velocity' | 'componentA' | 'componentB'>, {}, {}
+			>({
+				id: 'composite',
+				install(world) {
+					world.installPlugin(plugin1);
+					world.installPlugin(plugin2);
+				},
+			});
 
 			const ecs = ECSpresso.create()
-				.withBundle(merged)
+				.withPlugin(composite)
 				.build();
 
 			const entity = ecs.spawn({ position: { x: 1, y: 1 } });
 			expect(ecs.entityManager.getComponent(entity.id, 'velocity')).toEqual({ x: 0, y: 0 });
-		});
-
-		test('bundle cycle detection should work within a bundle', () => {
-			const bundle = new Bundle<TestComponents>('test');
-			bundle.registerRequired('position', 'velocity', () => ({ x: 0, y: 0 }));
-
-			expect(() => {
-				bundle.registerRequired('velocity', 'position', () => ({ x: 0, y: 0 }));
-			}).toThrow(/[Cc]ircular/);
 		});
 	});
 
@@ -495,22 +514,6 @@ describe('Required Components', () => {
 
 			// @ts-expect-error - factory returns wrong type for required component
 			ecs.registerRequired('position', 'health', () => ({ x: 0, y: 0 }));
-		});
-
-		test('should type-check component names in bundle registerRequired', () => {
-			const bundle = new Bundle<TestComponents>('test');
-
-			// Valid call
-			bundle.registerRequired('position', 'velocity', () => ({ x: 0, y: 0 }));
-
-			// @ts-expect-error - invalid trigger component name
-			bundle.registerRequired('nonExistent', 'velocity', () => ({ x: 0, y: 0 }));
-
-			// @ts-expect-error - invalid required component name
-			bundle.registerRequired('position', 'nonExistent', () => ({ x: 0, y: 0 }));
-
-			// @ts-expect-error - factory returns wrong type for required component
-			bundle.registerRequired('position', 'health', () => ({ x: 0, y: 0 }));
 		});
 
 		test('should type-check component names in builder withRequired', () => {

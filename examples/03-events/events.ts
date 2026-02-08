@@ -1,15 +1,15 @@
 import { Graphics, Sprite } from 'pixi.js';
 import ECSpresso from "../../src";
 import {
-	createRenderer2DBundle,
+	createRenderer2DPlugin,
 	createLocalTransform,
-} from "../../src/bundles/renderers/renderer2D";
+} from "../../src/plugins/renderers/renderer2D";
 
 // -- Build the world --
 // Building on example 01, we add custom event types for inter-system communication.
 // withEventTypes declares typed events that systems can publish and subscribe to.
 const ecs = ECSpresso.create()
-	.withBundle(createRenderer2DBundle({
+	.withPlugin(createRenderer2DPlugin({
 		init: { background: '#1099bb', resizeTo: window },
 		container: document.body,
 	}))

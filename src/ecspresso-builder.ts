@@ -2,14 +2,14 @@ import type ECSpresso from "./ecspresso";
 import AssetManager, { AssetConfiguratorImpl, createAssetConfigurator } from "./asset-manager";
 import ScreenManager, { ScreenConfiguratorImpl, createScreenConfigurator } from "./screen-manager";
 import type { ResourceFactoryWithDeps } from "./resource-manager";
-import type Bundle from "./bundle";
-import type { BundlesAreCompatible, TypesAreCompatible } from "./type-utils";
+import type { Plugin } from "./plugin";
+import type { PluginsAreCompatible, TypesAreCompatible } from "./type-utils";
 import type { AssetConfigurator, AssetsResource } from "./asset-types";
 import type { ScreenDefinition, ScreenConfigurator, ScreenResource } from "./screen-types";
 
 /**
  * Helper type: finalize built-in resources ($assets, $screen) in the resource map.
- * Auto-injects $assets/$screen when bundles contribute asset/screen types even without
+ * Auto-injects $assets/$screen when plugins contribute asset/screen types even without
  * explicit withAssets()/withScreens(). Also narrows the AssetGroupNames on $assets.
  */
 type FinalizeBuiltinResources<R, A extends Record<string, unknown>, S extends Record<string, ScreenDefinition<any, any>>, AG extends string> =
@@ -18,7 +18,7 @@ type FinalizeBuiltinResources<R, A extends Record<string, unknown>, S extends Re
 	& ([keyof S] extends [never] ? {} : { $screen: ScreenResource<S> });
 
 /**
-	* Builder class for ECSpresso that provides fluent type-safe bundle installation.
+	* Builder class for ECSpresso that provides fluent type-safe plugin installation.
 	* Handles type checking during build process to ensure type safety.
 */
 export class ECSpressoBuilder<
@@ -44,6 +44,8 @@ export class ECSpressoBuilder<
 	private pendingDisposeCallbacks: Array<{ key: string; callback: (value: unknown, entityId: number) => void }> = [];
 	/** Pending required component registrations to apply during build */
 	private pendingRequiredComponents: Array<{ trigger: string; required: string; factory: (triggerValue: any) => unknown }> = [];
+	/** Pending plugins to install during build */
+	private pendingPlugins: Plugin<any, any, any, any, any, any, any, any, any>[] = [];
 	/** Fixed timestep interval (null means use default 1/60) */
 	private _fixedDt: number | null = null;
 
@@ -56,10 +58,10 @@ export class ECSpressoBuilder<
 	}
 
 	/**
-		* Add the first bundle when starting with empty types.
-		* This overload allows any bundle to be added to an empty ECSpresso instance.
+		* Add the first plugin when starting with empty types.
+		* This overload allows any plugin to be added to an empty ECSpresso instance.
 	*/
-	withBundle<
+	withPlugin<
 		BC extends Record<string, any>,
 		BE extends Record<string, any>,
 		BR extends Record<string, any>,
@@ -71,14 +73,14 @@ export class ECSpressoBuilder<
 		BRQ extends string = never,
 	>(
 		this: ECSpressoBuilder<{}, {}, {}, A, S, Labels, Groups, AssetGroupNames, ReactiveQueryNames>,
-		bundle: Bundle<BC, BE, BR, BA, BS, BL, BG, BAG, BRQ>
+		plugin: Plugin<BC, BE, BR, BA, BS, BL, BG, BAG, BRQ>
 	): ECSpressoBuilder<BC, BE, BR, A & BA, S & BS, Labels | BL, Groups | BG, AssetGroupNames | BAG, ReactiveQueryNames | BRQ>;
 
 	/**
-		* Add a subsequent bundle with type checking.
-		* This overload enforces bundle type compatibility.
+		* Add a subsequent plugin with type checking.
+		* This overload enforces plugin type compatibility.
 	*/
-	withBundle<
+	withPlugin<
 		BC extends Record<string, any>,
 		BE extends Record<string, any>,
 		BR extends Record<string, any>,
@@ -89,17 +91,17 @@ export class ECSpressoBuilder<
 		BAG extends string = never,
 		BRQ extends string = never,
 	>(
-		bundle: BundlesAreCompatible<C, BC, E, BE, R, BR, A, BA, S, BS> extends true
-			? Bundle<BC, BE, BR, BA, BS, BL, BG, BAG, BRQ>
+		plugin: PluginsAreCompatible<C, BC, E, BE, R, BR, A, BA, S, BS> extends true
+			? Plugin<BC, BE, BR, BA, BS, BL, BG, BAG, BRQ>
 			: never
 	): ECSpressoBuilder<C & BC, E & BE, R & BR, A & BA, S & BS, Labels | BL, Groups | BG, AssetGroupNames | BAG, ReactiveQueryNames | BRQ>;
 
 	/**
 		* Implementation of both overloads.
 		* Since the type compatibility is checked in the method signature,
-		* we can safely assume the bundle is compatible here.
+		* we can safely assume the plugin is compatible here.
 	*/
-	withBundle<
+	withPlugin<
 		BC extends Record<string, any>,
 		BE extends Record<string, any>,
 		BR extends Record<string, any>,
@@ -110,11 +112,10 @@ export class ECSpressoBuilder<
 		BAG extends string = never,
 		BRQ extends string = never,
 	>(
-		bundle: Bundle<BC, BE, BR, BA, BS, BL, BG, BAG, BRQ>
+		plugin: Plugin<BC, BE, BR, BA, BS, BL, BG, BAG, BRQ>
 	): ECSpressoBuilder<C & BC, E & BE, R & BR, A & BA, S & BS, Labels | BL, Groups | BG, AssetGroupNames | BAG, ReactiveQueryNames | BRQ> {
-		// Install the bundle
-		// Type compatibility is guaranteed by method overloads
-		this.ecspresso._installBundle(bundle);
+		// Defer plugin installation to build time
+		this.pendingPlugins.push(plugin);
 
 		// Return a builder with the updated type parameters
 		return this as unknown as ECSpressoBuilder<C & BC, E & BE, R & BR, A & BA, S & BS, Labels | BL, Groups | BG, AssetGroupNames | BAG, ReactiveQueryNames | BRQ>;
@@ -160,25 +161,12 @@ export class ECSpressoBuilder<
 	 * Add a resource during ECSpresso construction.
 	 *
 	 * When the key matches a pre-declared resource type (via `withResourceTypes`, `create<C,E,R>()`,
-	 * or bundle resources), the value is validated against that type.
+	 * or plugin resources), the value is validated against that type.
 	 * For new keys, the value type is inferred as before.
 	 *
 	 * @param key The resource key
 	 * @param resource The resource value, factory function, or factory with dependencies/disposal
 	 * @returns This builder with updated resource types
-	 *
-	 * @example
-	 * ```typescript
-	 * ECSpresso.create<Components, Events, Resources>()
-	 *   .withResource('config', { debug: true })
-	 *   .withResource('counter', () => 42)
-	 *   .withResource('derived', {
-	 *     dependsOn: ['base'],
-	 *     factory: (ecs) => ecs.getResource('base') * 2,
-	 *     onDispose: (value) => console.log('Disposed:', value)
-	 *   })
-	 *   .build();
-	 * ```
 	 */
 	withResource<K extends keyof R & string>(
 		key: K,
@@ -237,19 +225,6 @@ export class ECSpressoBuilder<
 	 * Configure assets for this ECSpresso instance
 	 * @param configurator Function that receives an AssetConfigurator and returns it after adding assets
 	 * @returns This builder with updated asset types
-	 *
-	 * @example
-	 * ```typescript
-	 * ECSpresso.create<Components, Events, Resources>()
-	 *   .withAssets(assets => assets
-	 *     .add('playerSprite', () => loadTexture('player.png'))
-	 *     .addGroup('level1', {
-	 *       background: () => loadTexture('level1-bg.png'),
-	 *       music: () => loadAudio('level1.mp3'),
-	 *     })
-	 *   )
-	 *   .build();
-	 * ```
 	 */
 	withAssets<NewA extends Record<string, unknown>, NewG extends string = never>(
 		configurator: (assets: AssetConfigurator<{}, never>) => AssetConfigurator<NewA, NewG>
@@ -264,21 +239,6 @@ export class ECSpressoBuilder<
 	 * Configure screens for this ECSpresso instance
 	 * @param configurator Function that receives a ScreenConfigurator and returns it after adding screens
 	 * @returns This builder with updated screen types
-	 *
-	 * @example
-	 * ```typescript
-	 * ECSpresso.create<Components, Events, Resources>()
-	 *   .withScreens(screens => screens
-	 *     .add('loading', {
-	 *       initialState: () => ({ progress: 0 }),
-	 *     })
-	 *     .add('gameplay', {
-	 *       initialState: ({ level }) => ({ score: 0, level }),
-	 *       requiredAssetGroups: ['level1'],
-	 *     })
-	 *   )
-	 *   .build();
-	 * ```
 	 */
 	withScreens<NewS extends Record<string, ScreenDefinition<any, any>>>(
 		configurator: (screens: ScreenConfigurator<{}, ECSpresso<C, E, R, A, Record<string, ScreenDefinition>>>) => ScreenConfigurator<NewS, ECSpresso<C, E, R, A, Record<string, ScreenDefinition>>>
@@ -319,6 +279,11 @@ export class ECSpressoBuilder<
 		[AssetGroupNames] extends [never] ? string : AssetGroupNames,
 		[ReactiveQueryNames] extends [never] ? string : ReactiveQueryNames
 	> {
+		// Install all pending plugins
+		for (const plugin of this.pendingPlugins) {
+			this.ecspresso.installPlugin(plugin);
+		}
+
 		// Apply pending resources
 		for (const { key, value } of this.pendingResources) {
 			this.ecspresso.addResource(key as keyof R, value as any);
@@ -338,17 +303,17 @@ export class ECSpressoBuilder<
 			);
 		}
 
-		// Set up asset manager if configured via withAssets(), or auto-create if bundles contributed assets
+		// Set up asset manager if configured via withAssets(), or auto-create if plugins contributed assets
 		if (this.assetConfigurator) {
 			this.ecspresso._setAssetManager(this.assetConfigurator.getManager() as unknown as AssetManager<A>);
-		} else if (this.ecspresso._hasPendingBundleAssets()) {
+		} else if (this.ecspresso._hasPendingPluginAssets()) {
 			this.ecspresso._setAssetManager(new AssetManager() as unknown as AssetManager<A>);
 		}
 
-		// Set up screen manager if configured via withScreens(), or auto-create if bundles contributed screens
+		// Set up screen manager if configured via withScreens(), or auto-create if plugins contributed screens
 		if (this.screenConfigurator) {
 			this.ecspresso._setScreenManager(this.screenConfigurator.getManager() as unknown as ScreenManager<S>);
-		} else if (this.ecspresso._hasPendingBundleScreens()) {
+		} else if (this.ecspresso._hasPendingPluginScreens()) {
 			this.ecspresso._setScreenManager(new ScreenManager() as unknown as ScreenManager<S>);
 		}
 

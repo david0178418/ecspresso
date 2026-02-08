@@ -1,11 +1,11 @@
 import { Glob } from 'bun';
 
-const bundleEntryPoints = Array.from(
-	new Glob('src/bundles/**/*.ts').scanSync('.')
+const pluginEntryPoints = Array.from(
+	new Glob('src/plugins/**/*.ts').scanSync('.')
 ).filter((f) => !f.includes('.test.'));
 
 const result = await Bun.build({
-	entrypoints: ['src/index.ts', ...bundleEntryPoints],
+	entrypoints: ['src/index.ts', ...pluginEntryPoints],
 	outdir: 'dist',
 	target: 'browser',
 	sourcemap: 'linked',

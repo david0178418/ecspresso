@@ -1,16 +1,16 @@
 import { Graphics, Sprite } from 'pixi.js';
 import ECSpresso from "../../src";
 import {
-	createRenderer2DBundle,
+	createRenderer2DPlugin,
 	createLocalTransform,
-} from "../../src/bundles/renderers/renderer2D";
+} from "../../src/plugins/renderers/renderer2D";
 
 // -- Step 1: Create the world --
-// ECSpresso.create() starts a builder chain where you declare your types and bundles.
-// The renderer2D bundle provides PixiJS rendering and a transform system.
+// ECSpresso.create() starts a builder chain where you declare your types and plugins.
+// The renderer2D plugin provides PixiJS rendering and a transform system.
 // withComponentTypes adds app-specific component types (type-level only, no runtime cost).
 const ecs = ECSpresso.create()
-	.withBundle(createRenderer2DBundle({
+	.withPlugin(createRenderer2DPlugin({
 		init: { background: '#1099bb', resizeTo: window },
 		container: document.body,
 	}))
@@ -54,7 +54,7 @@ ecs.addSystem('bounce')
 	.and();
 
 // -- Step 3: Initialize the world --
-// initialize() sets up all bundle resources (e.g. the PixiJS application).
+// initialize() sets up all plugin resources (e.g. the PixiJS application).
 await ecs.initialize();
 
 // -- Step 4: Spawn an entity --

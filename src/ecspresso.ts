@@ -6,7 +6,7 @@ import ScreenManager from "./screen-manager";
 import ReactiveQueryManager, { type ReactiveQueryDefinition } from "./reactive-query-manager";
 import CommandBuffer from "./command-buffer";
 import type { System, SystemPhase, FilteredEntity, Entity, RemoveEntityOptions, HierarchyEntry, HierarchyIteratorOptions } from "./types";
-import type Bundle from "./bundle";
+import type { Plugin } from "./plugin";
 import { createEcspressoSystemBuilder } from "./system-builder";
 import { checkRequiredCycle } from "./utils/check-required-cycle";
 import { version } from "../package.json";
@@ -84,8 +84,8 @@ export default class ECSpresso<
 	private _phaseSystems: Record<SystemPhase, Array<System<ComponentTypes, any, any, EventTypes, ResourceTypes, AssetTypes, ScreenStates>>> = {
 		preUpdate: [], fixedUpdate: [], update: [], postUpdate: [], render: [],
 	};
-	/** Track installed bundles to prevent duplicates*/
-	private _installedBundles: Set<string> = new Set();
+	/** Track installed plugins to prevent duplicates*/
+	private _installedPlugins: Set<string> = new Set();
 	/** Disabled system groups */
 	private _disabledGroups: Set<string> = new Set();
 	/** Asset manager for loading and accessing assets */
@@ -112,10 +112,10 @@ export default class ECSpresso<
 	private _maxFixedSteps: number = 8;
 	/** Registry of required component relationships: trigger -> [{component, factory}] */
 	private _requiredComponents: Map<keyof ComponentTypes, Array<{ component: keyof ComponentTypes; factory: (triggerValue: any) => any }>> = new Map();
-	/** Pending bundle assets awaiting manager creation at build time */
-	private _pendingBundleAssets: Array<[string, AssetDefinition<unknown>]> = [];
-	/** Pending bundle screens awaiting manager creation at build time */
-	private _pendingBundleScreens: Array<[string, ScreenDefinition<any, any>]> = [];
+	/** Pending plugin assets awaiting manager creation at build time */
+	private _pendingPluginAssets: Array<[string, AssetDefinition<unknown>]> = [];
+	/** Pending plugin screens awaiting manager creation at build time */
+	private _pendingPluginScreens: Array<[string, ScreenDefinition<any, any>]> = [];
 	/** Whether diagnostics timing collection is enabled */
 	private _diagnosticsEnabled: boolean = false;
 	/** Per-system timing in ms, populated when diagnostics enabled */
@@ -202,9 +202,9 @@ export default class ECSpresso<
 	}
 
 	/**
-		* Creates a new ECSpresso builder for type-safe bundle installation.
-		* This is the preferred way to create an ECSpresso instance with bundles.
-		* Types are inferred from the builder chain — use `.withBundle()`,
+		* Creates a new ECSpresso builder for type-safe plugin installation.
+		* This is the preferred way to create an ECSpresso instance with plugins.
+		* Types are inferred from the builder chain — use `.withPlugin()`,
 		* `.withComponentTypes<T>()`, `.withEventTypes<T>()`, and `.withResource()`
 		* to accumulate types without manual aggregate interfaces.
 	 *
@@ -213,8 +213,8 @@ export default class ECSpresso<
 		* @example
 		* ```typescript
 		* const ecs = ECSpresso.create()
-	 *	 .withBundle(createRenderer2DBundle({ ... }))
-	 *	 .withBundle(createPhysics2DBundle())
+	 *	 .withPlugin(createRenderer2DPlugin({ ... }))
+	 *	 .withPlugin(createPhysics2DPlugin())
 	 *	 .withComponentTypes<{ player: true; enemy: { type: string } }>()
 	 *	 .withEventTypes<{ gameStart: true }>()
 	 *	 .withResource('score', { value: 0 })
@@ -715,14 +715,14 @@ export default class ECSpresso<
 	 *
 	 * Two overloads:
 	 * 1. Known key — full type safety from `ResourceTypes`
-	 * 2. String key with explicit type param — for cross-bundle optional dependencies
+	 * 2. String key with explicit type param — for cross-plugin optional dependencies
 	 *
 	 * @example
 	 * ```typescript
 	 * // Known key (type inferred from ResourceTypes)
 	 * const score = ecs.tryGetResource('score'); // ScoreResource | undefined
 	 *
-	 * // Cross-bundle optional dependency (caller specifies expected type)
+	 * // Cross-plugin optional dependency (caller specifies expected type)
 	 * const si = ecs.tryGetResource<SpatialIndex>('spatialIndex') ?? null;
 	 * ```
 	 */
@@ -1094,10 +1094,10 @@ export default class ECSpresso<
 	}
 
 	/**
-		* Get all installed bundle IDs
+		* Get all installed plugin IDs
 	*/
-	get installedBundles(): string[] {
-		return Array.from(this._installedBundles);
+	get installedPlugins(): string[] {
+		return Array.from(this._installedPlugins);
 	}
 
 	// Getters for the internal managers
@@ -1523,37 +1523,37 @@ export default class ECSpresso<
 	// ==================== Internal Methods ====================
 
 	/**
-	 * Internal method to set the asset manager and drain pending bundle assets
+	 * Internal method to set the asset manager and drain pending plugin assets
 	 * @internal Used by ECSpressoBuilder
 	 */
 	_setAssetManager(manager: AssetManager<AssetTypes>): void {
 		this._assetManager = manager;
-		for (const [key, definition] of this._pendingBundleAssets) {
+		for (const [key, definition] of this._pendingPluginAssets) {
 			this._assetManager.register(key, definition as any);
 		}
-		this._pendingBundleAssets = [];
+		this._pendingPluginAssets = [];
 	}
 
 	/**
-	 * Internal method to set the screen manager and drain pending bundle screens
+	 * Internal method to set the screen manager and drain pending plugin screens
 	 * @internal Used by ECSpressoBuilder
 	 */
 	_setScreenManager(manager: ScreenManager<ScreenStates>): void {
 		this._screenManager = manager;
-		for (const [name, definition] of this._pendingBundleScreens) {
+		for (const [name, definition] of this._pendingPluginScreens) {
 			this._screenManager.register(name, definition as any);
 		}
-		this._pendingBundleScreens = [];
+		this._pendingPluginScreens = [];
 	}
 
 	/** @internal */
-	_hasPendingBundleAssets(): boolean {
-		return this._pendingBundleAssets.length > 0;
+	_hasPendingPluginAssets(): boolean {
+		return this._pendingPluginAssets.length > 0;
 	}
 
 	/** @internal */
-	_hasPendingBundleScreens(): boolean {
-		return this._pendingBundleScreens.length > 0;
+	_hasPendingPluginScreens(): boolean {
+		return this._pendingPluginScreens.length > 0;
 	}
 
 	/**
@@ -1565,72 +1565,51 @@ export default class ECSpresso<
 	}
 
 	/**
-		* Internal method to install a bundle into this ECSpresso instance.
-		* Called by the ECSpressoBuilder during the build process.
-		* The type safety is guaranteed by the builder's type system.
-	*/
-	_installBundle<
-		C extends Record<string, any>,
-		E extends Record<string, any>,
-		R extends Record<string, any>,
-		A extends Record<string, unknown> = {},
-		S extends Record<string, ScreenDefinition<any, any>> = {},
-	>(bundle: Bundle<C, E, R, A, S, any, any, any, any>): this {
-		// Prevent duplicate installation of the same bundle
-		if (this._installedBundles.has(bundle.id)) {
+	 * Register an asset definition for deferred registration.
+	 * @internal Used by plugins that need to register assets
+	 */
+	_registerAsset(key: string, definition: AssetDefinition<unknown>): void {
+		this._pendingPluginAssets.push([key, definition]);
+	}
+
+	/**
+	 * Register a screen definition for deferred registration.
+	 * @internal Used by plugins that need to register screens
+	 */
+	_registerScreen(name: string, definition: ScreenDefinition<any, any>): void {
+		this._pendingPluginScreens.push([name, definition]);
+	}
+
+	/**
+	 * Install a plugin into this ECSpresso instance.
+	 * Deduplicates by plugin ID. Composite plugins call this in their install function.
+	 */
+	installPlugin(plugin: Plugin<any, any, any, any, any, any, any, any, any>): this {
+		// Prevent duplicate installation of the same plugin
+		if (this._installedPlugins.has(plugin.id)) {
 			return this;
 		}
 
-		// Mark this bundle as installed
-		this._installedBundles.add(bundle.id);
+		// Mark this plugin as installed
+		this._installedPlugins.add(plugin.id);
 
-		// Register systems from the bundle
-		// The type compatibility is ensured by the builder's withBundle method
-		// We need this cast due to TypeScript's limitations with generics
-		type BundleEcspresso = ECSpresso<C, E, R, A, S>;
-		bundle.registerSystemsWithEcspresso(this as unknown as BundleEcspresso);
-
-		// Register dispose callbacks from the bundle
-		const disposeCallbacks = bundle.getDisposeCallbacks();
-		for (const [componentName, callback] of disposeCallbacks.entries()) {
-			this._entityManager.registerDispose(componentName as keyof ComponentTypes, callback);
-		}
-
-		// Register required components from the bundle
-		const requiredComponents = bundle.getRequiredComponents();
-		for (const [trigger, reqs] of requiredComponents.entries()) {
-			for (const { component, factory } of reqs) {
-				const triggerKey = trigger as keyof ComponentTypes;
-				const componentKey = component as keyof ComponentTypes;
-				const existing = this._requiredComponents.get(triggerKey) ?? [];
-				if (!existing.some(r => r.component === componentKey)) {
-					this._checkRequiredCycle(triggerKey, componentKey);
-					existing.push({ component: componentKey, factory });
-					this._requiredComponents.set(triggerKey, existing);
-				}
-			}
-		}
-
-		// Register resources from the bundle
-		const resources = bundle.getResources();
-		for (const [key, value] of resources.entries()) {
-			// Instead of casting, use the add method's flexibility
-			this._resourceManager.add(key as string, value);
-		}
-
-		// Store bundle assets for deferred registration (manager created at build time)
-		const assets = bundle.getAssets();
-		for (const [key, definition] of assets.entries()) {
-			this._pendingBundleAssets.push([key, definition]);
-		}
-
-		// Store bundle screens for deferred registration (manager created at build time)
-		const screens = bundle.getScreens();
-		for (const [name, definition] of screens.entries()) {
-			this._pendingBundleScreens.push([name, definition]);
-		}
+		// Call the plugin's install function with this world
+		plugin.install(this as any);
 
 		return this;
+	}
+
+	/**
+	 * Call a helper factory with this world instance, inferring the full world type.
+	 * Eliminates the need for a separate `type ECS = typeof ecs` ceremony.
+	 *
+	 * @example
+	 * ```typescript
+	 * const helpers = ecs.getHelpers(createStateMachineHelpers);
+	 * ```
+	 */
+	getHelpers<H>(factory: (world: this) => H): H {
+		return factory(this);
 	}
 }
 

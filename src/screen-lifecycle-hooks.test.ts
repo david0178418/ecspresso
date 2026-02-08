@@ -1,7 +1,5 @@
 import { describe, test, expect } from 'bun:test';
 import ECSpresso from './ecspresso';
-import Bundle from './bundle';
-import type { ScreenDefinition } from './screen-types';
 
 // ── shared test types ────────────────────────────────────────────────
 
@@ -18,9 +16,6 @@ type TR = {
 	score: { value: number };
 };
 
-type TA = {
-	sprite: HTMLImageElement;
-};
 
 // ── Type assertion tests (compile-time) ─────────────────────────────
 
@@ -271,26 +266,29 @@ describe('screen lifecycle hook runtime behavior', () => {
 	});
 });
 
-// ── Bundle screen hook typing ───────────────────────────────────────
+// ── Screen hook typing via withScreens ───────────────────────────────
 
-describe('Bundle.addScreen hook typing', () => {
+describe('Screen hook typing via withScreens', () => {
 	test('hook receives typed ecs (type assertion for resource access)', () => {
-		type BS = Record<string, ScreenDefinition>;
+		const ecs = ECSpresso.create()
+			.withComponentTypes<TC>()
+			.withEventTypes<TE>()
+			.withResource('score', { value: 0 } as TR['score'])
+			.withScreens(s => s
+				.add('menu', {
+					initialState: () => ({}),
+					onEnter: (_config, world) => {
+						const _score: { value: number } = world.getResource('score');
+						void _score;
+					},
+					onExit: (world) => {
+						const _score: { value: number } = world.getResource('score');
+						void _score;
+					},
+				})
+			)
+			.build();
 
-		const bundle = new Bundle<TC, TE, TR, TA, BS>('test');
-
-		bundle.addScreen('menu', {
-			initialState: () => ({}),
-			onEnter: (_config, ecs) => {
-				const _score: { value: number } = ecs.getResource('score');
-				void _score;
-			},
-			onExit: (ecs) => {
-				const _score: { value: number } = ecs.getResource('score');
-				void _score;
-			},
-		});
-
-		expect(bundle.getScreens().has('menu')).toBe(true);
+		expect(ecs).toBeDefined();
 	});
 });

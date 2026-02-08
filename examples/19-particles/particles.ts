@@ -1,7 +1,7 @@
 /**
  * Particles Example
  *
- * Demonstrates the particle system bundle with procedurally generated textures.
+ * Demonstrates the particle system plugin with procedurally generated textures.
  *
  * Features shown:
  *   - defineParticleEffect (custom configs)
@@ -15,11 +15,11 @@
 import { Graphics, Sprite, Text, TextStyle, Texture, type Renderer } from 'pixi.js';
 import ECSpresso from '../../src';
 import {
-	createRenderer2DBundle,
+	createRenderer2DPlugin,
 	createSpriteComponents,
-} from '../../src/bundles/renderers/renderer2D';
+} from '../../src/plugins/renderers/renderer2D';
 import {
-	createParticleBundle,
+	createParticlePlugin,
 	defineParticleEffect,
 	createParticleEmitter,
 	burstParticles,
@@ -28,7 +28,7 @@ import {
 	particlePresets,
 	type ParticleComponentTypes,
 	type ParticleEmitterEventData,
-} from '../../src/bundles/particles';
+} from '../../src/plugins/particles';
 
 // ==================== Constants ====================
 
@@ -85,11 +85,11 @@ interface AppEvents {
 
 const ecs = ECSpresso
 	.create()
-	.withBundle(createRenderer2DBundle({
+	.withPlugin(createRenderer2DPlugin({
 		init: { background: '#0a0a1a', width: SCREEN_W, height: SCREEN_H },
 		container: document.body,
 	}))
-	.withBundle(createParticleBundle())
+	.withPlugin(createParticlePlugin())
 	.withComponentTypes<ParticleComponentTypes>()
 	.withEventTypes<AppEvents>()
 	.build();

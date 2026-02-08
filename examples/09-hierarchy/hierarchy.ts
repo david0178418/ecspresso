@@ -1,10 +1,10 @@
 import { Graphics } from 'pixi.js';
 import ECSpresso from "../../src";
 import {
-	createRenderer2DBundle,
+	createRenderer2DPlugin,
 	createGraphicsComponents,
-} from "../../src/bundles/renderers/renderer2D";
-import { createInputBundle } from "../../src/bundles/input";
+} from "../../src/plugins/renderers/renderer2D";
+import { createInputPlugin } from "../../src/plugins/input";
 
 // ==================== Solar System Data ====================
 
@@ -82,12 +82,12 @@ const SOLAR_SYSTEM = {
 // ==================== ECS Setup ====================
 
 const ecs = ECSpresso.create()
-	.withBundle(createRenderer2DBundle({
+	.withPlugin(createRenderer2DPlugin({
 		init: { background: 0x000011, resizeTo: window },
 		container: document.body,
 		startLoop: true,
 	}))
-	.withBundle(createInputBundle({
+	.withPlugin(createInputPlugin({
 		actions: {
 			panUp: { keys: ['w', 'ArrowUp'] },
 			panDown: { keys: ['s', 'ArrowDown'] },

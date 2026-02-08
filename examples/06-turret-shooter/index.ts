@@ -1,13 +1,13 @@
 import ECSpresso from '../../src';
-import { createTimerBundle } from '../../src/bundles/timers';
-import createInitBundle from './bundles/init-bundle';
-import createInputBundle from './bundles/input-bundle';
-import createRenderBundle from './bundles/render-bundle';
-import createPhysicsBundle from './bundles/physics-bundle';
-import createAIBundle from './bundles/ai-bundle';
-import createGameplayBundle from './bundles/gameplay-bundle';
-import createUIBundle from './bundles/ui-bundle';
-import createGameStateBundle from './bundles/game-state-bundle';
+import { createTimerPlugin } from '../../src/plugins/timers';
+import createInitPlugin from './plugins/init-plugin';
+import createInputPlugin from './plugins/input-plugin';
+import createRenderPlugin from './plugins/render-plugin';
+import createPhysicsPlugin from './plugins/physics-plugin';
+import createAIPlugin from './plugins/ai-plugin';
+import createGameplayPlugin from './plugins/gameplay-plugin';
+import createUIPlugin from './plugins/ui-plugin';
+import createGameStatePlugin from './plugins/game-state-plugin';
 import type { Events } from './types';
 
 // Create and initialize the game
@@ -15,15 +15,15 @@ async function initGame() {
 	// Create ECS instance with our types
 	const game = ECSpresso
 		.create()
-		.withBundle(createTimerBundle<Events>())
-		.withBundle(await createInitBundle())
-		.withBundle(createInputBundle())
-		.withBundle(createRenderBundle())
-		.withBundle(createPhysicsBundle())
-		.withBundle(createAIBundle())
-		.withBundle(createGameplayBundle())
-		.withBundle(createUIBundle())
-		.withBundle(createGameStateBundle())
+		.withPlugin(createTimerPlugin<Events>())
+		.withPlugin(await createInitPlugin())
+		.withPlugin(createInputPlugin())
+		.withPlugin(createRenderPlugin())
+		.withPlugin(createPhysicsPlugin())
+		.withPlugin(createAIPlugin())
+		.withPlugin(createGameplayPlugin())
+		.withPlugin(createUIPlugin())
+		.withPlugin(createGameStatePlugin())
 		.build();
 
 	// Initialize all resources and systems

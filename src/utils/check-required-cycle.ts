@@ -1,6 +1,6 @@
 /**
  * BFS cycle detection for required component graphs.
- * Shared by ECSpresso and Bundle.
+ * Shared by ECSpresso and Plugin.
  *
  * @param trigger     The component that triggers the requirement
  * @param newRequired The component about to be added as required

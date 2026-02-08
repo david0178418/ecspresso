@@ -1,11 +1,11 @@
 import { expect, describe, test } from 'bun:test';
 import ECSpresso from './ecspresso';
-import type { TimerEventData } from './bundles/timers';
-import { createTimerBundle } from './bundles/timers';
-import { createTransformBundle, type TransformComponentTypes } from './bundles/transform';
+import type { TimerEventData } from './plugins/timers';
+import { createTimerPlugin } from './plugins/timers';
+import { createTransformPlugin, type TransformComponentTypes } from './plugins/transform';
 import type { ComponentsOf, EventsOf, ResourcesOf } from './types';
 import type { AssetsResource } from './asset-types';
-import Bundle from './bundle';
+import { definePlugin } from './plugin';
 
 describe('Builder Type Inference', () => {
 	test('withComponentTypes adds app component types', () => {
@@ -67,15 +67,15 @@ describe('Builder Type Inference', () => {
 		expect(results.length).toBe(1);
 	});
 
-	test('combined: withBundle + withComponentTypes + withEventTypes + withResource', () => {
+	test('combined: withPlugin + withComponentTypes + withEventTypes + withResource', () => {
 		const ecs = ECSpresso.create()
-			.withBundle(createTransformBundle())
+			.withPlugin(createTransformPlugin())
 			.withComponentTypes<{ player: true; enemy: { type: string } }>()
 			.withEventTypes<{ gameStart: true }>()
 			.withResource('score', { value: 0 })
 			.build();
 
-		// Bundle components work
+		// Plugin components work
 		const entity = ecs.spawn({
 			localTransform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1 },
 			worldTransform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1 },
@@ -107,14 +107,14 @@ describe('Builder Type Inference', () => {
 		ecs.on('miss', () => {});
 	});
 
-	test('timer bundle with narrow event types in the chain', () => {
+	test('timer plugin with narrow event types in the chain', () => {
 		type AppEvents = {
 			playerRespawn: TimerEventData;
 			scoreUpdate: { points: number };
 		};
 
 		const ecs = ECSpresso.create()
-			.withBundle(createTimerBundle<AppEvents>())
+			.withPlugin(createTimerPlugin<AppEvents>())
 			.withEventTypes<{ scoreUpdate: { points: number } }>()
 			.build();
 
@@ -139,32 +139,32 @@ describe('Builder Type Inference', () => {
 	});
 
 	test('ComponentsOf, EventsOf, ResourcesOf extract correctly', () => {
-		const timerBundle = createTimerBundle<{ tick: TimerEventData }>();
-		const transformBundle = createTransformBundle();
+		const timerPlugin = createTimerPlugin<{ tick: TimerEventData }>();
+		const transformPlugin = createTransformPlugin();
 
 		// These are compile-time checks — if they compile, the types are correct.
 		// Each type is used in a variable assignment to prove it resolves to the expected shape.
-		const _timerCCheck: ComponentsOf<typeof timerBundle> = {
+		const _timerCCheck: ComponentsOf<typeof timerPlugin> = {
 			timer: { elapsed: 0, duration: 1, repeat: false, active: true, justFinished: false },
 		};
 		expect(_timerCCheck.timer.duration).toBe(1);
 
-		const _timerECheck: EventsOf<typeof timerBundle> = { tick: { entityId: 0, duration: 1, elapsed: 1 } };
+		const _timerECheck: EventsOf<typeof timerPlugin> = { tick: { entityId: 0, duration: 1, elapsed: 1 } };
 		expect(_timerECheck.tick.entityId).toBe(0);
 
-		const _transformCCheck: ComponentsOf<typeof transformBundle> = {
+		const _transformCCheck: ComponentsOf<typeof transformPlugin> = {
 			localTransform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1 },
 			worldTransform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1 },
 		};
 		expect(_transformCCheck.localTransform.x).toBe(0);
 
-		const _transformRCheck: ResourcesOf<typeof transformBundle> = {};
+		const _transformRCheck: ResourcesOf<typeof transformPlugin> = {};
 		expect(_transformRCheck).toEqual({});
 	});
 
 	test('typeof ecs captures full inferred type', () => {
 		const ecs = ECSpresso.create()
-			.withBundle(createTransformBundle())
+			.withPlugin(createTransformPlugin())
 			.withComponentTypes<{ player: true }>()
 			.withEventTypes<{ gameStart: true }>()
 			.withResource('level', 1)
@@ -212,9 +212,9 @@ describe('Builder Type Inference', () => {
 	});
 
 	test('identical overlapping types are OK (idempotent intersection)', () => {
-		// Both the bundle and withComponentTypes declare the same localTransform type
+		// Both the plugin and withComponentTypes declare the same localTransform type
 		const ecs = ECSpresso.create()
-			.withBundle(createTransformBundle())
+			.withPlugin(createTransformPlugin())
 			.withComponentTypes<{ localTransform: TransformComponentTypes['localTransform']; player: true }>()
 			.build();
 
@@ -385,13 +385,17 @@ describe('Built-in Resource Typing ($assets / $screen)', () => {
 	});
 });
 
-describe('withBundle() asset/screen type propagation', () => {
-	test('withBundle(bundleWithAssets) + withAssets() merges both asset types', () => {
-		const assetBundle = new Bundle<{ pos: { x: number } }, {}, {}>('asset-bundle')
-			.addAsset('bundleSprite', () => Promise.resolve('bundle-sprite'));
+describe('withPlugin() asset/screen type propagation', () => {
+	test('withPlugin(pluginWithAssets) + withAssets() merges both asset types', () => {
+		const assetPlugin = definePlugin<{ pos: { x: number } }, {}, {}, { bundleSprite: string }>({
+			id: 'asset-plugin',
+			install(world) {
+				world._registerAsset('bundleSprite', { loader: () => Promise.resolve('bundle-sprite') });
+			},
+		});
 
 		const ecs = ECSpresso.create()
-			.withBundle(assetBundle)
+			.withPlugin(assetPlugin)
 			.withAssets(a => a.add('appTexture', () => Promise.resolve('app-texture')))
 			.build();
 
@@ -402,12 +406,16 @@ describe('withBundle() asset/screen type propagation', () => {
 		void _typeCheck;
 	});
 
-	test('withBundle(bundleWithAssets) without withAssets() auto-injects $assets', () => {
-		const assetBundle = new Bundle<{ pos: { x: number } }, {}, {}>('asset-bundle')
-			.addAsset('bundleSprite', () => Promise.resolve('bundle-sprite'));
+	test('withPlugin(pluginWithAssets) without withAssets() auto-injects $assets', () => {
+		const assetPlugin = definePlugin<{ pos: { x: number } }, {}, {}, { bundleSprite: string }>({
+			id: 'asset-plugin',
+			install(world) {
+				world._registerAsset('bundleSprite', { loader: () => Promise.resolve('bundle-sprite') });
+			},
+		});
 
 		const ecs = ECSpresso.create()
-			.withBundle(assetBundle)
+			.withPlugin(assetPlugin)
 			.build();
 
 		function _typeCheck(world: typeof ecs) {
@@ -417,12 +425,16 @@ describe('withBundle() asset/screen type propagation', () => {
 		void _typeCheck;
 	});
 
-	test('withBundle(bundleWithScreens) + withScreens() merges both screen types', () => {
-		const screenBundle = new Bundle<{}, {}, {}>('screen-bundle')
-			.addScreen('loading', { initialState: () => ({ progress: 0 }) });
+	test('withPlugin(pluginWithScreens) + withScreens() merges both screen types', () => {
+		const screenPlugin = definePlugin<{}, {}, {}, {}, { loading: { initialState: () => { progress: number } } }>({
+			id: 'screen-plugin',
+			install(world) {
+				world._registerScreen('loading', { initialState: () => ({ progress: 0 }) });
+			},
+		});
 
 		const ecs = ECSpresso.create()
-			.withBundle(screenBundle)
+			.withPlugin(screenPlugin)
 			.withScreens(s => s.add('menu', { initialState: () => ({}) }))
 			.build();
 
@@ -435,12 +447,16 @@ describe('withBundle() asset/screen type propagation', () => {
 		void _typeCheck;
 	});
 
-	test('withBundle(bundleWithScreens) without withScreens() auto-injects $screen', () => {
-		const screenBundle = new Bundle<{}, {}, {}>('screen-bundle')
-			.addScreen('loading', { initialState: () => ({ progress: 0 }) });
+	test('withPlugin(pluginWithScreens) without withScreens() auto-injects $screen', () => {
+		const screenPlugin = definePlugin<{}, {}, {}, {}, { loading: { initialState: () => { progress: number } } }>({
+			id: 'screen-plugin',
+			install(world) {
+				world._registerScreen('loading', { initialState: () => ({ progress: 0 }) });
+			},
+		});
 
 		const ecs = ECSpresso.create()
-			.withBundle(screenBundle)
+			.withPlugin(screenPlugin)
 			.build();
 
 		function _typeCheck(world: typeof ecs) {
@@ -451,16 +467,24 @@ describe('withBundle() asset/screen type propagation', () => {
 		void _typeCheck;
 	});
 
-	test('two bundles with compatible asset types work', () => {
-		const bundleA = new Bundle<{ a: number }, {}, {}>('a')
-			.addAsset('spriteA', () => Promise.resolve('a'));
+	test('two plugins with compatible asset types work', () => {
+		const pluginA = definePlugin<{ a: number }, {}, {}, { spriteA: string }>({
+			id: 'a',
+			install(world) {
+				world._registerAsset('spriteA', { loader: () => Promise.resolve('a') });
+			},
+		});
 
-		const bundleB = new Bundle<{ b: number }, {}, {}>('b')
-			.addAsset('spriteB', () => Promise.resolve('b'));
+		const pluginB = definePlugin<{ b: number }, {}, {}, { spriteB: string }>({
+			id: 'b',
+			install(world) {
+				world._registerAsset('spriteB', { loader: () => Promise.resolve('b') });
+			},
+		});
 
 		const ecs = ECSpresso.create()
-			.withBundle(bundleA)
-			.withBundle(bundleB)
+			.withPlugin(pluginA)
+			.withPlugin(pluginB)
 			.build();
 
 		function _typeCheck(world: typeof ecs) {
@@ -470,25 +494,37 @@ describe('withBundle() asset/screen type propagation', () => {
 		void _typeCheck;
 	});
 
-	test('two bundles with conflicting asset types produce error', () => {
-		const bundleA = new Bundle<{ a: number }, {}, {}>('a')
-			.addAsset('sprite', () => Promise.resolve('string-data'));
+	test('two plugins with conflicting asset types produce error', () => {
+		const pluginA = definePlugin<{ a: number }, {}, {}, { sprite: string }>({
+			id: 'a',
+			install(world) {
+				world._registerAsset('sprite', { loader: () => Promise.resolve('string-data') });
+			},
+		});
 
-		const bundleB = new Bundle<{ b: number }, {}, {}>('b')
-			.addAsset('sprite', () => Promise.resolve(42));
+		const pluginB = definePlugin<{ b: number }, {}, {}, { sprite: number }>({
+			id: 'b',
+			install(world) {
+				world._registerAsset('sprite', { loader: () => Promise.resolve(42) });
+			},
+		});
 
 		ECSpresso.create()
-			.withBundle(bundleA)
+			.withPlugin(pluginA)
 			// @ts-expect-error conflicting asset types (sprite: string vs sprite: number)
-			.withBundle(bundleB);
+			.withPlugin(pluginB);
 	});
 
-	test('runtime: bundle assets accessible after build() + initialize()', async () => {
-		const assetBundle = new Bundle<{}, {}, {}>('asset-bundle')
-			.addAsset('mySprite', () => Promise.resolve('sprite-data'));
+	test('runtime: plugin assets accessible after build() + initialize()', async () => {
+		const assetPlugin = definePlugin<{}, {}, {}, { mySprite: string }>({
+			id: 'asset-plugin',
+			install(world) {
+				world._registerAsset('mySprite', { loader: () => Promise.resolve('sprite-data'), eager: true });
+			},
+		});
 
 		const ecs = ECSpresso.create()
-			.withBundle(assetBundle)
+			.withPlugin(assetPlugin)
 			.build();
 
 		await ecs.initialize();
@@ -498,12 +534,16 @@ describe('withBundle() asset/screen type propagation', () => {
 		expect(assets.get('mySprite')).toBe('sprite-data');
 	});
 
-	test('runtime: bundle screens accessible after build() + initialize()', async () => {
-		const screenBundle = new Bundle<{}, {}, {}>('screen-bundle')
-			.addScreen('menu', { initialState: () => ({ selected: 0 }) });
+	test('runtime: plugin screens accessible after build() + initialize()', async () => {
+		const screenPlugin = definePlugin<{}, {}, {}, {}, { menu: { initialState: () => { selected: number } } }>({
+			id: 'screen-plugin',
+			install(world) {
+				world._registerScreen('menu', { initialState: () => ({ selected: 0 }) });
+			},
+		});
 
 		const ecs = ECSpresso.create()
-			.withBundle(screenBundle)
+			.withPlugin(screenPlugin)
 			.build();
 
 		await ecs.initialize();
@@ -512,14 +552,18 @@ describe('withBundle() asset/screen type propagation', () => {
 		expect(screen.current).toBeNull();
 	});
 
-	test('$assets not in ResourceTypes when no bundle assets and no withAssets()', () => {
-		const bundle = new Bundle<{ a: number }, {}, {}>('no-assets')
-			.addSystem('sys')
-			.setProcess(() => {})
-			.and();
+	test('$assets not in ResourceTypes when no plugin assets and no withAssets()', () => {
+		const plugin = definePlugin<{ a: number }, {}, {}>({
+			id: 'no-assets',
+			install(world) {
+				world.addSystem('sys')
+					.setProcess(() => {})
+					.and();
+			},
+		});
 
 		const ecs = ECSpresso.create()
-			.withBundle(bundle)
+			.withPlugin(plugin)
 			.build();
 
 		function _typeCheck(world: typeof ecs) {
@@ -529,14 +573,18 @@ describe('withBundle() asset/screen type propagation', () => {
 		void _typeCheck;
 	});
 
-	test('$screen not in ResourceTypes when no bundle screens and no withScreens()', () => {
-		const bundle = new Bundle<{ a: number }, {}, {}>('no-screens')
-			.addSystem('sys')
-			.setProcess(() => {})
-			.and();
+	test('$screen not in ResourceTypes when no plugin screens and no withScreens()', () => {
+		const plugin = definePlugin<{ a: number }, {}, {}>({
+			id: 'no-screens',
+			install(world) {
+				world.addSystem('sys')
+					.setProcess(() => {})
+					.and();
+			},
+		});
 
 		const ecs = ECSpresso.create()
-			.withBundle(bundle)
+			.withPlugin(plugin)
 			.build();
 
 		function _typeCheck(world: typeof ecs) {
@@ -605,11 +653,14 @@ describe('withResourceTypes', () => {
 			.withResource('score', () => 42);
 	});
 
-	test('withResourceTypes + withBundle are compatible', () => {
-		const bundle = new Bundle<{ pos: { x: number } }, {}, { physics: { gravity: number } }>('phys');
+	test('withResourceTypes + withPlugin are compatible', () => {
+		const plugin = definePlugin<{ pos: { x: number } }, {}, { physics: { gravity: number } }>({
+			id: 'phys',
+			install() {},
+		});
 
 		const ecs = ECSpresso.create()
-			.withBundle(bundle)
+			.withPlugin(plugin)
 			.withResourceTypes<{ score: number }>()
 			.withResource('score', 0)
 			.build();

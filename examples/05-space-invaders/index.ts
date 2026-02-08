@@ -1,15 +1,15 @@
 import ECSpresso from '../../src';
-import { createRenderer2DBundle } from '../../src/bundles/renderers/renderer2D';
-import { createTimerBundle } from '../../src/bundles/timers';
-import { createPhysics2DBundle } from '../../src/bundles/physics2D';
-import { createBoundsBundle } from '../../src/bundles/bounds';
-import { createCollisionBundle } from '../../src/bundles/collision';
+import { createRenderer2DPlugin } from '../../src/plugins/renderers/renderer2D';
+import { createTimerPlugin } from '../../src/plugins/timers';
+import { createPhysics2DPlugin } from '../../src/plugins/physics2D';
+import { createBoundsPlugin } from '../../src/plugins/bounds';
+import { createCollisionPlugin } from '../../src/plugins/collision';
 import collisionLayers from './collision-layers';
-import createCombatBundle from './bundles/combat-bundle';
-import createInputProcessingBundle, { createInputBundle } from './bundles/input-bundle';
-import createSpawnerBundle from './bundles/spawner-bundle';
-import createUIBundle from './bundles/ui-bundle';
-import createGameLogicBundle from './bundles/game-logic-bundle';
+import createCombatPlugin from './plugins/combat-plugin';
+import createInputProcessingPlugin, { createInputPlugin } from './plugins/input-plugin';
+import createSpawnerPlugin from './plugins/spawner-plugin';
+import createUIPlugin from './plugins/ui-plugin';
+import createGameLogicPlugin from './plugins/game-logic-plugin';
 import type { Events } from './types';
 
 const game = ECSpresso
@@ -29,22 +29,22 @@ const game = ECSpresso
 		currentDirection: 'right',
 		lastEdgeHit: null,
 	})
-	.withBundle(createTimerBundle<Events>())
-	.withBundle(createRenderer2DBundle({
+	.withPlugin(createTimerPlugin<Events>())
+	.withPlugin(createRenderer2DPlugin({
 		init: { background: '#000000', resizeTo: window },
 		container: '#game-container',
 		renderLayers: ['game'],
 		screenScale: { width: 800, height: 600 },
 	}))
-	.withBundle(createPhysics2DBundle({ integrationPriority: 200, systemGroup: 'gameplay' }))
-	.withBundle(createBoundsBundle({ priority: 100, systemGroup: 'gameplay' }))
-	.withBundle(createCollisionBundle({ layers: collisionLayers, priority: 50, systemGroup: 'gameplay' }))
-	.withBundle(createInputBundle())
-	.withBundle(createInputProcessingBundle())
-	.withBundle(createSpawnerBundle())
-	.withBundle(createUIBundle())
-	.withBundle(createGameLogicBundle())
-	.withBundle(createCombatBundle())
+	.withPlugin(createPhysics2DPlugin({ integrationPriority: 200, systemGroup: 'gameplay' }))
+	.withPlugin(createBoundsPlugin({ priority: 100, systemGroup: 'gameplay' }))
+	.withPlugin(createCollisionPlugin({ layers: collisionLayers, priority: 50, systemGroup: 'gameplay' }))
+	.withPlugin(createInputPlugin())
+	.withPlugin(createInputProcessingPlugin())
+	.withPlugin(createSpawnerPlugin())
+	.withPlugin(createUIPlugin())
+	.withPlugin(createGameLogicPlugin())
+	.withPlugin(createCombatPlugin())
 	.build();
 
 await game.initialize();

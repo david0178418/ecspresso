@@ -1,7 +1,7 @@
 import { expect, describe, test } from 'bun:test';
 import ECSpresso from './ecspresso';
 import ResourceManager from './resource-manager';
-import Bundle from './bundle';
+import { definePlugin } from './plugin';
 
 // Test class for factory function detection tests
 class _TestClass {
@@ -102,25 +102,26 @@ describe('ResourceManager', () => {
 	});
 
 	test('should handle resources in ECS systems', () => {
-		// Create a system that uses resources
-		const bundle = new Bundle<TestComponents, TestEvents, TestResources>()
-			.addResource('config', { debug: true, maxEntities: 1000 })
-			.addSystem('ConfigAwareSystem')
-			.addQuery('entities', {
-				with: ['position']
-			})
-			.setProcess((_queries, _deltaTime, ecs) => {
-				// System should be able to access resources
-				const config = ecs.getResource('config');
-				if (config.debug) {
-					systemDebugRan = true;
-				}
-			})
-			.bundle;
+		const plugin = definePlugin<TestComponents, TestEvents, TestResources>({
+			id: 'config-aware',
+			install(world) {
+				world.addResource('config', { debug: true, maxEntities: 1000 });
+				world.addSystem('ConfigAwareSystem')
+					.addQuery('entities', {
+						with: ['position']
+					})
+					.setProcess((_queries, _deltaTime, ecs) => {
+						const config = ecs.getResource('config');
+						if (config.debug) {
+							systemDebugRan = true;
+						}
+					})
+					.and();
+			},
+		});
 
-		// Create the world with the bundle
 		const world = ECSpresso.create<TestComponents, TestEvents, TestResources>()
-			.withBundle(bundle)
+			.withPlugin(plugin)
 			.build();
 
 		// Track system execution
@@ -157,27 +158,28 @@ describe('ResourceManager', () => {
 		// Track logged messages
 		const loggedMessages: string[] = [];
 
-		// Create a bundle with resources
-		const bundle = new Bundle<TestComponents, TestEvents, TestResources>()
-			.addResource('logger', customLogger)
-			.addResource('counter', counter)
-			.addSystem('ResourceSystem')
-			.addQuery('entities', {
-				with: ['position']
-			})
-			.setProcess((_queries, _deltaTime, ecs) => {
-				const logger = ecs.getResource('logger');
-				const counter = ecs.getResource('counter');
+		const plugin = definePlugin<TestComponents, TestEvents, TestResources>({
+			id: 'resource-system',
+			install(world) {
+				world.addResource('logger', customLogger);
+				world.addResource('counter', counter);
+				world.addSystem('ResourceSystem')
+					.addQuery('entities', {
+						with: ['position']
+					})
+					.setProcess((_queries, _deltaTime, ecs) => {
+						const logger = ecs.getResource('logger');
+						const counter = ecs.getResource('counter');
 
-				// Use both resources
-				const value = counter.increment();
-				logger.log(`Counter value: ${value}`);
-			})
-			.bundle;
+						const value = counter.increment();
+						logger.log(`Counter value: ${value}`);
+					})
+					.and();
+			},
+		});
 
-		// Create the world with the bundle
 		const world = ECSpresso.create<TestComponents, TestEvents, TestResources>()
-			.withBundle(bundle)
+			.withPlugin(plugin)
 			.build();
 
 		world.spawn({
@@ -209,30 +211,29 @@ describe('ResourceManager', () => {
 		// Track logged messages
 		const loggedMessages: string[] = [];
 
-		// Create a bundle with resources and event handlers
-		const bundle = new Bundle<TestComponents, TestEvents, TestResources>()
-			.addResource('gameState', gameState)
-			.addResource('logger', logger)
-			.addSystem('EventSystem')
-			.setEventHandlers({
-				resourceUpdated: (data, ecs) => {
-					// Use resources in the event handler
-					const logger = ecs.getResource('logger');
-					const gameState = ecs.getResource('gameState');
+		const plugin = definePlugin<TestComponents, TestEvents, TestResources>({
+			id: 'event-system',
+			install(world) {
+				world.addResource('gameState', gameState);
+				world.addResource('logger', logger);
+				world.addSystem('EventSystem')
+					.setEventHandlers({
+						resourceUpdated: (data, ecs) => {
+							const logger = ecs.getResource('logger');
+							const gameState = ecs.getResource('gameState');
 
-					// Log the event
-					logger.log(`Resource ${data.resourceName} updated to ${data.newValue} (game state: ${gameState.current})`);
+							logger.log(`Resource ${data.resourceName} updated to ${data.newValue} (game state: ${gameState.current})`);
 
-					// Update game state
-					gameState.previous = gameState.current;
-					gameState.current = 'updated';
-				}
-			})
-			.bundle;
+							gameState.previous = gameState.current;
+							gameState.current = 'updated';
+						}
+					})
+					.and();
+			},
+		});
 
-		// Create the world with the bundle
 		const world = ECSpresso.create<TestComponents, TestEvents, TestResources>()
-			.withBundle(bundle)
+			.withPlugin(plugin)
 			.build();
 
 		// Publish an event to trigger the handler

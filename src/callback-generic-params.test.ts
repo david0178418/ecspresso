@@ -1,6 +1,6 @@
 import { describe, test, expect } from 'bun:test';
 import ECSpresso from './ecspresso';
-import Bundle from './bundle';
+import { definePlugin } from './plugin';
 import CommandBuffer from './command-buffer';
 import type { ScreenDefinition } from './screen-types';
 import type { AssetsResource } from './asset-types';
@@ -186,38 +186,46 @@ describe('ECSpressoBuilder.withResource factory receives typed context', () => {
 	});
 });
 
-// ── Bundle.addResource ───────────────────────────────────────────────
+// ── Plugin install addResource ───────────────────────────────────────
 
-describe('Bundle.addResource factory receives full generic params', () => {
-	test('factory function ecs param is fully typed', () => {
-		const bundle = new Bundle<TC, TE, TR, TA, TS>('test');
+describe('Plugin install addResource factory receives full generic params', () => {
+	test('factory function ecs param is fully typed inside install', () => {
+		const plugin = definePlugin<TC, TE, TR, TA, TS>({
+			id: 'test',
+			install(world) {
+				world.addResource('score', (w) => {
+					// Type-level: asset access is typed
+					const _loaded: boolean = w.isAssetLoaded('sprite');
+					void _loaded;
 
-		bundle.addResource('score', (world) => {
-			// Type-level: asset access is typed
-			const _loaded: boolean = world.isAssetLoaded('sprite');
-			void _loaded;
+					// Type-level: screen access is typed
+					const _screen: 'menu' | 'play' | null = w.getCurrentScreen();
+					void _screen;
 
-			// Type-level: screen access is typed
-			const _screen: 'menu' | 'play' | null = world.getCurrentScreen();
-			void _screen;
-
-			return { value: 0 };
+					return { value: 0 };
+				});
+			},
 		});
 
-		expect(bundle.hasResource('score')).toBe(true);
+		// Install and verify
+		const ecs = ECSpresso.create().withPlugin(plugin).build();
+		expect(ecs.hasResource('score')).toBe(true);
 	});
 
-	test('factory ecs param rejects invalid keys', () => {
-		const bundle = new Bundle<TC, TE, TR, TA, TS>('test');
+	test('factory ecs param rejects invalid keys inside install', () => {
+		definePlugin<TC, TE, TR, TA, TS>({
+			id: 'test',
+			install(world) {
+				world.addResource('score', (w) => {
+					// @ts-expect-error - 'nonexistent' is not a valid asset key
+					w.isAssetLoaded('nonexistent');
 
-		bundle.addResource('score', (world) => {
-			// @ts-expect-error - 'nonexistent' is not a valid asset key
-			world.isAssetLoaded('nonexistent');
+					// @ts-expect-error - 'nonexistent' is not a valid screen
+					w.transitionTo('nonexistent');
 
-			// @ts-expect-error - 'nonexistent' is not a valid screen
-			world.transitionTo('nonexistent');
-
-			return { value: 0 };
+					return { value: 0 };
+				});
+			},
 		});
 
 		expect(true).toBe(true);

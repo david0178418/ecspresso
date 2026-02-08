@@ -7,7 +7,7 @@ A type-safe, modular, and extensible Entity Component System (ECS) framework for
 ## Features
 
 - **Type-Safe**: Full TypeScript support with component, event, and resource type inference
-- **Modular**: Bundle-based architecture for organizing features
+- **Modular**: Plugin-based architecture for organizing features
 - **Developer-Friendly**: Clean, fluent API with method chaining
 - **Event-Driven**: Integrated event system for decoupled communication
 - **Resource Management**: Global state management with lazy loading
@@ -22,7 +22,7 @@ A type-safe, modular, and extensible Entity Component System (ECS) framework for
 - **Component Lifecycle**: Callbacks for component add/remove with unsubscribe support
 - **Required Components**: Auto-add dependent components on spawn/addComponent (e.g. `localTransform` implies `worldTransform`)
 - **Command Buffer**: Deferred structural changes for safe entity/component operations during systems
-- **Timer Bundle**: ECS-native timers with event-based completion notifications
+- **Timer Plugin**: ECS-native timers with event-based completion notifications
 
 ## Installation
 
@@ -48,7 +48,7 @@ npm install ecspresso
 - [Entity Hierarchy](#entity-hierarchy) -- [Traversal](#traversal), [Parent-First Traversal](#parent-first-traversal), [Cascade Deletion](#cascade-deletion)
 - [Change Detection](#change-detection) -- [Marking Changes](#marking-changes), [Changed Query Filter](#changed-query-filter), [Sequence Timing](#sequence-timing)
 - [Command Buffer](#command-buffer) -- [Available Commands](#available-commands)
-- [Bundles](#bundles) -- [Required Components](#required-components), [Built-in Bundles](#built-in-bundles), [Timer Bundle](#timer-bundle)
+- [Plugins](#plugins) -- [Required Components](#required-components), [Built-in Plugins](#built-in-plugins), [Timer Plugin](#timer-plugin)
 - [Asset Management](#asset-management)
 - [Screen Management](#screen-management) -- [Screen-Scoped Systems](#screen-scoped-systems), [Screen Resource](#screen-resource)
 - [Type Safety](#type-safety)
@@ -233,7 +233,7 @@ world.addSystem('scoring')
 ```typescript
 const world = ECSpresso
   .create<Components, Events, Resources>()
-  .withBundle(physicsBundle)
+  .withPlugin(physicsPlugin)
   .withResource('config', { debug: true, maxEntities: 1000 })
   .withResource('score', () => ({ value: 0 }))
   .withResource('cache', {
@@ -267,7 +267,7 @@ await world.disposeResources();              // All, in reverse dependency order
 
 ### Method Chaining
 
-Chain multiple systems using `.and()`. The `.and()` method returns the parent container (ECSpresso or Bundle), enabling fluent chaining:
+Chain multiple systems using `.and()`. The `.and()` method returns the parent container (ECSpresso or Plugin), enabling fluent chaining:
 
 ```typescript
 world.addSystem('physics')
@@ -475,7 +475,7 @@ world.addSystem('gameLogic')
 world.eventBus.publish('playerDied', { playerId: 1 });
 ```
 
-**Built-in events**: `hierarchyChanged` (entity parent changes), `assetLoaded` / `assetFailed` / `assetGroupProgress` / `assetGroupLoaded` (asset loading), and timer `onComplete` events (see [Bundles](#bundles)).
+**Built-in events**: `hierarchyChanged` (entity parent changes), `assetLoaded` / `assetFailed` / `assetGroupProgress` / `assetGroupLoaded` (asset loading), and timer `onComplete` events (see [Plugins](#plugins)).
 
 ## Entity Hierarchy
 
@@ -544,7 +544,7 @@ world.removeEntity(parent.id, { cascade: false });
 
 Hierarchy changes emit the `hierarchyChanged` event (see [Events](#events)).
 
-**World position pattern**: `worldPos = localPos + parent.worldPos`. A parent's world position already includes all grandparents, so each entity only needs to combine its local position with its immediate parent's world position. The Transform bundle implements this automatically.
+**World position pattern**: `worldPos = localPos + parent.worldPos`. A parent's world position already includes all grandparents, so each entity only needs to combine its local position with its immediate parent's world position. The Transform plugin implements this automatically.
 
 ## Change Detection
 
@@ -601,7 +601,7 @@ if (em.getChangeSeq(entity.id, 'localTransform') > ecs.changeThreshold) {
 
 **Deferred marking**: `ecs.commands.markChanged(entity.id, 'position')` queues a mark for command buffer playback.
 
-**Built-in bundle usage**: Movement marks `localTransform` (fixedUpdate) → Transform propagation reads `localTransform` changed, writes+marks `worldTransform` (postUpdate) → Renderer reads `worldTransform` changed (render).
+**Built-in plugin usage**: Movement marks `localTransform` (fixedUpdate) → Transform propagation reads `localTransform` changed, writes+marks `worldTransform` (postUpdate) → Renderer reads `worldTransform` changed (render).
 
 ## Command Buffer
 
@@ -652,14 +652,14 @@ ecs.commands.clear(); // Discard all queued commands
 
 Commands execute in FIFO order. If a command fails (e.g., entity doesn't exist), it logs a warning and continues with remaining commands.
 
-## Bundles
+## Plugins
 
-Organize related systems and resources into reusable bundles:
+Organize related systems and resources into reusable plugins:
 
 ```typescript
-import { Bundle } from 'ecspresso';
+import { Plugin } from 'ecspresso';
 
-const physicsBundle = new Bundle<GameComponents, {}, GameResources>('physics')
+const physicsPlugin = new Plugin<GameComponents, {}, GameResources>('physics')
   .addSystem('applyVelocity')
   .addQuery('moving', { with: ['position', 'velocity'] })
   .setProcess((queries, deltaTime) => {
@@ -680,24 +680,24 @@ const physicsBundle = new Bundle<GameComponents, {}, GameResources>('physics')
   .and()
   .addResource('gravity', { value: 9.8 });
 
-// Register bundles with the world
+// Register plugins with the world
 const game = ECSpresso.create<GameComponents, {}, GameResources>()
-  .withBundle(physicsBundle)
+  .withPlugin(physicsPlugin)
   .build();
 ```
 
 ### Required Components
 
-Bundles can declare that certain components depend on others. When an entity gains a trigger component, any required components that aren't already present are auto-added with default values:
+Plugins can declare that certain components depend on others. When an entity gains a trigger component, any required components that aren't already present are auto-added with default values:
 
 ```typescript
-const transformBundle = new Bundle<TransformComponents>('transform')
+const transformPlugin = new Plugin<TransformComponents>('transform')
   .registerRequired('localTransform', 'worldTransform', () => ({
     x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1,
   }));
 
 const world = ECSpresso.create()
-  .withBundle(transformBundle)
+  .withPlugin(transformPlugin)
   .build();
 
 // worldTransform is auto-added with defaults
@@ -734,34 +734,34 @@ world.registerRequired('position', 'velocity', () => ({ x: 0, y: 0 }));
 - Auto-added components are marked as changed and trigger reactive queries
 - Component names and factory return types are fully type-checked
 
-**Built-in requirements:** The Transform bundle registers `localTransform` → `worldTransform`. The Physics 2D bundle registers `rigidBody` → `velocity` and `rigidBody` → `force`.
+**Built-in requirements:** The Transform plugin registers `localTransform` → `worldTransform`. The Physics 2D plugin registers `rigidBody` → `velocity` and `rigidBody` → `force`.
 
-### Built-in Bundles
+### Built-in Plugins
 
-| Bundle | Import | Default Phase | Description |
+| Plugin | Import | Default Phase | Description |
 |--------|--------|---------------|-------------|
-| **Input** | `ecspresso/bundles/input` | `preUpdate` | Frame-accurate keyboard/pointer input with action mapping |
-| **Timers** | `ecspresso/bundles/timers` | `preUpdate` | ECS-native timers with event-based completion |
-| **Movement** | `ecspresso/bundles/movement` | `fixedUpdate` | Velocity-based movement integration |
-| **Transform** | `ecspresso/bundles/transform` | `postUpdate` | Hierarchical transform propagation (local/world transforms) |
-| **Bounds** | `ecspresso/bundles/bounds` | `postUpdate` | Screen bounds enforcement (destroy, clamp, wrap) |
-| **Collision** | `ecspresso/bundles/collision` | `postUpdate` | Layer-based AABB/circle collision detection with events |
-| **2D Renderer** | `ecspresso/bundles/renderers/renderer2D` | `render` | Automated PixiJS scene graph wiring |
+| **Input** | `ecspresso/plugins/input` | `preUpdate` | Frame-accurate keyboard/pointer input with action mapping |
+| **Timers** | `ecspresso/plugins/timers` | `preUpdate` | ECS-native timers with event-based completion |
+| **Movement** | `ecspresso/plugins/movement` | `fixedUpdate` | Velocity-based movement integration |
+| **Transform** | `ecspresso/plugins/transform` | `postUpdate` | Hierarchical transform propagation (local/world transforms) |
+| **Bounds** | `ecspresso/plugins/bounds` | `postUpdate` | Screen bounds enforcement (destroy, clamp, wrap) |
+| **Collision** | `ecspresso/plugins/collision` | `postUpdate` | Layer-based AABB/circle collision detection with events |
+| **2D Renderer** | `ecspresso/plugins/renderers/renderer2D` | `render` | Automated PixiJS scene graph wiring |
 
-Each bundle accepts a `phase` option to override its default.
+Each plugin accepts a `phase` option to override its default.
 
-### Input Bundle
+### Input Plugin
 
-The input bundle provides frame-accurate keyboard, pointer (mouse + touch via PointerEvent), and named action mapping. It's a resource-only bundle — input is polled via the `inputState` resource. DOM events are accumulated between frames and snapshotted once per frame, so all systems see consistent state.
+The input plugin provides frame-accurate keyboard, pointer (mouse + touch via PointerEvent), and named action mapping. It's a resource-only plugin — input is polled via the `inputState` resource. DOM events are accumulated between frames and snapshotted once per frame, so all systems see consistent state.
 
 ```typescript
 import {
-  createInputBundle,
+  createInputPlugin,
   type InputResourceTypes, type KeyCode
-} from 'ecspresso/bundles/input';
+} from 'ecspresso/plugins/input';
 
 const world = ECSpresso.create()
-  .withBundle(createInputBundle({
+  .withPlugin(createInputPlugin({
     actions: {
       jump: { keys: [' ', 'ArrowUp'] },
       shoot: { keys: ['z'], buttons: [0] },
@@ -786,19 +786,19 @@ input.setActionMap({
 });
 ```
 
-Action names are type-safe — `isActive`, `justActivated`, `justDeactivated`, `setActionMap`, and `getActionMap` only accept action names from the config. The type parameter `A` is inferred from the `actions` object keys passed to `createInputBundle`. Defaults to `string` when no actions are configured.
+Action names are type-safe — `isActive`, `justActivated`, `justDeactivated`, `setActionMap`, and `getActionMap` only accept action names from the config. The type parameter `A` is inferred from the `actions` object keys passed to `createInputPlugin`. Defaults to `string` when no actions are configured.
 
 Key values use the `KeyCode` type — a union of all standard `KeyboardEvent.key` values — providing autocomplete and compile-time validation. Note that the space bar key is `' '` (a space character), not `'Space'`.
 
-### Timer Bundle
+### Timer Plugin
 
-The timer bundle provides ECS-native timers that follow the "data, not callbacks" philosophy. Timers are components processed each frame, with optional event-based completion notifications.
+The timer plugin provides ECS-native timers that follow the "data, not callbacks" philosophy. Timers are components processed each frame, with optional event-based completion notifications.
 
 ```typescript
 import {
-  createTimerBundle, createTimer, createRepeatingTimer,
+  createTimerPlugin, createTimer, createRepeatingTimer,
   type TimerComponentTypes, type TimerEventData
-} from 'ecspresso/bundles/timers';
+} from 'ecspresso/plugins/timers';
 
 // Events used with onComplete must have TimerEventData payload
 interface Events {
@@ -812,7 +812,7 @@ interface Components extends TimerComponentTypes<Events> {
 
 const world = ECSpresso
   .create<Components, Events>()
-  .withBundle(createTimerBundle<Events>())
+  .withPlugin(createTimerPlugin<Events>())
   .build();
 
 // One-shot timer (poll justFinished or use onComplete event)
@@ -983,12 +983,12 @@ world.addSystem('example')
   })
   .build();
 
-// Bundle type compatibility - conflicting types error at compile time
-const bundle1 = new Bundle<{position: {x: number, y: number}}>('b1');
-const bundle2 = new Bundle<{velocity: {x: number, y: number}}>('b2');
+// Plugin type compatibility - conflicting types error at compile time
+const plugin1 = new Plugin<{position: {x: number, y: number}}>('p1');
+const plugin2 = new Plugin<{velocity: {x: number, y: number}}>('p2');
 const world = ECSpresso.create()
-  .withBundle(bundle1)
-  .withBundle(bundle2)  // Types merge successfully
+  .withPlugin(plugin1)
+  .withPlugin(plugin2)  // Types merge successfully
   .build();
 ```
 
@@ -1012,7 +1012,7 @@ world.entityManager.getComponent(123, 'position'); // undefined
 - Use `changed` query filters to skip unchanged entities in render sync, transform propagation, and similar systems
 - Call `markChanged` after in-place mutations so downstream systems can detect the change
 - Extract business logic into testable helper functions using query type utilities
-- Bundle related systems for better organization and reusability
+- Group related systems into plugins for better organization and reusability
 - Use system phases to separate concerns (physics in `fixedUpdate`, rendering in `render`) and priorities for ordering within a phase
 - Use resource factories for expensive initialization (textures, audio, etc.)
 - Consider component callbacks for immediate reactions to state changes

@@ -4,7 +4,7 @@ import home from './index.html';
 import basiceMovement from './01-movement/movement.html';
 import playerInput from './02-player-input/player-input.html';
 import events from './03-events/events.html';
-import bundles from './04-bundles/bundles.html';
+import plugins from './04-plugins/plugins.html';
 import spaceInvaders from './05-space-invaders/space-invaders.html';
 import turretShooter from './06-turret-shooter/turret-shooter.html';
 import hierarchy from './09-hierarchy/hierarchy.html';
@@ -30,7 +30,7 @@ const server = serve({
 		'/movement/': basiceMovement,
 		'/player-input/': playerInput,
 		'/events/': events,
-		'/bundles/': bundles,
+		'/plugins/': plugins,
 		'/space-invaders/': spaceInvaders,
 		'/turret-shooter/': turretShooter,
 		'/hierarchy/': hierarchy,
