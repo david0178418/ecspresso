@@ -145,7 +145,24 @@ export class ECSpressoBuilder<
 	}
 
 	/**
-	 * Add a resource during ECSpresso construction
+	 * Add application-specific resource types to the builder chain.
+	 * This is a pure type-level operation with no runtime cost.
+	 * Conflicts with existing resource types (same key, different type) produce a `never` return.
+	 */
+	withResourceTypes<T extends Record<string, any>>(): TypesAreCompatible<R, T> extends true
+		? ECSpressoBuilder<C, E, R & T, A, S, Labels, Groups, AssetGroupNames, ReactiveQueryNames>
+		: never;
+	withResourceTypes<T extends Record<string, any>>(): ECSpressoBuilder<C, E, R & T, A, S, Labels, Groups, AssetGroupNames, ReactiveQueryNames> {
+		return this as unknown as ECSpressoBuilder<C, E, R & T, A, S, Labels, Groups, AssetGroupNames, ReactiveQueryNames>;
+	}
+
+	/**
+	 * Add a resource during ECSpresso construction.
+	 *
+	 * When the key matches a pre-declared resource type (via `withResourceTypes`, `create<C,E,R>()`,
+	 * or bundle resources), the value is validated against that type.
+	 * For new keys, the value type is inferred as before.
+	 *
 	 * @param key The resource key
 	 * @param resource The resource value, factory function, or factory with dependencies/disposal
 	 * @returns This builder with updated resource types
@@ -163,12 +180,17 @@ export class ECSpressoBuilder<
 	 *   .build();
 	 * ```
 	 */
-	withResource<K extends string, V>(
+	withResource<K extends keyof R & string>(
 		key: K,
+		resource: R[K] | ((context: ECSpresso<C, E, R, A, S>) => R[K] | Promise<R[K]>) | ResourceFactoryWithDeps<R[K], ECSpresso<C, E, R, A, S>, keyof R & string>
+	): ECSpressoBuilder<C, E, R, A, S, Labels, Groups, AssetGroupNames, ReactiveQueryNames>;
+	withResource<K extends string, V>(
+		key: K & ([K] extends [keyof R] ? [V] extends [R[K & keyof R]] ? string : never : string),
 		resource: V | ((context: ECSpresso<C, E, R & Record<K, V>, A, S>) => V | Promise<V>) | ResourceFactoryWithDeps<V, ECSpresso<C, E, R & Record<K, V>, A, S>, keyof (R & Record<K, V>) & string>
-	): ECSpressoBuilder<C, E, R & Record<K, V>, A, S, Labels, Groups, AssetGroupNames, ReactiveQueryNames> {
+	): ECSpressoBuilder<C, E, R & Record<K, V>, A, S, Labels, Groups, AssetGroupNames, ReactiveQueryNames>;
+	withResource(key: string, resource: unknown): ECSpressoBuilder<C, E, any, A, S, Labels, Groups, AssetGroupNames, ReactiveQueryNames> {
 		this.pendingResources.push({ key, value: resource });
-		return this as unknown as ECSpressoBuilder<C, E, R & Record<K, V>, A, S, Labels, Groups, AssetGroupNames, ReactiveQueryNames>;
+		return this as unknown as ECSpressoBuilder<C, E, any, A, S, Labels, Groups, AssetGroupNames, ReactiveQueryNames>;
 	}
 
 	/**

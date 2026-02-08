@@ -546,3 +546,172 @@ describe('withBundle() asset/screen type propagation', () => {
 		void _typeCheck;
 	});
 });
+
+describe('withResourceTypes', () => {
+	test('withResourceTypes adds resource types to the builder', () => {
+		interface Resources {
+			score: number;
+			config: { debug: boolean; volume: number };
+		}
+
+		const ecs = ECSpresso.create()
+			.withResourceTypes<Resources>()
+			.withResource('score', 0)
+			.withResource('config', { debug: false, volume: 0.8 })
+			.build();
+
+		function _typeCheck(world: typeof ecs) {
+			const score: number = world.getResource('score');
+			const config: { debug: boolean; volume: number } = world.getResource('config');
+			return { score, config };
+		}
+		void _typeCheck;
+	});
+
+	test('withResourceTypes validates initial values via withResource', () => {
+		interface Resources {
+			score: number;
+		}
+
+		ECSpresso.create()
+			.withResourceTypes<Resources>()
+			// @ts-expect-error - score should be number, not string
+			.withResource('score', 'not a number');
+	});
+
+	test('withResourceTypes validates string literal unions', () => {
+		interface Resources {
+			gameState: { status: 'ready' | 'playing' | 'paused' | 'gameOver' };
+		}
+
+		// Valid value
+		ECSpresso.create()
+			.withResourceTypes<Resources>()
+			.withResource('gameState', { status: 'ready' as const });
+
+		ECSpresso.create()
+			.withResourceTypes<Resources>()
+			// @ts-expect-error - 'invalid' is not in the union
+			.withResource('gameState', { status: 'invalid' });
+	});
+
+	test('withResourceTypes works with factory functions', () => {
+		interface Resources {
+			score: number;
+		}
+
+		ECSpresso.create()
+			.withResourceTypes<Resources>()
+			.withResource('score', () => 42);
+	});
+
+	test('withResourceTypes + withBundle are compatible', () => {
+		const bundle = new Bundle<{ pos: { x: number } }, {}, { physics: { gravity: number } }>('phys');
+
+		const ecs = ECSpresso.create()
+			.withBundle(bundle)
+			.withResourceTypes<{ score: number }>()
+			.withResource('score', 0)
+			.build();
+
+		function _typeCheck(world: typeof ecs) {
+			const score: number = world.getResource('score');
+			const physics: { gravity: number } = world.getResource('physics');
+			return { score, physics };
+		}
+		void _typeCheck;
+	});
+
+	test('withResourceTypes conflict detection', () => {
+		const result = ECSpresso.create()
+			.withResourceTypes<{ score: number }>()
+			.withResourceTypes<{ score: string }>();
+
+		// @ts-expect-error - conflicting types produce never, so build() doesn't exist
+		result.build();
+	});
+
+	test('withResource for undeclared key still infers', () => {
+		const ecs = ECSpresso.create()
+			.withResourceTypes<{ score: number }>()
+			.withResource('score', 0)
+			.withResource('newThing', { foo: 'bar' })
+			.build();
+
+		function _typeCheck(world: typeof ecs) {
+			const score: number = world.getResource('score');
+			const newThing: { foo: string } = world.getResource('newThing');
+			return { score, newThing };
+		}
+		void _typeCheck;
+	});
+
+	test('multiple withResourceTypes calls accumulate', () => {
+		const ecs = ECSpresso.create()
+			.withResourceTypes<{ score: number }>()
+			.withResourceTypes<{ config: { debug: boolean } }>()
+			.withResource('score', 0)
+			.withResource('config', { debug: true })
+			.build();
+
+		function _typeCheck(world: typeof ecs) {
+			const score: number = world.getResource('score');
+			const config: { debug: boolean } = world.getResource('config');
+			return { score, config };
+		}
+		void _typeCheck;
+	});
+
+	test('create<C,E,R>() validates withResource values against R', () => {
+		interface Components {
+			position: { x: number; y: number };
+		}
+		interface Events {
+			hit: { damage: number };
+		}
+		interface Resources {
+			config: { debug: boolean };
+		}
+
+		// Valid value passes
+		ECSpresso.create<Components, Events, Resources>()
+			.withResource('config', { debug: true });
+
+		ECSpresso.create<Components, Events, Resources>()
+			// @ts-expect-error - wrong type for config
+			.withResource('config', { debug: 'yes' });
+	});
+
+	test('withResourceTypes + withResource with wrong shape', () => {
+		interface Resources {
+			config: { debug: boolean; volume: number };
+		}
+
+		ECSpresso.create()
+			.withResourceTypes<Resources>()
+			// @ts-expect-error - missing 'volume' field
+			.withResource('config', { debug: true });
+	});
+
+	test('withResourceTypes is a no-op at runtime', async () => {
+		const ecs = ECSpresso.create()
+			.withResourceTypes<{ score: number }>()
+			.withResource('score', 42)
+			.build();
+
+		await ecs.initialize();
+		expect(ecs.getResource('score')).toBe(42);
+	});
+
+	test('withResourceTypes + withResource provides runtime values', async () => {
+		const ecs = ECSpresso.create()
+			.withResourceTypes<{ score: number; config: { debug: boolean } }>()
+			.withResource('score', 100)
+			.withResource('config', { debug: true })
+			.build();
+
+		await ecs.initialize();
+		expect(ecs.getResource('score')).toBe(100);
+		expect(ecs.getResource('config').debug).toBe(true);
+	});
+});
