@@ -251,13 +251,11 @@ export function defineParticleEffect(input: ParticleEffectInput): ParticleEffect
 /**
  * Create a particleEmitter component suitable for spreading into spawn().
  */
-export function createParticleEmitter<
-	ET extends Record<string, any> = Record<string, any>,
->(
+export function createParticleEmitter(
 	config: ParticleEffectConfig,
 	options?: {
 		playing?: boolean;
-		onComplete?: EventNameMatching<ET, ParticleEmitterEventData>;
+		onComplete?: string;
 	},
 ): Pick<ParticleComponentTypes, 'particleEmitter'> {
 	return {
@@ -594,9 +592,7 @@ export const particlePresets = {
 
 // ==================== Kit Types ====================
 
-export interface ParticleKit<W extends AnyECSpresso, G extends string = 'particles'> {
-	bundle: Bundle<ParticleComponentTypes, EventsOfWorld<W>, {}, {}, {}, 'particle-update' | 'particle-render-sync', G, never, 'particle-emitters'>;
-	defineParticleEffect: typeof defineParticleEffect;
+export interface ParticleHelpers<W extends AnyECSpresso> {
 	createParticleEmitter: (
 		config: ParticleEffectConfig,
 		options?: {
@@ -604,26 +600,11 @@ export interface ParticleKit<W extends AnyECSpresso, G extends string = 'particl
 			onComplete?: EventNameMatching<EventsOfWorld<W>, ParticleEmitterEventData>;
 		},
 	) => Pick<ParticleComponentTypes, 'particleEmitter'>;
-	burstParticles: typeof burstParticles;
-	stopEmitter: typeof stopEmitter;
-	resumeEmitter: typeof resumeEmitter;
-	presets: typeof particlePresets;
 }
 
-/**
- * Create a typed particle kit that captures the world type W.
- */
-export function createParticleKit<W extends AnyECSpresso, G extends string = 'particles'>(
-	options?: ParticleBundleOptions<G>,
-): ParticleKit<W, G> {
+export function createParticleHelpers<W extends AnyECSpresso>(): ParticleHelpers<W> {
 	return {
-		bundle: createParticleBundle<EventsOfWorld<W>, G>(options),
-		defineParticleEffect,
-		createParticleEmitter: createParticleEmitter as ParticleKit<W, G>['createParticleEmitter'],
-		burstParticles,
-		stopEmitter,
-		resumeEmitter,
-		presets: particlePresets,
+		createParticleEmitter: createParticleEmitter as ParticleHelpers<W>['createParticleEmitter'],
 	};
 }
 
@@ -645,18 +626,17 @@ type ParticleLabels = 'particle-update' | 'particle-render-sync';
  * Renderer2D is a required dependency.
  */
 export function createParticleBundle<
-	EventTypes extends Record<string, any> = Record<string, any>,
 	G extends string = 'particles',
 >(
 	options?: ParticleBundleOptions<G>,
-): Bundle<ParticleComponentTypes, EventTypes, {}, {}, {}, ParticleLabels, G, never, 'particle-emitters'> {
+): Bundle<ParticleComponentTypes, {}, {}, {}, {}, ParticleLabels, G, never, 'particle-emitters'> {
 	const {
 		systemGroup = 'particles',
 		priority = 0,
 		phase = 'update',
 	} = options ?? {};
 
-	const bundle = new Bundle<ParticleComponentTypes, EventTypes, {}>('particles');
+	const bundle = new Bundle<ParticleComponentTypes, Record<string, any>, {}>('particles');
 
 	// Side storage for runtime particle data
 	const emitterData = new Map<number, EmitterRuntimeData>();
@@ -720,9 +700,9 @@ export function createParticleBundle<
 					emitter.finished = true;
 
 					if (emitter.onComplete) {
-						ecs.eventBus.publish(emitter.onComplete as keyof EventTypes & string, {
+						ecs.eventBus.publish(emitter.onComplete, {
 							entityId: entity.id,
-						} as EventTypes[keyof EventTypes & string]);
+						});
 					}
 
 					ecs.commands.removeComponent(entity.id, 'particleEmitter' as keyof ParticleComponentTypes & string);
@@ -870,7 +850,7 @@ export function createParticleBundle<
 
 	const typedBundle = bundle.withReactiveQueryNames<'particle-emitters'>();
 
-	return typedBundle as Bundle<ParticleComponentTypes, EventTypes, {}, {}, {}, ParticleLabels, G, never, 'particle-emitters'>;
+	return typedBundle as Bundle<ParticleComponentTypes, {}, {}, {}, {}, ParticleLabels, G, never, 'particle-emitters'>;
 }
 
 /**

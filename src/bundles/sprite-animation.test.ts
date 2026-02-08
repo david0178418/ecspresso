@@ -5,7 +5,7 @@ import {
 	defineSpriteAnimations,
 	createSpriteAnimation,
 	createSpriteAnimationBundle,
-	createSpriteAnimationKit,
+	createSpriteAnimationHelpers,
 	playAnimation,
 	stopAnimation,
 	resumeAnimation,
@@ -35,7 +35,7 @@ interface TestEvents {
 function createTestEcs() {
 	return ECSpresso
 		.create<TestComponents, TestEvents, {}>()
-		.withBundle(createSpriteAnimationBundle<TestEvents>())
+		.withBundle(createSpriteAnimationBundle())
 		.build();
 }
 
@@ -200,7 +200,7 @@ describe('Sprite Animation Bundle', () => {
 		});
 
 		test('respects onComplete option', () => {
-			const result = createSpriteAnimation<typeof set.defaultClip | 'run', TestEvents>(set, {
+			const result = createSpriteAnimation(set, {
 				onComplete: 'animDone',
 			});
 
@@ -626,7 +626,7 @@ describe('Sprite Animation Bundle', () => {
 			ecs.on('animDone', (data) => { received.push(data); });
 
 			const entity = ecs.spawn({
-				...createSpriteAnimation<'default', TestEvents>(set, { onComplete: 'animDone' }),
+				...createSpriteAnimation(set, { onComplete: 'animDone' }),
 				position: { x: 0, y: 0 },
 				sprite: { texture: frames[0] },
 			});
@@ -651,7 +651,7 @@ describe('Sprite Animation Bundle', () => {
 			ecs.on('animDone', (data) => { received.push(data); });
 
 			ecs.spawn({
-				...createSpriteAnimation<'default', TestEvents>(set, { onComplete: 'animDone' }),
+				...createSpriteAnimation(set, { onComplete: 'animDone' }),
 				position: { x: 0, y: 0 },
 				sprite: { texture: frames[0] },
 			});
@@ -676,7 +676,7 @@ describe('Sprite Animation Bundle', () => {
 			ecs.on('animDone', (data) => { received.push(data); });
 
 			ecs.spawn({
-				...createSpriteAnimation<'default', TestEvents>(set, {
+				...createSpriteAnimation(set, {
 					onComplete: 'animDone',
 					totalLoops: -1,
 				}),
@@ -705,7 +705,7 @@ describe('Sprite Animation Bundle', () => {
 			ecs.on('animDone', (data) => { received.push(data); });
 
 			ecs.spawn({
-				...createSpriteAnimation<'default', TestEvents>(set, {
+				...createSpriteAnimation(set, {
 					onComplete: 'animDone',
 					totalLoops: 2,
 				}),
@@ -1133,25 +1133,24 @@ describe('Sprite Animation Bundle', () => {
 		});
 	});
 
-	// ==================== Kit Pattern ====================
+	// ==================== Helpers Pattern ====================
 
-	describe('createSpriteAnimationKit', () => {
-		test('kit bundle is usable in ECSpresso builder', () => {
-			const kit = createSpriteAnimationKit();
-
+	describe('createSpriteAnimationHelpers', () => {
+		test('helpers createSpriteAnimation works with ECSpresso builder', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, {}>()
-				.withBundle(kit.bundle)
+				.withBundle(createSpriteAnimationBundle())
 				.build();
+			const helpers = createSpriteAnimationHelpers<typeof ecs>();
 
 			const frames = makeFrames(3);
-			const set = kit.defineSpriteAnimation('test', {
+			const set = defineSpriteAnimation('test', {
 				frames,
 				frameDuration: 0.1,
 			});
 
 			const entity = ecs.spawn({
-				...kit.createSpriteAnimation(set),
+				...helpers.createSpriteAnimation(set),
 				position: { x: 0, y: 0 },
 				sprite: { texture: frames[0] },
 			});
@@ -1160,18 +1159,6 @@ describe('Sprite Animation Bundle', () => {
 
 			const anim = ecs.entityManager.getComponent(entity.id, 'spriteAnimation') as SpriteAnimation;
 			expect(anim.currentFrame).toBe(1);
-		});
-
-		test('kit helpers return same results as standalone functions', () => {
-			const kit = createSpriteAnimationKit();
-
-			const frames = makeFrames(4);
-			const kitSet = kit.defineSpriteAnimation('test', { frames, frameDuration: 0.1 });
-			const standaloneSet = defineSpriteAnimation('test', { frames, frameDuration: 0.1 });
-
-			expect(kitSet.id).toBe(standaloneSet.id);
-			expect(kitSet.defaultClip).toBe(standaloneSet.defaultClip);
-			expect(kitSet.clips.default.frames.length).toBe(standaloneSet.clips.default.frames.length);
 		});
 	});
 });

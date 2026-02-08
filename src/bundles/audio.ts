@@ -7,7 +7,7 @@
  */
 
 import { Bundle } from 'ecspresso';
-import type { SystemPhase, AssetsOfWorld, AnyECSpresso } from 'ecspresso';
+import type { SystemPhase, AssetsOfWorld, AnyECSpresso, ChannelOfWorld } from 'ecspresso';
 import type { Howl } from 'howler';
 
 // ==================== Channel Definition ====================
@@ -671,54 +671,37 @@ export function createAudioBundle<Ch extends string, G extends string = 'audio'>
 	return typedBundle as Bundle<AudioComponentTypes<Ch>, AudioEventTypes<Ch>, AudioResourceTypes<Ch>, {}, {}, 'audio-sync', G, never, 'audio-sources'>;
 }
 
-// ==================== Kit Pattern ====================
+// ==================== Post-Build Helpers ====================
 
 /**
- * Kit result from createAudioKit.
- */
-export interface AudioKit<W extends AnyECSpresso, Ch extends string, G extends string = 'audio'> {
-	bundle: Bundle<AudioComponentTypes<Ch>, AudioEventTypes<Ch>, AudioResourceTypes<Ch>, {}, {}, 'audio-sync', G, never, 'audio-sources'>;
-	createAudioSource: (
-		sound: keyof AssetsOfWorld<W> & string,
-		channel: Ch,
-		options?: { volume?: number; loop?: boolean; autoRemove?: boolean }
-	) => Pick<AudioComponentTypes<Ch>, 'audioSource'>;
-	loadSound: typeof loadSound;
-}
-
-/**
- * Create a typed audio kit that captures the world type W and channel type Ch.
- *
- * The returned `createAudioSource` validates sound keys against the world's
- * asset types at compile time.
+ * Typed helpers for the audio bundle.
+ * Creates helpers that validate sound keys and channel names against the world type W.
+ * Call after .build() using typeof ecs.
  *
  * @template W - Concrete ECS world type (e.g. `typeof ecs`)
- * @template Ch - Channel name union from defineAudioChannels
- * @template G - System group name (default: 'audio')
- * @param options - Bundle configuration including channel definitions
- * @returns A kit object with bundle, createAudioSource, loadSound
  *
  * @example
  * ```typescript
- * const channels = defineAudioChannels({ sfx: { volume: 1 }, music: { volume: 0.7 } });
- * type Ch = ChannelsOf<typeof channels>;
- * const kit = createAudioKit<typeof ecs, Ch>({ channels });
- *
  * const ecs = ECSpresso.create()
- *   .withBundle(kit.bundle)
+ *   .withBundle(createAudioBundle({ channels }))
  *   .withAssets(a => a.add('boom', loadSound('/sfx/boom.mp3')))
  *   .build();
  *
- * // Type-safe: 'boom' must be a registered asset
- * kit.createAudioSource('boom', 'sfx');
+ * const { createAudioSource } = createAudioHelpers<typeof ecs>();
+ * // Type-safe: 'boom' must be a registered asset, 'sfx' a valid channel
+ * createAudioSource('boom', 'sfx');
  * ```
  */
-export function createAudioKit<W extends AnyECSpresso, Ch extends string, G extends string = 'audio'>(
-	options: AudioBundleOptions<Ch, G>
-): AudioKit<W, Ch, G> {
+export interface AudioHelpers<W extends AnyECSpresso> {
+	createAudioSource: (
+		sound: keyof AssetsOfWorld<W> & string,
+		channel: ChannelOfWorld<W>,
+		options?: { volume?: number; loop?: boolean; autoRemove?: boolean },
+	) => Pick<AudioComponentTypes<ChannelOfWorld<W>>, 'audioSource'>;
+}
+
+export function createAudioHelpers<W extends AnyECSpresso>(): AudioHelpers<W> {
 	return {
-		bundle: createAudioBundle<Ch, G>(options),
-		createAudioSource: createAudioSource as AudioKit<W, Ch, G>['createAudioSource'],
-		loadSound,
+		createAudioSource: createAudioSource as AudioHelpers<W>['createAudioSource'],
 	};
 }

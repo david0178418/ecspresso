@@ -4,7 +4,7 @@ import {
 	defineParticleEffect,
 	createParticleEmitter,
 	createParticleBundle,
-	createParticleKit,
+	createParticleHelpers,
 	burstParticles,
 	stopEmitter,
 	resumeEmitter,
@@ -37,7 +37,7 @@ interface TestEvents {
 function createTestEcs() {
 	return ECSpresso
 		.create<TestComponents, TestEvents, {}>()
-		.withBundle(createParticleBundle<TestEvents>())
+		.withBundle(createParticleBundle())
 		.build();
 }
 
@@ -160,7 +160,7 @@ describe('Particle System Bundle', () => {
 		});
 
 		test('respects onComplete option', () => {
-			const result = createParticleEmitter<TestEvents>(config, {
+			const result = createParticleEmitter(config, {
 				onComplete: 'emitterDone',
 			});
 			expect(result.particleEmitter.onComplete).toBe('emitterDone');
@@ -576,7 +576,7 @@ describe('Particle System Bundle', () => {
 			ecs.on('emitterDone', (data) => { received.push(data); });
 
 			const entity = ecs.spawn({
-				...createParticleEmitter<TestEvents>(config, { onComplete: 'emitterDone' }),
+				...createParticleEmitter(config, { onComplete: 'emitterDone' }),
 				localTransform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1 },
 				worldTransform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1 },
 			});
@@ -701,18 +701,17 @@ describe('Particle System Bundle', () => {
 		});
 	});
 
-	// ==================== Kit Pattern ====================
+	// ==================== Helpers Pattern ====================
 
-	describe('createParticleKit', () => {
-		test('kit bundle is usable in ECSpresso builder', () => {
-			const kit = createParticleKit();
-
+	describe('createParticleHelpers', () => {
+		test('helpers createParticleEmitter works with ECSpresso builder', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, {}>()
-				.withBundle(kit.bundle)
+				.withBundle(createParticleBundle())
 				.build();
+			const helpers = createParticleHelpers<typeof ecs>();
 
-			const config = kit.defineParticleEffect({
+			const config = defineParticleEffect({
 				maxParticles: 10,
 				texture: fakeTexture,
 				spawnRate: 10,
@@ -721,7 +720,7 @@ describe('Particle System Bundle', () => {
 			});
 
 			const entity = ecs.spawn({
-				...kit.createParticleEmitter(config),
+				...helpers.createParticleEmitter(config),
 				localTransform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1 },
 				worldTransform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1 },
 			});
@@ -730,16 +729,6 @@ describe('Particle System Bundle', () => {
 
 			const emitter = ecs.entityManager.getComponent(entity.id, 'particleEmitter') as ParticleEmitter;
 			expect(emitter.activeCount).toBeGreaterThan(0);
-		});
-
-		test('kit helpers match standalone functions', () => {
-			const kit = createParticleKit();
-
-			expect(kit.defineParticleEffect).toBe(defineParticleEffect);
-			expect(kit.burstParticles).toBe(burstParticles);
-			expect(kit.stopEmitter).toBe(stopEmitter);
-			expect(kit.resumeEmitter).toBe(resumeEmitter);
-			expect(kit.presets).toBe(particlePresets);
 		});
 	});
 

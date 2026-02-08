@@ -192,16 +192,13 @@ export function defineSpriteAnimations<A extends string>(
  * @param options Optional configuration (initial clip, speed, onComplete event)
  * @returns Component object suitable for spreading into spawn()
  */
-export function createSpriteAnimation<
-	A extends string,
-	ET extends Record<string, any> = Record<string, any>,
->(
+export function createSpriteAnimation<A extends string>(
 	set: SpriteAnimationSet<A>,
 	options?: {
 		initial?: A;
 		speed?: number;
 		totalLoops?: number;
-		onComplete?: EventNameMatching<ET, SpriteAnimationEventData>;
+		onComplete?: string;
 	},
 ): Pick<SpriteAnimationComponentTypes<A>, 'spriteAnimation'> {
 	const initial = options?.initial ?? set.defaultClip;
@@ -291,15 +288,9 @@ export function resumeAnimation(
 	return true;
 }
 
-// ==================== Kit Types ====================
+// ==================== Helpers Types ====================
 
-/**
- * Typed kit that captures the world type, narrowing event names and animation names.
- */
-export interface SpriteAnimationKit<W extends AnyECSpresso, G extends string = 'spriteAnimation'> {
-	bundle: Bundle<SpriteAnimationComponentTypes, EventsOfWorld<W>, {}, {}, {}, 'sprite-animation-update', G>;
-	defineSpriteAnimation: typeof defineSpriteAnimation;
-	defineSpriteAnimations: typeof defineSpriteAnimations;
+export interface SpriteAnimationHelpers<W extends AnyECSpresso> {
 	createSpriteAnimation: <A extends string>(
 		set: SpriteAnimationSet<A>,
 		options?: {
@@ -309,30 +300,11 @@ export interface SpriteAnimationKit<W extends AnyECSpresso, G extends string = '
 			onComplete?: EventNameMatching<EventsOfWorld<W>, SpriteAnimationEventData>;
 		},
 	) => Pick<SpriteAnimationComponentTypes<A>, 'spriteAnimation'>;
-	playAnimation: typeof playAnimation;
-	stopAnimation: typeof stopAnimation;
-	resumeAnimation: typeof resumeAnimation;
 }
 
-/**
- * Create a typed sprite animation kit that captures the world type W.
- *
- * @template W - Concrete ECS world type (e.g. `typeof ecs`)
- * @template G - System group name (default: 'spriteAnimation')
- * @param options - Optional bundle configuration
- * @returns A kit object with bundle and typed helpers
- */
-export function createSpriteAnimationKit<W extends AnyECSpresso, G extends string = 'spriteAnimation'>(
-	options?: SpriteAnimationBundleOptions<G>,
-): SpriteAnimationKit<W, G> {
+export function createSpriteAnimationHelpers<W extends AnyECSpresso>(): SpriteAnimationHelpers<W> {
 	return {
-		bundle: createSpriteAnimationBundle<EventsOfWorld<W>, G>(options),
-		defineSpriteAnimation,
-		defineSpriteAnimations,
-		createSpriteAnimation: createSpriteAnimation as SpriteAnimationKit<W, G>['createSpriteAnimation'],
-		playAnimation,
-		stopAnimation,
-		resumeAnimation,
+		createSpriteAnimation: createSpriteAnimation as SpriteAnimationHelpers<W>['createSpriteAnimation'],
 	};
 }
 
@@ -350,18 +322,17 @@ export function createSpriteAnimationKit<W extends AnyECSpresso, G extends strin
  * - Change detection via markChanged
  */
 export function createSpriteAnimationBundle<
-	EventTypes extends Record<string, any> = Record<string, any>,
 	G extends string = 'spriteAnimation',
 >(
 	options?: SpriteAnimationBundleOptions<G>,
-): Bundle<SpriteAnimationComponentTypes, EventTypes, {}, {}, {}, 'sprite-animation-update', G> {
+): Bundle<SpriteAnimationComponentTypes, {}, {}, {}, {}, 'sprite-animation-update', G> {
 	const {
 		systemGroup = 'spriteAnimation',
 		priority = 0,
 		phase = 'update',
 	} = options ?? {};
 
-	const bundle = new Bundle<SpriteAnimationComponentTypes, EventTypes, {}>('spriteAnimation');
+	const bundle = new Bundle<SpriteAnimationComponentTypes, Record<string, any>, {}>('spriteAnimation');
 
 	bundle
 		.addSystem('sprite-animation-update')
@@ -523,7 +494,7 @@ export function createSpriteAnimationBundle<
 		ecs.commands.removeComponent(entityId, 'spriteAnimation');
 	}
 
-	return bundle as Bundle<SpriteAnimationComponentTypes, EventTypes, {}, {}, {}, 'sprite-animation-update', G>;
+	return bundle as Bundle<SpriteAnimationComponentTypes, {}, {}, {}, {}, 'sprite-animation-update', G>;
 }
 
 // ==================== Internal: Sprite Texture Sync ====================

@@ -5,7 +5,7 @@ import {
 	defineStateMachine,
 	createStateMachine,
 	createStateMachineBundle,
-	createStateMachineKit,
+	createStateMachineHelpers,
 	transitionTo,
 	sendEvent,
 	getStateMachineState,
@@ -628,25 +628,25 @@ describe('State Machine Bundle', () => {
 		});
 	});
 
-	// --- createStateMachineKit ---
+	// --- createStateMachineHelpers ---
 
-	describe('createStateMachineKit', () => {
+	describe('createStateMachineHelpers', () => {
 		type TestECS = ECSpresso<TestComponents, TestEvents, TestResources>;
 
-		function createKitTestEcs() {
-			const kit = createStateMachineKit<TestECS>();
+		function createHelpersTestEcs() {
+			const helpers = createStateMachineHelpers<TestECS>();
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
-				.withBundle(kit.bundle)
+				.withBundle(createStateMachineBundle())
 				.withResource('playerNearby', false)
 				.build();
-			return { ecs, kit };
+			return { ecs, helpers };
 		}
 
-		test('kit defineStateMachine produces valid definitions', () => {
-			const { kit } = createKitTestEcs();
+		test('helpers defineStateMachine produces valid definitions', () => {
+			const { helpers } = createHelpersTestEcs();
 
-			const fsm = kit.defineStateMachine('enemy', {
+			const fsm = helpers.defineStateMachine('enemy', {
 				initial: 'patrol',
 				states: {
 					patrol: {},
@@ -660,11 +660,11 @@ describe('State Machine Bundle', () => {
 			expect(Object.isFrozen(fsm)).toBe(true);
 		});
 
-		test('kit bundle installs and processes entities', () => {
-			const { ecs, kit } = createKitTestEcs();
+		test('bundle installs and processes entities', () => {
+			const { ecs, helpers } = createHelpersTestEcs();
 			const enterCalls: number[] = [];
 
-			const fsm = kit.defineStateMachine('test', {
+			const fsm = helpers.defineStateMachine('test', {
 				initial: 'idle',
 				states: {
 					idle: {
@@ -673,17 +673,17 @@ describe('State Machine Bundle', () => {
 				},
 			});
 
-			const entity = ecs.spawn({ ...kit.createStateMachine(fsm) });
+			const entity = ecs.spawn({ ...createStateMachine(fsm) });
 			ecs.update(1 / 60);
 
 			expect(enterCalls).toEqual([entity.id]);
 		});
 
-		test('kit definitions work with standalone transitionTo', () => {
-			const { ecs, kit } = createKitTestEcs();
+		test('helpers definitions work with standalone transitionTo', () => {
+			const { ecs, helpers } = createHelpersTestEcs();
 			const log: string[] = [];
 
-			const fsm = kit.defineStateMachine('test', {
+			const fsm = helpers.defineStateMachine('test', {
 				initial: 'a',
 				states: {
 					a: { onExit: () => { log.push('exit-a'); } },
@@ -691,7 +691,7 @@ describe('State Machine Bundle', () => {
 				},
 			});
 
-			const entity = ecs.spawn({ ...kit.createStateMachine(fsm) });
+			const entity = ecs.spawn({ ...createStateMachine(fsm) });
 			ecs.update(1 / 60);
 
 			const result = transitionTo(ecs, entity.id, 'b');
@@ -700,10 +700,10 @@ describe('State Machine Bundle', () => {
 			expect(log).toEqual(['exit-a', 'enter-b']);
 		});
 
-		test('kit definitions work with standalone sendEvent', () => {
-			const { ecs, kit } = createKitTestEcs();
+		test('helpers definitions work with standalone sendEvent', () => {
+			const { ecs, helpers } = createHelpersTestEcs();
 
-			const fsm = kit.defineStateMachine('test', {
+			const fsm = helpers.defineStateMachine('test', {
 				initial: 'idle',
 				states: {
 					idle: { on: { go: 'walking' } },
@@ -711,7 +711,7 @@ describe('State Machine Bundle', () => {
 				},
 			});
 
-			const entity = ecs.spawn({ ...kit.createStateMachine(fsm) });
+			const entity = ecs.spawn({ ...createStateMachine(fsm) });
 			ecs.update(1 / 60);
 
 			const result = sendEvent(ecs, entity.id, 'go');
@@ -719,11 +719,11 @@ describe('State Machine Bundle', () => {
 			expect(getStateMachineState(ecs, entity.id)).toBe('walking');
 		});
 
-		test('kit guard transitions receive typed ecs', () => {
-			const { ecs, kit } = createKitTestEcs();
+		test('helpers guard transitions receive typed ecs', () => {
+			const { ecs, helpers } = createHelpersTestEcs();
 			let shouldTransition = false;
 
-			const fsm = kit.defineStateMachine('test', {
+			const fsm = helpers.defineStateMachine('test', {
 				initial: 'idle',
 				states: {
 					idle: {
@@ -740,7 +740,7 @@ describe('State Machine Bundle', () => {
 				},
 			});
 
-			const entity = ecs.spawn({ ...kit.createStateMachine(fsm) });
+			const entity = ecs.spawn({ ...createStateMachine(fsm) });
 			ecs.update(1 / 60);
 			expect(getStateMachineState(ecs, entity.id)).toBe('idle');
 
@@ -818,36 +818,6 @@ describe('State Machine Bundle', () => {
 			expect(_check).toBe(true);
 		});
 
-		test('kit constrains state names — invalid name rejected', () => {
-			type TestECS = ECSpresso<TestComponents, TestEvents, TestResources>;
-			const kit = createStateMachineKit<TestECS, 'idle' | 'chase'>();
-
-			// Valid state names work
-			kit.defineStateMachine('test', {
-				initial: 'idle',
-				states: { idle: {}, chase: {} },
-			});
-
-			// @ts-expect-error — 'flying' is not in 'idle' | 'chase'
-			kit.defineStateMachine<'flying'>('bad', {
-				initial: 'flying',
-				states: { flying: {} },
-			});
-		});
-
-		test('kit createStateMachine returns world-level S', () => {
-			type TestECS = ECSpresso<TestComponents, TestEvents, TestResources>;
-			const kit = createStateMachineKit<TestECS, 'idle' | 'chase'>();
-
-			const fsm = kit.defineStateMachine('test', {
-				initial: 'idle',
-				states: { idle: {}, chase: {} },
-			});
-			const component = kit.createStateMachine(fsm);
-			const _check: IsExact<typeof component.stateMachine.current, 'idle' | 'chase'> = true;
-			expect(_check).toBe(true);
-		});
-
 		test('bundle parameterization flows through world', () => {
 			type States = 'idle' | 'chase';
 			const bundle = createStateMachineBundle<States>();
@@ -866,27 +836,25 @@ describe('State Machine Bundle', () => {
 		});
 	});
 
-	// --- Typed Kit Runtime ---
+	// --- Typed Helpers Runtime ---
 
-	describe('typed kit runtime', () => {
-		type States = 'idle' | 'chase';
-
-		function createTypedKitEcs() {
-			const kit = createStateMachineKit<StateMachineWorld, States>();
+	describe('typed helpers runtime', () => {
+		function createTypedHelpersEcs() {
+			const helpers = createStateMachineHelpers<StateMachineWorld>();
 			const ecs = ECSpresso
 				.create()
-				.withBundle(kit.bundle)
+				.withBundle(createStateMachineBundle())
 				.withComponentTypes<{ position: { x: number; y: number }; health: number }>()
 				.withEventTypes<{ damaged: { entityId: number } }>()
 				.withResource('playerNearby', false)
 				.build();
-			return { ecs, kit };
+			return { ecs, helpers };
 		}
 
-		test('typed kit definitions and components work at runtime', () => {
-			const { ecs, kit } = createTypedKitEcs();
+		test('typed helpers definitions and components work at runtime', () => {
+			const { ecs, helpers } = createTypedHelpersEcs();
 
-			const fsm = kit.defineStateMachine('enemy', {
+			const fsm = helpers.defineStateMachine('enemy', {
 				initial: 'idle',
 				states: {
 					idle: {},
@@ -894,7 +862,7 @@ describe('State Machine Bundle', () => {
 				},
 			});
 
-			const entity = ecs.spawn({ ...kit.createStateMachine(fsm) });
+			const entity = ecs.spawn({ ...createStateMachine(fsm) });
 			ecs.update(1 / 60);
 
 			expect(getStateMachineState(ecs, entity.id)).toBe('idle');
@@ -903,15 +871,15 @@ describe('State Machine Bundle', () => {
 			expect(getStateMachineState(ecs, entity.id)).toBe('chase');
 		});
 
-		test('typed kit events carry correct state name values', () => {
-			const { ecs, kit } = createTypedKitEcs();
+		test('typed helpers events carry correct state name values', () => {
+			const { ecs, helpers } = createTypedHelpersEcs();
 			const events: StateTransitionEvent[] = [];
 
 			ecs.eventBus.subscribe('stateTransition', (data) => {
 				events.push(data);
 			});
 
-			const fsm = kit.defineStateMachine('test', {
+			const fsm = helpers.defineStateMachine('test', {
 				initial: 'idle',
 				states: {
 					idle: {},
@@ -919,7 +887,7 @@ describe('State Machine Bundle', () => {
 				},
 			});
 
-			const entity = ecs.spawn({ ...kit.createStateMachine(fsm) });
+			const entity = ecs.spawn({ ...createStateMachine(fsm) });
 			ecs.update(1 / 60);
 
 			transitionTo(ecs, entity.id, 'chase');

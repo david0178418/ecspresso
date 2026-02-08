@@ -184,3 +184,14 @@ export type ScreenStatesOfWorld<W> = W extends { readonly _screenStates: infer S
 export type EventNameMatching<ET extends Record<string, any>, Payload> = {
 	[K in keyof ET & string]: ET[K] extends Payload ? K : never
 }[keyof ET & string];
+
+// ==================== Component Type Extraction ====================
+
+/**
+ * Extract the channel type from a world's AudioSource component.
+ * Falls back to `string` if the world has no audioSource component.
+ */
+export type ChannelOfWorld<W> =
+	W extends { readonly _componentTypes: { audioSource: { channel: infer Ch extends string } } }
+		? Ch
+		: string;

@@ -319,71 +319,23 @@ export function getStateMachineState(
 	return sm?.current;
 }
 
-// ==================== State Machine Kit ====================
+// ==================== State Machine Helpers ====================
 
 /**
- * A typed kit that captures the world type W once, providing helpers
- * where hooks/guards contextually receive W instead of StateMachineWorld.
- *
- * @template W - Concrete ECS world type
+ * Typed helpers for the state machine bundle.
+ * Creates helpers that validate hook parameters against the world type W.
+ * Call after .build() using typeof ecs.
  */
-export interface StateMachineKit<W extends StateMachineWorld, S extends string = string> {
-	bundle: Bundle<StateMachineComponentTypes<S>, StateMachineEventTypes<S>, {}, {}, {}, 'state-machine-update', 'stateMachine'>;
-	defineStateMachine: <DS extends S>(
+export interface StateMachineHelpers<W extends StateMachineWorld> {
+	defineStateMachine: <S extends string>(
 		id: string,
-		config: { initial: NoInfer<DS>; states: Record<DS, StateConfig<NoInfer<DS>, W>> },
-	) => StateMachineDefinition<DS>;
-	createStateMachine: <DS extends S>(
-		definition: StateMachineDefinition<DS>,
-		options?: { initial?: DS },
-	) => Pick<StateMachineComponentTypes<S>, 'stateMachine'>;
+		config: { initial: NoInfer<S>; states: Record<S, StateConfig<NoInfer<S>, W>> },
+	) => StateMachineDefinition<S>;
 }
 
-/**
- * Create a typed state machine kit that captures the world type W.
- *
- * Hooks and guards in definitions created via the kit's `defineStateMachine`
- * contextually receive W as their `ecs` parameter — no manual annotations needed.
- *
- * @template W - Concrete ECS world type
- * @param options - Optional bundle configuration (same as createStateMachineBundle)
- * @returns A kit object with bundle, defineStateMachine, createStateMachine, transitionTo, sendEvent, getStateMachineState
- *
- * @example
- * ```typescript
- * const ecs = ECSpresso.create()
- *   .withBundle(createStateMachineBundle())
- *   .withComponentTypes<{ enemy: true }>()
- *   .build();
- *
- * type ECS = typeof ecs;
- * const { bundle, defineStateMachine, createStateMachine } =
- *     createStateMachineKit<ECS>();
- *
- * const enemyFSM = defineStateMachine('enemy', {
- *     initial: 'patrol',
- *     states: {
- *         patrol: {
- *             onEnter(ecs, entityId) {
- *                 ecs.getResource('bounds'); // fully typed
- *             },
- *             transitions: [{
- *                 target: 'chase',
- *                 guard: (ecs, entityId) => distanceToPlayer(ecs, entityId) < 180,
- *             }],
- *         },
- *         chase: {},
- *     },
- * });
- * ```
- */
-export function createStateMachineKit<W extends StateMachineWorld = StateMachineWorld, S extends string = string>(
-	options?: StateMachineBundleOptions,
-): StateMachineKit<W, S> {
+export function createStateMachineHelpers<W extends StateMachineWorld = StateMachineWorld>(): StateMachineHelpers<W> {
 	return {
-		bundle: createStateMachineBundle<S>(options),
-		defineStateMachine: defineStateMachine as StateMachineKit<W, S>['defineStateMachine'],
-		createStateMachine: createStateMachine as StateMachineKit<W, S>['createStateMachine'],
+		defineStateMachine: defineStateMachine as StateMachineHelpers<W>['defineStateMachine'],
 	};
 }
 

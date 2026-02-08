@@ -38,7 +38,7 @@ import {
 	createTweenBundle,
 	createTween,
 	createTweenSequence,
-	createTweenKit,
+	createTweenHelpers,
 	type TweenEventData,
 	type NumericPaths,
 	type TypedTweenTargetInput,
@@ -71,7 +71,7 @@ function createTestEcs() {
 function createTestEcsWithEvents() {
 	return ECSpresso
 		.create<TestComponents, TestEvents, TestResources>()
-		.withBundle(createTweenBundle<TestEvents>())
+		.withBundle(createTweenBundle())
 		.build();
 }
 
@@ -371,7 +371,7 @@ describe('Completion Event', () => {
 
 		const entity = ecs.spawn({
 			position: { x: 0, y: 0 },
-			...createTween<TestEvents>('position', 'x', 100, 1, { onComplete: 'animDone' }),
+			...createTween('position', 'x', 100, 1, { onComplete: 'animDone' }),
 		});
 
 		ecs.update(1.0);
@@ -393,7 +393,7 @@ describe('Completion Event', () => {
 
 		ecs.spawn({
 			position: { x: 0, y: 0 },
-			...createTween<TestEvents>('position', 'x', 100, 1, { onComplete: 'animDone' }),
+			...createTween('position', 'x', 100, 1, { onComplete: 'animDone' }),
 		});
 
 		ecs.update(1.0);
@@ -826,7 +826,7 @@ describe('Helper API', () => {
 	});
 
 	test('createTween should accept options', () => {
-		const result = createTween<TestEvents>('position', 'x', 100, 1, {
+		const result = createTween('position', 'x', 100, 1, {
 			from: 50,
 			easing: easeInQuad,
 			loop: 'yoyo',
@@ -873,7 +873,7 @@ describe('Helper API', () => {
 	});
 
 	test('createTweenSequence should accept options', () => {
-		const result = createTweenSequence<TestEvents>(
+		const result = createTweenSequence(
 			[{ targets: [{ component: 'position', field: 'x', to: 100 }], duration: 1 }],
 			{ onComplete: 'animDone', loop: 'loop', loops: 5 },
 		);
@@ -964,20 +964,18 @@ describe('Bundle Options', () => {
 	});
 });
 
-// ==================== createTweenKit ====================
+// ==================== createTweenHelpers ====================
 
-type TestECS = ECSpresso<TestComponents, TestEvents, TestResources>;
-
-function createKitTestEcs() {
-	const kit = createTweenKit<TestECS>();
+function createHelpersTestEcs() {
 	const ecs = ECSpresso
 		.create<TestComponents, TestEvents, TestResources>()
-		.withBundle(kit.bundle)
+		.withBundle(createTweenBundle())
 		.build();
-	return { ecs, kit };
+	const helpers = createTweenHelpers<typeof ecs>();
+	return { ecs, helpers };
 }
 
-describe('createTweenKit', () => {
+describe('createTweenHelpers', () => {
 	// Helper to assert type assignability without triggering noUnusedLocals
 	function assertType<T>(_value: T): void {}
 
@@ -1022,42 +1020,42 @@ describe('createTweenKit', () => {
 		assertType<Input>({ component: 'position', field: 'current', to: 10 });
 	});
 
-	test('Kit createTween rejects invalid component name', () => {
-		const { kit } = createKitTestEcs();
+	test('Helpers createTween rejects invalid component name', () => {
+		const { helpers } = createHelpersTestEcs();
 		// @ts-expect-error - 'nonexistent' is not a component
-		kit.createTween('nonexistent', 'x', 100, 1);
+		helpers.createTween('nonexistent', 'x', 100, 1);
 	});
 
-	test('Kit createTween rejects invalid field path', () => {
-		const { kit } = createKitTestEcs();
+	test('Helpers createTween rejects invalid field path', () => {
+		const { helpers } = createHelpersTestEcs();
 		// @ts-expect-error - 'z' is not a field of position
-		kit.createTween('position', 'z', 100, 1);
+		helpers.createTween('position', 'z', 100, 1);
 	});
 
-	test('Kit createTween rejects fields on non-tweeable component', () => {
-		const { kit } = createKitTestEcs();
+	test('Helpers createTween rejects fields on non-tweeable component', () => {
+		const { helpers } = createHelpersTestEcs();
 		// @ts-expect-error - tag is a string, has no numeric paths
-		kit.createTween('tag', 'length', 100, 1);
+		helpers.createTween('tag', 'length', 100, 1);
 	});
 
-	test('Kit createTween accepts valid component and field', () => {
-		const { kit } = createKitTestEcs();
+	test('Helpers createTween accepts valid component and field', () => {
+		const { helpers } = createHelpersTestEcs();
 		// Flat field
-		kit.createTween('position', 'x', 100, 1);
+		helpers.createTween('position', 'x', 100, 1);
 		// Nested dot-path
-		kit.createTween('transform', 'position.x', 100, 1);
-		kit.createTween('transform', 'scale.y', 2, 0.5);
+		helpers.createTween('transform', 'position.x', 100, 1);
+		helpers.createTween('transform', 'scale.y', 2, 0.5);
 	});
 
-	test('Kit createTween rejects invalid onComplete event name', () => {
-		const { kit } = createKitTestEcs();
+	test('Helpers createTween rejects invalid onComplete event name', () => {
+		const { helpers } = createHelpersTestEcs();
 		// @ts-expect-error - 'bogusEvent' is not a valid event
-		kit.createTween('position', 'x', 100, 1, { onComplete: 'bogusEvent' });
+		helpers.createTween('position', 'x', 100, 1, { onComplete: 'bogusEvent' });
 	});
 
-	test('Kit createTweenSequence rejects invalid component/field in targets', () => {
-		const { kit } = createKitTestEcs();
-		kit.createTweenSequence([
+	test('Helpers createTweenSequence rejects invalid component/field in targets', () => {
+		const { helpers } = createHelpersTestEcs();
+		helpers.createTweenSequence([
 			{
 				targets: [
 					// @ts-expect-error - 'z' is not a field of position
@@ -1068,9 +1066,9 @@ describe('createTweenKit', () => {
 		]);
 	});
 
-	test('Kit createTweenSequence accepts valid mixed-component targets', () => {
-		const { kit } = createKitTestEcs();
-		kit.createTweenSequence([
+	test('Helpers createTweenSequence accepts valid mixed-component targets', () => {
+		const { helpers } = createHelpersTestEcs();
+		helpers.createTweenSequence([
 			{
 				targets: [
 					{ component: 'position', field: 'x', to: 100 },
@@ -1089,12 +1087,12 @@ describe('createTweenKit', () => {
 
 	// ---- Runtime behavior tests ----
 
-	test('Kit bundle installs and processes tweens (interpolation at 0.5s)', () => {
-		const { ecs, kit } = createKitTestEcs();
+	test('Helpers bundle installs and processes tweens (interpolation at 0.5s)', () => {
+		const { ecs, helpers } = createHelpersTestEcs();
 
 		const entity = ecs.spawn({
 			position: { x: 0, y: 0 },
-			...kit.createTween('position', 'x', 100, 1),
+			...helpers.createTween('position', 'x', 100, 1),
 		});
 
 		ecs.update(0.5);
@@ -1104,12 +1102,12 @@ describe('createTweenKit', () => {
 		expect(pos.x).toBeCloseTo(50, 1);
 	});
 
-	test('Kit tween completes and removes component', () => {
-		const { ecs, kit } = createKitTestEcs();
+	test('Helpers tween completes and removes component', () => {
+		const { ecs, helpers } = createHelpersTestEcs();
 
 		const entity = ecs.spawn({
 			position: { x: 0, y: 0 },
-			...kit.createTween('position', 'x', 100, 1),
+			...helpers.createTween('position', 'x', 100, 1),
 		});
 
 		ecs.update(1.0);
@@ -1123,12 +1121,12 @@ describe('createTweenKit', () => {
 		expect(pos.x).toBe(100);
 	});
 
-	test('Kit sequence executes steps in order', () => {
-		const { ecs, kit } = createKitTestEcs();
+	test('Helpers sequence executes steps in order', () => {
+		const { ecs, helpers } = createHelpersTestEcs();
 
 		const entity = ecs.spawn({
 			position: { x: 0, y: 0 },
-			...kit.createTweenSequence([
+			...helpers.createTweenSequence([
 				{ targets: [{ component: 'position', field: 'x', to: 100 }], duration: 1 },
 				{ targets: [{ component: 'position', field: 'y', to: 200 }], duration: 1 },
 			]),
@@ -1147,8 +1145,8 @@ describe('createTweenKit', () => {
 		expect(pos2.y).toBe(200);
 	});
 
-	test('Kit onComplete event fires with correct data', () => {
-		const { ecs, kit } = createKitTestEcs();
+	test('Helpers onComplete event fires with correct data', () => {
+		const { ecs, helpers } = createHelpersTestEcs();
 
 		const events: TweenEventData[] = [];
 		ecs.eventBus.subscribe('animDone', (data) => {
@@ -1157,7 +1155,7 @@ describe('createTweenKit', () => {
 
 		const entity = ecs.spawn({
 			position: { x: 0, y: 0 },
-			...kit.createTween('position', 'x', 100, 1, { onComplete: 'animDone' }),
+			...helpers.createTween('position', 'x', 100, 1, { onComplete: 'animDone' }),
 		});
 
 		ecs.update(1.0);
@@ -1169,12 +1167,12 @@ describe('createTweenKit', () => {
 		expect(eventData.stepCount).toBe(1);
 	});
 
-	test('Kit tween with nested dot-path works at runtime', () => {
-		const { ecs, kit } = createKitTestEcs();
+	test('Helpers tween with nested dot-path works at runtime', () => {
+		const { ecs, helpers } = createHelpersTestEcs();
 
 		const entity = ecs.spawn({
 			transform: { position: { x: 0, y: 0 }, scale: { x: 1, y: 1 } },
-			...kit.createTween('transform', 'position.x', 100, 1),
+			...helpers.createTween('transform', 'position.x', 100, 1),
 		});
 
 		ecs.update(0.5);

@@ -143,7 +143,7 @@ const ecs = ECSpresso
 		init: { background: '#1a1a2e', width: SCREEN_W, height: SCREEN_H },
 		container: document.body,
 	}))
-	.withBundle(createSpriteAnimationBundle<AppEvents>())
+	.withBundle(createSpriteAnimationBundle())
 	.withComponentTypes<SpriteAnimationComponentTypes>()
 	.withEventTypes<AppEvents>()
 	.build();
@@ -222,7 +222,7 @@ const explosionSet = defineSpriteAnimation('explosion', {
 spawnSmallLabel('once (click to replay)', 350, 70);
 const explosionEntity = ecs.spawn({
 	...createSpriteComponents(new Sprite(explosionFrames[0]!), { x: 400, y: 90 }),
-	...createSpriteAnimation<'default', AppEvents>(explosionSet, { onComplete: 'explosionDone' }),
+	...createSpriteAnimation(explosionSet, { onComplete: 'explosionDone' }),
 });
 
 // Track explosion completions
@@ -241,7 +241,7 @@ pixiApp.canvas.addEventListener('click', (e) => {
 		ecs.entityManager.addComponent(
 			explosionEntity.id,
 			'spriteAnimation',
-			createSpriteAnimation<'default', AppEvents>(explosionSet, { onComplete: 'explosionDone' }).spriteAnimation,
+			createSpriteAnimation(explosionSet, { onComplete: 'explosionDone' }).spriteAnimation,
 		);
 	}
 });

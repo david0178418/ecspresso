@@ -4,7 +4,7 @@ import {
 	defineAudioChannels,
 	createAudioSource,
 	createAudioBundle,
-	createAudioKit,
+	createAudioHelpers,
 	loadSound,
 	type AudioComponentTypes,
 	type AudioEventTypes,
@@ -614,38 +614,18 @@ describe('Audio Event Handlers', () => {
 	});
 });
 
-// ==================== Kit Tests ====================
+// ==================== Helpers Tests ====================
 
-describe('Audio Kit', () => {
-	test('createAudioKit returns bundle, createAudioSource, and loadSound', () => {
-		const channels = defineAudioChannels({
-			sfx: { volume: 1 },
-			music: { volume: 0.5 },
-		});
-		type Ch = ChannelsOf<typeof channels>;
-
-		const kit = createAudioKit<any, Ch>({ channels });
-		expect(kit.bundle).toBeDefined();
-		expect(typeof kit.createAudioSource).toBe('function');
-		expect(typeof kit.loadSound).toBe('function');
+describe('Audio Helpers', () => {
+	test('createAudioHelpers returns createAudioSource', () => {
+		const helpers = createAudioHelpers();
+		expect(typeof helpers.createAudioSource).toBe('function');
 	});
 
-	test('kit createAudioSource produces valid component', () => {
-		const channels = defineAudioChannels({
-			sfx: { volume: 1 },
-		});
-		type Ch = ChannelsOf<typeof channels>;
-
-		const kit = createAudioKit<any, Ch>({ channels });
-		const source = kit.createAudioSource('boom', 'sfx');
+	test('helpers createAudioSource produces valid component', () => {
+		const helpers = createAudioHelpers();
+		const source = helpers.createAudioSource('boom', 'sfx');
 		expect(source.audioSource.sound).toBe('boom');
 		expect(source.audioSource.channel).toBe('sfx');
-	});
-
-	test('kit loadSound is the module-level loadSound', () => {
-		const channels = defineAudioChannels({ sfx: { volume: 1 } });
-		type Ch = ChannelsOf<typeof channels>;
-		const kit = createAudioKit<any, Ch>({ channels });
-		expect(kit.loadSound).toBe(loadSound);
 	});
 });

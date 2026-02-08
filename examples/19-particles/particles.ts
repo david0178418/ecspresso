@@ -89,7 +89,7 @@ const ecs = ECSpresso
 		init: { background: '#0a0a1a', width: SCREEN_W, height: SCREEN_H },
 		container: document.body,
 	}))
-	.withBundle(createParticleBundle<AppEvents>())
+	.withBundle(createParticleBundle())
 	.withComponentTypes<ParticleComponentTypes>()
 	.withEventTypes<AppEvents>()
 	.build();
@@ -290,7 +290,7 @@ pixiApp.canvas.addEventListener('click', (e) => {
 	// Spawn explosion in the right-side area
 	if (clickX > 510 && clickY > 200) {
 		const entity = ecs.spawn({
-			...createParticleEmitter<AppEvents>(burstConfig, { onComplete: 'emitterDone' }),
+			...createParticleEmitter(burstConfig, { onComplete: 'emitterDone' }),
 			localTransform: { x: clickX, y: clickY, rotation: 0, scaleX: 1, scaleY: 1 },
 			worldTransform: { x: clickX, y: clickY, rotation: 0, scaleX: 1, scaleY: 1 },
 		});

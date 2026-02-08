@@ -15,26 +15,21 @@ import ECSpresso from '../../src';
 import {
 	createRenderer2DBundle,
 	createSpriteComponents,
-	type Renderer2DComponentTypes,
-	type Renderer2DResourceTypes,
 } from '../../src/bundles/renderers/renderer2D';
 import {
 	createPhysics2DBundle,
 	createRigidBody,
 	setVelocity,
-	type Physics2DComponentTypes,
 } from '../../src/bundles/physics2D';
-import { createInputBundle, type InputResourceTypes } from '../../src/bundles/input';
+import { createInputBundle } from '../../src/bundles/input';
 import {
-	createStateMachineKit,
+	createStateMachineBundle,
+	createStateMachine,
+	createStateMachineHelpers,
 	getStateMachineState,
-	type StateMachineComponentTypes,
-	type StateMachineEventTypes,
 } from '../../src/bundles/state-machine';
 
 // ==================== Types ====================
-// Aggregate types are needed here because `type ECS` must be defined
-// before the ecs builder chain (state machine kit uses it).
 
 interface AppComponents {
 	player: true;
@@ -42,10 +37,6 @@ interface AppComponents {
 	patrolDirection: 1 | -1;
 	speed: number;
 }
-
-type Components = AppComponents & Renderer2DComponentTypes & Physics2DComponentTypes<string> & StateMachineComponentTypes;
-type Events = StateMachineEventTypes;
-type Resources = Renderer2DResourceTypes & InputResourceTypes;
 
 // ==================== Constants ====================
 
@@ -60,116 +51,6 @@ const STATE_COLORS = {
 	chase: 0xff8800,
 	attack: 0xff0000,
 } as const;
-
-// ==================== Types ====================
-
-type ECS = ECSpresso<Components, Events, Resources>;
-
-const { bundle: stateMachineBundle, defineStateMachine, createStateMachine } =
-	createStateMachineKit<ECS>();
-
-// ==================== Helpers ====================
-
-function getPlayerPosition(ecs: ECS): { x: number; y: number } | null {
-	const entities = ecs.getEntitiesWithQuery(['player', 'worldTransform']);
-	const player = entities[0];
-	if (!player) return null;
-	return player.components.worldTransform;
-}
-
-function distanceToPlayer(ecs: ECS, entityId: number): number {
-	const playerPos = getPlayerPosition(ecs);
-	if (!playerPos) return Infinity;
-
-	const wt = ecs.entityManager.getComponent(entityId, 'worldTransform');
-	if (!wt) return Infinity;
-
-	const dx = wt.x - playerPos.x;
-	const dy = wt.y - playerPos.y;
-	return Math.sqrt(dx * dx + dy * dy);
-}
-
-// ==================== State Machine Definition ====================
-
-const enemyFSM = defineStateMachine('enemy', {
-	initial: 'patrol',
-	states: {
-		patrol: {
-			onEnter(ecs, entityId) {
-				updateEnemyColor(ecs, entityId, STATE_COLORS.patrol);
-			},
-			onUpdate(ecs, entityId) {
-				const wt = ecs.entityManager.getComponent(entityId, 'worldTransform');
-				const dir = ecs.entityManager.getComponent(entityId, 'patrolDirection');
-				if (!wt || dir === null) return;
-
-				// Reverse at screen edges
-				const bounds = ecs.getResource('bounds');
-				if (wt.x < 40 || wt.x > bounds.width - 40) {
-					const newDir = dir === 1 ? -1 : 1;
-					ecs.entityManager.addComponent(entityId, 'patrolDirection', newDir);
-					setVelocity(ecs, entityId, newDir * PATROL_SPEED, 0);
-				}
-			},
-			transitions: [
-				{
-					target: 'chase',
-					guard: (ecs, entityId) => distanceToPlayer(ecs, entityId) < CHASE_RANGE,
-				},
-			],
-		},
-		chase: {
-			onEnter(ecs, entityId) {
-				updateEnemyColor(ecs, entityId, STATE_COLORS.chase);
-			},
-			onUpdate(ecs, entityId) {
-				const playerPos = getPlayerPosition(ecs);
-				if (!playerPos) return;
-
-				const wt = ecs.entityManager.getComponent(entityId, 'worldTransform');
-				if (!wt) return;
-
-				const dx = playerPos.x - wt.x;
-				const dy = playerPos.y - wt.y;
-				const len = Math.sqrt(dx * dx + dy * dy);
-				if (len < 0.001) return;
-
-				setVelocity(ecs, entityId, (dx / len) * CHASE_SPEED, (dy / len) * CHASE_SPEED);
-			},
-			transitions: [
-				{
-					target: 'attack',
-					guard: (ecs, entityId) => distanceToPlayer(ecs, entityId) < ATTACK_RANGE,
-				},
-				{
-					target: 'patrol',
-					guard: (ecs, entityId) => distanceToPlayer(ecs, entityId) > CHASE_RANGE * 1.3,
-				},
-			],
-		},
-		attack: {
-			onEnter(ecs, entityId) {
-				updateEnemyColor(ecs, entityId, STATE_COLORS.attack);
-				setVelocity(ecs, entityId, 0, 0);
-			},
-			transitions: [
-				{
-					target: 'chase',
-					guard: (ecs, entityId) => {
-						const sm = ecs.entityManager.getComponent(entityId, 'stateMachine');
-						return (sm?.stateTime ?? 0) > ATTACK_DURATION;
-					},
-				},
-			],
-		},
-	},
-});
-
-function updateEnemyColor(ecs: ECS, entityId: number, color: number): void {
-	const gfx = ecs.entityManager.getComponent(entityId, 'graphics');
-	if (!gfx) return;
-	gfx.clear().circle(0, 0, 15).fill(color);
-}
 
 // ==================== Build ECS ====================
 
@@ -188,9 +69,116 @@ const ecs = ECSpresso
 			moveRight: { keys: ['d', 'ArrowRight'] },
 		},
 	}))
-	.withBundle(stateMachineBundle)
+	.withBundle(createStateMachineBundle())
 	.withComponentTypes<AppComponents>()
 	.build();
+
+type ECS = typeof ecs;
+
+const { defineStateMachine } = createStateMachineHelpers<ECS>();
+
+// ==================== Helpers ====================
+
+function getPlayerPosition(ecsWorld: ECS): { x: number; y: number } | null {
+	const entities = ecsWorld.getEntitiesWithQuery(['player', 'worldTransform']);
+	const player = entities[0];
+	if (!player) return null;
+	return player.components.worldTransform;
+}
+
+function distanceToPlayer(ecsWorld: ECS, entityId: number): number {
+	const playerPos = getPlayerPosition(ecsWorld);
+	if (!playerPos) return Infinity;
+
+	const wt = ecsWorld.entityManager.getComponent(entityId, 'worldTransform');
+	if (!wt) return Infinity;
+
+	const dx = wt.x - playerPos.x;
+	const dy = wt.y - playerPos.y;
+	return Math.sqrt(dx * dx + dy * dy);
+}
+
+function updateEnemyColor(ecsWorld: ECS, entityId: number, color: number): void {
+	const gfx = ecsWorld.entityManager.getComponent(entityId, 'graphics');
+	if (!gfx) return;
+	gfx.clear().circle(0, 0, 15).fill(color);
+}
+
+// ==================== State Machine Definition ====================
+
+const enemyFSM = defineStateMachine('enemy', {
+	initial: 'patrol',
+	states: {
+		patrol: {
+			onEnter(ecsWorld, entityId) {
+				updateEnemyColor(ecsWorld, entityId, STATE_COLORS.patrol);
+			},
+			onUpdate(ecsWorld, entityId) {
+				const wt = ecsWorld.entityManager.getComponent(entityId, 'worldTransform');
+				const dir = ecsWorld.entityManager.getComponent(entityId, 'patrolDirection');
+				if (!wt || dir === null) return;
+
+				// Reverse at screen edges
+				const bounds = ecsWorld.getResource('bounds');
+				if (wt.x < 40 || wt.x > bounds.width - 40) {
+					const newDir = dir === 1 ? -1 : 1;
+					ecsWorld.entityManager.addComponent(entityId, 'patrolDirection', newDir);
+					setVelocity(ecsWorld, entityId, newDir * PATROL_SPEED, 0);
+				}
+			},
+			transitions: [
+				{
+					target: 'chase',
+					guard: (ecsWorld, entityId) => distanceToPlayer(ecsWorld, entityId) < CHASE_RANGE,
+				},
+			],
+		},
+		chase: {
+			onEnter(ecsWorld, entityId) {
+				updateEnemyColor(ecsWorld, entityId, STATE_COLORS.chase);
+			},
+			onUpdate(ecsWorld, entityId) {
+				const playerPos = getPlayerPosition(ecsWorld);
+				if (!playerPos) return;
+
+				const wt = ecsWorld.entityManager.getComponent(entityId, 'worldTransform');
+				if (!wt) return;
+
+				const dx = playerPos.x - wt.x;
+				const dy = playerPos.y - wt.y;
+				const len = Math.sqrt(dx * dx + dy * dy);
+				if (len < 0.001) return;
+
+				setVelocity(ecsWorld, entityId, (dx / len) * CHASE_SPEED, (dy / len) * CHASE_SPEED);
+			},
+			transitions: [
+				{
+					target: 'attack',
+					guard: (ecsWorld, entityId) => distanceToPlayer(ecsWorld, entityId) < ATTACK_RANGE,
+				},
+				{
+					target: 'patrol',
+					guard: (ecsWorld, entityId) => distanceToPlayer(ecsWorld, entityId) > CHASE_RANGE * 1.3,
+				},
+			],
+		},
+		attack: {
+			onEnter(ecsWorld, entityId) {
+				updateEnemyColor(ecsWorld, entityId, STATE_COLORS.attack);
+				setVelocity(ecsWorld, entityId, 0, 0);
+			},
+			transitions: [
+				{
+					target: 'chase',
+					guard: (ecsWorld, entityId) => {
+						const sm = ecsWorld.entityManager.getComponent(entityId, 'stateMachine');
+						return (sm?.stateTime ?? 0) > ATTACK_DURATION;
+					},
+				},
+			],
+		},
+	},
+});
 
 // ==================== Systems ====================
 

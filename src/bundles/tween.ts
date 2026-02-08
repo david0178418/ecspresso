@@ -42,7 +42,7 @@ export interface TweenStep {
 	easing: EasingFn;
 }
 
-export interface Tween<EventTypes extends Record<string, any> = Record<string, any>> {
+export interface Tween {
 	steps: TweenStep[];
 	currentStep: number;
 	elapsed: number;
@@ -51,7 +51,7 @@ export interface Tween<EventTypes extends Record<string, any> = Record<string, a
 	completedLoops: number;
 	direction: 1 | -1;
 	state: 'pending' | 'active' | 'complete';
-	onComplete?: EventNameMatching<EventTypes, TweenEventData>;
+	onComplete?: string;
 	justFinished: boolean;
 }
 
@@ -60,8 +60,8 @@ export type LoopMode = 'once' | 'loop' | 'yoyo';
 /**
  * Component types provided by the tween bundle.
  */
-export interface TweenComponentTypes<EventTypes extends Record<string, any> = Record<string, any>> {
-	tween: Tween<EventTypes>;
+export interface TweenComponentTypes {
+	tween: Tween;
 }
 
 // ==================== Bundle Options ====================
@@ -77,7 +77,7 @@ export interface TweenBundleOptions<G extends string = 'tweens'> {
 
 // ==================== Helper Functions ====================
 
-export interface TweenOptions<EventTypes extends Record<string, any> = Record<string, any>> {
+export interface TweenOptions {
 	/** Explicit starting value (default: captures current value on first tick) */
 	from?: number;
 	/** Easing function (default: linear) */
@@ -87,7 +87,7 @@ export interface TweenOptions<EventTypes extends Record<string, any> = Record<st
 	/** Number of loops. -1 = infinite (default: 1) */
 	loops?: number;
 	/** Event name to publish when tween completes */
-	onComplete?: EventNameMatching<EventTypes, TweenEventData>;
+	onComplete?: string;
 }
 
 /**
@@ -100,13 +100,13 @@ export interface TweenOptions<EventTypes extends Record<string, any> = Record<st
  * @param options Optional configuration
  * @returns Component object suitable for spreading into spawn()
  */
-export function createTween<EventTypes extends Record<string, any> = Record<string, any>>(
+export function createTween(
 	component: string,
 	field: string,
 	to: number,
 	duration: number,
-	options?: TweenOptions<EventTypes>,
-): Pick<TweenComponentTypes<EventTypes>, 'tween'> {
+	options?: TweenOptions,
+): Pick<TweenComponentTypes, 'tween'> {
 	const {
 		from,
 		easing = linear,
@@ -151,13 +151,13 @@ export interface TweenSequenceStepInput {
 	easing?: EasingFn;
 }
 
-export interface TweenSequenceOptions<EventTypes extends Record<string, any> = Record<string, any>> {
+export interface TweenSequenceOptions {
 	/** Loop mode (default: 'once') */
 	loop?: LoopMode;
 	/** Number of loops. -1 = infinite (default: 1) */
 	loops?: number;
 	/** Event name to publish when tween completes */
-	onComplete?: EventNameMatching<EventTypes, TweenEventData>;
+	onComplete?: string;
 }
 
 /**
@@ -167,10 +167,10 @@ export interface TweenSequenceOptions<EventTypes extends Record<string, any> = R
  * @param options Optional configuration
  * @returns Component object suitable for spreading into spawn()
  */
-export function createTweenSequence<EventTypes extends Record<string, any> = Record<string, any>>(
+export function createTweenSequence(
 	steps: ReadonlyArray<TweenSequenceStepInput>,
-	options?: TweenSequenceOptions<EventTypes>,
-): Pick<TweenComponentTypes<EventTypes>, 'tween'> {
+	options?: TweenSequenceOptions,
+): Pick<TweenComponentTypes, 'tween'> {
 	const {
 		loop = 'once',
 		loops = 1,
@@ -247,56 +247,34 @@ export interface TypedTweenSequenceStepInput<C extends Record<string, any>> {
 	easing?: EasingFn;
 }
 
-export interface TweenKit<W extends AnyECSpresso, G extends string = 'tweens'> {
-	bundle: Bundle<TweenComponentTypes<EventsOfWorld<W>>, EventsOfWorld<W>, {}, {}, {}, 'tween-update', G>;
+export interface TweenHelpers<W extends AnyECSpresso> {
 	createTween: <K extends keyof ComponentsOfWorld<W> & string>(
 		component: K,
 		field: NumericPaths<ComponentsOfWorld<W>[K]>,
 		to: number,
 		duration: number,
-		options?: TweenOptions<EventsOfWorld<W>>,
-	) => Pick<TweenComponentTypes<EventsOfWorld<W>>, 'tween'>;
+		options?: {
+			from?: number;
+			easing?: EasingFn;
+			loop?: LoopMode;
+			loops?: number;
+			onComplete?: EventNameMatching<EventsOfWorld<W>, TweenEventData>;
+		},
+	) => Pick<TweenComponentTypes, 'tween'>;
 	createTweenSequence: (
 		steps: ReadonlyArray<TypedTweenSequenceStepInput<ComponentsOfWorld<W>>>,
-		options?: TweenSequenceOptions<EventsOfWorld<W>>,
-	) => Pick<TweenComponentTypes<EventsOfWorld<W>>, 'tween'>;
+		options?: {
+			loop?: LoopMode;
+			loops?: number;
+			onComplete?: EventNameMatching<EventsOfWorld<W>, TweenEventData>;
+		},
+	) => Pick<TweenComponentTypes, 'tween'>;
 }
 
-/**
- * Create a typed tween kit that captures the world type W.
- *
- * The returned `createTween` and `createTweenSequence` validate component names
- * and field paths at compile time. Runtime behavior is identical to the standalone
- * functions — all validation is type-level only.
- *
- * @template W - Concrete ECS world type (e.g. `typeof ecs`)
- * @template G - System group name (default: 'tweens')
- * @param options - Optional bundle configuration (same as createTweenBundle)
- * @returns A kit object with bundle, createTween, createTweenSequence
- *
- * @example
- * ```typescript
- * const kit = createTweenKit<typeof ecs>();
- * // or: const kit = createTweenKit<ECS>();
- *
- * const ecs = ECSpresso.create()
- *   .withBundle(kit.bundle)
- *   .build();
- *
- * // Type-safe: 'position' must be a component, 'x' must be a numeric field
- * kit.createTween('position', 'x', 100, 1);
- *
- * // Type error: 'z' is not a field of position
- * kit.createTween('position', 'z', 100, 1);
- * ```
- */
-export function createTweenKit<W extends AnyECSpresso, G extends string = 'tweens'>(
-	options?: TweenBundleOptions<G>,
-): TweenKit<W, G> {
+export function createTweenHelpers<W extends AnyECSpresso>(): TweenHelpers<W> {
 	return {
-		bundle: createTweenBundle<EventsOfWorld<W>, G>(options),
-		createTween: createTween as TweenKit<W, G>['createTween'],
-		createTweenSequence: createTweenSequence as TweenKit<W, G>['createTweenSequence'],
+		createTween: createTween as TweenHelpers<W>['createTween'],
+		createTweenSequence: createTweenSequence as TweenHelpers<W>['createTweenSequence'],
 	};
 }
 
@@ -355,8 +333,8 @@ function clamp(value: number, min: number, max: number): number {
 /**
  * Resolve all null `from` values by reading current component field values.
  */
-function resolveFromValues<E extends Record<string, any>>(
-	tween: Tween<E>,
+function resolveFromValues(
+	tween: Tween,
 	entityComponents: Record<string, unknown>,
 ): void {
 	for (const step of tween.steps) {
@@ -420,7 +398,7 @@ function snapStepToEnd(
 /**
  * Reverse all from/to values in every step (for yoyo).
  */
-function reverseAllTargets<E extends Record<string, any>>(tween: Tween<E>): void {
+function reverseAllTargets(tween: Tween): void {
 	for (const step of tween.steps) {
 		for (const target of step.targets) {
 			const tmp = target.from ?? 0;
@@ -444,16 +422,16 @@ function reverseAllTargets<E extends Record<string, any>>(tween: Tween<E>): void
  * - `onComplete` event publishing
  * - Change detection via markChanged
  */
-export function createTweenBundle<EventTypes extends Record<string, any> = Record<string, any>, G extends string = 'tweens'>(
+export function createTweenBundle<G extends string = 'tweens'>(
 	options?: TweenBundleOptions<G>
-): Bundle<TweenComponentTypes<EventTypes>, EventTypes, {}, {}, {}, 'tween-update', G> {
+): Bundle<TweenComponentTypes, {}, {}, {}, {}, 'tween-update', G> {
 	const {
 		systemGroup = 'tweens',
 		priority = 0,
 		phase = 'update',
 	} = options ?? {};
 
-	const bundle = new Bundle<TweenComponentTypes<EventTypes>, EventTypes, {}>('tweens');
+	const bundle = new Bundle<TweenComponentTypes, Record<string, any>, {}>('tweens');
 
 	bundle
 		.addSystem('tween-update')
@@ -465,7 +443,7 @@ export function createTweenBundle<EventTypes extends Record<string, any> = Recor
 		})
 		.setProcess((queries, deltaTime, ecs) => {
 			for (const entity of queries.tweens) {
-				const tween = entity.components.tween as Tween<EventTypes>;
+				const tween = entity.components.tween as Tween;
 				const entityComponents = entity.components as Record<string, unknown>;
 
 				// Reset justFinished flag from previous frame
@@ -497,7 +475,7 @@ export function createTweenBundle<EventTypes extends Record<string, any> = Recor
 		.and();
 
 	function processTweenProgress(
-		tween: Tween<EventTypes>,
+		tween: Tween,
 		entityComponents: Record<string, unknown>,
 		entityId: number,
 		ecs: { markChanged: (entityId: number, componentName: any) => void; eventBus: { publish: (event: any, data: any) => void }; commands: { removeComponent: (entityId: number, componentName: any) => void } },
@@ -538,7 +516,7 @@ export function createTweenBundle<EventTypes extends Record<string, any> = Recor
 	 * false if the tween has completed or looped.
 	 */
 	function advanceStep(
-		tween: Tween<EventTypes>,
+		tween: Tween,
 		entityComponents: Record<string, unknown>,
 		entityId: number,
 		ecs: { markChanged: (entityId: number, componentName: any) => void; eventBus: { publish: (event: any, data: any) => void }; commands: { removeComponent: (entityId: number, componentName: any) => void } },
@@ -566,7 +544,7 @@ export function createTweenBundle<EventTypes extends Record<string, any> = Recor
 	}
 
 	function handleTweenEnd(
-		tween: Tween<EventTypes>,
+		tween: Tween,
 		entityId: number,
 		ecs: { markChanged: (entityId: number, componentName: any) => void; eventBus: { publish: (event: any, data: any) => void }; commands: { removeComponent: (entityId: number, componentName: any) => void } },
 	): boolean {
@@ -598,7 +576,7 @@ export function createTweenBundle<EventTypes extends Record<string, any> = Recor
 	}
 
 	function completeTween(
-		tween: Tween<EventTypes>,
+		tween: Tween,
 		entityId: number,
 		ecs: { eventBus: { publish: (event: any, data: any) => void }; commands: { removeComponent: (entityId: number, componentName: any) => void } },
 	): void {
@@ -612,7 +590,7 @@ export function createTweenBundle<EventTypes extends Record<string, any> = Recor
 	function publishTweenEvent(
 		ecs: { eventBus: { publish: (event: any, data: any) => void } },
 		entityId: number,
-		tween: Tween<EventTypes>,
+		tween: Tween,
 	): void {
 		if (!tween.onComplete) return;
 		const eventData: TweenEventData = {
@@ -622,5 +600,5 @@ export function createTweenBundle<EventTypes extends Record<string, any> = Recor
 		ecs.eventBus.publish(tween.onComplete, eventData);
 	}
 
-	return bundle as Bundle<TweenComponentTypes<EventTypes>, EventTypes, {}, {}, {}, 'tween-update', G>;
+	return bundle as Bundle<TweenComponentTypes, {}, {}, {}, {}, 'tween-update', G>;
 }
