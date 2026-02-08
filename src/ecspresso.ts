@@ -1462,41 +1462,84 @@ export default class ECSpresso<
 	}
 
 	/**
-	 * Get the current screen config (immutable)
+	 * Get the current screen config (immutable), narrowed to a specific screen.
+	 * Throws if the current screen doesn't match.
 	 */
-	getScreenConfig<K extends keyof ScreenStates>(): ScreenStates[K] extends ScreenDefinition<infer C, any> ? Readonly<C> : never {
-		return this.requireScreenManager().getConfig();
+	getScreenConfig<K extends keyof ScreenStates & string>(screen: K): ScreenStates[K] extends ScreenDefinition<infer C, any> ? Readonly<C> : never;
+	/**
+	 * Get the current screen config (immutable).
+	 * Returns a union of all possible config types.
+	 */
+	getScreenConfig(): { [K in keyof ScreenStates]: ScreenStates[K] extends ScreenDefinition<infer C, any> ? Readonly<C> : never }[keyof ScreenStates];
+	getScreenConfig(screen?: keyof ScreenStates & string) {
+		return this.requireScreenManager().getConfig(screen);
 	}
 
 	/**
-	 * Get the current screen config or null
+	 * Get the current screen config narrowed to a specific screen, or null if not on that screen.
 	 */
-	getScreenConfigOrNull<K extends keyof ScreenStates>(): (ScreenStates[K] extends ScreenDefinition<infer C, any> ? Readonly<C> : never) | null {
-		return this._screenManager?.getConfigOrNull() ?? null;
+	getScreenConfigOrNull<K extends keyof ScreenStates & string>(screen: K): (ScreenStates[K] extends ScreenDefinition<infer C, any> ? Readonly<C> : never) | null;
+	/**
+	 * Get the current screen config or null.
+	 * Returns a union of all possible config types, or null.
+	 */
+	getScreenConfigOrNull(): { [K in keyof ScreenStates]: ScreenStates[K] extends ScreenDefinition<infer C, any> ? Readonly<C> : never }[keyof ScreenStates] | null;
+	getScreenConfigOrNull(screen?: keyof ScreenStates & string) {
+		return this._screenManager?.getConfigOrNull(screen) ?? null;
 	}
 
 	/**
-	 * Get the current screen state (mutable)
+	 * Get the current screen state (mutable), narrowed to a specific screen.
+	 * Throws if the current screen doesn't match.
 	 */
-	getScreenState<K extends keyof ScreenStates>(): ScreenStates[K] extends ScreenDefinition<any, infer S> ? S : never {
-		return this.requireScreenManager().getState();
+	getScreenState<K extends keyof ScreenStates & string>(screen: K): ScreenStates[K] extends ScreenDefinition<any, infer S> ? S : never;
+	/**
+	 * Get the current screen state (mutable).
+	 * Returns a union of all possible state types.
+	 */
+	getScreenState(): { [K in keyof ScreenStates]: ScreenStates[K] extends ScreenDefinition<any, infer S> ? S : never }[keyof ScreenStates];
+	getScreenState(screen?: keyof ScreenStates & string) {
+		return this.requireScreenManager().getState(screen);
 	}
 
 	/**
-	 * Get the current screen state or null
+	 * Get the current screen state narrowed to a specific screen, or null if not on that screen.
 	 */
-	getScreenStateOrNull<K extends keyof ScreenStates>(): (ScreenStates[K] extends ScreenDefinition<any, infer S> ? S : never) | null {
-		return this._screenManager?.getStateOrNull() ?? null;
+	getScreenStateOrNull<K extends keyof ScreenStates & string>(screen: K): (ScreenStates[K] extends ScreenDefinition<any, infer S> ? S : never) | null;
+	/**
+	 * Get the current screen state or null.
+	 * Returns a union of all possible state types, or null.
+	 */
+	getScreenStateOrNull(): { [K in keyof ScreenStates]: ScreenStates[K] extends ScreenDefinition<any, infer S> ? S : never }[keyof ScreenStates] | null;
+	getScreenStateOrNull(screen?: keyof ScreenStates & string) {
+		return this._screenManager?.getStateOrNull(screen) ?? null;
 	}
 
 	/**
-	 * Update the current screen state
+	 * Update the current screen state, narrowed to a specific screen.
+	 * Throws if the current screen doesn't match.
+	 */
+	updateScreenState<K extends keyof ScreenStates & string>(
+		screen: K,
+		update: Partial<ScreenStates[K] extends ScreenDefinition<any, infer S> ? S : never> |
+			((current: ScreenStates[K] extends ScreenDefinition<any, infer S> ? S : never) => Partial<ScreenStates[K] extends ScreenDefinition<any, infer S> ? S : never>)
+	): void;
+	/**
+	 * Update the current screen state.
 	 */
 	updateScreenState<K extends keyof ScreenStates>(
 		update: Partial<ScreenStates[K] extends ScreenDefinition<any, infer S> ? S : never> |
 			((current: ScreenStates[K] extends ScreenDefinition<any, infer S> ? S : never) => Partial<ScreenStates[K] extends ScreenDefinition<any, infer S> ? S : never>)
+	): void;
+	updateScreenState(
+		screenOrUpdate: unknown,
+		maybeUpdate?: unknown,
 	): void {
-		this.requireScreenManager().updateState(update as any);
+		if (typeof screenOrUpdate === 'string') {
+			this.requireScreenManager().updateState(maybeUpdate, screenOrUpdate);
+		} else {
+			this.requireScreenManager().updateState(screenOrUpdate);
+		}
 	}
 
 	/**

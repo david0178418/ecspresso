@@ -50,9 +50,6 @@ const ecs = ECSpresso
 	)
 	.build();
 
-type PlayingState = { score: number; timeLeft: number; spawnTimer: number };
-type GameOverState = { finalScore: number };
-
 await ecs.initialize();
 
 const pixiApp = ecs.getResource('pixiApp');
@@ -139,7 +136,7 @@ function spawnDot() {
 
 	sprite.on('pointerdown', () => {
 		if (!ecs.isCurrentScreen('playing')) return;
-		const state = ecs.getScreenState() as PlayingState;
+		const state = ecs.getScreenState('playing');
 		state.score += 1;
 		activeDots.delete(ref.id);
 		ecs.removeEntity(ref.id);
@@ -165,15 +162,15 @@ ecs.addSystem('screenUI')
 		pauseContainer.visible = ecs.isCurrentScreen('paused');
 		gameOverContainer.visible = ecs.isCurrentScreen('gameOver');
 
-		if (ecs.isScreenActive('playing')) {
-			const state = ecs.getScreenState() as PlayingState;
-			scoreText.text = `Score: ${state.score}`;
-			timerText.text = `${Math.ceil(state.timeLeft)}`;
+		const playingState = ecs.getScreenStateOrNull('playing');
+		if (playingState) {
+			scoreText.text = `Score: ${playingState.score}`;
+			timerText.text = `${Math.ceil(playingState.timeLeft)}`;
 		}
 
-		if (ecs.isCurrentScreen('gameOver')) {
-			const state = ecs.getScreenState() as GameOverState;
-			finalScoreText.text = `Final Score: ${state.finalScore}`;
+		const gameOverState = ecs.getScreenStateOrNull('gameOver');
+		if (gameOverState) {
+			finalScoreText.text = `Final Score: ${gameOverState.finalScore}`;
 		}
 	})
 	.build();
@@ -182,7 +179,7 @@ ecs.addSystem('screenUI')
 ecs.addSystem('countdown')
 	.inScreens(['playing'])
 	.setProcess((_queries, dt, ecs) => {
-		const state = ecs.getScreenState() as PlayingState;
+		const state = ecs.getScreenState('playing');
 		if (state.timeLeft <= 0) return; // transition already pending
 		state.timeLeft -= dt;
 		if (state.timeLeft <= 0) {
@@ -196,7 +193,7 @@ ecs.addSystem('countdown')
 ecs.addSystem('dotSpawner')
 	.inScreens(['playing'])
 	.setProcess((_queries, dt, ecs) => {
-		const state = ecs.getScreenState() as PlayingState;
+		const state = ecs.getScreenState('playing');
 		state.spawnTimer -= dt;
 		if (state.spawnTimer <= 0) {
 			state.spawnTimer = 0.4 + Math.random() * 0.7;
