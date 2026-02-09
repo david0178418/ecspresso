@@ -227,8 +227,8 @@ export default function createGameStatePlugin() {
 							// Add timer for pending destruction if not already pending
 							// (enemies reaching player already have pendingDestroy from ai-plugin)
 							if (!entity.components.pendingDestroy) {
-								ecs.entityManager.addComponent(data.entityId, 'timer', createTimer(0.2).timer);
-								ecs.entityManager.addComponent(data.entityId, 'pendingDestroy', true);
+								ecs.addComponent(data.entityId, 'timer', createTimer(0.2).timer);
+								ecs.addComponent(data.entityId, 'pendingDestroy', true);
 							}
 
 							// Update score

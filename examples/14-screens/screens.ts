@@ -208,15 +208,16 @@ ecs.addSystem('dotLifecycle')
 	.addQuery('dots', { with: ['dot', 'localTransform'] })
 	.setProcess((queries, dt, ecs) => {
 		for (const entity of queries.dots) {
-			const { dot, localTransform } = entity.components;
+			const { dot } = entity.components;
 			dot.lifetime -= dt;
 			if (dot.lifetime <= 0) {
 				activeDots.delete(entity.id);
 				ecs.removeEntity(entity.id);
 				continue;
 			}
-			localTransform.y += dot.speed * dt;
-			ecs.markChanged(entity.id, 'localTransform');
+			ecs.mutateComponent(entity.id, 'localTransform', (lt) => {
+				lt.y += dot.speed * dt;
+			});
 		}
 	})
 	.build();

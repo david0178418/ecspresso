@@ -1228,6 +1228,29 @@ export default class ECSpresso<
 	}
 
 	/**
+	 * Mutate a component in place and automatically mark it as changed.
+	 * Throws if the entity does not exist or does not have the component.
+	 * @param entityOrId The entity or entity ID
+	 * @param componentName The component to mutate
+	 * @param mutator A function that receives the component value for in-place mutation
+	 * @returns The mutated component value
+	 */
+	mutateComponent<K extends keyof ComponentTypes>(
+		entityOrId: number | Entity<ComponentTypes>,
+		componentName: K,
+		mutator: (value: ComponentTypes[K]) => void
+	): ComponentTypes[K] {
+		const entityId = typeof entityOrId === 'number' ? entityOrId : entityOrId.id;
+		const component = this._entityManager.getComponent(entityId, componentName);
+		if (component === undefined) {
+			throw new Error(`Entity ${entityId} does not have component "${String(componentName)}"`);
+		}
+		mutator(component);
+		this._entityManager.markChanged(entityOrId, componentName);
+		return component;
+	}
+
+	/**
 	 * Mark a component as changed on an entity.
 	 * Each call increments a global monotonic sequence; systems with changed
 	 * queries will see the mark exactly once (on their next execution).

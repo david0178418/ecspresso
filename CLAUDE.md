@@ -72,9 +72,16 @@ src/
 - **Run When Empty**: `.runWhenEmpty()` — allows a system with queries to run even when all queries return zero entities. By default, such systems are skipped as an optimization.
 - **System Groups**: `.inGroup('name')`, `disableSystemGroup()`, `enableSystemGroup()`
 
+### Direct Component Access
+- `getComponent(entityId, componentName)` — returns `T | undefined`. Type-safe against `ComponentTypes`.
+- `addComponent(entityOrId, componentName, value)` — adds or replaces a component. Triggers lifecycle callbacks and marks as changed.
+- `removeComponent(entityOrId, componentName)` — removes a component. Triggers removal/dispose callbacks.
+- `mutateComponent(entityOrId, componentName, mutator)` — gets the component, passes it to `mutator` for in-place mutation, auto-calls `markChanged`, and returns the component. Throws if the entity or component is missing. Preferred over manual get+mutate+markChanged when modifying components outside queries.
+- All of the above are also available on `commands` for deferred execution.
+
 ### Change Detection
 - `markChanged(entityId, componentName)` increments a global monotonic sequence; `changed: ['component']` in query filters to match only changed entities
-- `spawn()`, `addComponent()`, `addComponents()` auto-mark components as changed
+- `spawn()`, `addComponent()`, `addComponents()`, `mutateComponent()` auto-mark components as changed
 - Each system tracks its last-seen sequence — marks are processed exactly once per system
 - Cross-phase visibility: marks from earlier phases (e.g. fixedUpdate) are visible to later phases (e.g. postUpdate) within the same frame
 - Manual checks: `em.getChangeSeq(id, comp) > ecs.changeThreshold`

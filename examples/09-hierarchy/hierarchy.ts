@@ -117,16 +117,16 @@ ecs
 	})
 	.setProcess((queries, deltaTime, ecs) => {
 		for (const entity of queries.orbitingBodies) {
-			const { orbit, localTransform } = entity.components;
+			const { orbit } = entity.components;
 
 			// Update orbital angle
 			orbit.angle += orbit.speed * deltaTime;
 
 			// Compute local position from orbit
-			localTransform.x = Math.cos(orbit.angle) * orbit.radius;
-			localTransform.y = Math.sin(orbit.angle) * orbit.radius;
-
-			ecs.markChanged(entity.id, 'localTransform');
+			ecs.mutateComponent(entity.id, 'localTransform', (lt) => {
+				lt.x = Math.cos(orbit.angle) * orbit.radius;
+				lt.y = Math.sin(orbit.angle) * orbit.radius;
+			});
 		}
 	})
 	.and()
@@ -253,7 +253,7 @@ function registerClickHandler(
 	world: ECS
 ): void {
 	graphics.on('pointerdown', () => {
-		const celestialBody = world.entityManager.getComponent(entityId, 'celestialBody');
+		const celestialBody = world.getComponent(entityId, 'celestialBody');
 		if (!celestialBody) return;
 
 		const descendants = world.getDescendants(entityId);
@@ -272,7 +272,7 @@ function registerClickHandler(
 }
 
 function centerOnEntity(entityId: number, world: ECS): void {
-	const worldTransform = world.entityManager.getComponent(entityId, 'worldTransform');
+	const worldTransform = world.getComponent(entityId, 'worldTransform');
 	if (!worldTransform) return;
 
 	const pixiApp = world.getResource('pixiApp');
@@ -344,7 +344,7 @@ function buildTreeNodes(
 	container: HTMLElement,
 	world: ECS
 ): void {
-	const celestialBody = world.entityManager.getComponent(entityId, 'celestialBody');
+	const celestialBody = world.getComponent(entityId, 'celestialBody');
 	if (!celestialBody) return;
 
 	const item = createTreeItem(entityId, celestialBody.name, depth, world);

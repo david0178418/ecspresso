@@ -2019,6 +2019,127 @@ describe('ECSpresso', () => {
 		});
 	});
 
+	describe('mutateComponent', () => {
+		test('mutates a component in place and returns the component', () => {
+			const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
+			const entity = world.spawn({ position: { x: 10, y: 20 } });
+
+			const result = world.mutateComponent(entity.id, 'position', (pos) => {
+				pos.x = 99;
+				pos.y = 42;
+			});
+
+			expect(result).toEqual({ x: 99, y: 42 });
+			expect(world.getComponent(entity.id, 'position')).toEqual({ x: 99, y: 42 });
+		});
+
+		test('automatically marks the component as changed', () => {
+			const world = ECSpresso.create<TestComponents>().build();
+			const entity = world.spawn({ position: { x: 0, y: 0 } });
+
+			// Run a frame to advance change detection past initial spawn
+			world.update(1 / 60);
+
+			// At this point, position should not appear as changed
+			expect(world.getEntitiesWithQuery(['position'], [], ['position']).length).toBe(0);
+
+			// Mutate the component
+			world.mutateComponent(entity.id, 'position', (pos) => {
+				pos.x = 5;
+			});
+
+			// Now position should appear as changed
+			expect(world.getEntitiesWithQuery(['position'], [], ['position']).length).toBe(1);
+		});
+
+		test('throws for a non-existent entity', () => {
+			const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
+
+			expect(() => world.mutateComponent(999, 'position', () => {})).toThrow();
+		});
+
+		test('throws when the component does not exist on the entity', () => {
+			const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
+			const entity = world.spawn({ position: { x: 0, y: 0 } });
+
+			expect(() => world.mutateComponent(entity.id, 'velocity', () => {})).toThrow();
+		});
+
+		test('rejects invalid component names at compile time', () => {
+			const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
+			world.spawn({ position: { x: 0, y: 0 } });
+
+			try {
+				// @ts-expect-error - 'doesNotExist' is not a valid component name
+				world.mutateComponent(1, 'doesNotExist', () => {});
+			} catch {
+				// expected to throw at runtime since component doesn't exist
+			}
+		});
+
+		test('mutator receives correctly typed component value', () => {
+			type IsExact<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
+			const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
+			const entity = world.spawn({ position: { x: 0, y: 0 } });
+
+			world.mutateComponent(entity.id, 'position', (pos) => {
+				// pos should be typed as { x: number; y: number }
+				const _typeCheck: IsExact<typeof pos, { x: number; y: number }> = true;
+				expect(_typeCheck).toBe(true);
+				pos.x = 1;
+			});
+		});
+
+		test('return type matches the component type', () => {
+			type IsExact<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
+			const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
+			const entity = world.spawn({ health: { value: 100 } });
+
+			const result = world.mutateComponent(entity.id, 'health', (h) => {
+				h.value = 50;
+			});
+
+			const _typeCheck: IsExact<typeof result, { value: number }> = true;
+			expect(_typeCheck).toBe(true);
+			expect(result).toEqual({ value: 50 });
+		});
+
+		test('works in system process functions', () => {
+			const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
+			const entity = world.spawn({
+				position: { x: 0, y: 0 },
+				velocity: { x: 5, y: 10 },
+			});
+
+			world.addSystem('movement')
+				.addQuery('entities', { with: ['position', 'velocity'] })
+				.setProcess((queries, _dt, ecs) => {
+					for (const e of queries.entities) {
+						ecs.mutateComponent(e.id, 'position', (pos) => {
+							pos.x += e.components.velocity.x;
+							pos.y += e.components.velocity.y;
+						});
+					}
+				})
+				.build();
+
+			world.update(1 / 60);
+
+			expect(world.getComponent(entity.id, 'position')).toEqual({ x: 5, y: 10 });
+		});
+
+		test('accepts entity object in addition to entity ID', () => {
+			const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
+			const entity = world.spawn({ health: { value: 100 } });
+
+			world.mutateComponent(entity, 'health', (h) => {
+				h.value -= 25;
+			});
+
+			expect(world.getComponent(entity.id, 'health')).toEqual({ value: 75 });
+		});
+	});
+
 	describe('Resource Disposal via ECSpresso', () => {
 		test('disposeResource() should dispose a single resource', async () => {
 			let disposed = false;

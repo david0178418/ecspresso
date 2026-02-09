@@ -120,6 +120,24 @@ export default class CommandBuffer<
 	}
 
 	/**
+	 * Queue a component mutation command.
+	 * The mutator runs during playback, receiving the component for in-place mutation.
+	 * Automatically marks the component as changed.
+	 * @param entityOrId The entity or entity ID
+	 * @param componentName The component to mutate
+	 * @param mutator A function that receives the component value for in-place mutation
+	 */
+	mutateComponent<K extends keyof ComponentTypes>(
+		entityOrId: number | Entity<ComponentTypes>,
+		componentName: K,
+		mutator: (value: ComponentTypes[K]) => void
+	): void {
+		this.commands.push((ecs) => {
+			ecs.mutateComponent(entityOrId, componentName, mutator);
+		});
+	}
+
+	/**
 	 * Queue a markChanged command
 	 * @param entityOrId The entity or entity ID
 	 * @param componentName The component to mark as changed

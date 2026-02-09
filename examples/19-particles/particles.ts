@@ -355,7 +355,7 @@ pixiApp.canvas.addEventListener('click', (e) => {
 			style: indicatorStyle,
 		});
 		const newSprite = new Sprite(renderer.generateTexture(newText));
-		ecs.entityManager.addComponent(indicatorEntity.id, 'sprite', newSprite);
+		ecs.addComponent(indicatorEntity.id, 'sprite', newSprite);
 	}
 });
 

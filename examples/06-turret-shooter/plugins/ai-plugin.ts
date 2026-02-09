@@ -59,8 +59,8 @@ export default function createAIPlugin() {
 								});
 
 								// Add timer for pending destruction (visual effect delay)
-								ecs.entityManager.addComponent(enemy.id, 'timer', createTimer(0.5).timer);
-								ecs.entityManager.addComponent(enemy.id, 'pendingDestroy', true);
+								ecs.addComponent(enemy.id, 'timer', createTimer(0.5).timer);
+								ecs.addComponent(enemy.id, 'pendingDestroy', true);
 							}
 						} else {
 							// Normalize direction

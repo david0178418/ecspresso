@@ -174,6 +174,6 @@ dropdown.addEventListener('change', () => {
 		const demo = demos[i];
 		if (!demo) return;
 		const tweenData = demo.makeTween(loop);
-		ecs.entityManager.addComponent(id, 'tween', tweenData.tween);
+		ecs.addComponent(id, 'tween', tweenData.tween);
 	});
 });

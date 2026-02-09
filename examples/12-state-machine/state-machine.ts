@@ -90,7 +90,7 @@ function distanceToPlayer(ecsWorld: ECS, entityId: number): number {
 	const playerPos = getPlayerPosition(ecsWorld);
 	if (!playerPos) return Infinity;
 
-	const wt = ecsWorld.entityManager.getComponent(entityId, 'worldTransform');
+	const wt = ecsWorld.getComponent(entityId, 'worldTransform');
 	if (!wt) return Infinity;
 
 	const dx = wt.x - playerPos.x;
@@ -99,7 +99,7 @@ function distanceToPlayer(ecsWorld: ECS, entityId: number): number {
 }
 
 function updateEnemyColor(ecsWorld: ECS, entityId: number, color: number): void {
-	const gfx = ecsWorld.entityManager.getComponent(entityId, 'graphics');
+	const gfx = ecsWorld.getComponent(entityId, 'graphics');
 	if (!gfx) return;
 	gfx.clear().circle(0, 0, 15).fill(color);
 }
@@ -114,15 +114,15 @@ const enemyFSM = defineStateMachine('enemy', {
 				updateEnemyColor(ecsWorld, entityId, STATE_COLORS.patrol);
 			},
 			onUpdate(ecsWorld, entityId) {
-				const wt = ecsWorld.entityManager.getComponent(entityId, 'worldTransform');
-				const dir = ecsWorld.entityManager.getComponent(entityId, 'patrolDirection');
+				const wt = ecsWorld.getComponent(entityId, 'worldTransform');
+				const dir = ecsWorld.getComponent(entityId, 'patrolDirection');
 				if (!wt || dir === null) return;
 
 				// Reverse at screen edges
 				const bounds = ecsWorld.getResource('bounds');
 				if (wt.x < 40 || wt.x > bounds.width - 40) {
 					const newDir = dir === 1 ? -1 : 1;
-					ecsWorld.entityManager.addComponent(entityId, 'patrolDirection', newDir);
+					ecsWorld.addComponent(entityId, 'patrolDirection', newDir);
 					setVelocity(ecsWorld, entityId, newDir * PATROL_SPEED, 0);
 				}
 			},
@@ -141,7 +141,7 @@ const enemyFSM = defineStateMachine('enemy', {
 				const playerPos = getPlayerPosition(ecsWorld);
 				if (!playerPos) return;
 
-				const wt = ecsWorld.entityManager.getComponent(entityId, 'worldTransform');
+				const wt = ecsWorld.getComponent(entityId, 'worldTransform');
 				if (!wt) return;
 
 				const dx = playerPos.x - wt.x;
@@ -171,7 +171,7 @@ const enemyFSM = defineStateMachine('enemy', {
 				{
 					target: 'chase',
 					guard: (ecsWorld, entityId) => {
-						const sm = ecsWorld.entityManager.getComponent(entityId, 'stateMachine');
+						const sm = ecsWorld.getComponent(entityId, 'stateMachine');
 						return (sm?.stateTime ?? 0) > ATTACK_DURATION;
 					},
 				},

@@ -238,7 +238,7 @@ pixiApp.canvas.addEventListener('click', (e) => {
 	// Check if click is near the explosion area
 	if (x > 340 && x < 460 && y > 60 && y < 140) {
 		// Re-add the animation component to replay
-		ecs.entityManager.addComponent(
+		ecs.addComponent(
 			explosionEntity.id,
 			'spriteAnimation',
 			createSpriteAnimation(explosionSet, { onComplete: 'explosionDone' }).spriteAnimation,
@@ -300,7 +300,7 @@ pixiApp.canvas.addEventListener('click', (e) => {
 		// Update indicator
 		const newText = new Text({ text: `> ${nextAnim}`, style: indicatorStyle });
 		const newSprite = new Sprite(renderer.generateTexture(newText));
-		ecs.entityManager.addComponent(indicatorEntity.id, 'sprite', newSprite);
+		ecs.addComponent(indicatorEntity.id, 'sprite', newSprite);
 	}
 });
 
@@ -357,7 +357,7 @@ pixiApp.canvas.addEventListener('click', (e) => {
 	if (y > 360 && y < 460) {
 		finiteEntities.forEach((id, i) => {
 			// Re-add animation to restart
-			ecs.entityManager.addComponent(
+			ecs.addComponent(
 				id,
 				'spriteAnimation',
 				createSpriteAnimation(loopCountSet, { totalLoops: finiteLoopCounts[i] }).spriteAnimation,
@@ -407,7 +407,7 @@ pixiApp.canvas.addEventListener('click', (e) => {
 			style: indicatorStyle,
 		});
 		const newSprite = new Sprite(renderer.generateTexture(newText));
-		ecs.entityManager.addComponent(pauseIndicatorEntity.id, 'sprite', newSprite);
+		ecs.addComponent(pauseIndicatorEntity.id, 'sprite', newSprite);
 	}
 });
 

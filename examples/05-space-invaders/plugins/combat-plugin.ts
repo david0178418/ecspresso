@@ -22,7 +22,7 @@ export default function createCombatPlugin() {
 						'playerProjectile:enemy': (projectileId, enemyId, ecs) => {
 							ecs.commands.removeEntity(projectileId);
 
-							const enemyData = ecs.entityManager.getComponent(enemyId, 'enemy');
+							const enemyData = ecs.getComponent(enemyId, 'enemy');
 							if (!enemyData) return;
 
 							enemyData.health -= 1;

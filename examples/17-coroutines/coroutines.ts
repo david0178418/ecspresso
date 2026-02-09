@@ -92,15 +92,11 @@ function* bossEntrance(
 	circleEntityId: number,
 	spawnedIds: number[],
 ): CoroutineGenerator {
-	const circleLocal = () => ecs.entityManager.getComponent(circleEntityId, 'localTransform');
-
-	const markCircle = () => ecs.markChanged(circleEntityId, 'localTransform');
-
 	try {
 		// Step 1: Slide in from top
 		yield* lerp(
-			() => circleLocal()?.y ?? -60,
-			(v) => { const c = circleLocal(); if (c) c.y = v; markCircle(); },
+			() => ecs.getComponent(circleEntityId, 'localTransform')?.y ?? -60,
+			(v) => { ecs.mutateComponent(circleEntityId, 'localTransform', (c) => { c.y = v; }); },
 			CENTER_Y - 80,
 			0.8,
 		);
@@ -131,25 +127,21 @@ function* bossEntrance(
 		// Step 5: Parallel — circle moves to center + grows
 		yield* parallel(
 			lerp(
-				() => circleLocal()?.y ?? CENTER_Y - 80,
-				(v) => { const c = circleLocal(); if (c) c.y = v; markCircle(); },
+				() => ecs.getComponent(circleEntityId, 'localTransform')?.y ?? CENTER_Y - 80,
+				(v) => { ecs.mutateComponent(circleEntityId, 'localTransform', (c) => { c.y = v; }); },
 				CENTER_Y,
 				0.5,
 			),
 			lerp(
-				() => circleLocal()?.scaleX ?? 1,
-				(v) => {
-					const c = circleLocal();
-					if (c) { c.scaleX = v; c.scaleY = v; }
-					markCircle();
-				},
+				() => ecs.getComponent(circleEntityId, 'localTransform')?.scaleX ?? 1,
+				(v) => { ecs.mutateComponent(circleEntityId, 'localTransform', (c) => { c.scaleX = v; c.scaleY = v; }); },
 				1.5,
 				0.5,
 			),
 		);
 
 		// Step 6: Change text to "FIGHT!"
-		const textLocal = ecs.entityManager.getComponent(textEntity.id, 'localTransform');
+		const textLocal = ecs.getComponent(textEntity.id, 'localTransform');
 		ecs.removeEntity(textEntity.id);
 
 		const fightSprite = makeTextSprite('FIGHT!');
@@ -166,18 +158,14 @@ function* bossEntrance(
 		// Step 7: Circle shrinks and exits downward
 		yield* parallel(
 			lerp(
-				() => circleLocal()?.scaleX ?? 1.5,
-				(v) => {
-					const c = circleLocal();
-					if (c) { c.scaleX = v; c.scaleY = v; }
-					markCircle();
-				},
+				() => ecs.getComponent(circleEntityId, 'localTransform')?.scaleX ?? 1.5,
+				(v) => { ecs.mutateComponent(circleEntityId, 'localTransform', (c) => { c.scaleX = v; c.scaleY = v; }); },
 				0.3,
 				0.6,
 			),
 			lerp(
-				() => circleLocal()?.y ?? CENTER_Y,
-				(v) => { const c = circleLocal(); if (c) c.y = v; markCircle(); },
+				() => ecs.getComponent(circleEntityId, 'localTransform')?.y ?? CENTER_Y,
+				(v) => { ecs.mutateComponent(circleEntityId, 'localTransform', (c) => { c.y = v; }); },
 				SCREEN_H + 60,
 				0.6,
 			),

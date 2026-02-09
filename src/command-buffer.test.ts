@@ -271,6 +271,57 @@ describe('CommandBuffer', () => {
 		});
 	});
 
+	describe('mutateComponent', () => {
+		test('should queue a component mutation', () => {
+			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>().build();
+			const buffer = new CommandBuffer<TestComponents, TestEvents, TestResources>();
+
+			const entity = ecs.spawn({ position: { x: 0, y: 0 } });
+
+			buffer.mutateComponent(entity.id, 'position', (pos) => {
+				pos.x = 99;
+			});
+
+			// Not yet applied
+			expect(ecs.getComponent(entity.id, 'position')).toEqual({ x: 0, y: 0 });
+
+			buffer.playback(ecs);
+
+			expect(ecs.getComponent(entity.id, 'position')).toEqual({ x: 99, y: 0 });
+		});
+
+		test('should handle non-existent entity gracefully during playback', () => {
+			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>().build();
+			const buffer = new CommandBuffer<TestComponents, TestEvents, TestResources>();
+
+			buffer.mutateComponent(999, 'position', (pos) => {
+				pos.x = 1;
+			});
+
+			const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
+			expect(() => { buffer.playback(ecs); }).not.toThrow();
+			warnSpy.mockRestore();
+		});
+
+		test('commands.mutateComponent works via ECSpresso integration', () => {
+			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>().build();
+			const entity = ecs.spawn({ health: { value: 100 } });
+
+			ecs.addSystem('damage')
+				.addQuery('entities', { with: ['health'] })
+				.setProcess((_queries, _dt, world) => {
+					world.commands.mutateComponent(entity.id, 'health', (h) => {
+						h.value -= 10;
+					});
+				})
+				.build();
+
+			ecs.update(1 / 60);
+
+			expect(ecs.getComponent(entity.id, 'health')).toEqual({ value: 90 });
+		});
+	});
+
 	describe('Complex Scenarios', () => {
 		test('should handle mixed operations in correct order', () => {
 			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>().build();
