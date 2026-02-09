@@ -70,8 +70,7 @@ ecs
 				velocity.y = -Math.abs(velocity.y) * 0.9;
 			}
 		}
-	})
-	.build();
+	});
 
 // Continuous spawning system — reads pointer state each frame
 const pointerState = { down: false, x: 0, y: 0 };
@@ -87,8 +86,7 @@ ecs
 				pointerState.y + (Math.random() - 0.5) * 40,
 			);
 		}
-	})
-	.build();
+	});
 
 // Initialize
 await ecs.initialize();

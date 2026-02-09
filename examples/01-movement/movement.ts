@@ -33,8 +33,7 @@ ecs.addSystem('movement')
 			localTransform.x += velocity.x * dt;
 			localTransform.y += velocity.y * dt;
 		}
-	})
-	.and();
+	});
 
 // Bounce: reverses velocity when an entity hits a screen edge
 ecs.addSystem('bounce')
@@ -50,8 +49,7 @@ ecs.addSystem('bounce')
 				velocity.y *= -1;
 			}
 		}
-	})
-	.and();
+	});
 
 // -- Step 3: Initialize the world --
 // initialize() sets up all plugin resources (e.g. the PixiJS application).

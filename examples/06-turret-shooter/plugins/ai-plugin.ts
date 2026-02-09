@@ -86,10 +86,9 @@ export default function createAIPlugin() {
 				.setOnInitialize((ecs) => {
 					// Add playerInitialRotation resource to track initial player facing direction
 					ecs.addResource('playerInitialRotation', { y: 0 });
-				})
-				.and()
+				});
 				// Pending destroy system - destroys entities after their timer finishes
-				.addSystem('pending-destroy')
+				world.addSystem('pending-destroy')
 				.inGroup('gameplay')
 				.addQuery('pendingDestroys', {
 					with: ['timer', 'pendingDestroy'],
@@ -102,10 +101,9 @@ export default function createAIPlugin() {
 							});
 						}
 					}
-				})
-				.and()
+				});
 				// Spawn timer system - handles enemy spawning via spawner entity
-				.addSystem('spawn-timer')
+				world.addSystem('spawn-timer')
 				.inGroup('gameplay')
 				.inPhase('preUpdate')
 				.addQuery('spawners', {
@@ -149,8 +147,7 @@ export default function createAIPlugin() {
 							}
 						}
 					}
-				})
-				.and();
+				});
 		},
 	});
 }

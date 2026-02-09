@@ -66,8 +66,7 @@ export default function createSpawnerPlugin() {
 							spawnPlayer(ecs);
 						}
 					}
-				})
-				.and();
+				});
 		},
 	});
 }

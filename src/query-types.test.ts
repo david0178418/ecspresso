@@ -48,8 +48,7 @@ describe('Query Type Utilities', () => {
 					// This should work seamlessly with our helper function
 					updatePosition(entity, deltaTime);
 				}
-			})
-			.build();
+			});
 
 		// Create test entity
 		const entity = world.spawn({
@@ -101,8 +100,7 @@ describe('Query Type Utilities', () => {
 				for (const entity of queries.players) {
 					renderPlayer(entity);
 				}
-			})
-			.build();
+			});
 
 		// Test it works
 		expect(() => {

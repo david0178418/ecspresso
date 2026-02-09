@@ -132,8 +132,7 @@ function createGamePlugin() {
 						// Enable gameplay systems when game starts
 						ecs.enableSystemGroup('gameplay');
 					}
-				})
-				.and();
+				});
 		},
 	});
 }
@@ -187,8 +186,7 @@ function createPlayerPlugin() {
 						entity.components.velocity.x *= 0.9;
 						entity.components.velocity.y *= 0.9;
 					}
-				})
-				.and();
+				});
 		},
 	});
 }
@@ -210,8 +208,7 @@ function createRenderingPlugin() {
 						const sprite = entity.components.sprite;
 						console.log(`Rendering sprite ${sprite.id} at position (${Math.round(pos.x)}, ${Math.round(pos.y)}), scale: ${sprite.scale}`);
 					}
-				})
-				.and();
+				});
 		},
 	});
 }

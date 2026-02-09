@@ -58,7 +58,7 @@ src/
 ## Key Patterns
 
 ### Builder & Type Inference
-- **Builder Pattern**: `world.addSystem().addQuery().setProcess().and()` — `.and()` returns parent (ECSpresso or Plugin)
+- **Builder Pattern**: `world.addSystem().addQuery().setProcess()` — systems are registered via deferred finalization (no explicit terminator needed)
 - **Generic Type Parameters**: `<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>` — prefer builder inference (`.withPlugin()`, `.withComponentTypes<T>()`, `.withEventTypes<T>()`, `.withResource()`) over explicit type params to `create<>()`
 - **Type-Level Builder Methods**: `withComponentTypes<T>()`, `withEventTypes<T>()` — no runtime cost, accumulate via intersection with plugin types
 - **Inferred World Type**: `const ecs = ECSpresso.create().withPlugin(...).build(); type ECS = typeof ecs;` — derive full world type from the builder chain

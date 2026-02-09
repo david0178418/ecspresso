@@ -64,8 +64,7 @@ export default function createCombatPlugin() {
 							ecs.spawn(createTimer(1.0, { onComplete: () => ecs.eventBus.publish('playerRespawn') }));
 						}
 					},
-				})
-				.and();
+				});
 		},
 	});
 }

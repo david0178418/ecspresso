@@ -38,9 +38,8 @@ function createBouncingPlugin() {
 						localTransform.x += velocity.x * dt;
 						localTransform.y += velocity.y * dt;
 					}
-				})
-				.and()
-				.addSystem('bounce')
+				});
+			world.addSystem('bounce')
 				.addQuery('bouncing', { with: ['localTransform', 'velocity', 'radius'] })
 				.setProcess((queries, _dt, ecs) => {
 					const bounds = ecs.getResource('bounds');
@@ -55,8 +54,7 @@ function createBouncingPlugin() {
 							ecs.eventBus.publish('wallHit', { x: localTransform.x, y: localTransform.y });
 						}
 					}
-				})
-				.and();
+				});
 		},
 	});
 }
@@ -82,8 +80,7 @@ ecs.addSystem('trail-spawner')
 				...createLocalTransform(x, y),
 			});
 		},
-	})
-	.and();
+	});
 
 // -- Initialize and spawn --
 await ecs.initialize();

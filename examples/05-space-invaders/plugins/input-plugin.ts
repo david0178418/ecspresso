@@ -34,10 +34,8 @@ export default function createInputProcessingPlugin() {
 					if (input.actions.justActivated('shoot') && gameState.status === 'playing') {
 						ecs.eventBus.publish('playerShoot', {});
 					}
-				})
-				.and()
-
-				.addSystem('pause-handling')
+				});
+			world.addSystem('pause-handling')
 				.inPhase('preUpdate')
 				.setPriority(90)
 				.setProcess((_queries, _dt, ecs) => {
@@ -53,8 +51,7 @@ export default function createInputProcessingPlugin() {
 					};
 
 					statusToEvent[gameState.status]?.();
-				})
-				.and();
+				});
 		},
 	});
 }

@@ -169,8 +169,7 @@ export function createSpatialIndexPlugin<G extends string = 'spatialIndex'>(
 
 							insertEntity(grid, entity.id, x, y, halfW, halfH);
 						}
-					})
-					.and();
+					});
 			}
 		},
 	});

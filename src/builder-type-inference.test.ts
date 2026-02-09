@@ -510,7 +510,8 @@ describe('withPlugin() asset/screen type propagation', () => {
 		ECSpresso.create()
 			.withPlugin(pluginA)
 			// @ts-expect-error conflicting asset types (sprite: string vs sprite: number)
-			.withPlugin(pluginB);
+			.withPlugin(pluginB)
+			.build();
 	});
 
 	test('runtime: plugin assets accessible after build() + initialize()', async () => {
@@ -555,8 +556,7 @@ describe('withPlugin() asset/screen type propagation', () => {
 			id: 'no-assets',
 			install(world) {
 				world.addSystem('sys')
-					.setProcess(() => {})
-					.and();
+					.setProcess(() => {});
 			},
 		});
 
@@ -576,8 +576,7 @@ describe('withPlugin() asset/screen type propagation', () => {
 			id: 'no-screens',
 			install(world) {
 				world.addSystem('sys')
-					.setProcess(() => {})
-					.and();
+					.setProcess(() => {});
 			},
 		});
 
@@ -622,7 +621,8 @@ describe('withResourceTypes', () => {
 		ECSpresso.create()
 			.withResourceTypes<Resources>()
 			// @ts-expect-error - score should be number, not string
-			.withResource('score', 'not a number');
+			.withResource('score', 'not a number')
+			.build();
 	});
 
 	test('withResourceTypes validates string literal unions', () => {
@@ -633,12 +633,14 @@ describe('withResourceTypes', () => {
 		// Valid value
 		ECSpresso.create()
 			.withResourceTypes<Resources>()
-			.withResource('gameState', { status: 'ready' as const });
+			.withResource('gameState', { status: 'ready' as const })
+			.build();
 
 		ECSpresso.create()
 			.withResourceTypes<Resources>()
 			// @ts-expect-error - 'invalid' is not in the union
-			.withResource('gameState', { status: 'invalid' });
+			.withResource('gameState', { status: 'invalid' })
+			.build();
 	});
 
 	test('withResourceTypes works with factory functions', () => {
@@ -648,7 +650,8 @@ describe('withResourceTypes', () => {
 
 		ECSpresso.create()
 			.withResourceTypes<Resources>()
-			.withResource('score', () => 42);
+			.withResource('score', () => 42)
+			.build();
 	});
 
 	test('withResourceTypes + withPlugin are compatible', () => {
@@ -724,11 +727,13 @@ describe('withResourceTypes', () => {
 
 		// Valid value passes
 		ECSpresso.create<Components, Events, Resources>()
-			.withResource('config', { debug: true });
+			.withResource('config', { debug: true })
+			.build();
 
 		ECSpresso.create<Components, Events, Resources>()
 			// @ts-expect-error - wrong type for config
-			.withResource('config', { debug: 'yes' });
+			.withResource('config', { debug: 'yes' })
+			.build();
 	});
 
 	test('withResourceTypes + withResource with wrong shape', () => {
@@ -739,7 +744,8 @@ describe('withResourceTypes', () => {
 		ECSpresso.create()
 			.withResourceTypes<Resources>()
 			// @ts-expect-error - missing 'volume' field
-			.withResource('config', { debug: true });
+			.withResource('config', { debug: true })
+			.build();
 	});
 
 	test('withResourceTypes is a no-op at runtime', async () => {

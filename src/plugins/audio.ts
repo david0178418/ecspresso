@@ -658,8 +658,7 @@ export function createAudioPlugin<Ch extends string, G extends string = 'audio'>
 					musicByChannel.clear();
 					eventBusRef = null;
 					getAsset = null;
-				})
-				.and();
+				});
 		},
 	});
 }

@@ -22,11 +22,9 @@ test('type-level: Plugin accumulates labels', () => {
 		id: 'test',
 		install(world) {
 			world.addSystem('move')
-				.setProcess(() => {})
-				.and()
-				.addSystem('render')
-				.setProcess(() => {})
-				.and();
+				.setProcess(() => {});
+			world.addSystem('render')
+				.setProcess(() => {});
 		},
 	});
 
@@ -42,12 +40,10 @@ test('type-level: Plugin accumulates groups', () => {
 		install(world) {
 			world.addSystem('sys1')
 				.inGroup('rendering')
-				.setProcess(() => {})
-				.and()
-				.addSystem('sys2')
+				.setProcess(() => {});
+			world.addSystem('sys2')
 				.inGroup('physics')
-				.setProcess(() => {})
-				.and();
+				.setProcess(() => {});
 		},
 	});
 
@@ -63,8 +59,7 @@ test('type-level: Builder accumulates labels/groups from multiple plugins', () =
 		install(world) {
 			world.addSystem('sysA')
 				.inGroup('groupA')
-				.setProcess(() => {})
-				.and();
+				.setProcess(() => {});
 		},
 	});
 
@@ -73,8 +68,7 @@ test('type-level: Builder accumulates labels/groups from multiple plugins', () =
 		install(world) {
 			world.addSystem('sysB')
 				.inGroup('groupB')
-				.setProcess(() => {})
-				.and();
+				.setProcess(() => {});
 		},
 	});
 
@@ -100,8 +94,7 @@ test('type-level: invalid label produces compile error', () => {
 		id: 'test',
 		install(world) {
 			world.addSystem('validLabel')
-				.setProcess(() => {})
-				.and();
+				.setProcess(() => {});
 		},
 	});
 
@@ -126,8 +119,7 @@ test('type-level: invalid group produces compile error', () => {
 		install(world) {
 			world.addSystem('sys')
 				.inGroup('validGroup')
-				.setProcess(() => {})
-				.and();
+				.setProcess(() => {});
 		},
 	});
 
@@ -179,8 +171,7 @@ test('type-level: withComponentTypes preserves labels/groups', () => {
 		install(world) {
 			world.addSystem('mySystem')
 				.inGroup('myGroup')
-				.setProcess(() => {})
-				.and();
+				.setProcess(() => {});
 		},
 	});
 
@@ -210,8 +201,7 @@ test('type-level: multiple groups per system tracked', () => {
 			world.addSystem('sys')
 				.inGroup('groupA')
 				.inGroup('groupB')
-				.setProcess(() => {})
-				.and();
+				.setProcess(() => {});
 		},
 	});
 
@@ -227,8 +217,7 @@ test('type-level: composite plugin unions labels/groups', () => {
 		install(world) {
 			world.addSystem('sysA')
 				.inGroup('groupA')
-				.setProcess(() => {})
-				.and();
+				.setProcess(() => {});
 		},
 	});
 
@@ -237,8 +226,7 @@ test('type-level: composite plugin unions labels/groups', () => {
 		install(world) {
 			world.addSystem('sysB')
 				.inGroup('groupB')
-				.setProcess(() => {})
-				.and();
+				.setProcess(() => {});
 		},
 	});
 
@@ -268,12 +256,10 @@ test('type-level: LabelsOf and GroupsOf extraction', () => {
 		install(world) {
 			world.addSystem('alpha')
 				.inGroup('grp1')
-				.setProcess(() => {})
-				.and()
-				.addSystem('beta')
+				.setProcess(() => {});
+			world.addSystem('beta')
 				.inGroup('grp2')
-				.setProcess(() => {})
-				.and();
+				.setProcess(() => {});
 		},
 	});
 
@@ -316,8 +302,7 @@ test('runtime: removeSystem returns true/false', () => {
 		id: 'test',
 		install(world) {
 			world.addSystem('mySys')
-				.setProcess(() => {})
-				.and();
+				.setProcess(() => {});
 		},
 	});
 
@@ -336,8 +321,7 @@ test('runtime: disableSystemGroup/enableSystemGroup', () => {
 		install(world) {
 			world.addSystem('grouped')
 				.inGroup('myGroup')
-				.setProcess(() => {})
-				.and();
+				.setProcess(() => {});
 		},
 	});
 
@@ -359,15 +343,12 @@ test('runtime: getSystemsInGroup returns correct labels', () => {
 		install(world) {
 			world.addSystem('a')
 				.inGroup('grp')
-				.setProcess(() => {})
-				.and()
-				.addSystem('b')
+				.setProcess(() => {});
+			world.addSystem('b')
 				.inGroup('grp')
-				.setProcess(() => {})
-				.and()
-				.addSystem('c')
-				.setProcess(() => {})
-				.and();
+				.setProcess(() => {});
+			world.addSystem('c')
+				.setProcess(() => {});
 		},
 	});
 
@@ -388,8 +369,7 @@ test('runtime: updateSystemPhase and updateSystemPriority', () => {
 		id: 'test',
 		install(world) {
 			world.addSystem('mover')
-				.setProcess(() => {})
-				.and();
+				.setProcess(() => {});
 		},
 	});
 
@@ -411,8 +391,7 @@ test('type-level: withEventTypes preserves labels/groups', () => {
 		install(world) {
 			world.addSystem('sys1')
 				.inGroup('grp1')
-				.setProcess(() => {})
-				.and();
+				.setProcess(() => {});
 		},
 	});
 
@@ -439,8 +418,7 @@ test('type-level: withResource preserves labels/groups', () => {
 		install(world) {
 			world.addSystem('sys1')
 				.inGroup('grp1')
-				.setProcess(() => {})
-				.and();
+				.setProcess(() => {});
 		},
 	});
 
@@ -467,8 +445,7 @@ test('type-level: isSystemGroupEnabled and getSystemsInGroup accept typed groups
 		install(world) {
 			world.addSystem('sys')
 				.inGroup('myGroup')
-				.setProcess(() => {})
-				.and();
+				.setProcess(() => {});
 		},
 	});
 

@@ -123,8 +123,7 @@ describe('EventSystem', () => {
 							eventHandlerCalled = true;
 							expect(data.amount).toBe(10);
 						}
-					})
-					.and();
+					});
 			},
 		});
 
@@ -159,8 +158,7 @@ describe('EventSystem', () => {
 							receivedData = data;
 							receivedEntityManager = ecs.entityManager;
 						}
-					})
-					.and();
+					});
 			},
 		});
 
@@ -290,8 +288,7 @@ describe('EventSystem', () => {
 							}
 							damageLog[data.entityId]?.push(`healthChanged=${data.newValue}`);
 						}
-					})
-					.and();
+					});
 			},
 		});
 

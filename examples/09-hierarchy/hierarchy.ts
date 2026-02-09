@@ -107,10 +107,9 @@ const ecs = ECSpresso.create()
 
 type ECS = typeof ecs;
 
-ecs
-	// ==================== Orbit System ====================
-	// Updates localTransform based on orbital angle and radius
-	.addSystem('orbit')
+// ==================== Orbit System ====================
+// Updates localTransform based on orbital angle and radius
+ecs.addSystem('orbit')
 	.inPhase('fixedUpdate')
 	.addQuery('orbitingBodies', {
 		with: ['orbit', 'localTransform'],
@@ -128,11 +127,11 @@ ecs
 				lt.y = Math.sin(orbit.angle) * orbit.radius;
 			});
 		}
-	})
-	.and()
-	// ==================== Camera System ====================
-	// Scrolls the view based on input actions
-	.addSystem('camera')
+	});
+
+// ==================== Camera System ====================
+// Scrolls the view based on input actions
+ecs.addSystem('camera')
 	.inPhase('preUpdate')
 	.setProcess((_queries, deltaTime, ecs) => {
 		const input = ecs.getResource('inputState');
@@ -147,10 +146,10 @@ ecs
 		if (input.actions.isActive('panRight')) camera.x -= scrollSpeed * deltaTime;
 
 		rootContainer.position.set(camera.x, camera.y);
-	})
-	.and()
-	// ==================== Initialize System ====================
-	.addSystem('initialize')
+	});
+
+// ==================== Initialize System ====================
+ecs.addSystem('initialize')
 	.setOnInitialize((ecs) => {
 		const pixiApp = ecs.getResource('pixiApp');
 
@@ -216,8 +215,7 @@ ecs
 				registerClickHandler(moonGraphics, moon.id, ecs);
 			}
 		}
-	})
-	.build();
+	});
 
 // ==================== Helper Functions ====================
 

@@ -313,8 +313,7 @@ describe('CommandBuffer', () => {
 					world.commands.mutateComponent(entity.id, 'health', (h) => {
 						h.value -= 10;
 					});
-				})
-				.build();
+				});
 
 			ecs.update(1 / 60);
 
@@ -392,8 +391,7 @@ describe('CommandBuffer', () => {
 			ecs.addSystem('test')
 				.setProcess((_queries, _deltaTime, ecs) => {
 					ecs.commands.spawn({ position: { x: 1, y: 1 } });
-				})
-				.build();
+				});
 
 			// Before update
 			expect(ecs.getEntitiesWithQuery(['position']).length).toBe(0);
@@ -420,8 +418,7 @@ describe('CommandBuffer', () => {
 
 					// Remove entity via commands
 					ecs.commands.removeEntity(entity.id);
-				})
-				.build();
+				});
 
 			ecs.update(0.016);
 

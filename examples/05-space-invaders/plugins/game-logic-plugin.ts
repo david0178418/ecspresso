@@ -106,10 +106,8 @@ export default function createGameLogicPlugin() {
 							enemyVel.y = velocityMultiplier.y * baseSpeed;
 						}
 					}
-				})
-				.and()
-
-				.addSystem('enemy-controller')
+				});
+			world.addSystem('enemy-controller')
 				.inGroup('gameplay')
 				.addQuery('enemies', { with: ['enemy', 'worldTransform'] })
 				.setProcess(({ enemies }, deltaTime, ecs) => {
@@ -159,10 +157,8 @@ export default function createGameLogicPlugin() {
 							ecs.eventBus.publish('enemyShoot', { enemyId: randomEnemy.id });
 						}
 					}
-				})
-				.and()
-
-				.addSystem('player-input')
+				});
+			world.addSystem('player-input')
 				.inGroup('gameplay')
 				.inPhase('preUpdate')
 				.addQuery('players', { with: ['player', 'velocity'] })
@@ -175,8 +171,7 @@ export default function createGameLogicPlugin() {
 							: input.actions.isActive('moveRight') ? config.playerSpeed
 							: 0;
 					}
-				})
-				.and();
+				});
 		},
 	});
 }

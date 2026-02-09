@@ -34,7 +34,7 @@ describe('Plugin', () => {
 		const plugin = definePlugin<PositionComponents, {}, PositionResources>({
 			id: 'test',
 			install(world) {
-				world.addSystem('test').setProcess(() => {}).and();
+				world.addSystem('test').setProcess(() => {});
 			},
 		});
 
@@ -88,8 +88,7 @@ describe('Plugin', () => {
 					.addQuery('movingEntities', {
 						with: ['position', 'velocity']
 					})
-					.setProcess(() => {})
-					.and();
+					.setProcess(() => {});
 			},
 		});
 
@@ -101,8 +100,7 @@ describe('Plugin', () => {
 					.addQuery('players', {
 						with: ['player', 'health']
 					})
-					.setProcess(() => {})
-					.and();
+					.setProcess(() => {});
 			},
 		});
 
@@ -126,20 +124,17 @@ describe('Plugin', () => {
 		expect(world.hasResource('playerControls')).toBe(true);
 	});
 
-	test('should support chaining multiple systems with and()', () => {
+	test('should support defining multiple systems in a plugin', () => {
 		const plugin = definePlugin<PositionComponents, {}, PositionResources>({
 			id: 'test',
 			install(world) {
-				world
-					.addSystem('physics')
+				world.addSystem('physics')
 					.addQuery('moving', { with: ['position', 'velocity'] })
-					.setProcess(() => {})
-					.and()
-					.addSystem('rendering')
+					.setProcess(() => {});
+				world.addSystem('rendering')
 					.addQuery('positioned', { with: ['position'] })
-					.setProcess(() => {})
-					.and()
-					.addResource('gravity', { value: 9.8 });
+					.setProcess(() => {});
+				world.addResource('gravity', { value: 9.8 });
 			},
 		});
 
@@ -167,8 +162,7 @@ describe('Plugin', () => {
 				world.addResource('gravity', { value: 9.8 });
 				world.addSystem('movement')
 					.addQuery('movers', { with: ['position', 'velocity'] })
-					.setProcess(() => {})
-					.and();
+					.setProcess(() => {});
 			},
 		});
 
@@ -198,8 +192,7 @@ describe('Plugin', () => {
 			install(world) {
 				world.addSystem('movement')
 					.addQuery('movers', { with: ['position', 'velocity'] })
-					.setProcess(() => {})
-					.and();
+					.setProcess(() => {});
 			},
 		});
 
@@ -233,8 +226,7 @@ describe('Plugin', () => {
 				world.addResource('playerControls', { up: false, down: false, left: false, right: false });
 				world.addSystem('physics')
 					.addQuery('movers', { with: ['position', 'velocity'] })
-					.setProcess(() => {})
-					.and();
+					.setProcess(() => {});
 			},
 		});
 

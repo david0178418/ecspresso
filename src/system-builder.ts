@@ -1,8 +1,10 @@
-import ECSpresso from "./ecspresso";
+import type ECSpresso from "./ecspresso";
 import type { FilteredEntity, QueryDefinition, System, SystemPhase } from "./types";
 
 /**
- * Builder class for creating type-safe ECS Systems with proper query inference
+ * Builder class for creating type-safe ECS Systems with proper query inference.
+ * Systems are automatically registered with their ECSpresso instance when
+ * finalized (at the start of initialize() or update()).
  */
 export class SystemBuilder<
 	ComponentTypes extends Record<string, any> = Record<string, any>,
@@ -30,9 +32,8 @@ export class SystemBuilder<
 			>,
 		) => void;
 	};
-	private _priority = 0; // Default priority is 0
-	private _phase: SystemPhase = 'update'; // Default phase is 'update'
-	private _isRegistered = false; // Track if system has been auto-registered
+	private _priority = 0;
+	private _phase: SystemPhase = 'update';
 	private _groups: string[] = [];
 	private _inScreens?: ReadonlyArray<keyof ScreenStates & string>;
 	private _excludeScreens?: ReadonlyArray<keyof ScreenStates & string>;
@@ -40,39 +41,17 @@ export class SystemBuilder<
 	private _runWhenEmpty = false;
 	private _entityEnterHandlers: Record<string, (entity: any, ecs: any) => void> = {};
 
-	constructor(
-		private _label: string,
-		private _ecspresso: ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates> | null = null,
-	) {}
+	constructor(private _label: string) {}
 
 	get label() {
 		return this._label;
 	}
 
 	/**
-	 * Returns the associated ECSpresso instance if one was provided in the constructor
+	 * Create a system object with all configured properties.
+	 * @internal Used by ECSpresso to finalize and register the system
 	 */
-	get ecspresso() {
-		return this._ecspresso;
-	}
-
-	/**
-	 * Auto-register this system with its ECSpresso instance if not already registered
-	 * @private
-	 */
-	private _autoRegister(): void {
-		if (this._isRegistered || !this._ecspresso) return;
-
-		const system = this._createSystemObject();
-		registerSystemWithEcspresso(system, this._ecspresso);
-		this._isRegistered = true;
-	}
-
-	/**
-	 * Create a system object with all configured properties
-	 * @private
-	 */
-	private _createSystemObject(): System<ComponentTypes, any, any, EventTypes, ResourceTypes, AssetTypes, ScreenStates> {
+	_createSystemObject(): System<ComponentTypes, any, any, EventTypes, ResourceTypes, AssetTypes, ScreenStates> {
 		const system: System<ComponentTypes, any, any, EventTypes, ResourceTypes, AssetTypes, ScreenStates> = {
 			label: this._label,
 			entityQueries: this.queries,
@@ -123,7 +102,6 @@ export class SystemBuilder<
 		return system;
 	}
 
-	// TODO: Should this be a setter?
 	/**
 	 * Set the priority of this system. Systems with higher priority values
 	 * execute before those with lower values. Systems with the same priority
@@ -154,10 +132,7 @@ export class SystemBuilder<
 	 * @param groupName The name of the group to add the system to
 	 * @returns This SystemBuilder instance for method chaining
 	 */
-	inGroup<G extends string>(groupName: G):
-		this extends SystemBuilderWithEcspresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, Queries, Label, SysGroups>
-			? SystemBuilderWithEcspresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, Queries, Label, SysGroups | G>
-			: SystemBuilder<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, Queries, Label, SysGroups | G> {
+	inGroup<G extends string>(groupName: G): SystemBuilder<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, Queries, Label, SysGroups | G> {
 		if (!this._groups.includes(groupName)) {
 			this._groups.push(groupName);
 		}
@@ -228,9 +203,7 @@ export class SystemBuilder<
 			optional?: ReadonlyArray<OptionalComponents>;
 			parentHas?: ReadonlyArray<keyof ComponentTypes>;
 		}
-	): this extends SystemBuilderWithEcspresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, Queries, Label, SysGroups>
-		? SystemBuilderWithEcspresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, NewQueries, Label, SysGroups>
-		: SystemBuilder<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, NewQueries, Label, SysGroups> {
+	): SystemBuilder<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, NewQueries, Label, SysGroups> {
 		// Cast is needed because TypeScript can't preserve the type information
 		// when modifying an object property
 		const newBuilder = this as any;
@@ -278,34 +251,6 @@ export class SystemBuilder<
 	}
 
 	/**
-	 * Register this system with its ECSpresso instance and return the ECSpresso for chaining
-	 * This enables seamless method chaining: .registerAndContinue().addSystem(...)
-	 * @returns ECSpresso instance if attached to one, otherwise throws an error
-	 */
-	registerAndContinue(): ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates> {
-		if (!this._ecspresso) {
-			throw new Error(`Cannot register system '${this._label}': SystemBuilder is not attached to an ECSpresso instance. Use ECSpresso.addSystem() instead.`);
-		}
-
-		this._autoRegister();
-		return this._ecspresso;
-	}
-
-	/**
-	 * Complete this system and return the ECSpresso instance for seamless chaining.
-	 * Registers the system and returns ECSpresso.
-	 * This method is typed via the specialized interface (SystemBuilderWithEcspresso).
-	 */
-	and(): ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates> {
-		if (this._ecspresso) {
-			this._autoRegister();
-			return this._ecspresso;
-		}
-
-		throw new Error(`Cannot use and() on system '${this._label}': not attached to ECSpresso.`);
-	}
-
-	/**
 	 * Set the onDetach lifecycle hook
 	 * Called when the system is removed from the ECS
 	 * @param onDetach Function to run when this system is detached from the ECS
@@ -348,42 +293,6 @@ export class SystemBuilder<
 		this.eventHandlers = handlers;
 		return this;
 	}
-
-	/**
-	 * Build the final system object
-	 */
-	build(ecspresso?: ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>) {
-		const system = this._createSystemObject();
-
-		if (this._ecspresso) {
-			registerSystemWithEcspresso(system, this._ecspresso);
-		}
-
-		if(ecspresso) {
-			registerSystemWithEcspresso(system, ecspresso);
-		}
-
-		return this;
-	}
-}
-
-/**
- * Helper function to register a system with an ECSpresso instance
- * This handles attaching the system and setting up event handlers
- * @internal Used by SystemBuilder
- */
-export function registerSystemWithEcspresso<
-	ComponentTypes extends Record<string, any>,
-	EventTypes extends Record<string, any>,
-	ResourceTypes extends Record<string, any>,
-	AssetTypes extends Record<string, unknown>,
-	ScreenStates extends Record<string, any>
->(
-	system: System<ComponentTypes, any, any, EventTypes, ResourceTypes, AssetTypes, ScreenStates>,
-	ecspresso: ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>
-) {
-	// Use the new internal registration method instead of direct property access
-	ecspresso._registerSystem(system);
 }
 
 // Helper type definitions
@@ -446,47 +355,3 @@ type LifecycleFunction<
 		ScreenStates
 	>,
 ) => void | Promise<void>;
-
-/**
- * Create a SystemBuilder attached to an ECSpresso instance
- * Helper function used by ECSpresso.addSystem
- */
-export function createEcspressoSystemBuilder<
-	ComponentTypes extends Record<string, any>,
-	EventTypes extends Record<string, any>,
-	ResourceTypes extends Record<string, any>,
-	AssetTypes extends Record<string, unknown>,
-	ScreenStates extends Record<string, any>
->(
-	label: string,
-	ecspresso: ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>
-): SystemBuilderWithEcspresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates> {
-	return new SystemBuilder<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>(
-		label,
-		ecspresso
-	) as SystemBuilderWithEcspresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>;
-}
-
-// Type interfaces for specialized SystemBuilders
-
-/**
- * SystemBuilder with a guaranteed non-null reference to an ECSpresso instance
- */
-export interface SystemBuilderWithEcspresso<
-	ComponentTypes extends Record<string, any>,
-	EventTypes extends Record<string, any>,
-	ResourceTypes extends Record<string, any>,
-	AssetTypes extends Record<string, unknown>,
-	ScreenStates extends Record<string, any>,
-	Queries extends Record<string, QueryDefinition<ComponentTypes>> = {},
-	Label extends string = string,
-	SysGroups extends string = never,
-> extends SystemBuilder<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, Queries, Label, SysGroups> {
-	readonly ecspresso: ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>;
-
-	/**
-	 * Complete this system and return ECSpresso for seamless chaining
-	 * Automatically registers the system when called
-	 */
-	and(): ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>;
-}

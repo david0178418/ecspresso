@@ -73,10 +73,9 @@ export default function createRenderPlugin() {
 							}
 						}
 					}
-				})
-				.and()
+				});
 				// 3D object factory system
-				.addSystem('model-factory')
+				world.addSystem('model-factory')
 				.setEventHandlers({
 					gameStart(_data, ecs) {
 						const scene = ecs.getResource('scene');
@@ -513,8 +512,7 @@ export default function createRenderPlugin() {
 						// (model cleanup is handled automatically by registerDispose)
 						ecs.entityManager.removeEntity(data.entityId);
 					}
-				})
-				.and();
+				});
 		},
 	});
 }

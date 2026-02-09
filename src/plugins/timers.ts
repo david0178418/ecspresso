@@ -256,8 +256,7 @@ export function createTimerPlugin<G extends string = 'timers'>(
 							ecs.commands.removeEntity(entity.id);
 						}
 					}
-				})
-				.and();
+				});
 		},
 	});
 }

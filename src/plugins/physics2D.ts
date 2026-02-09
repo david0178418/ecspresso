@@ -399,8 +399,7 @@ export function createPhysics2DPlugin<L extends string = never, G extends string
 
 						ecs.markChanged(entity.id, 'localTransform');
 					}
-				})
-				.and();
+				});
 
 			// ==================== Collision System ====================
 
@@ -435,8 +434,7 @@ export function createPhysics2DPlugin<L extends string = never, G extends string
 
 					const si = tryGetSpatialIndex(ecs.tryGetResource.bind(ecs));
 					detectCollisions(colliders, si, onPhysicsContact, ecs);
-				})
-				.and();
+				});
 		},
 	});
 }

@@ -30,32 +30,27 @@ describe('System Phases', () => {
 			ecs.addSystem('render-sys')
 				.inPhase('render')
 				.setPriority(9999)
-				.setProcess(() => { executionOrder.push('render'); })
-				.and();
+				.setProcess(() => { executionOrder.push('render'); });
 
 			ecs.addSystem('preUpdate-sys')
 				.inPhase('preUpdate')
 				.setPriority(0)
-				.setProcess(() => { executionOrder.push('preUpdate'); })
-				.and();
+				.setProcess(() => { executionOrder.push('preUpdate'); });
 
 			ecs.addSystem('update-sys')
 				.inPhase('update')
 				.setPriority(5000)
-				.setProcess(() => { executionOrder.push('update'); })
-				.and();
+				.setProcess(() => { executionOrder.push('update'); });
 
 			ecs.addSystem('postUpdate-sys')
 				.inPhase('postUpdate')
 				.setPriority(100)
-				.setProcess(() => { executionOrder.push('postUpdate'); })
-				.and();
+				.setProcess(() => { executionOrder.push('postUpdate'); });
 
 			ecs.addSystem('fixedUpdate-sys')
 				.inPhase('fixedUpdate')
 				.setPriority(10000)
-				.setProcess(() => { executionOrder.push('fixedUpdate'); })
-				.and();
+				.setProcess(() => { executionOrder.push('fixedUpdate'); });
 
 			// Use a deltaTime large enough to trigger one fixedUpdate step
 			ecs.update(1 / 60);
@@ -74,20 +69,17 @@ describe('System Phases', () => {
 			ecs.addSystem('low')
 				.inPhase('update')
 				.setPriority(10)
-				.setProcess(() => { executionOrder.push('low'); })
-				.and();
+				.setProcess(() => { executionOrder.push('low'); });
 
 			ecs.addSystem('high')
 				.inPhase('update')
 				.setPriority(100)
-				.setProcess(() => { executionOrder.push('high'); })
-				.and();
+				.setProcess(() => { executionOrder.push('high'); });
 
 			ecs.addSystem('medium')
 				.inPhase('update')
 				.setPriority(50)
-				.setProcess(() => { executionOrder.push('medium'); })
-				.and();
+				.setProcess(() => { executionOrder.push('medium'); });
 
 			ecs.update(1 / 60);
 
@@ -100,18 +92,15 @@ describe('System Phases', () => {
 
 			ecs.addSystem('first')
 				.inPhase('update')
-				.setProcess(() => { executionOrder.push('first'); })
-				.and();
+				.setProcess(() => { executionOrder.push('first'); });
 
 			ecs.addSystem('second')
 				.inPhase('update')
-				.setProcess(() => { executionOrder.push('second'); })
-				.and();
+				.setProcess(() => { executionOrder.push('second'); });
 
 			ecs.addSystem('third')
 				.inPhase('update')
-				.setProcess(() => { executionOrder.push('third'); })
-				.and();
+				.setProcess(() => { executionOrder.push('third'); });
 
 			ecs.update(1 / 60);
 
@@ -126,18 +115,15 @@ describe('System Phases', () => {
 
 			ecs.addSystem('pre')
 				.inPhase('preUpdate')
-				.setProcess(() => { executionOrder.push('pre'); })
-				.and();
+				.setProcess(() => { executionOrder.push('pre'); });
 
 			// No inPhase call — should default to 'update'
 			ecs.addSystem('default-phase')
-				.setProcess(() => { executionOrder.push('default'); })
-				.and();
+				.setProcess(() => { executionOrder.push('default'); });
 
 			ecs.addSystem('post')
 				.inPhase('postUpdate')
-				.setProcess(() => { executionOrder.push('post'); })
-				.and();
+				.setProcess(() => { executionOrder.push('post'); });
 
 			ecs.update(1 / 60);
 
@@ -155,8 +141,7 @@ describe('System Phases', () => {
 
 			ecs.addSystem('fixed')
 				.inPhase('fixedUpdate')
-				.setProcess(() => { fixedCount++; })
-				.and();
+				.setProcess(() => { fixedCount++; });
 
 			// dt = 1/30 = 2 * (1/60), should step twice
 			ecs.update(1 / 30);
@@ -173,8 +158,7 @@ describe('System Phases', () => {
 
 			ecs.addSystem('fixed')
 				.inPhase('fixedUpdate')
-				.setProcess(() => { fixedCount++; })
-				.and();
+				.setProcess(() => { fixedCount++; });
 
 			// dt = 1/120 < 1/60, should not step
 			ecs.update(1 / 120);
@@ -191,8 +175,7 @@ describe('System Phases', () => {
 
 			ecs.addSystem('fixed')
 				.inPhase('fixedUpdate')
-				.setProcess(() => { fixedCount++; })
-				.and();
+				.setProcess(() => { fixedCount++; });
 
 			// First frame: dt = 1/120 (half a step), no execution
 			ecs.update(1 / 120);
@@ -215,8 +198,7 @@ describe('System Phases', () => {
 
 			ecs.addSystem('fixed')
 				.inPhase('fixedUpdate')
-				.setProcess((_q, dt) => { receivedDt = dt; })
-				.and();
+				.setProcess((_q, dt) => { receivedDt = dt; });
 
 			// dt large enough to trigger at least one step
 			ecs.update(fixedDt);
@@ -235,8 +217,7 @@ describe('System Phases', () => {
 
 			ecs.addSystem('normal')
 				.inPhase('update')
-				.setProcess((_q, dt) => { receivedDt = dt; })
-				.and();
+				.setProcess((_q, dt) => { receivedDt = dt; });
 
 			ecs.update(frameDt);
 
@@ -254,8 +235,7 @@ describe('System Phases', () => {
 
 			ecs.addSystem('fixed')
 				.inPhase('fixedUpdate')
-				.setProcess(() => { fixedCount++; })
-				.and();
+				.setProcess(() => { fixedCount++; });
 
 			// dt = 1 second = 60 steps at 1/60, but capped at 8
 			ecs.update(1);
@@ -272,8 +252,7 @@ describe('System Phases', () => {
 
 			ecs.addSystem('fixed')
 				.inPhase('fixedUpdate')
-				.setProcess(() => { fixedCount++; })
-				.and();
+				.setProcess(() => { fixedCount++; });
 
 			// First frame: huge delta, capped at 8
 			ecs.update(1);
@@ -332,8 +311,7 @@ describe('System Phases', () => {
 						ecs.commands.spawn({ tag: true });
 						spawnedInPre = true;
 					}
-				})
-				.and();
+				});
 
 			ecs.addSystem('checker')
 				.inPhase('update')
@@ -342,8 +320,7 @@ describe('System Phases', () => {
 					if (queries.tagged.length > 0) {
 						foundInUpdate = true;
 					}
-				})
-				.and();
+				});
 
 			ecs.update(1 / 60);
 
@@ -366,8 +343,7 @@ describe('System Phases', () => {
 						ecs.commands.spawn({ tag: true });
 						spawnedInFixed = true;
 					}
-				})
-				.and();
+				});
 
 			ecs.addSystem('checker')
 				.inPhase('postUpdate')
@@ -376,8 +352,7 @@ describe('System Phases', () => {
 					if (queries.tagged.length > 0) {
 						foundInPostUpdate = true;
 					}
-				})
-				.and();
+				});
 
 			ecs.update(1 / 60);
 
@@ -400,8 +375,7 @@ describe('System Phases', () => {
 				.inPhase('preUpdate')
 				.setProcess((_q, _dt, ecs) => {
 					ecs.markChanged(e.id, 'position');
-				})
-				.and();
+				});
 
 			ecs.addSystem('reader')
 				.inPhase('update')
@@ -410,8 +384,7 @@ describe('System Phases', () => {
 					if (queries.changed.length > 0) {
 						changedSeenInUpdate = true;
 					}
-				})
-				.and();
+				});
 
 			ecs.update(1 / 60);
 
@@ -434,8 +407,7 @@ describe('System Phases', () => {
 				.inPhase('fixedUpdate')
 				.setProcess((_q, _dt, ecs) => {
 					ecs.markChanged(e.id, 'position');
-				})
-				.and();
+				});
 
 			ecs.addSystem('reader')
 				.inPhase('postUpdate')
@@ -444,8 +416,7 @@ describe('System Phases', () => {
 					if (queries.changed.length > 0) {
 						changedSeenInPost = true;
 					}
-				})
-				.and();
+				});
 
 			ecs.update(1 / 60);
 
@@ -460,13 +431,11 @@ describe('System Phases', () => {
 
 			ecs.addSystem('post')
 				.inPhase('postUpdate')
-				.setProcess(() => { executionOrder.push('post'); })
-				.and();
+				.setProcess(() => { executionOrder.push('post'); });
 
 			ecs.addSystem('pre')
 				.inPhase('preUpdate')
-				.setProcess(() => { executionOrder.push('pre'); })
-				.and();
+				.setProcess(() => { executionOrder.push('pre'); });
 
 			ecs.update(1 / 60);
 
@@ -495,13 +464,11 @@ describe('System Phases', () => {
 
 			ecs.addSystem('mover')
 				.inPhase('update')
-				.setProcess(() => { executionOrder.push('mover'); })
-				.and();
+				.setProcess(() => { executionOrder.push('mover'); });
 
 			ecs.addSystem('pre')
 				.inPhase('preUpdate')
-				.setProcess(() => { executionOrder.push('pre'); })
-				.and();
+				.setProcess(() => { executionOrder.push('pre'); });
 
 			// First update: pre runs in preUpdate, mover runs in update phase
 			ecs.update(1 / 60);
@@ -531,13 +498,11 @@ describe('System Phases', () => {
 			ecs.addSystem('grouped')
 				.inPhase('update')
 				.inGroup('myGroup')
-				.setProcess(() => { executionOrder.push('grouped'); })
-				.and();
+				.setProcess(() => { executionOrder.push('grouped'); });
 
 			ecs.addSystem('ungrouped')
 				.inPhase('update')
-				.setProcess(() => { executionOrder.push('ungrouped'); })
-				.and();
+				.setProcess(() => { executionOrder.push('ungrouped'); });
 
 			// Disable the group
 			ecs.disableSystemGroup('myGroup');
@@ -559,13 +524,11 @@ describe('System Phases', () => {
 
 			ecs.addSystem('a')
 				.inPhase('preUpdate')
-				.setProcess(() => { executionOrder.push('a'); })
-				.and();
+				.setProcess(() => { executionOrder.push('a'); });
 
 			ecs.addSystem('b')
 				.inPhase('update')
-				.setProcess(() => { executionOrder.push('b'); })
-				.and();
+				.setProcess(() => { executionOrder.push('b'); });
 
 			ecs.update(1 / 60);
 			expect(executionOrder).toEqual(['a', 'b']);
@@ -583,14 +546,12 @@ describe('System Phases', () => {
 			ecs.addSystem('a')
 				.inPhase('update')
 				.setPriority(10)
-				.setProcess(() => { executionOrder.push('a'); })
-				.and();
+				.setProcess(() => { executionOrder.push('a'); });
 
 			ecs.addSystem('b')
 				.inPhase('update')
 				.setPriority(20)
-				.setProcess(() => { executionOrder.push('b'); })
-				.and();
+				.setProcess(() => { executionOrder.push('b'); });
 
 			// b (20) before a (10)
 			ecs.update(1 / 60);
@@ -611,8 +572,7 @@ describe('System Phases', () => {
 			// Only add a render phase system, all others empty
 			ecs.addSystem('render-only')
 				.inPhase('render')
-				.setProcess(() => {})
-				.and();
+				.setProcess(() => {});
 
 			// Should not throw
 			ecs.update(1 / 60);
@@ -634,8 +594,7 @@ describe('System Phases', () => {
 					for (const entity of queries.counters) {
 						entity.components.counter.value++;
 					}
-				})
-				.and();
+				});
 
 			// dt = 2/60 => two fixed steps
 			ecs.update(2 / 60);

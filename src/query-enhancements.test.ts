@@ -32,8 +32,7 @@ describe('Optional Components', () => {
 						hp: entity.components.health,
 					});
 				}
-			})
-			.build();
+			});
 
 		world.spawn({ position: { x: 1, y: 2 }, health: { value: 100 } });
 		world.update(0);
@@ -59,8 +58,7 @@ describe('Optional Components', () => {
 						hp: entity.components.health,
 					});
 				}
-			})
-			.build();
+			});
 
 		world.spawn({ position: { x: 1, y: 2 } });
 		world.update(0);
@@ -83,8 +81,7 @@ describe('Optional Components', () => {
 				for (const entity of queries.entities) {
 					matched.push(entity.id);
 				}
-			})
-			.build();
+			});
 
 		const e1 = world.spawn({ position: { x: 0, y: 0 }, health: { value: 100 } });
 		const e2 = world.spawn({ position: { x: 1, y: 1 } }); // no health
@@ -107,8 +104,7 @@ describe('Optional Components', () => {
 					// @ts-expect-error - cannot access .value directly without narrowing, it might be undefined
 					const _hp: number = entity.components.health.value;
 				}
-			})
-			.build();
+			});
 	});
 
 	test('works with createQueryDefinition + QueryResultEntity', () => {
@@ -228,8 +224,7 @@ describe('parentHas Relationship Queries', () => {
 				for (const entity of queries.entities) {
 					matched.push(entity.id);
 				}
-			})
-			.build();
+			});
 
 		const parent = world.spawn({ parentMarker: true as const });
 		const child = world.spawnChild(parent.id, { childMarker: true as const });
@@ -251,8 +246,7 @@ describe('parentHas Relationship Queries', () => {
 				for (const entity of queries.entities) {
 					matched.push(entity.id);
 				}
-			})
-			.build();
+			});
 
 		// Orphan entity - no parent
 		world.spawn({ childMarker: true as const });
@@ -274,8 +268,7 @@ describe('parentHas Relationship Queries', () => {
 				for (const entity of queries.entities) {
 					matched.push(entity.id);
 				}
-			})
-			.build();
+			});
 
 		// Parent without the required marker
 		const parent = world.spawn({ position: { x: 0, y: 0 } });
@@ -298,8 +291,7 @@ describe('parentHas Relationship Queries', () => {
 				for (const entity of queries.entities) {
 					matched.push(entity.id);
 				}
-			})
-			.build();
+			});
 
 		// Parent with only one of the two required components
 		const partialParent = world.spawn({ parentMarker: true as const });
@@ -327,8 +319,7 @@ describe('parentHas Relationship Queries', () => {
 				for (const entity of queries.entities) {
 					matched.push(entity.id);
 				}
-			})
-			.build();
+			});
 
 		const parent = world.spawn({ parentMarker: true as const });
 		// has health, no dead, has parent with marker -> should match
@@ -355,8 +346,7 @@ describe('parentHas Relationship Queries', () => {
 				for (const entity of queries.entities) {
 					matched.push(entity.id);
 				}
-			})
-			.build();
+			});
 
 		// grandparent has marker, but parent does not
 		const grandparent = world.spawn({ parentMarker: true as const });
@@ -380,8 +370,7 @@ describe('parentHas Relationship Queries', () => {
 				for (const entity of queries.children) {
 					matched.push(entity.id);
 				}
-			})
-			.build();
+			});
 
 		const parent = world.spawn({ tag: 'container' });
 		const child = world.spawnChild(parent.id, { position: { x: 0, y: 0 } });

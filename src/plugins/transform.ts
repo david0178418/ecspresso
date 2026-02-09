@@ -248,8 +248,7 @@ export function createTransformPlugin<G extends string = 'transform'>(
 				.inGroup(systemGroup)
 				.setProcess((_queries, _deltaTime, ecs) => {
 					propagateTransforms(ecs);
-				})
-				.and();
+				});
 		},
 	});
 }

@@ -493,8 +493,7 @@ export function createInputPlugin<A extends string = string, G extends string = 
 					position.y = snapshot.pointerY;
 					delta.x = snapshot.pointerDeltaX;
 					delta.y = snapshot.pointerDeltaY;
-				})
-				.and();
+				});
 		},
 	});
 }

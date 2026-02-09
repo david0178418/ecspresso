@@ -115,8 +115,7 @@ describe('ResourceManager', () => {
 						if (config.debug) {
 							systemDebugRan = true;
 						}
-					})
-					.and();
+					});
 			},
 		});
 
@@ -173,8 +172,7 @@ describe('ResourceManager', () => {
 
 						const value = counter.increment();
 						logger.log(`Counter value: ${value}`);
-					})
-					.and();
+					});
 			},
 		});
 
@@ -227,8 +225,7 @@ describe('ResourceManager', () => {
 							gameState.previous = gameState.current;
 							gameState.current = 'updated';
 						}
-					})
-					.and();
+					});
 			},
 		});
 
@@ -362,8 +359,7 @@ describe('ResourceManager', () => {
 					expect(controlMap.right).toBe(false);
 					
 					systemRan = true;
-				})
-				.build();
+				});
 
 			// Create an entity to trigger the system
 			world.spawn({

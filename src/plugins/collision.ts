@@ -470,8 +470,7 @@ export function createCollisionPlugin<L extends string, G extends string = 'phys
 
 					const si = tryGetSpatialIndex(ecs.tryGetResource.bind(ecs));
 					detectCollisions(colliders, si, onCollisionDetected<L>, ecs.eventBus);
-				})
-				.and();
+				});
 		},
 	});
 }

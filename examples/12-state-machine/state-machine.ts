@@ -203,8 +203,7 @@ ecs
 
 			setVelocity(ecs, entity.id, vx * scale, vy * scale);
 		}
-	})
-	.build();
+	});
 
 // State label display (updates a text label above each enemy)
 ecs
@@ -227,8 +226,7 @@ ecs
 				gfx.scale.set(1, 1);
 			}
 		}
-	})
-	.build();
+	});
 
 // ==================== Initialize & Spawn ====================
 

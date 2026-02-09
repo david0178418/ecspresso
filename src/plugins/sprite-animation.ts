@@ -454,8 +454,7 @@ export function createSpriteAnimationPlugin<
 							ecs.markChanged(entity.id, 'spriteAnimation');
 						}
 					}
-				})
-				.and();
+				});
 		},
 	});
 }

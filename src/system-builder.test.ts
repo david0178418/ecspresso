@@ -10,13 +10,7 @@ interface TestComponents {
 	marker: { id: string };
 }
 
-interface TestEvents {
-	testEvent: { value: number };
-}
 
-interface TestResources {
-	testResource: { data: string };
-}
 
 describe('SystemBuilder', () => {
 	test('should create a system that can query entities', () => {
@@ -34,8 +28,7 @@ describe('SystemBuilder', () => {
 						for (const entity of queries.movingEntities) {
 							processedIds.push(entity.id);
 						}
-					})
-					.and();
+					});
 			},
 		});
 
@@ -83,8 +76,7 @@ describe('SystemBuilder', () => {
 						for (const entity of queries.withHealth) {
 							queriesProcessed.withHealth.push(entity.id);
 						}
-					})
-					.and();
+					});
 			},
 		});
 
@@ -136,8 +128,7 @@ describe('SystemBuilder', () => {
 					})
 					.setOnDetach(() => {
 						onDetachCalled = true;
-					})
-					.and();
+					});
 			},
 		});
 
@@ -183,8 +174,7 @@ describe('SystemBuilder', () => {
 
 							health.value -= 1;
 						}
-					})
-					.and();
+					});
 			},
 		});
 
@@ -206,21 +196,18 @@ describe('SystemBuilder', () => {
 		expect(updatedHealth).toEqual({ value: 99 });
 	});
 
-	test('should support and() method for ECSpresso-attached builders', () => {
+	test('should support multiple addSystem calls on same world', () => {
 		let system1Processed = false;
 		let system2Processed = false;
 
 		const world = ECSpresso.create<TestComponents>().build();
 
-		world
-			.addSystem('system1')
+		world.addSystem('system1')
 			.addQuery('moving', { with: ['position', 'velocity'] })
-			.setProcess(() => { system1Processed = true; })
-			.and()
-			.addSystem('system2')
+			.setProcess(() => { system1Processed = true; });
+		world.addSystem('system2')
 			.addQuery('healthy', { with: ['position', 'health'] })
-			.setProcess(() => { system2Processed = true; })
-			.and();
+			.setProcess(() => { system2Processed = true; });
 
 		world.spawn({ position: { x: 0, y: 0 }, velocity: { x: 1, y: 1 } });
 		world.spawn({ position: { x: 0, y: 0 }, health: { value: 100 } });
@@ -228,22 +215,5 @@ describe('SystemBuilder', () => {
 
 		expect(system1Processed).toBe(true);
 		expect(system2Processed).toBe(true);
-	});
-
-	test('and() should return correctly typed ECSpresso for chaining', () => {
-		const world = ECSpresso.create<TestComponents, TestEvents, TestResources>().build();
-
-		const result = world
-			.addSystem('test')
-			.setProcess(() => {})
-			.and();
-
-		// Type check: result should have ECSpresso methods
-		expect(typeof result.addSystem).toBe('function');
-		expect(typeof result.addResource).toBe('function');
-		expect(typeof result.spawn).toBe('function');
-
-		// Verify it's the same ECSpresso instance
-		expect(result).toBe(world);
 	});
 });

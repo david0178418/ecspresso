@@ -348,8 +348,7 @@ describe('Required Components', () => {
 					for (const e of queries.changed) {
 						changedEntities.push(e.id);
 					}
-				})
-				.build();
+				});
 
 			ecs.spawn({ position: { x: 10, y: 20 } });
 			ecs.update(1 / 60);
@@ -526,7 +525,8 @@ describe('Required Components', () => {
 				// @ts-expect-error - invalid required component name
 				.withRequired('position', 'nonExistent', () => ({ x: 0, y: 0 }))
 				// @ts-expect-error - factory returns wrong type for required component
-				.withRequired('position', 'health', () => ({ x: 0, y: 0 }));
+				.withRequired('position', 'health', () => ({ x: 0, y: 0 }))
+				.build();
 		});
 	});
 });

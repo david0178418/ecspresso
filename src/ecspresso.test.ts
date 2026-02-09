@@ -204,7 +204,7 @@ describe('ECSpresso', () => {
 		test('should allow type-safe system creation', () => {
 			const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
 
-			const systemFromEcs = world
+			world
 				.addSystem('some-system')
 				.addQuery('someQuery', {
 					with: ['position'],
@@ -239,8 +239,6 @@ describe('ECSpresso', () => {
 						data.nonExistentProperty;
 					}
 				});
-
-			systemFromEcs.ecspresso.entityManager;
 
 			expect(true).toBe(true); // Just to ensure the test runs without errors
 		});
@@ -288,8 +286,7 @@ describe('ECSpresso', () => {
 							},
 							// @ts-expect-error // TypeScript should complain if we try to add an event handler for a non-existent event
 							nonExistentEvent: () => {},
-						})
-						.and();
+						});
 				},
 			});
 
@@ -409,8 +406,7 @@ describe('ECSpresso', () => {
 							for (const entity of queries.entities) {
 								processedEntities.push(entity.id);
 							}
-						})
-						.and();
+						});
 				},
 			});
 
@@ -478,8 +474,7 @@ describe('ECSpresso', () => {
 						})
 						.setProcess(() => {
 							processRan = true;
-						})
-						.and();
+						});
 				},
 			});
 
@@ -527,8 +522,7 @@ describe('ECSpresso', () => {
 						})
 						.setProcess((_queries, _deltaTime, _ecs) => {
 							processCalled = true;
-						})
-						.and();
+						});
 				},
 			});
 
@@ -623,8 +617,7 @@ describe('ECSpresso', () => {
 								state.previous = state.current;
 								state.current = 'running';
 							}
-						})
-						.and();
+						});
 				},
 			});
 
@@ -660,8 +653,7 @@ describe('ECSpresso', () => {
 									removedEntities.push(entity.id);
 								}
 							}
-						})
-						.and();
+						});
 				},
 			});
 
@@ -722,8 +714,7 @@ describe('ECSpresso', () => {
 							} else {
 								ecs.entityManager.removeComponent(entity.id, 'position');
 							}
-						})
-						.and();
+						});
 				},
 			});
 
@@ -765,7 +756,7 @@ describe('ECSpresso', () => {
 			let sumY = 0;
 
 			// Add a system directly to ECSpresso with all features
-			const systemBuilder = world
+			world
 				.addSystem('CompleteSystem')
 				.addQuery('objects', {
 					with: ['position', 'velocity'],
@@ -790,12 +781,7 @@ describe('ECSpresso', () => {
 					}
 				});
 
-			// At this point, the system is not built yet, so ecspresso should be known but nothing should be called
-			expect(systemBuilder.ecspresso).toBe(world);
 			expect(initialized).toBe(false);
-
-			// Build and add the system
-			systemBuilder.build();
 
 			await world.initialize();
 
@@ -834,8 +820,7 @@ describe('ECSpresso', () => {
 						.setProcess((queries) => {
 							expect(queries.entities.length).toBe(1);
 							pluginProcessed = true;
-						})
-						.and();
+						});
 				},
 			});
 
@@ -848,7 +833,7 @@ describe('ECSpresso', () => {
 				velocity: { x: 5, y: 10 }
 			});
 
-			const directSystemBuilder = directWorld
+			directWorld
 				.addSystem('DirectSystem')
 				.addQuery('entities', {
 					with: ['position', 'velocity'],
@@ -858,10 +843,6 @@ describe('ECSpresso', () => {
 					directProcessed = true;
 				});
 
-			expect(directSystemBuilder.ecspresso).toBe(directWorld);
-
-			directSystemBuilder.build();
-
 			directWorld.update(1/60);
 			worldWithPlugin.update(1/60);
 
@@ -869,7 +850,7 @@ describe('ECSpresso', () => {
 			expect(pluginProcessed).toBe(true);
 		});
 
-		test('should support simplified method chaining with and() method', () => {
+		test('should support defining multiple systems via separate addSystem calls', () => {
 			const world = new ECSpresso<TestComponents>();
 
 			let system1Processed = false;
@@ -887,35 +868,30 @@ describe('ECSpresso', () => {
 				health: { value: 100 }
 			});
 
-			// Test the new simplified chaining API
-			world
-				.addSystem('system1')
+			world.addSystem('system1')
 				.addQuery('movingEntities', {
 					with: ['position', 'velocity'],
 				})
 				.setProcess((queries) => {
 					system1Processed = true;
 					expect(queries.movingEntities.length).toBe(1);
-				})
-				.and() // Auto-register and return ECSpresso for chaining
-				.addSystem('system2')
+				});
+			world.addSystem('system2')
 				.addQuery('healthyEntities', {
 					with: ['position', 'health'],
 				})
 				.setProcess((queries) => {
 					system2Processed = true;
 					expect(queries.healthyEntities.length).toBe(1);
-				})
-				.and()
-				.addSystem('system3')
+				});
+			world.addSystem('system3')
 				.addQuery('allPositioned', {
 					with: ['position'],
 				})
 				.setProcess((queries) => {
 					system3Processed = true;
 					expect(queries.allPositioned.length).toBe(2);
-				})
-				.build(); // Final build for the last system
+				});
 
 			// All systems should now be registered and functional
 			world.update(1/60);
@@ -942,8 +918,7 @@ describe('ECSpresso', () => {
 				})
 				.setProcess(() => {
 					executionOrder.push('low');
-				})
-				.build();
+				});
 
 			world.addSystem('HighPrioritySystem')
 				.setPriority(100)
@@ -952,8 +927,7 @@ describe('ECSpresso', () => {
 				})
 				.setProcess(() => {
 					executionOrder.push('high');
-				})
-				.build();
+				});
 
 			world.addSystem('MediumPrioritySystem')
 				.setPriority(50)
@@ -962,8 +936,7 @@ describe('ECSpresso', () => {
 				})
 				.setProcess(() => {
 					executionOrder.push('medium');
-				})
-				.build();
+				});
 
 			world.spawn({
 				position: { x: 0, y: 0 }
@@ -990,8 +963,7 @@ describe('ECSpresso', () => {
 				})
 				.setProcess(() => {
 					executionOrder.push('A');
-				})
-				.build();
+				});
 
 			world.addSystem('SystemB')
 				.setPriority(10)
@@ -1000,8 +972,7 @@ describe('ECSpresso', () => {
 				})
 				.setProcess(() => {
 					executionOrder.push('B');
-				})
-				.build();
+				});
 
 			world.addSystem('SystemC')
 				.setPriority(10)
@@ -1010,8 +981,7 @@ describe('ECSpresso', () => {
 				})
 				.setProcess(() => {
 					executionOrder.push('C');
-				})
-				.build();
+				});
 
 			world.spawn({
 				position: { x: 0, y: 0 }
@@ -1035,8 +1005,7 @@ describe('ECSpresso', () => {
 						})
 						.setProcess((_queries, _deltaTime, _ecs) => {
 							executionOrder.push('pluginHigh');
-						})
-						.and();
+						});
 				},
 			});
 
@@ -1050,8 +1019,7 @@ describe('ECSpresso', () => {
 						})
 						.setProcess((_queries, _deltaTime, _ecs) => {
 							executionOrder.push('pluginLow');
-						})
-						.and();
+						});
 				},
 			});
 
@@ -1072,8 +1040,7 @@ describe('ECSpresso', () => {
 				})
 				.setProcess(() => {
 					executionOrder.push('directMedium');
-				})
-				.build();
+				});
 
 			// Track execution order
 			const executionOrder: string[] = [];
@@ -1099,8 +1066,7 @@ describe('ECSpresso', () => {
 				})
 				.setProcess(() => {
 					executionOrder.push('A');
-				})
-				.build();
+				});
 
 			world.addSystem('SystemB')
 				.setPriority(20)
@@ -1109,8 +1075,7 @@ describe('ECSpresso', () => {
 				})
 				.setProcess(() => {
 					executionOrder.push('B');
-				})
-				.build();
+				});
 
 			world.addSystem('SystemC')
 				.setPriority(30)
@@ -1119,8 +1084,7 @@ describe('ECSpresso', () => {
 				})
 				.setProcess(() => {
 					executionOrder.push('C');
-				})
-				.build();
+				});
 
 			world.spawn({
 				position: { x: 0, y: 0 }
@@ -1152,9 +1116,11 @@ describe('ECSpresso', () => {
 			for (let i = 0; i < 5; i++) {
 				world.addSystem(`System${i}`)
 					.setPriority(i)
-					.setProcess(() => {})
-					.build();
+					.setProcess(() => {});
 			}
+
+			// Trigger deferred finalization so systems are registered
+			world.update(1/60);
 
 			// Replace the internal _rebuildPhaseSystems method temporarily with a spy
 			let sortCallCount = 0;
@@ -1164,9 +1130,7 @@ describe('ECSpresso', () => {
 				originalSortMethod.call(this);
 			};
 
-			// Run multiple updates - sorting should only happen once during setup
-			sortCallCount = 0; // Reset counter after system creation
-
+			// Run multiple updates - sorting should not happen
 			world.update(1/60);
 			world.update(1/60);
 			world.update(1/60);
@@ -1337,8 +1301,7 @@ describe('ECSpresso', () => {
 				.addQuery('entities', { with: ['position'] })
 				.setProcess(() => {
 					executionOrder.push('system');
-				})
-				.build();
+				});
 
 			// Add a post-update hook
 			world.onPostUpdate(() => {
@@ -2011,8 +1974,7 @@ describe('ECSpresso', () => {
 					if (!ecs.getComponent(entity.id, 'position')) {
 						ecs.addComponent(entity.id, 'position', { x: 0, y: 0 });
 					}
-				})
-				.build();
+				});
 
 			world.update(1 / 60);
 			expect(world.getComponent(entity.id, 'position')).toEqual({ x: 0, y: 0 });
@@ -2120,8 +2082,7 @@ describe('ECSpresso', () => {
 							pos.y += e.components.velocity.y;
 						});
 					}
-				})
-				.build();
+				});
 
 			world.update(1 / 60);
 

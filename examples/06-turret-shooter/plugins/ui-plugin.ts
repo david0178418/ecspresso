@@ -101,8 +101,7 @@ export default function createUIPlugin() {
 						blip.style.top = `${50 + blipZ}%`;
 						blip.style.transform = 'translate(-50%, -50%)';
 					}
-				})
-				.and();
+				});
 		},
 	});
 }

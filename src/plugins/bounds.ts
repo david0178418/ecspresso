@@ -280,8 +280,7 @@ export function createBoundsPlugin<ResourceTypes extends BoundsResourceTypes = B
 							ecs.commands.removeEntity(entity.id);
 						}
 					}
-				})
-				.and();
+				});
 
 			// Clamp to bounds system
 			world
@@ -324,8 +323,7 @@ export function createBoundsPlugin<ResourceTypes extends BoundsResourceTypes = B
 							ecs.markChanged(entity.id, 'localTransform');
 						}
 					}
-				})
-				.and();
+				});
 
 			// Wrap at bounds system
 			world
@@ -372,8 +370,7 @@ export function createBoundsPlugin<ResourceTypes extends BoundsResourceTypes = B
 							ecs.markChanged(entity.id, 'localTransform');
 						}
 					}
-				})
-				.and();
+				});
 		},
 	});
 }

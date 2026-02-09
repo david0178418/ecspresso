@@ -43,8 +43,7 @@ ecs.addSystem('player-input')
 		const { velocity, speed } = player.components;
 		velocity.x = input.actions.isActive('moveLeft') ? -speed : input.actions.isActive('moveRight') ? speed : 0;
 		velocity.y = input.actions.isActive('moveUp') ? -speed : input.actions.isActive('moveDown') ? speed : 0;
-	})
-	.and();
+	});
 
 // Movement: applies velocity to position (same pattern as example 01)
 ecs.addSystem('movement')
@@ -55,8 +54,7 @@ ecs.addSystem('movement')
 			localTransform.x += velocity.x * dt;
 			localTransform.y += velocity.y * dt;
 		}
-	})
-	.and();
+	});
 
 // -- Initialize and spawn --
 await ecs.initialize();

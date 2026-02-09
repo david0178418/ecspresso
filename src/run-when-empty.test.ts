@@ -15,8 +15,7 @@ describe('runWhenEmpty', () => {
 
 			world.addSystem('movement')
 				.addQuery('movers', { with: ['position', 'velocity'] as const })
-				.setProcess(() => { ran = true; })
-				.build();
+				.setProcess(() => { ran = true; });
 
 			world.update(1 / 60);
 
@@ -28,8 +27,7 @@ describe('runWhenEmpty', () => {
 			let ran = false;
 
 			world.addSystem('noQuery')
-				.setProcess(() => { ran = true; })
-				.build();
+				.setProcess(() => { ran = true; });
 
 			world.update(1 / 60);
 
@@ -45,8 +43,7 @@ describe('runWhenEmpty', () => {
 			world.addSystem('spawner')
 				.addQuery('movers', { with: ['position', 'velocity'] as const })
 				.runWhenEmpty()
-				.setProcess(() => { ran = true; })
-				.build();
+				.setProcess(() => { ran = true; });
 
 			world.update(1 / 60);
 
@@ -62,8 +59,7 @@ describe('runWhenEmpty', () => {
 				.runWhenEmpty()
 				.setProcess((queries) => {
 					receivedQueries = queries as unknown as Record<string, unknown[]>;
-				})
-				.build();
+				});
 
 			world.update(1 / 60);
 
@@ -78,8 +74,7 @@ describe('runWhenEmpty', () => {
 			world.addSystem('movement')
 				.addQuery('movers', { with: ['position', 'velocity'] as const })
 				.runWhenEmpty()
-				.setProcess((queries) => { count = queries.movers.length; })
-				.build();
+				.setProcess((queries) => { count = queries.movers.length; });
 
 			world.spawn({ position: { x: 0, y: 0 }, velocity: { dx: 1, dy: 1 } });
 			world.spawn({ position: { x: 5, y: 5 }, velocity: { dx: 2, dy: 2 } });
@@ -96,8 +91,7 @@ describe('runWhenEmpty', () => {
 				.addQuery('movers', { with: ['position', 'velocity'] as const })
 				.addQuery('living', { with: ['health'] as const })
 				.runWhenEmpty()
-				.setProcess(() => { ran = true; })
-				.build();
+				.setProcess(() => { ran = true; });
 
 			world.update(1 / 60);
 
@@ -114,8 +108,7 @@ describe('runWhenEmpty', () => {
 				.runWhenEmpty()
 				.setProcess((queries) => {
 					receivedQueries = queries as unknown as Record<string, unknown[]>;
-				})
-				.build();
+				});
 
 			world.update(1 / 60);
 
@@ -133,8 +126,7 @@ describe('runWhenEmpty', () => {
 			world.addSystem('spawner')
 				.addQuery('movers', { with: ['position', 'velocity'] as const })
 				.runWhenEmpty()
-				.setProcess(() => { ran = true; })
-				.build();
+				.setProcess(() => { ran = true; });
 
 			world.enableDiagnostics(true);
 			world.update(1 / 60);
@@ -148,8 +140,7 @@ describe('runWhenEmpty', () => {
 			world.addSystem('spawner')
 				.addQuery('movers', { with: ['position', 'velocity'] as const })
 				.runWhenEmpty()
-				.setProcess(() => {})
-				.build();
+				.setProcess(() => {});
 
 			world.enableDiagnostics(true);
 			world.update(1 / 60);
@@ -166,8 +157,7 @@ describe('runWhenEmpty', () => {
 			world.addSystem('spawner')
 				.addQuery('movers', { with: ['position', 'velocity'] as const })
 				.runWhenEmpty()
-				.setProcess(() => { callCount++; })
-				.build();
+				.setProcess(() => { callCount++; });
 
 			world.update(1 / 60);
 			world.update(1 / 60);
@@ -185,8 +175,7 @@ describe('runWhenEmpty', () => {
 				.addQuery('movers', { with: ['position'] as const })
 				.runWhenEmpty()
 				.inPhase('preUpdate')
-				.setProcess(() => { ran = true; })
-				.build();
+				.setProcess(() => { ran = true; });
 
 			world.update(1 / 60);
 
@@ -201,8 +190,7 @@ describe('runWhenEmpty', () => {
 				.addQuery('movers', { with: ['position'] as const })
 				.runWhenEmpty()
 				.inGroup('spawning')
-				.setProcess(() => { ran = true; })
-				.build();
+				.setProcess(() => { ran = true; });
 
 			world.update(1 / 60);
 
@@ -210,16 +198,15 @@ describe('runWhenEmpty', () => {
 			expect(world.getSystemsInGroup('spawning')).toEqual(['spawner']);
 		});
 
-		test('chains with and() for ECSpresso-attached builder', () => {
+		test('system registered and runs via update()', () => {
 			const world = new ECSpresso<TestComponents>();
 			let ran = false;
 
 			world.addSystem('spawner')
 				.addQuery('movers', { with: ['position'] as const })
 				.runWhenEmpty()
-				.setProcess(() => { ran = true; })
-				.and()
-				.update(1 / 60);
+				.setProcess(() => { ran = true; });
+			world.update(1 / 60);
 
 			expect(ran).toBe(true);
 		});

@@ -713,8 +713,7 @@ export function createRenderer2DPlugin<G extends string = 'renderer2d'>(
 							}
 						}
 					}
-				})
-				.and();
+				});
 
 			// ==================== Scene Graph Manager System ====================
 			world
@@ -848,8 +847,7 @@ export function createRenderer2DPlugin<G extends string = 'renderer2d'>(
 							ecs.update(ticker.deltaMS / 1_000);
 						});
 					}
-				})
-				.and();
+				});
 
 			// ==================== Camera Sync System (opt-in) ====================
 			if (camera) {
@@ -872,8 +870,7 @@ export function createRenderer2DPlugin<G extends string = 'renderer2d'>(
 						);
 						root.scale.set(state.zoom);
 						root.rotation = -(state.rotation + state.shakeRotation);
-					})
-					.and();
+					});
 			}
 		},
 	}) as unknown as Plugin<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes & ViewportScaleResourceTypes & CameraResourceTypes, {}, {}, Renderer2DLabels, G, never, Renderer2DReactiveQueryNames>;

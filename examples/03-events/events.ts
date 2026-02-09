@@ -33,8 +33,7 @@ ecs.addSystem('movement')
 			localTransform.x += velocity.x * dt;
 			localTransform.y += velocity.y * dt;
 		}
-	})
-	.and();
+	});
 
 // Bounce: reverses velocity at screen edges and publishes a wallHit event.
 // Events decouple the "what happened" from the "what should happen in response."
@@ -53,8 +52,7 @@ ecs.addSystem('bounce')
 				ecs.eventBus.publish('wallHit', { x: localTransform.x, y: localTransform.y });
 			}
 		}
-	})
-	.and();
+	});
 
 // Trail spawner: subscribes to wallHit events via setEventHandlers.
 // This system has no query and no process — it only reacts to events.
@@ -66,8 +64,7 @@ ecs.addSystem('trail-spawner')
 				...createLocalTransform(x, y),
 			});
 		},
-	})
-	.and();
+	});
 
 // -- Initialize and spawn --
 await ecs.initialize();

@@ -20,8 +20,7 @@ export default function createPhysicsPlugin() {
 						position.y += velocity.y * deltaTime;
 						position.z += velocity.z * deltaTime;
 					}
-				})
-				.and();
+				});
 		},
 	});
 }

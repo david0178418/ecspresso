@@ -114,8 +114,7 @@ describe('Diagnostics Plugin', () => {
 				// Simulate some work
 				let sum = 0;
 				for (let i = 0; i < 1000; i++) sum += i;
-			})
-			.and();
+			});
 
 		await ecs.initialize();
 		ecs.update(1 / 60);
@@ -147,8 +146,7 @@ describe('Diagnostics Plugin', () => {
 
 		ecs.addSystem('pre-system')
 			.inPhase('preUpdate')
-			.setProcess(() => {})
-			.and();
+			.setProcess(() => {});
 
 		await ecs.initialize();
 		ecs.update(1 / 60);

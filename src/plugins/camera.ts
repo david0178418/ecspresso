@@ -288,8 +288,7 @@ export function createCameraPlugin<G extends string = 'camera'>(
 							camera.y += excessY * factor;
 						}
 					}
-				})
-				.and();
+				});
 
 			// camera-shake-update: priority 390
 			world
@@ -305,8 +304,7 @@ export function createCameraPlugin<G extends string = 'camera'>(
 						const { cameraShake } = entity.components;
 						cameraShake.trauma = Math.max(0, cameraShake.trauma - cameraShake.traumaDecay * deltaTime);
 					}
-				})
-				.and();
+				});
 
 			// camera-bounds: priority 380
 			world
@@ -341,8 +339,7 @@ export function createCameraPlugin<G extends string = 'camera'>(
 							camera.y = Math.max(effectiveMinY, Math.min(effectiveMaxY, camera.y));
 						}
 					}
-				})
-				.and();
+				});
 
 			// camera-state-sync: priority 370
 			world
@@ -383,8 +380,7 @@ export function createCameraPlugin<G extends string = 'camera'>(
 						state.shakeOffsetY = 0;
 						state.shakeRotation = 0;
 					}
-				})
-				.and();
+				});
 		},
 	});
 }

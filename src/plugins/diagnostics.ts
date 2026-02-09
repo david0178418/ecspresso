@@ -144,8 +144,7 @@ export function createDiagnosticsPlugin<G extends string = 'diagnostics'>(
 					(resource as { -readonly [K in keyof DiagnosticsData]: DiagnosticsData[K] }).systemTimings = updated.systemTimings;
 					(resource as { -readonly [K in keyof DiagnosticsData]: DiagnosticsData[K] }).phaseTimings = updated.phaseTimings;
 					(resource as { -readonly [K in keyof DiagnosticsData]: DiagnosticsData[K] }).averageFrameTime = updated.averageFrameTime;
-				})
-				.and();
+				});
 		},
 	});
 }

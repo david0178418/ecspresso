@@ -15,8 +15,7 @@ describe('System Groups', () => {
 			world.addSystem('renderSystem')
 				.inGroup('rendering')
 				.addQuery('entities', { with: ['position'] })
-				.setProcess(() => {})
-				.build();
+				.setProcess(() => {});
 
 			expect(world.getSystemsInGroup('rendering')).toEqual(['renderSystem']);
 		});
@@ -28,8 +27,7 @@ describe('System Groups', () => {
 				.inGroup('physics')
 				.inGroup('rendering')
 				.addQuery('entities', { with: ['position'] })
-				.setProcess(() => {})
-				.build();
+				.setProcess(() => {});
 
 			expect(world.getSystemsInGroup('physics')).toEqual(['physicsRenderer']);
 			expect(world.getSystemsInGroup('rendering')).toEqual(['physicsRenderer']);
@@ -45,13 +43,11 @@ describe('System Groups', () => {
 			world.addSystem('renderSystem')
 				.inGroup('rendering')
 				.addQuery('entities', { with: ['position'] })
-				.setProcess(() => { renderingRan = true; })
-				.build();
+				.setProcess(() => { renderingRan = true; });
 
 			world.addSystem('otherSystem')
 				.addQuery('entities', { with: ['position'] })
-				.setProcess(() => { otherRan = true; })
-				.build();
+				.setProcess(() => { otherRan = true; });
 
 			world.spawn({ position: { x: 0, y: 0 } });
 
@@ -69,14 +65,12 @@ describe('System Groups', () => {
 			world.addSystem('systemA')
 				.inGroup('groupA')
 				.addQuery('entities', { with: ['position'] })
-				.setProcess(() => { executionOrder.push('A'); })
-				.build();
+				.setProcess(() => { executionOrder.push('A'); });
 
 			world.addSystem('systemB')
 				.inGroup('groupB')
 				.addQuery('entities', { with: ['position'] })
-				.setProcess(() => { executionOrder.push('B'); })
-				.build();
+				.setProcess(() => { executionOrder.push('B'); });
 
 			world.spawn({ position: { x: 0, y: 0 } });
 
@@ -93,8 +87,7 @@ describe('System Groups', () => {
 			world.addSystem('renderSystem')
 				.inGroup('rendering')
 				.addQuery('entities', { with: ['position'] })
-				.setProcess(() => { runCount++; })
-				.build();
+				.setProcess(() => { runCount++; });
 
 			world.spawn({ position: { x: 0, y: 0 } });
 
@@ -116,8 +109,7 @@ describe('System Groups', () => {
 
 			world.addSystem('testSystem')
 				.inGroup('testGroup')
-				.setProcess(() => {})
-				.build();
+				.setProcess(() => {});
 
 			expect(world.isSystemGroupEnabled('testGroup')).toBe(true);
 		});
@@ -127,8 +119,7 @@ describe('System Groups', () => {
 
 			world.addSystem('testSystem')
 				.inGroup('testGroup')
-				.setProcess(() => {})
-				.build();
+				.setProcess(() => {});
 
 			world.disableSystemGroup('testGroup');
 
@@ -148,18 +139,15 @@ describe('System Groups', () => {
 
 			world.addSystem('system1')
 				.inGroup('groupA')
-				.setProcess(() => {})
-				.build();
+				.setProcess(() => {});
 
 			world.addSystem('system2')
 				.inGroup('groupA')
-				.setProcess(() => {})
-				.build();
+				.setProcess(() => {});
 
 			world.addSystem('system3')
 				.inGroup('groupB')
-				.setProcess(() => {})
-				.build();
+				.setProcess(() => {});
 
 			expect(world.getSystemsInGroup('groupA').sort()).toEqual(['system1', 'system2']);
 		});
@@ -181,8 +169,7 @@ describe('System Groups', () => {
 					world.addSystem('pluginSystem')
 						.inGroup('pluginGroup')
 						.addQuery('entities', { with: ['position'] })
-						.setProcess(() => { pluginRan = true; })
-						.and();
+						.setProcess(() => { pluginRan = true; });
 				},
 			});
 
@@ -211,8 +198,7 @@ describe('System Groups', () => {
 				.inGroup('groupA')
 				.inGroup('groupB')
 				.addQuery('entities', { with: ['position'] })
-				.setProcess(() => { systemRan = true; })
-				.build();
+				.setProcess(() => { systemRan = true; });
 
 			world.spawn({ position: { x: 0, y: 0 } });
 
@@ -229,8 +215,7 @@ describe('System Groups', () => {
 
 			world.addSystem('noGroupSystem')
 				.addQuery('entities', { with: ['position'] })
-				.setProcess(() => { systemRan = true; })
-				.build();
+				.setProcess(() => { systemRan = true; });
 
 			world.spawn({ position: { x: 0, y: 0 } });
 

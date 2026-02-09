@@ -234,8 +234,7 @@ export default function createInputPlugin() {
 					if (document.pointerLockElement) {
 						document.exitPointerLock();
 					}
-				})
-				.and();
+				});
 		},
 	});
 }

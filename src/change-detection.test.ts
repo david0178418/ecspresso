@@ -143,8 +143,7 @@ describe('Change Detection', () => {
 				})
 				.setProcess((_queries) => {
 					processCallCount++;
-				})
-				.and();
+				});
 
 			// First update — spawn auto-marked position, system sees it
 			ecs.update(0);
@@ -170,8 +169,7 @@ describe('Change Detection', () => {
 				.setPriority(10)
 				.setProcess((_queries, _dt, ecs) => {
 					ecs.markChanged(e1.id, 'position');
-				})
-				.and();
+				});
 
 			// Add reading system with lower priority (runs second)
 			ecs.addSystem('reader')
@@ -184,8 +182,7 @@ describe('Change Detection', () => {
 					for (const entity of queries.entities) {
 						receivedIds.push(entity.id);
 					}
-				})
-				.and();
+				});
 
 			ecs.update(0);
 
@@ -212,16 +209,14 @@ describe('Change Detection', () => {
 				})
 				.setProcess((queries) => {
 					changedCount = queries.changed.length;
-				})
-				.and();
+				});
 
 			// Low-priority producer runs second
 			ecs.addSystem('marker')
 				.setPriority(0)
 				.setProcess((_queries, _dt, ecs) => {
 					ecs.markChanged(entity.id, 'position');
-				})
-				.and();
+				});
 
 			// First update with systems: reader runs before marker
 			ecs.update(0);

@@ -248,10 +248,9 @@ export default function createGameStatePlugin() {
 							}
 						}
 					}
-				})
-				.and()
+				});
 				// Message timer system - hides messages after their timer finishes
-				.addSystem('message-timer')
+				world.addSystem('message-timer')
 				.addQuery('messageTimers', {
 					with: ['timer', 'messageTimer'],
 				})
@@ -269,8 +268,7 @@ export default function createGameStatePlugin() {
 							ecs.removeEntity(entity.id);
 						}
 					}
-				})
-				.and();
+				});
 		},
 	});
 }

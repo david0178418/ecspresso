@@ -126,8 +126,7 @@ async function main() {
 					maxScore: cfg.maxScore * 2
 				}));
 			}
-		})
-		.build();
+		});
 
 	// Run a few game updates
 	console.log("\n11. Running game simulation:");

@@ -85,8 +85,7 @@ ecs.addSystem('player-input')
 			if (input.actions.isActive('moveLeft'))   velocity.x = -PLAYER_SPEED;
 			if (input.actions.isActive('moveRight'))  velocity.x = PLAYER_SPEED;
 		}
-	})
-	.and();
+	});
 
 // ==================== Shake Trigger System ====================
 
@@ -100,8 +99,7 @@ ecs.addSystem('shake-trigger')
 				addTrauma(ecs, cam.id, 0.6);
 			}
 		}
-	})
-	.and();
+	});
 
 // ==================== Coordinate Display System ====================
 
@@ -128,8 +126,7 @@ ecs.addSystem('coord-display')
 		el.textContent =
 			`Player: ${worldTransform.x.toFixed(0)}, ${worldTransform.y.toFixed(0)}\n` +
 			`Mouse:  ${mouseWorld.x.toFixed(0)}, ${mouseWorld.y.toFixed(0)}`;
-	})
-	.and();
+	});
 
 // ==================== Initialization ====================
 
@@ -223,8 +220,7 @@ ecs.addSystem('init')
 			}),
 			...createCameraBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT),
 		});
-	})
-	.build();
+	});
 
 // ==================== Start ====================
 

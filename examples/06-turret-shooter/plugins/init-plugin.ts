@@ -171,8 +171,7 @@ export default async function createInitPlugin() {
 							}, 2000);
 						}
 					},
-				})
-				.and();
+				});
 		},
 	});
 }

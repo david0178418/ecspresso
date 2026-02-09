@@ -143,8 +143,7 @@ export default function createUIPlugin() {
 							uiElements.messageText.visible = false;
 						}
 					}
-				})
-				.and();
+				});
 		},
 	});
 }

@@ -335,8 +335,7 @@ export function createCoroutinePlugin<G extends string = 'coroutines'>(
 							ecs.commands.removeComponent(entity.id, 'coroutine');
 						}
 					}
-				})
-				.and();
+				});
 		},
 	});
 }

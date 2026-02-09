@@ -588,8 +588,7 @@ export function createTweenPlugin<G extends string = 'tweens'>(
 
 						processTweenProgress(tween, entityComponents, entity.id, ecs as unknown as TweenEcs);
 					}
-				})
-				.and();
+				});
 		},
 	});
 }

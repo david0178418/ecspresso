@@ -78,8 +78,7 @@ world.addSystem('movement')
       entity.components.position.x += entity.components.velocity.x * deltaTime;
       entity.components.position.y += entity.components.velocity.y * deltaTime;
     }
-  })
-  .build();
+  });
 
 // 4. Create entities
 const player = world.spawn({
@@ -187,8 +186,7 @@ world.addSystem('combat')
         // Combat logic here
       }
     }
-  })
-  .build();
+  });
 ```
 
 ### Resources
@@ -224,8 +222,7 @@ world.addSystem('scoring')
   .setProcess((queries, deltaTime, ecs) => {
     const score = ecs.getResource('score');
     score.value += 10;
-  })
-  .build();
+  });
 ```
 
 **Builder pattern** -- resources chain naturally with other builder methods:
@@ -267,21 +264,20 @@ await world.disposeResources();              // All, in reverse dependency order
 
 ### Method Chaining
 
-Chain multiple systems using `.and()`. The `.and()` method returns the parent container (ECSpresso or Plugin), enabling fluent chaining:
+Systems use a fluent builder API: `world.addSystem().addQuery().setProcess()` -- systems are automatically registered via deferred finalization. No explicit termination call is needed.
 
 ```typescript
 world.addSystem('physics')
   .addQuery('moving', { with: ['position', 'velocity'] })
   .setProcess((queries, deltaTime) => {
     // Physics logic
-  })
-  .and() // Returns ECSpresso for continued chaining
-  .addSystem('rendering')
+  });
+
+world.addSystem('rendering')
   .addQuery('visible', { with: ['position', 'sprite'] })
   .setProcess((queries) => {
     // Rendering logic
-  })
-  .build();
+  });
 ```
 
 ### Query Type Utilities
@@ -312,8 +308,7 @@ world.addSystem('movement')
     for (const entity of queries.entities) {
       updatePosition(entity, deltaTime);
     }
-  })
-  .build();
+  });
 ```
 
 ### System Phases
@@ -329,27 +324,26 @@ Each phase's command buffer is played back before the next phase begins, so enti
 ```typescript
 world.addSystem('input')
   .inPhase('preUpdate')
-  .setProcess((queries, dt, ecs) => { /* Read input, update timers */ })
-  .and()
-  .addSystem('physics')
+  .setProcess((queries, dt, ecs) => { /* Read input, update timers */ });
+
+world.addSystem('physics')
   .inPhase('fixedUpdate')
   .setProcess((queries, dt, ecs) => {
     // dt is always fixedDt here (e.g. 1/60)
     // Runs 0..N times per frame based on accumulated time
-  })
-  .and()
-  .addSystem('gameplay')
+  });
+
+world.addSystem('gameplay')
   .inPhase('update')  // default phase
-  .setProcess((queries, dt, ecs) => { /* Game logic, AI */ })
-  .and()
-  .addSystem('transform-sync')
+  .setProcess((queries, dt, ecs) => { /* Game logic, AI */ });
+
+world.addSystem('transform-sync')
   .inPhase('postUpdate')
-  .setProcess((queries, dt, ecs) => { /* Transform propagation */ })
-  .and()
-  .addSystem('renderer')
+  .setProcess((queries, dt, ecs) => { /* Transform propagation */ });
+
+world.addSystem('renderer')
   .inPhase('render')
-  .setProcess((queries, dt, ecs) => { /* Visual output */ })
-  .build();
+  .setProcess((queries, dt, ecs) => { /* Visual output */ });
 ```
 
 **Fixed Timestep** -- The `fixedUpdate` phase uses a time accumulator for deterministic simulation. A spiral-of-death cap (8 steps) prevents runaway accumulation.
@@ -372,13 +366,12 @@ Within each phase, systems execute in priority order (higher numbers first). Sys
 world.addSystem('physics')
   .inPhase('fixedUpdate')
   .setPriority(100) // Runs first within fixedUpdate
-  .setProcess(() => { /* physics */ })
-  .and()
-  .addSystem('constraints')
+  .setProcess(() => { /* physics */ });
+
+world.addSystem('constraints')
   .inPhase('fixedUpdate')
   .setPriority(50)  // Runs second within fixedUpdate
-  .setProcess(() => { /* constraints */ })
-  .build();
+  .setProcess(() => { /* constraints */ });
 ```
 
 ### System Groups
@@ -389,13 +382,12 @@ Organize systems into groups that can be enabled/disabled at runtime:
 world.addSystem('renderSprites')
   .inGroup('rendering')
   .addQuery('sprites', { with: ['position', 'sprite'] })
-  .setProcess((queries) => { /* ... */ })
-  .and()
-  .addSystem('renderParticles')
+  .setProcess((queries) => { /* ... */ });
+
+world.addSystem('renderParticles')
   .inGroup('rendering')
   .inGroup('effects')  // Systems can belong to multiple groups
-  .setProcess(() => { /* ... */ })
-  .build();
+  .setProcess(() => { /* ... */ });
 
 world.disableSystemGroup('rendering');              // All rendering systems skip
 world.enableSystemGroup('rendering');               // Resume rendering
@@ -416,8 +408,7 @@ world.addSystem('gameSystem')
   })
   .setOnDetach((ecs) => {
     console.log('System shutting down...');
-  })
-  .build();
+  });
 
 await world.initialize();
 ```
@@ -468,8 +459,7 @@ world.addSystem('gameLogic')
     playerDied: (data, ecs) => {
       // Respawn logic
     }
-  })
-  .build();
+  });
 
 // Publish events from anywhere
 world.eventBus.publish('playerDied', { playerId: 1 });
@@ -576,8 +566,7 @@ world.addSystem('render-sync')
     for (const entity of queries.moved) {
       syncSpritePosition(entity);
     }
-  })
-  .build();
+  });
 ```
 
 When multiple components are listed in `changed`, entities matching **any** of them are included (OR semantics).
@@ -620,8 +609,7 @@ world.addSystem('combat')
         });
       }
     }
-  })
-  .build();
+  });
 ```
 
 ### Available Commands
@@ -669,18 +657,18 @@ const physicsPlugin = definePlugin<GameComponents, {}, GameResources>({
           entity.components.position.x += entity.components.velocity.x * deltaTime;
           entity.components.position.y += entity.components.velocity.y * deltaTime;
         }
-      })
-      .and()
-      .addSystem('applyGravity')
+      });
+
+    world.addSystem('applyGravity')
       .addQuery('falling', { with: ['velocity'] })
       .setProcess((queries, deltaTime, ecs) => {
         const gravity = ecs.getResource('gravity');
         for (const entity of queries.falling) {
           entity.components.velocity.y += gravity.value * deltaTime;
         }
-      })
-      .and()
-      .addResource('gravity', { value: 9.8 });
+      });
+
+    world.addResource('gravity', { value: 9.8 });
   },
 });
 
@@ -709,8 +697,7 @@ export const movementPlugin = definePlugin({
   install(world) {
     world.addSystem('movement')
       .addQuery('moving', { with: ['position', 'velocity'] })
-      .setProcess((queries, dt) => { /* ... */ })
-      .and();
+      .setProcess((queries, dt) => { /* ... */ });
   },
 });
 ```
@@ -908,8 +895,7 @@ game.addSystem('gameplay')
   .requiresAssets(['playerTexture'])
   .setProcess((queries, dt, ecs) => {
     const player = ecs.getAsset('playerTexture');
-  })
-  .build();
+  });
 ```
 
 Asset events (`assetLoaded`, `assetFailed`, `assetGroupProgress`, `assetGroupLoaded`) are available through the event system -- see [Events](#events).
@@ -971,13 +957,11 @@ game.addSystem('menuUI')
   .inScreens(['menu'])                         // Only runs in 'menu'
   .setProcess((queries, dt, ecs) => {
     renderMenu(ecs.getScreenState().selectedOption);
-  })
-  .build();
+  });
 
 game.addSystem('animations')
   .excludeScreens(['pause'])                   // Runs in all screens except 'pause'
-  .setProcess(() => { /* ... */ })
-  .build();
+  .setProcess(() => { /* ... */ });
 ```
 
 ### Screen Resource
@@ -995,8 +979,7 @@ game.addSystem('ui')
     screen.stackDepth;     // Number of screens in stack
     screen.isCurrent('gameplay');   // Check current screen
     screen.isActive('menu');        // true if in current or stack
-  })
-  .build();
+  });
 ```
 
 ## Type Safety
@@ -1021,8 +1004,7 @@ world.addSystem('example')
       entity.components.position.x;   // ✅ guaranteed
       entity.components.health.value; // ❌ not in query
     }
-  })
-  .build();
+  });
 
 // Plugin type compatibility - conflicting types error at compile time
 const plugin1 = definePlugin<{position: {x: number, y: number}}>({

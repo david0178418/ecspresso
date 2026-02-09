@@ -422,8 +422,7 @@ export function createStateMachinePlugin<S extends string = string, G extends st
 							}
 						}
 					}
-				})
-				.and();
+				});
 		},
 	});
 }

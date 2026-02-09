@@ -57,13 +57,11 @@ describe('SystemBuilder Type Safety for AssetTypes and ScreenStates', () => {
 
 		ecs.addSystem('menuSystem')
 			.inScreens(['menu'])
-			.setProcess((_queries, _dt, _ecs) => {})
-			.and();
+			.setProcess((_queries, _dt, _ecs) => {});
 
 		ecs.addSystem('gameplaySystem')
 			.inScreens(['gameplay', 'pause'])
-			.setProcess((_queries, _dt, _ecs) => {})
-			.and();
+			.setProcess((_queries, _dt, _ecs) => {});
 
 		expect(true).toBe(true);
 	});
@@ -74,8 +72,7 @@ describe('SystemBuilder Type Safety for AssetTypes and ScreenStates', () => {
 		ecs.addSystem('invalid')
 			// @ts-expect-error - 'nonexistent' is not a valid screen name
 			.inScreens(['nonexistent'])
-			.setProcess((_queries, _dt, _ecs) => {})
-			.and();
+			.setProcess((_queries, _dt, _ecs) => {});
 
 		expect(true).toBe(true);
 	});
@@ -85,13 +82,11 @@ describe('SystemBuilder Type Safety for AssetTypes and ScreenStates', () => {
 
 		ecs.addSystem('excludePause')
 			.excludeScreens(['pause'])
-			.setProcess((_queries, _dt, _ecs) => {})
-			.and();
+			.setProcess((_queries, _dt, _ecs) => {});
 
 		ecs.addSystem('excludeMultiple')
 			.excludeScreens(['menu', 'pause'])
-			.setProcess((_queries, _dt, _ecs) => {})
-			.and();
+			.setProcess((_queries, _dt, _ecs) => {});
 
 		expect(true).toBe(true);
 	});
@@ -102,8 +97,7 @@ describe('SystemBuilder Type Safety for AssetTypes and ScreenStates', () => {
 		ecs.addSystem('invalid')
 			// @ts-expect-error - 'nonexistent' is not a valid screen name
 			.excludeScreens(['nonexistent'])
-			.setProcess((_queries, _dt, _ecs) => {})
-			.and();
+			.setProcess((_queries, _dt, _ecs) => {});
 
 		expect(true).toBe(true);
 	});
@@ -113,13 +107,11 @@ describe('SystemBuilder Type Safety for AssetTypes and ScreenStates', () => {
 
 		ecs.addSystem('rendererSystem')
 			.requiresAssets(['playerTexture'])
-			.setProcess((_queries, _dt, _ecs) => {})
-			.and();
+			.setProcess((_queries, _dt, _ecs) => {});
 
 		ecs.addSystem('multiAssetSystem')
 			.requiresAssets(['playerTexture', 'enemyTexture'])
-			.setProcess((_queries, _dt, _ecs) => {})
-			.and();
+			.setProcess((_queries, _dt, _ecs) => {});
 
 		expect(true).toBe(true);
 	});
@@ -130,8 +122,7 @@ describe('SystemBuilder Type Safety for AssetTypes and ScreenStates', () => {
 		ecs.addSystem('invalid')
 			// @ts-expect-error - 'nonexistent' is not a valid asset key
 			.requiresAssets(['nonexistent'])
-			.setProcess((_queries, _dt, _ecs) => {})
-			.and();
+			.setProcess((_queries, _dt, _ecs) => {});
 
 		expect(true).toBe(true);
 	});
@@ -153,8 +144,7 @@ describe('SystemBuilder Type Safety for AssetTypes and ScreenStates', () => {
 				// Resource access is typed
 				const _score = ecsParam.getResource('score');
 				void _score;
-			})
-			.and();
+			});
 
 		expect(true).toBe(true);
 	});
@@ -172,8 +162,7 @@ describe('SystemBuilder Type Safety for AssetTypes and ScreenStates', () => {
 				const _screen = ecsParam.getCurrentScreen();
 				void _screen;
 			})
-			.setProcess((_queries, _dt, _ecs) => {})
-			.and();
+			.setProcess((_queries, _dt, _ecs) => {});
 
 		expect(true).toBe(true);
 	});
@@ -193,8 +182,7 @@ describe('SystemBuilder Type Safety for AssetTypes and ScreenStates', () => {
 					void _screen;
 				},
 			})
-			.setProcess((_queries, _dt, _ecs) => {})
-			.and();
+			.setProcess((_queries, _dt, _ecs) => {});
 
 		expect(true).toBe(true);
 	});
@@ -210,8 +198,7 @@ describe('SystemBuilder Type Safety for AssetTypes and ScreenStates', () => {
 				const _loaded = ecsParam.isAssetLoaded('playerTexture');
 				void _loaded;
 			})
-			.setProcess((_queries, _dt, _ecs) => {})
-			.and();
+			.setProcess((_queries, _dt, _ecs) => {});
 
 		expect(true).toBe(true);
 	});
@@ -223,8 +210,7 @@ describe('SystemBuilder Type Safety for AssetTypes and ScreenStates', () => {
 				world.addSystem('pluginSystem')
 					.inScreens(['gameplay'])
 					.requiresAssets(['playerTexture'])
-					.setProcess((_queries, _dt, _ecs) => {})
-					.and();
+					.setProcess((_queries, _dt, _ecs) => {});
 
 				world.addSystem('invalidPlugin')
 					// @ts-expect-error - invalid screen name in plugin system
@@ -246,8 +232,7 @@ describe('SystemBuilder Type Safety for AssetTypes and ScreenStates', () => {
 			.inScreens([])
 			.excludeScreens([])
 			.requiresAssets([])
-			.setProcess((_queries, _dt, _ecs) => {})
-			.and();
+			.setProcess((_queries, _dt, _ecs) => {});
 
 		expect(true).toBe(true);
 	});

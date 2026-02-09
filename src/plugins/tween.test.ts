@@ -417,8 +417,7 @@ describe('justFinished Flag', () => {
 						sawJustFinished = true;
 					}
 				}
-			})
-			.and();
+			});
 
 		ecs.spawn({
 			position: { x: 0, y: 0 },
@@ -448,8 +447,7 @@ describe('justFinished Flag', () => {
 						sawJustFinished = true;
 					}
 				}
-			})
-			.and();
+			});
 
 		ecs.spawn({
 			position: { x: 0, y: 0 },
@@ -733,8 +731,7 @@ describe('Change Detection', () => {
 				for (const _entity of queries.changed) {
 					changedEntitySeen = true;
 				}
-			})
-			.and();
+			});
 
 		ecs.spawn({
 			position: { x: 0, y: 0 },

@@ -371,8 +371,7 @@ describe('Transform Plugin', () => {
 						e.components.localTransform.x += 50;
 						ecs.markChanged(e.id, 'localTransform');
 					}
-				})
-				.and();
+				});
 
 			// Single update: movement marks in update, propagation catches in postUpdate
 			ecs.update(0.016);

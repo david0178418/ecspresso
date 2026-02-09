@@ -21,10 +21,9 @@ export default function createGameplayPlugin() {
 							});
 						}
 					}
-				})
-				.and()
+				});
 				// Collision system - in gameplay group with separate queries for type safety
-				.addSystem('collision')
+				world.addSystem('collision')
 				.inGroup('gameplay')
 				.inPhase('postUpdate')
 				.addQuery('players', {
@@ -98,8 +97,7 @@ export default function createGameplayPlugin() {
 							}
 						}
 					}
-				})
-				.and();
+				});
 		},
 	});
 }

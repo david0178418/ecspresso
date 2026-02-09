@@ -172,8 +172,7 @@ ecs.addSystem('screenUI')
 		if (gameOverState) {
 			finalScoreText.text = `Final Score: ${gameOverState.finalScore}`;
 		}
-	})
-	.build();
+	});
 
 // Countdown — only runs during 'playing' screen
 ecs.addSystem('countdown')
@@ -186,8 +185,7 @@ ecs.addSystem('countdown')
 			state.timeLeft = 0;
 			void ecs.setScreen('gameOver', { finalScore: state.score });
 		}
-	})
-	.build();
+	});
 
 // Dot spawner — only runs during 'playing' screen
 ecs.addSystem('dotSpawner')
@@ -199,8 +197,7 @@ ecs.addSystem('dotSpawner')
 			state.spawnTimer = 0.4 + Math.random() * 0.7;
 			spawnDot();
 		}
-	})
-	.build();
+	});
 
 // Dot movement and expiry — only runs during 'playing' screen
 ecs.addSystem('dotLifecycle')
@@ -219,8 +216,7 @@ ecs.addSystem('dotLifecycle')
 				lt.y += dot.speed * dt;
 			});
 		}
-	})
-	.build();
+	});
 
 // -- Keyboard input --
 

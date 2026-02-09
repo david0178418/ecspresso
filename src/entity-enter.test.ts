@@ -39,8 +39,7 @@ describe('setOnEntityEnter', () => {
 			.setOnEntityEnter('movers', (entity) => {
 				entered.push(entity.id);
 			})
-			.setProcess(() => {})
-			.and();
+			.setProcess(() => {});
 
 		const e = ecs.spawn({ position: { x: 0, y: 0 }, velocity: { dx: 1, dy: 0 } });
 
@@ -58,8 +57,7 @@ describe('setOnEntityEnter', () => {
 			.setOnEntityEnter('movers', () => {
 				enterCount++;
 			})
-			.setProcess(() => {})
-			.and();
+			.setProcess(() => {});
 
 		ecs.spawn({ position: { x: 0, y: 0 } });
 
@@ -79,8 +77,7 @@ describe('setOnEntityEnter', () => {
 			.setOnEntityEnter('tagged', () => {
 				enterCount++;
 			})
-			.setProcess(() => {})
-			.and();
+			.setProcess(() => {});
 
 		const e = ecs.spawn({ tag: 'hello' });
 
@@ -106,8 +103,7 @@ describe('setOnEntityEnter', () => {
 			.setOnEntityEnter('movers', (entity) => {
 				entered.push(entity.id);
 			})
-			.setProcess(() => {})
-			.and();
+			.setProcess(() => {});
 
 		const e1 = ecs.spawn({ position: { x: 0, y: 0 } });
 		const e2 = ecs.spawn({ position: { x: 1, y: 1 } });
@@ -133,8 +129,7 @@ describe('setOnEntityEnter', () => {
 			.setOnEntityEnter('movers', () => {
 				enterCount++;
 			})
-			.setProcess(() => {})
-			.and();
+			.setProcess(() => {});
 
 		const e = ecs.spawn({ position: { x: 0, y: 0 } });
 
@@ -159,8 +154,7 @@ describe('setOnEntityEnter', () => {
 			})
 			.setProcess(() => {
 				log.push('process');
-			})
-			.and();
+			});
 
 		ecs.spawn({ position: { x: 0, y: 0 } });
 
@@ -176,8 +170,7 @@ describe('setOnEntityEnter', () => {
 			.addQuery('movers', { with: ['position'] as const })
 			.setOnEntityEnter('movers', (entity) => {
 				entered.push(entity.id);
-			})
-			.and();
+			});
 
 		const e = ecs.spawn({ position: { x: 0, y: 0 } });
 
@@ -195,8 +188,7 @@ describe('setOnEntityEnter', () => {
 			.setOnEntityEnter('movers', () => {
 				enterCount++;
 			})
-			.setProcess(() => {})
-			.and();
+			.setProcess(() => {});
 
 		ecs.spawn({ position: { x: 0, y: 0 } });
 
@@ -231,8 +223,7 @@ describe('setOnEntityEnter', () => {
 				void _x;
 				void _dx;
 			})
-			.setProcess(() => {})
-			.and();
+			.setProcess(() => {});
 
 		// Verification is that this compiles without error
 		expect(true).toBe(true);
@@ -251,8 +242,7 @@ describe('setOnEntityEnter', () => {
 			.setOnEntityEnter('tagged', () => {
 				enterLog.push('tag-enter');
 			})
-			.setProcess(() => {})
-			.and();
+			.setProcess(() => {});
 
 		// Entity that matches both queries
 		ecs.spawn({ position: { x: 0, y: 0 }, tag: 'hello' });
@@ -277,8 +267,7 @@ describe('setOnEntityEnter', () => {
 				if (entered.length === 1) {
 					ecsRef.spawn({ position: { x: 99, y: 99 } });
 				}
-			})
-			.and();
+			});
 
 		ecs.spawn({ position: { x: 0, y: 0 } });
 
@@ -300,8 +289,7 @@ describe('setOnEntityEnter', () => {
 			.setOnEntityEnter('movers', (_entity, ecsRef) => {
 				receivedEcs = ecsRef === ecs;
 			})
-			.setProcess(() => {})
-			.and();
+			.setProcess(() => {});
 
 		ecs.spawn({ position: { x: 0, y: 0 } });
 		ecs.update(1 / 60);

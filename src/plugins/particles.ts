@@ -686,8 +686,7 @@ export function createParticlePlugin<
 							ecs.commands.removeComponent(entity.id, 'particleEmitter' as keyof ParticleComponentTypes & string);
 						}
 					}
-				})
-				.and();
+				});
 
 			// ==================== Particle Render Sync System ====================
 			world
@@ -822,8 +821,7 @@ export function createParticlePlugin<
 							}
 						}
 					}
-				})
-				.and();
+				});
 		},
 	});
 }

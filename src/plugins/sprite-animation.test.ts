@@ -409,8 +409,7 @@ describe('Sprite Animation Plugin', () => {
 							sawJustFinished = true;
 						}
 					}
-				})
-				.and();
+				});
 
 			const entity = ecs.spawn({
 				...createSpriteAnimation(set),
@@ -473,8 +472,7 @@ describe('Sprite Animation Plugin', () => {
 							sawJustFinished = true;
 						}
 					}
-				})
-				.and();
+				});
 
 			const entity = ecs.spawn({
 				...createSpriteAnimation(set, { totalLoops: 2 }),
@@ -581,8 +579,7 @@ describe('Sprite Animation Plugin', () => {
 							sawJustFinished = true;
 						}
 					}
-				})
-				.and();
+				});
 
 			const entity = ecs.spawn({
 				...createSpriteAnimation(set, { totalLoops: 2 }),
@@ -736,8 +733,7 @@ describe('Sprite Animation Plugin', () => {
 							sawJustFinished = true;
 						}
 					}
-				})
-				.and();
+				});
 
 			const entity = ecs.spawn({
 				...createSpriteAnimation(set),
@@ -1046,8 +1042,7 @@ describe('Sprite Animation Plugin', () => {
 					for (const e of queries.changed) {
 						changedIds.push(e.id);
 					}
-				})
-				.and();
+				});
 
 			// Frame doesn't advance — not enough time
 			ecs.update(0.05);

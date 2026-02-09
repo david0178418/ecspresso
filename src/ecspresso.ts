@@ -7,7 +7,7 @@ import ReactiveQueryManager, { type ReactiveQueryDefinition } from "./reactive-q
 import CommandBuffer from "./command-buffer";
 import type { System, SystemPhase, FilteredEntity, Entity, RemoveEntityOptions, HierarchyEntry, HierarchyIteratorOptions } from "./types";
 import type { Plugin } from "./plugin";
-import { createEcspressoSystemBuilder } from "./system-builder";
+import { SystemBuilder } from "./system-builder";
 import { checkRequiredCycle } from "./utils/check-required-cycle";
 import { version } from "../package.json";
 import type { AssetDefinition, AssetHandle, AssetEvents } from "./asset-types";
@@ -128,6 +128,9 @@ export default class ECSpresso<
 	private _entityEnterTracking: Map<object, Map<string, Set<number>>> = new Map();
 	/** Shared reusable set for per-tick entity enter comparison (avoids allocation) */
 	private _entityEnterFrameSet: Set<number> = new Set();
+	/** Pending system builder finalizers to run before next update/initialize */
+	private _pendingFinalizers: Array<() => void> = [];
+	private _batchingRegistrations = false;
 
 	/**
 		* Creates a new ECSpresso instance.
@@ -234,18 +237,35 @@ export default class ECSpresso<
 	}
 
 	/**
-		* Adds a system directly to this ECSpresso instance
+		* Adds a system directly to this ECSpresso instance.
+		* The system is registered when initialize() or update() is next called.
 		* @param label Unique name to identify the system
 		* @returns A SystemBuilder instance for method chaining
 	*/
-	addSystem(label: string) {
-		return createEcspressoSystemBuilder<
-			ComponentTypes,
-			EventTypes,
-			ResourceTypes,
-			AssetTypes,
-			ScreenStates
-		>(label, this);
+	addSystem(label: string): SystemBuilder<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates> {
+		const builder = new SystemBuilder<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>(label);
+		this._pendingFinalizers.push(() => {
+			this._registerSystem(builder._createSystemObject());
+		});
+		return builder;
+	}
+
+	/**
+	 * Finalize and register all pending system builders.
+	 * @private
+	 */
+	private _finalizePendingBuilders(): void {
+		if (this._pendingFinalizers.length === 0) return;
+		this._batchingRegistrations = true;
+		while (this._pendingFinalizers.length > 0) {
+			const finalizers = this._pendingFinalizers;
+			this._pendingFinalizers = [];
+			for (const finalize of finalizers) {
+				finalize();
+			}
+		}
+		this._batchingRegistrations = false;
+		this._rebuildPhaseSystems();
 	}
 
 	/**
@@ -255,6 +275,7 @@ export default class ECSpresso<
 	 * @param deltaTime Time elapsed since the last update (in seconds)
 	 */
 	update(deltaTime: number) {
+		this._finalizePendingBuilders();
 		const currentScreen = (this._screenManager?.getCurrentScreen() ?? null) as (keyof ScreenStates & string) | null;
 		const timing = this._diagnosticsEnabled;
 
@@ -473,6 +494,7 @@ export default class ECSpresso<
 	 * @returns Promise that resolves when everything is initialized
 	 */
 	async initialize(): Promise<void> {
+		this._finalizePendingBuilders();
 		await this.initializeResources();
 
 		// Set up asset manager if present
@@ -539,6 +561,7 @@ export default class ECSpresso<
 		* @returns true if the system was found and updated, false otherwise
 	*/
 	updateSystemPriority(label: Labels, priority: number): boolean {
+		this._finalizePendingBuilders();
 		const system = this._systems.find(system => system.label === label);
 		if (!system) return false;
 
@@ -558,6 +581,7 @@ export default class ECSpresso<
 	 * @returns true if the system was found and updated, false otherwise
 	 */
 	updateSystemPhase(label: Labels, phase: SystemPhase): boolean {
+		this._finalizePendingBuilders();
 		const system = this._systems.find(system => system.label === label);
 		if (!system) return false;
 
@@ -617,6 +641,7 @@ export default class ECSpresso<
 	 * @returns Array of system labels in the group
 	 */
 	getSystemsInGroup(groupName: Groups): string[] {
+		this._finalizePendingBuilders();
 		return this._systems
 			.filter(system => system.groups?.includes(groupName))
 			.map(system => system.label);
@@ -629,6 +654,7 @@ export default class ECSpresso<
 		* @returns true if the system was found and removed, false otherwise
 	*/
 	removeSystem(label: Labels): boolean {
+		this._finalizePendingBuilders();
 		const index = this._systems.findIndex(system => system.label === label);
 		if (index === -1) return false;
 
@@ -663,7 +689,9 @@ export default class ECSpresso<
 		// After updates, the threshold is advanced past consumed marks, so
 		// systems added later don't see stale marks.
 		this._systemLastSeqs.set(system, this._changeThreshold);
-		this._rebuildPhaseSystems();
+		if (!this._batchingRegistrations) {
+			this._rebuildPhaseSystems();
+		}
 
 		// Set up entity enter tracking if the system has onEntityEnter handlers
 		if (system.onEntityEnter) {
@@ -1159,6 +1187,7 @@ export default class ECSpresso<
 	}
 
 	get eventBus() {
+		this._finalizePendingBuilders();
 		return this._eventBus;
 	}
 
