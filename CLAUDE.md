@@ -25,7 +25,7 @@ src/
 ├── index.ts           # Public API exports
 └── plugins/
     ├── utils/
-    │   ├── timers.ts     # Timer plugin with event-based completion
+    │   ├── timers.ts     # Timer plugin with callback-based completion
     │   ├── transform.ts  # Hierarchical local/world transform propagation
     │   ├── physics2D.ts  # ECS-native 2D arcade physics (gravity, forces, drag, collision response via shared narrowphase)
     │   ├── input.ts      # Frame-accurate keyboard/pointer input with action mapping
@@ -53,7 +53,7 @@ src/
 - **Assets**: Eager/lazy loaded resources with groups and progress tracking
 - **Screens**: Game state management with transitions and overlay stack
 - **Entity Hierarchy**: Parent-child relationships with traversal and cascade deletion
-- **Timer Plugin**: ECS-native timers with optional event-based completion
+- **Timer Plugin**: ECS-native timers with optional `onComplete` callback
 
 ## Key Patterns
 
@@ -106,8 +106,11 @@ src/
 ### Plugin Phase Flow
 Physics 2D marks `localTransform` (fixedUpdate) → Transform propagation reads changed, writes+marks `worldTransform` (postUpdate) → Renderer reads changed `worldTransform` (render)
 
-### Kit Pattern (shared across state-machine, tween, audio, sprite-animation)
-`createXxxKit<W>()` captures world type once; returned helpers validate component/field/sound names at compile time. Standalone untyped versions remain available. Read plugin source files for per-plugin API details.
+### onComplete Callbacks
+Plugins with completion semantics (timers, tween, particles, sprite-animation, coroutine) accept `onComplete?: (data: XxxEventData) => void`. The callback fires synchronously when the action completes, with plugin-specific data (always includes `entityId`). To bridge to the event bus: `onComplete: (data) => ecs.eventBus.publish('myEvent', data)`.
+
+### Kit Pattern (shared across state-machine, tween, coroutine, audio)
+`createXxxKit<W>()` captures world type once; returned helpers validate component/field/sound/event names at compile time. Standalone untyped versions remain available. Read plugin source files for per-plugin API details.
 
 ### Application Plugin Factory
 `createPluginFactory<C, E, R>()` (or `createPluginFactory<WorldType>()`) captures types once; the returned function is a zero-param `definePlugin` equivalent. Eliminates repeated `<Components, Events, Resources>` across application-level plugins. `definePlugin<WorldType>({...})` is also available as a single-call alternative when a factory isn't needed. Library plugins (src/plugins/) remain generic and don't use this pattern.

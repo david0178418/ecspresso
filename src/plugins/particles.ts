@@ -11,7 +11,7 @@
  */
 
 import { definePlugin, type Plugin } from 'ecspresso';
-import type { SystemPhase, EventsOfWorld, AnyECSpresso, EventNameMatching } from 'ecspresso';
+import type { SystemPhase } from 'ecspresso';
 import type { WorldTransform } from 'ecspresso/plugins/transform';
 
 // ==================== Value Types ====================
@@ -141,7 +141,7 @@ export interface ParticleEmitter {
 	playing: boolean;
 	pendingBurst: number;
 	finished: boolean;
-	onComplete?: string;
+	onComplete?: (data: ParticleEmitterEventData) => void;
 }
 
 /**
@@ -253,7 +253,7 @@ export function createParticleEmitter(
 	config: ParticleEffectConfig,
 	options?: {
 		playing?: boolean;
-		onComplete?: string;
+		onComplete?: (data: ParticleEmitterEventData) => void;
 	},
 ): Pick<ParticleComponentTypes, 'particleEmitter'> {
 	return {
@@ -588,33 +588,7 @@ export const particlePresets = {
 	},
 } as const;
 
-// ==================== Kit Types ====================
-
-export interface ParticleHelpers<W extends AnyECSpresso> {
-	createParticleEmitter: (
-		config: ParticleEffectConfig,
-		options?: {
-			playing?: boolean;
-			onComplete?: EventNameMatching<EventsOfWorld<W>, ParticleEmitterEventData>;
-		},
-	) => Pick<ParticleComponentTypes, 'particleEmitter'>;
-}
-
-export function createParticleHelpers<W extends AnyECSpresso>(_world?: W): ParticleHelpers<W> {
-	return {
-		createParticleEmitter: createParticleEmitter as ParticleHelpers<W>['createParticleEmitter'],
-	};
-}
-
 // ==================== Plugin Factory ====================
-
-function publishParticleEvent(
-	ecs: { eventBus: { publish: (...args: any[]) => void } },
-	eventName: string,
-	entityId: number,
-): void {
-	ecs.eventBus.publish(eventName, { entityId });
-}
 
 type ParticleLabels = 'particle-update' | 'particle-render-sync';
 
@@ -706,8 +680,7 @@ export function createParticlePlugin<
 							emitter.finished = true;
 
 							if (emitter.onComplete) {
-								// Cast required: plugin declares EventTypes={} but publishes runtime-configured events
-								publishParticleEvent(ecs as unknown as Parameters<typeof publishParticleEvent>[0], emitter.onComplete, entity.id);
+								emitter.onComplete({ entityId: entity.id });
 							}
 
 							ecs.commands.removeComponent(entity.id, 'particleEmitter' as keyof ParticleComponentTypes & string);

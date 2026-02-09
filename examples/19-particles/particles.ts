@@ -290,7 +290,7 @@ pixiApp.canvas.addEventListener('click', (e) => {
 	// Spawn explosion in the right-side area
 	if (clickX > 510 && clickY > 200) {
 		const entity = ecs.spawn({
-			...createParticleEmitter(burstConfig, { onComplete: 'emitterDone' }),
+			...createParticleEmitter(burstConfig, { onComplete: () => { ecs.eventBus.publish('emitterDone', {} as ParticleEmitterEventData); } }),
 			localTransform: { x: clickX, y: clickY, rotation: 0, scaleX: 1, scaleY: 1 },
 			worldTransform: { x: clickX, y: clickY, rotation: 0, scaleX: 1, scaleY: 1 },
 		});

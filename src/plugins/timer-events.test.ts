@@ -1,6 +1,6 @@
 import { describe, test, expect } from 'bun:test';
 import ECSpresso from '../ecspresso';
-import { createTimer, createRepeatingTimer, createTimerPlugin, createTimerHelpers, type TimerEventData } from './timers';
+import { createTimer, createRepeatingTimer, createTimerPlugin, type TimerEventData } from './timers';
 
 interface TestComponents {
 	position: { x: number; y: number };
@@ -18,21 +18,15 @@ interface TestResources {
 
 describe('Timer Events', () => {
 	describe('One-Shot Timers with Events', () => {
-		test('should fire event when timer completes', () => {
+		test('should fire callback when timer completes', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
 				.withPlugin(createTimerPlugin())
 				.build();
 
-			let eventFired = false;
-			let eventData: any = null;
+			let callbackData: TimerEventData = { entityId: -1, duration: -1, elapsed: -1 };
+			let callbackFired = false;
 
-			ecs.eventBus.subscribe('timerComplete', (data) => {
-				eventFired = true;
-				eventData = data;
-			});
-
-			// Create timer with event
 			const timer = ecs.spawn({
 				timer: {
 					elapsed: 0,
@@ -40,34 +34,32 @@ describe('Timer Events', () => {
 					repeat: false,
 					active: true,
 					justFinished: false,
-					onComplete: 'timerComplete'
+					onComplete: (data) => {
+						callbackFired = true;
+						callbackData = data;
+					}
 				}
 			});
 
-			// Event should not have fired yet
-			expect(eventFired).toBe(false);
+			// Callback should not have fired yet
+			expect(callbackFired).toBe(false);
 
 			// Update past timer duration
 			ecs.update(1.1);
 
-			// Event should have fired
-			expect(eventFired).toBe(true);
-			expect(eventData).toBeDefined();
-			expect(eventData.entityId).toBe(timer.id);
-			expect(eventData.duration).toBe(1.0);
+			// Callback should have fired
+			expect(callbackFired).toBe(true);
+			expect(callbackData.entityId).toBe(timer.id);
+			expect(callbackData.duration).toBe(1.0);
 		});
 
-		test('should fire event only once for one-shot timer', () => {
+		test('should fire callback only once for one-shot timer', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
 				.withPlugin(createTimerPlugin())
 				.build();
 
 			let fireCount = 0;
-
-			ecs.eventBus.subscribe('oneShotComplete', () => {
-				fireCount++;
-			});
 
 			ecs.spawn({
 				timer: {
@@ -76,7 +68,9 @@ describe('Timer Events', () => {
 					repeat: false,
 					active: true,
 					justFinished: false,
-					onComplete: 'oneShotComplete'
+					onComplete: () => {
+						fireCount++;
+					}
 				}
 			});
 
@@ -88,17 +82,13 @@ describe('Timer Events', () => {
 			expect(fireCount).toBe(1);
 		});
 
-		test('should include timer metadata in event', () => {
+		test('should include timer metadata in callback data', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
 				.withPlugin(createTimerPlugin())
 				.build();
 
-			let receivedData: any = null;
-
-			ecs.eventBus.subscribe('timerComplete', (data) => {
-				receivedData = data;
-			});
+			let receivedData: TimerEventData = { entityId: -1, duration: -1, elapsed: -1 };
 
 			const timer = ecs.spawn({
 				timer: {
@@ -107,13 +97,14 @@ describe('Timer Events', () => {
 					repeat: false,
 					active: true,
 					justFinished: false,
-					onComplete: 'timerComplete'
+					onComplete: (data) => {
+						receivedData = data;
+					}
 				}
 			});
 
 			ecs.update(3.0);
 
-			expect(receivedData).not.toBeNull();
 			expect(receivedData.entityId).toBe(timer.id);
 			expect(receivedData.duration).toBe(2.5);
 			expect(receivedData.elapsed).toBeGreaterThanOrEqual(2.5);
@@ -121,17 +112,13 @@ describe('Timer Events', () => {
 	});
 
 	describe('Repeating Timers with Events', () => {
-		test('should fire event on each cycle for repeating timers', () => {
+		test('should fire callback on each cycle for repeating timers', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
 				.withPlugin(createTimerPlugin())
 				.build();
 
 			let fireCount = 0;
-
-			ecs.eventBus.subscribe('repeatingTimer', () => {
-				fireCount++;
-			});
 
 			ecs.spawn({
 				timer: {
@@ -140,7 +127,9 @@ describe('Timer Events', () => {
 					repeat: true,
 					active: true,
 					justFinished: false,
-					onComplete: 'repeatingTimer'
+					onComplete: () => {
+						fireCount++;
+					}
 				}
 			});
 
@@ -155,17 +144,13 @@ describe('Timer Events', () => {
 			expect(fireCount).toBe(3);
 		});
 
-		test('should preserve overflow time when firing repeating timer events', () => {
+		test('should preserve overflow time when firing repeating timer callbacks', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
 				.withPlugin(createTimerPlugin())
 				.build();
 
 			const fireTimestamps: number[] = [];
-
-			ecs.eventBus.subscribe('repeatingTimer', (data) => {
-				fireTimestamps.push(data.elapsed);
-			});
 
 			ecs.spawn({
 				timer: {
@@ -174,7 +159,9 @@ describe('Timer Events', () => {
 					repeat: true,
 					active: true,
 					justFinished: false,
-					onComplete: 'repeatingTimer'
+					onComplete: (data) => {
+						fireTimestamps.push(data.elapsed);
+					}
 				}
 			});
 
@@ -186,18 +173,14 @@ describe('Timer Events', () => {
 		});
 	});
 
-	describe('Multiple Timers, Same Event', () => {
-		test('should allow multiple timers to share the same event name', () => {
+	describe('Multiple Timers with Callbacks', () => {
+		test('should allow multiple timers with independent callbacks', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
 				.withPlugin(createTimerPlugin())
 				.build();
 
 			const completedTimers: number[] = [];
-
-			ecs.eventBus.subscribe('timerComplete', (data) => {
-				completedTimers.push(data.entityId);
-			});
 
 			const timer1 = ecs.spawn({
 				timer: {
@@ -206,7 +189,9 @@ describe('Timer Events', () => {
 					repeat: false,
 					active: true,
 					justFinished: false,
-					onComplete: 'timerComplete'
+					onComplete: (data) => {
+						completedTimers.push(data.entityId);
+					}
 				}
 			});
 
@@ -217,7 +202,9 @@ describe('Timer Events', () => {
 					repeat: false,
 					active: true,
 					justFinished: false,
-					onComplete: 'timerComplete'
+					onComplete: (data) => {
+						completedTimers.push(data.entityId);
+					}
 				}
 			});
 
@@ -228,7 +215,9 @@ describe('Timer Events', () => {
 					repeat: false,
 					active: true,
 					justFinished: false,
-					onComplete: 'timerComplete'
+					onComplete: (data) => {
+						completedTimers.push(data.entityId);
+					}
 				}
 			});
 
@@ -271,7 +260,7 @@ describe('Timer Events', () => {
 			expect(ecs.entityManager.getEntity(timer.id)).toBeUndefined();
 		});
 
-		test('should work with createTimer helper without event', () => {
+		test('should work with createTimer helper without callback', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
 				.withPlugin(createTimerPlugin())
@@ -288,29 +277,25 @@ describe('Timer Events', () => {
 		});
 	});
 
-	describe('Timer Helper Functions with Events', () => {
-		test('createTimer should accept onComplete option', () => {
+	describe('Timer Helper Functions with Callbacks', () => {
+		test('createTimer should accept onComplete callback', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
 				.withPlugin(createTimerPlugin())
 				.build();
 
-			let eventFired = false;
-
-			ecs.eventBus.subscribe('oneShotComplete', () => {
-				eventFired = true;
-			});
+			let callbackFired = false;
 
 			ecs.spawn({
-				...createTimer(0.5, { onComplete: 'oneShotComplete' })
+				...createTimer(0.5, { onComplete: () => { callbackFired = true; } })
 			});
 
 			ecs.update(0.6);
 
-			expect(eventFired).toBe(true);
+			expect(callbackFired).toBe(true);
 		});
 
-		test('createRepeatingTimer should accept onComplete option', () => {
+		test('createRepeatingTimer should accept onComplete callback', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
 				.withPlugin(createTimerPlugin())
@@ -318,12 +303,8 @@ describe('Timer Events', () => {
 
 			let fireCount = 0;
 
-			ecs.eventBus.subscribe('repeatingTimer', () => {
-				fireCount++;
-			});
-
 			ecs.spawn({
-				...createRepeatingTimer(0.3, { onComplete: 'repeatingTimer' })
+				...createRepeatingTimer(0.3, { onComplete: () => { fireCount++; } })
 			});
 
 			ecs.update(1.0); // Should fire 3 times (0.3, 0.6, 0.9)
@@ -359,7 +340,7 @@ describe('Timer Events', () => {
 					repeat: false,
 					active: true,
 					justFinished: false,
-					onComplete: 'timerComplete'
+					onComplete: () => {}
 				}
 			});
 
@@ -386,7 +367,7 @@ describe('Timer Events', () => {
 					repeat: true,
 					active: true,
 					justFinished: false,
-					onComplete: 'repeatingTimer'
+					onComplete: () => {}
 				}
 			});
 
@@ -404,7 +385,7 @@ describe('Timer Events', () => {
 			expect(ecs.entityManager.getEntity(timer.id)).toBeDefined();
 		});
 
-		test('should auto-remove one-shot timer even without onComplete event', () => {
+		test('should auto-remove one-shot timer even without onComplete callback', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
 				.withPlugin(createTimerPlugin())
@@ -428,20 +409,14 @@ describe('Timer Events', () => {
 			expect(ecs.entityManager.getEntity(timer.id)).toBeUndefined();
 		});
 
-		test('should fire event before entity is removed', () => {
+		test('should fire callback before entity is removed', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
 				.withPlugin(createTimerPlugin())
 				.build();
 
 			let receivedEntityId = -1;
-			let entityExistedDuringEvent = false;
-
-			ecs.eventBus.subscribe('timerComplete', (data) => {
-				receivedEntityId = data.entityId;
-				// Check if entity still exists when event fires
-				entityExistedDuringEvent = ecs.entityManager.getEntity(data.entityId) !== undefined;
-			});
+			let entityExistedDuringCallback = false;
 
 			const timer = ecs.spawn({
 				timer: {
@@ -450,14 +425,18 @@ describe('Timer Events', () => {
 					repeat: false,
 					active: true,
 					justFinished: false,
-					onComplete: 'timerComplete'
+					onComplete: (data) => {
+						receivedEntityId = data.entityId;
+						// Check if entity still exists when callback fires
+						entityExistedDuringCallback = ecs.entityManager.getEntity(data.entityId) !== undefined;
+					}
 				}
 			});
 
 			ecs.update(0.6);
 
 			expect(receivedEntityId).toBe(timer.id);
-			expect(entityExistedDuringEvent).toBe(true);
+			expect(entityExistedDuringCallback).toBe(true);
 			// But entity should be gone after update completes
 			expect(ecs.entityManager.getEntity(timer.id)).toBeUndefined();
 		});
@@ -470,11 +449,7 @@ describe('Timer Events', () => {
 				.withPlugin(createTimerPlugin())
 				.build();
 
-			let eventFired = false;
-
-			ecs.eventBus.subscribe('timerComplete', () => {
-				eventFired = true;
-			});
+			let callbackFired = false;
 
 			const timer = ecs.spawn({
 				timer: {
@@ -483,7 +458,9 @@ describe('Timer Events', () => {
 					repeat: false,
 					active: true,
 					justFinished: false,
-					onComplete: 'timerComplete'
+					onComplete: () => {
+						callbackFired = true;
+					}
 				}
 			});
 
@@ -496,11 +473,11 @@ describe('Timer Events', () => {
 			// Update past what would have been completion
 			ecs.update(1.0);
 
-			// Event should not have fired
-			expect(eventFired).toBe(false);
+			// Callback should not have fired
+			expect(callbackFired).toBe(false);
 		});
 
-		test('should handle invalid event names gracefully', () => {
+		test('should handle onComplete callback that throws', () => {
 			const ecs = ECSpresso
 				.create<TestComponents, TestEvents, TestResources>()
 				.withPlugin(createTimerPlugin())
@@ -513,49 +490,46 @@ describe('Timer Events', () => {
 					repeat: false,
 					active: true,
 					justFinished: false,
-					onComplete: 'nonExistentEvent' as any
+					onComplete: () => {
+						throw new Error('callback error');
+					}
 				}
 			});
 
-			// Should not throw even though no one is listening
-			expect(() => { ecs.update(1.0); }).not.toThrow();
+			// Should propagate the error from the callback
+			expect(() => { ecs.update(1.0); }).toThrow('callback error');
 		});
 	});
-});
 
-describe('TimerHelpers Type Safety', () => {
-	function createTypedEcs() {
-		return ECSpresso
-			.create<TestComponents, TestEvents, TestResources>()
-			.withPlugin(createTimerPlugin())
-			.build();
-	}
+	describe('onComplete callback typing', () => {
+		test('data parameter infers as TimerEventData', () => {
+			const ecs = ECSpresso
+				.create<TestComponents, TestEvents, TestResources>()
+				.withPlugin(createTimerPlugin())
+				.build();
 
-	test('rejects invalid onComplete event name via createTimer', () => {
-		const helpers = createTimerHelpers<ReturnType<typeof createTypedEcs>>();
+			ecs.spawn({
+				...createTimer(1.0, {
+					onComplete: (data) => {
+						// These should all be number and compile without error
+						expect(typeof data.entityId).toBe('number');
+						expect(typeof data.duration).toBe('number');
+						expect(typeof data.elapsed).toBe('number');
+					}
+				})
+			});
+		});
 
-		// @ts-expect-error - 'counter' payload (number) does not extend TimerEventData
-		helpers.createTimer(1.0, { onComplete: 'counter' });
-	});
+		test('onComplete is optional with no args', () => {
+			// Should compile without error
+			createTimer(1.0);
+			createRepeatingTimer(1.0);
+		});
 
-	test('accepts valid onComplete event name via createTimer', () => {
-		const helpers = createTimerHelpers<ReturnType<typeof createTypedEcs>>();
-
-		// Should compile without error
-		helpers.createTimer(1.0, { onComplete: 'timerComplete' });
-	});
-
-	test('rejects invalid onComplete event name via createRepeatingTimer', () => {
-		const helpers = createTimerHelpers<ReturnType<typeof createTypedEcs>>();
-
-		// @ts-expect-error - 'counter' payload (number) does not extend TimerEventData
-		helpers.createRepeatingTimer(1.0, { onComplete: 'counter' });
-	});
-
-	test('accepts valid onComplete event name via createRepeatingTimer', () => {
-		const helpers = createTimerHelpers<ReturnType<typeof createTypedEcs>>();
-
-		// Should compile without error
-		helpers.createRepeatingTimer(1.0, { onComplete: 'repeatingTimer' });
+		test('onComplete is optional with empty options', () => {
+			// Should compile without error
+			createTimer(1.0, {});
+			createRepeatingTimer(1.0, {});
+		});
 	});
 });

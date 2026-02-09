@@ -8,7 +8,7 @@
  */
 
 import { definePlugin, type Plugin } from 'ecspresso';
-import type { SystemPhase, EventsOfWorld, AnyECSpresso, EventNameMatching } from 'ecspresso';
+import type { SystemPhase, EventsOfWorld, AnyECSpresso } from 'ecspresso';
 
 // ==================== Generator Protocol ====================
 
@@ -30,7 +30,7 @@ export interface CoroutineEventData {
 
 export interface CoroutineState {
 	generator: CoroutineGenerator;
-	onComplete?: string;
+	onComplete?: (data: CoroutineEventData) => void;
 }
 
 export interface CoroutineComponentTypes {
@@ -51,7 +51,7 @@ export interface CoroutinePluginOptions<G extends string = 'coroutines'> {
 // ==================== Component Factory ====================
 
 export interface CoroutineOptions {
-	onComplete?: string;
+	onComplete?: (data: CoroutineEventData) => void;
 }
 
 /**
@@ -243,7 +243,7 @@ export function cancelCoroutine(ecs: CoroutineWorld, entityId: number): boolean 
 export interface CoroutineHelpers<W extends AnyECSpresso> {
 	createCoroutine: (
 		generator: CoroutineGenerator,
-		options?: { onComplete?: EventNameMatching<EventsOfWorld<W>, CoroutineEventData> },
+		options?: { onComplete?: (data: CoroutineEventData) => void },
 	) => Pick<CoroutineComponentTypes, 'coroutine'>;
 	waitForEvent: <E extends keyof EventsOfWorld<W> & string>(
 		eventBus: { subscribe(type: E, cb: (data: EventsOfWorld<W>[E]) => void): () => void },
@@ -258,7 +258,7 @@ export interface CoroutineHelpers<W extends AnyECSpresso> {
  * @example
  * ```typescript
  * const { createCoroutine, waitForEvent } = createCoroutineHelpers<typeof ecs>();
- * ecs.spawn({ ...createCoroutine(myGen(), { onComplete: 'coroutineDone' }) });
+ * ecs.spawn({ ...createCoroutine(myGen(), { onComplete: (data) => console.log(data.entityId) }) });
  * ```
  */
 export function createCoroutineHelpers<W extends AnyECSpresso>(_world?: W): CoroutineHelpers<W> {
@@ -271,28 +271,12 @@ export function createCoroutineHelpers<W extends AnyECSpresso>(_world?: W): Coro
 // ==================== Plugin Factory ====================
 
 /**
- * Publishes coroutine completion event if onComplete is specified.
- * Cast bypasses the typed publish signature since the plugin
- * no longer carries event types — safety is enforced at the
- * call site via CoroutineHelpers.
- */
-function publishCoroutineEvent(
-	eventBus: { publish: Function },
-	entityId: number,
-	state: CoroutineState,
-): void {
-	if (!state.onComplete) return;
-	const eventData: CoroutineEventData = { entityId };
-	eventBus.publish(state.onComplete, eventData);
-}
-
-/**
  * Create a coroutine plugin for ECSpresso.
  *
  * This plugin provides:
  * - Coroutine system that ticks all generator-based coroutines each frame
  * - Automatic cleanup via dispose callback (triggers generator finally blocks)
- * - `onComplete` event publishing
+ * - `onComplete` callback invocation
  * - Component removal on completion
  */
 export function createCoroutinePlugin<G extends string = 'coroutines'>(
@@ -342,7 +326,7 @@ export function createCoroutinePlugin<G extends string = 'coroutines'>(
 							const result = state.generator.next(deltaTime);
 							if (result.done) {
 								finished.add(entity.id);
-								publishCoroutineEvent(ecs.eventBus, entity.id, state);
+								state.onComplete?.({ entityId: entity.id });
 								ecs.commands.removeComponent(entity.id, 'coroutine');
 							}
 						} catch (error) {

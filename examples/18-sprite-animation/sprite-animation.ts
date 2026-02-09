@@ -222,7 +222,7 @@ const explosionSet = defineSpriteAnimation('explosion', {
 spawnSmallLabel('once (click to replay)', 350, 70);
 const explosionEntity = ecs.spawn({
 	...createSpriteComponents(new Sprite(explosionFrames[0]!), { x: 400, y: 90 }),
-	...createSpriteAnimation(explosionSet, { onComplete: 'explosionDone' }),
+	...createSpriteAnimation(explosionSet, { onComplete: (data) => ecs.eventBus.publish('explosionDone', data) }),
 });
 
 // Track explosion completions
@@ -241,7 +241,7 @@ pixiApp.canvas.addEventListener('click', (e) => {
 		ecs.addComponent(
 			explosionEntity.id,
 			'spriteAnimation',
-			createSpriteAnimation(explosionSet, { onComplete: 'explosionDone' }).spriteAnimation,
+			createSpriteAnimation(explosionSet, { onComplete: (data) => ecs.eventBus.publish('explosionDone', data) }).spriteAnimation,
 		);
 	}
 });

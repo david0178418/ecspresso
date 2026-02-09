@@ -5,7 +5,6 @@ import {
 	defineSpriteAnimations,
 	createSpriteAnimation,
 	createSpriteAnimationPlugin,
-	createSpriteAnimationHelpers,
 	playAnimation,
 	stopAnimation,
 	resumeAnimation,
@@ -27,14 +26,9 @@ interface TestComponents extends SpriteAnimationComponentTypes {
 	sprite: { texture: unknown };
 }
 
-interface TestEvents {
-	animDone: SpriteAnimationEventData;
-	walkComplete: SpriteAnimationEventData;
-}
-
 function createTestEcs() {
 	return ECSpresso
-		.create<TestComponents, TestEvents, {}>()
+		.create<TestComponents, {}, {}>()
 		.withPlugin(createSpriteAnimationPlugin())
 		.build();
 }
@@ -201,10 +195,10 @@ describe('Sprite Animation Plugin', () => {
 
 		test('respects onComplete option', () => {
 			const result = createSpriteAnimation(set, {
-				onComplete: 'animDone',
+				onComplete: () => {},
 			});
 
-			expect(result.spriteAnimation.onComplete).toBe('animDone');
+			expect(typeof result.spriteAnimation.onComplete).toBe('function');
 		});
 	});
 
@@ -613,7 +607,7 @@ describe('Sprite Animation Plugin', () => {
 	// ==================== Completion Events ====================
 
 	describe('completion events', () => {
-		test('onComplete event fires with correct data', () => {
+		test('onComplete callback fires with correct data', () => {
 			const ecs = createTestEcs();
 			const frames = makeFrames(2);
 			const set = defineSpriteAnimation('oneshot', {
@@ -623,10 +617,9 @@ describe('Sprite Animation Plugin', () => {
 			});
 
 			const received: SpriteAnimationEventData[] = [];
-			ecs.on('animDone', (data) => { received.push(data); });
 
 			const entity = ecs.spawn({
-				...createSpriteAnimation(set, { onComplete: 'animDone' }),
+				...createSpriteAnimation(set, { onComplete: (data) => { received.push(data); } }),
 				position: { x: 0, y: 0 },
 				sprite: { texture: frames[0] },
 			});
@@ -638,7 +631,7 @@ describe('Sprite Animation Plugin', () => {
 			expect(received[0]!.animation).toBe('default');
 		});
 
-		test('event fires only once', () => {
+		test('callback fires only once', () => {
 			const ecs = createTestEcs();
 			const frames = makeFrames(2);
 			const set = defineSpriteAnimation('oneshot', {
@@ -648,10 +641,9 @@ describe('Sprite Animation Plugin', () => {
 			});
 
 			const received: SpriteAnimationEventData[] = [];
-			ecs.on('animDone', (data) => { received.push(data); });
 
 			ecs.spawn({
-				...createSpriteAnimation(set, { onComplete: 'animDone' }),
+				...createSpriteAnimation(set, { onComplete: (data) => { received.push(data); } }),
 				position: { x: 0, y: 0 },
 				sprite: { texture: frames[0] },
 			});
@@ -663,7 +655,7 @@ describe('Sprite Animation Plugin', () => {
 			expect(received).toHaveLength(1);
 		});
 
-		test('no event when animation loops without exhausting loop count', () => {
+		test('no callback when animation loops without exhausting loop count', () => {
 			const ecs = createTestEcs();
 			const frames = makeFrames(2);
 			const set = defineSpriteAnimation('looping', {
@@ -673,11 +665,10 @@ describe('Sprite Animation Plugin', () => {
 			});
 
 			const received: SpriteAnimationEventData[] = [];
-			ecs.on('animDone', (data) => { received.push(data); });
 
 			ecs.spawn({
 				...createSpriteAnimation(set, {
-					onComplete: 'animDone',
+					onComplete: (data) => { received.push(data); },
 					totalLoops: -1,
 				}),
 				position: { x: 0, y: 0 },
@@ -692,7 +683,7 @@ describe('Sprite Animation Plugin', () => {
 			expect(received).toHaveLength(0);
 		});
 
-		test('event fires when loop count exhausted', () => {
+		test('callback fires when loop count exhausted', () => {
 			const ecs = createTestEcs();
 			const frames = makeFrames(2);
 			const set = defineSpriteAnimation('finite-loop', {
@@ -702,11 +693,10 @@ describe('Sprite Animation Plugin', () => {
 			});
 
 			const received: SpriteAnimationEventData[] = [];
-			ecs.on('animDone', (data) => { received.push(data); });
 
 			ecs.spawn({
 				...createSpriteAnimation(set, {
-					onComplete: 'animDone',
+					onComplete: (data) => { received.push(data); },
 					totalLoops: 2,
 				}),
 				position: { x: 0, y: 0 },
@@ -1133,32 +1123,24 @@ describe('Sprite Animation Plugin', () => {
 		});
 	});
 
-	// ==================== Helpers Pattern ====================
+	// ==================== onComplete Type Assertion ====================
 
-	describe('createSpriteAnimationHelpers', () => {
-		test('helpers createSpriteAnimation works with ECSpresso builder', () => {
-			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, {}>()
-				.withPlugin(createSpriteAnimationPlugin())
-				.build();
-			const helpers = createSpriteAnimationHelpers<typeof ecs>();
-
-			const frames = makeFrames(3);
-			const set = defineSpriteAnimation('test', {
-				frames,
-				frameDuration: 0.1,
+	describe('onComplete type assertion', () => {
+		test('onComplete callback receives SpriteAnimationEventData', () => {
+			const set = defineSpriteAnimations('typed', {
+				walk: { frames: makeFrames(2), frameDuration: 0.1 },
+				run: { frames: makeFrames(2), frameDuration: 0.1 },
 			});
 
-			const entity = ecs.spawn({
-				...helpers.createSpriteAnimation(set),
-				position: { x: 0, y: 0 },
-				sprite: { texture: frames[0] },
+			const received: SpriteAnimationEventData[] = [];
+			createSpriteAnimation(set, {
+				onComplete: (data) => {
+					// Verify data shape matches SpriteAnimationEventData at compile time
+					const entityId: number = data.entityId;
+					const animation: string = data.animation;
+					received.push({ entityId, animation });
+				},
 			});
-
-			ecs.update(0.1);
-
-			const anim = ecs.entityManager.getComponent(entity.id, 'spriteAnimation') as SpriteAnimation;
-			expect(anim.currentFrame).toBe(1);
 		});
 	});
 });

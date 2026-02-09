@@ -10,7 +10,7 @@
  */
 
 import { definePlugin, type Plugin } from 'ecspresso';
-import type { SystemPhase, EventsOfWorld, AnyECSpresso, EventNameMatching } from 'ecspresso';
+import type { SystemPhase } from 'ecspresso';
 
 // ==================== Loop Mode ====================
 
@@ -71,7 +71,7 @@ export interface SpriteAnimation<A extends string = string> {
 	totalLoops: number;
 	completedLoops: number;
 	justFinished: boolean;
-	onComplete?: string;
+	onComplete?: (data: SpriteAnimationEventData) => void;
 }
 
 /**
@@ -98,9 +98,6 @@ export interface SpriteAnimationEventData {
  */
 export interface SpriteAnimationWorld {
 	getComponent(entityId: number, componentName: string): unknown | undefined;
-	eventBus: {
-		publish(...args: any[]): void;
-	};
 	markChanged(entityId: number, componentName: string): void;
 	commands: {
 		removeComponent(entityId: number, componentName: string): void;
@@ -196,7 +193,7 @@ export function createSpriteAnimation<A extends string>(
 		initial?: A;
 		speed?: number;
 		totalLoops?: number;
-		onComplete?: string;
+		onComplete?: (data: SpriteAnimationEventData) => void;
 	},
 ): Pick<SpriteAnimationComponentTypes<A>, 'spriteAnimation'> {
 	const initial = options?.initial ?? set.defaultClip;
@@ -286,31 +283,10 @@ export function resumeAnimation(
 	return true;
 }
 
-// ==================== Helpers Types ====================
-
-export interface SpriteAnimationHelpers<W extends AnyECSpresso> {
-	createSpriteAnimation: <A extends string>(
-		set: SpriteAnimationSet<A>,
-		options?: {
-			initial?: A;
-			speed?: number;
-			totalLoops?: number;
-			onComplete?: EventNameMatching<EventsOfWorld<W>, SpriteAnimationEventData>;
-		},
-	) => Pick<SpriteAnimationComponentTypes<A>, 'spriteAnimation'>;
-}
-
-export function createSpriteAnimationHelpers<W extends AnyECSpresso>(_world?: W): SpriteAnimationHelpers<W> {
-	return {
-		createSpriteAnimation: createSpriteAnimation as SpriteAnimationHelpers<W>['createSpriteAnimation'],
-	};
-}
-
 // ==================== Animation Processing Helpers ====================
 
 type AnimEcs = {
 	markChanged: (entityId: number, componentName: any) => void;
-	eventBus: { publish: (...args: any[]) => void };
 	commands: { removeComponent: (entityId: number, componentName: any) => void };
 };
 
@@ -322,13 +298,7 @@ function completeAnimation(
 	anim.playing = false;
 	anim.justFinished = true;
 
-	if (anim.onComplete) {
-		const eventData: SpriteAnimationEventData = {
-			entityId,
-			animation: anim.current,
-		};
-		ecs.eventBus.publish(anim.onComplete, eventData);
-	}
+	anim.onComplete?.({ entityId, animation: anim.current });
 
 	ecs.commands.removeComponent(entityId, 'spriteAnimation');
 }

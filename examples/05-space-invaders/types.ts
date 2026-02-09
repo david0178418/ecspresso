@@ -1,5 +1,5 @@
 import { Container, Text } from 'pixi.js';
-import type { TimerComponentTypes, TimerEventData } from '../../src/plugins/timers';
+import type { TimerComponentTypes } from '../../src/plugins/timers';
 import type { TransformComponentTypes } from '../../src/plugins/transform';
 import type { Physics2DComponentTypes } from '../../src/plugins/physics2D';
 import type { BoundsComponentTypes } from '../../src/plugins/bounds';
@@ -30,10 +30,10 @@ export interface Events extends CollisionEventTypes<Layer> {
 	enemyMove: { direction: 'left' | 'right' | 'down' };
 
 	// Timer completions
-	playerRespawn: TimerEventData;
-	messageHide: TimerEventData;
-	levelTransitionComplete: TimerEventData;
-	descentComplete: TimerEventData;
+	playerRespawn: void;
+	messageHide: void;
+	levelTransitionComplete: void;
+	descentComplete: void;
 
 	// UI
 	updateScore: { points: number };

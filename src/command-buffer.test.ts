@@ -1,7 +1,7 @@
 import { describe, test, expect, spyOn } from 'bun:test';
 import ECSpresso from './ecspresso';
 import CommandBuffer from './command-buffer';
-import { createTimer, createTimerPlugin, type TimerEventData } from './plugins/timers';
+import { createTimer, createTimerPlugin } from './plugins/timers';
 
 interface TestComponents {
 	position: { x: number; y: number };
@@ -452,37 +452,25 @@ describe('CommandBuffer', () => {
 	});
 
 	describe('Integration with Timer Events', () => {
-		test('timer event handler can use command buffer to remove entities', () => {
-			
-			interface TimerTestEvents {
-				cleanup: TimerEventData;
-			}
-
+		test('timer onComplete callback can use command buffer to remove entities', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TimerTestEvents, TestResources>()
+				.create<TestComponents, TestEvents, TestResources>()
 				.withPlugin(createTimerPlugin())
 				.build();
 
 			const targetEntity = ecs.spawn({ position: { x: 0, y: 0 }, tag: true });
 
-			// Event handler uses commands to remove entity (closure captures ecs)
-			ecs.eventBus.subscribe('cleanup', (data) => {
-				ecs.commands.removeEntity(data.entityId);
-			});
+			let timerFiredEntityId = -1;
 
-			// Create timer that passes the entity ID in the event
+			// Create timer with onComplete callback that removes entity via commands
 			const timerEntity = ecs.spawn({
-				...createTimer(0.5, { onComplete: 'cleanup' }),
+				...createTimer(0.5, {
+					onComplete: (data) => {
+						timerFiredEntityId = data.entityId;
+						ecs.commands.removeEntity(targetEntity.id);
+					},
+				}),
 				position: { x: 1, y: 1 },
-			});
-
-			// Need to use a system event handler to have access to the timer entity ID
-			// Or use a workaround with closure
-			// Let's simplify the test
-			let timerFiredEntityId: number | null = null;
-			ecs.eventBus.subscribe('cleanup', (data) => {
-				timerFiredEntityId = data.entityId;
-				ecs.commands.removeEntity(targetEntity.id);
 			});
 
 			// Entity should exist before update
@@ -492,33 +480,25 @@ describe('CommandBuffer', () => {
 			ecs.update(0.6);
 
 			// Timer should have fired
-			expect(timerFiredEntityId).not.toBeNull();
-			expect(timerFiredEntityId!).toBe(timerEntity.id);
+			expect(timerFiredEntityId).toBe(timerEntity.id);
 
 			// Entity should be removed after update (commands executed)
 			expect(ecs.entityManager.getEntity(targetEntity.id)).toBeUndefined();
 		});
 
-		test('multiple timers firing events that queue commands', () => {
-			
-			interface MultiTimerEvents {
-				spawnEntity: TimerEventData;
-				modifyEntity: { id: number };
-			}
-
+		test('multiple timers with onComplete callbacks that queue commands', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, MultiTimerEvents, TestResources>()
+				.create<TestComponents, TestEvents, TestResources>()
 				.withPlugin(createTimerPlugin())
 				.build();
 
-			// Event handler that spawns entity via commands (closure captures ecs)
-			ecs.eventBus.subscribe('spawnEntity', () => {
+			const spawnCallback = () => {
 				ecs.commands.spawn({ position: { x: 10, y: 10 }, health: { value: 100 } });
-			});
+			};
 
-			// Create timers
-			ecs.spawn({ ...createTimer(0.3, { onComplete: 'spawnEntity' }) });
-			ecs.spawn({ ...createTimer(0.5, { onComplete: 'spawnEntity' }) });
+			// Create timers with onComplete callbacks
+			ecs.spawn({ ...createTimer(0.3, { onComplete: spawnCallback }) });
+			ecs.spawn({ ...createTimer(0.5, { onComplete: spawnCallback }) });
 
 			// Before update, no entities with health
 			expect(ecs.getEntitiesWithQuery(['health']).length).toBe(0);
@@ -530,14 +510,9 @@ describe('CommandBuffer', () => {
 			expect(ecs.getEntitiesWithQuery(['health']).length).toBe(2);
 		});
 
-		test('commands queued in timer event execute in same frame', () => {
-			
-			interface Events {
-				removeAll: TimerEventData;
-			}
-
+		test('commands queued in onComplete callback execute in same frame', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, Events, TestResources>()
+				.create<TestComponents, TestEvents, TestResources>()
 				.withPlugin(createTimerPlugin())
 				.build();
 
@@ -546,16 +521,17 @@ describe('CommandBuffer', () => {
 			ecs.spawn({ position: { x: 2, y: 2 }, tag: true });
 			ecs.spawn({ position: { x: 3, y: 3 }, tag: true });
 
-			// Event handler queues removal of all tagged entities (closure captures ecs)
-			ecs.eventBus.subscribe('removeAll', () => {
-				const tagged = ecs.getEntitiesWithQuery(['tag']);
-				for (const entity of tagged) {
-					ecs.commands.removeEntity(entity.id);
-				}
+			// Timer with onComplete callback that queues removal of all tagged entities
+			ecs.spawn({
+				...createTimer(1.0, {
+					onComplete: () => {
+						const tagged = ecs.getEntitiesWithQuery(['tag']);
+						tagged.forEach((entity) => {
+							ecs.commands.removeEntity(entity.id);
+						});
+					},
+				}),
 			});
-
-			// Timer that fires the event
-			ecs.spawn({ ...createTimer(1.0, { onComplete: 'removeAll' }) });
 
 			// All entities exist before update
 			expect(ecs.getEntitiesWithQuery(['tag']).length).toBe(3);

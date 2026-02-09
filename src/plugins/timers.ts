@@ -6,20 +6,20 @@
  */
 
 import { definePlugin, type Plugin } from 'ecspresso';
-import type { SystemPhase, EventNameMatching, AnyECSpresso, EventsOfWorld } from 'ecspresso';
+import type { SystemPhase } from 'ecspresso';
 
 // ==================== Event Types ====================
 
 /**
- * Data structure published when a timer completes.
- * Use this type when defining timer completion events in your EventTypes interface.
+ * Data structure passed to onComplete callbacks when a timer completes.
  *
  * @example
  * ```typescript
- * interface Events {
- *   hideMessage: TimerEventData;
- *   spawnWave: TimerEventData;
- * }
+ * createTimer(1.5, {
+ *   onComplete: (data) => {
+ *     console.log(`Timer on entity ${data.entityId} finished after ${data.elapsed}s`);
+ *   }
+ * });
  * ```
  */
 export interface TimerEventData {
@@ -49,8 +49,8 @@ export interface Timer {
 	active: boolean;
 	/** True for one frame after timer completes */
 	justFinished: boolean;
-	/** Optional event name to publish when timer completes. Must be an event with TimerEventData payload. */
-	onComplete?: string;
+	/** Optional callback invoked when timer completes */
+	onComplete?: (data: TimerEventData) => void;
 }
 
 /**
@@ -89,28 +89,28 @@ export interface TimerPluginOptions<G extends string = 'timers'> {
  * Options for timer creation
  */
 export interface TimerOptions {
-	/** Event name to publish when timer completes. Must be an event with TimerEventData payload. */
-	onComplete?: string;
+	/** Callback invoked when timer completes */
+	onComplete?: (data: TimerEventData) => void;
 }
 
 /**
  * Create a one-shot timer that fires once after the specified duration.
  *
  * @param duration Duration in seconds until the timer completes
- * @param options Optional configuration including event name
+ * @param options Optional configuration including onComplete callback
  * @returns Component object suitable for spreading into spawn()
  *
  * @example
  * ```typescript
- * // Timer without event
+ * // Timer without callback
  * ecs.spawn({
  *   ...createTimer(2),
  *   explosion: true,
  * });
  *
- * // Timer that publishes an event on completion
+ * // Timer with onComplete callback
  * ecs.spawn({
- *   ...createTimer(1.5, { onComplete: 'hideMessage' }),
+ *   ...createTimer(1.5, { onComplete: (data) => console.log('done', data.entityId) }),
  * });
  * ```
  */
@@ -134,20 +134,20 @@ export function createTimer(
  * Create a repeating timer that fires every `duration` seconds.
  *
  * @param duration Duration in seconds between each timer completion
- * @param options Optional configuration including event name
+ * @param options Optional configuration including onComplete callback
  * @returns Component object suitable for spreading into spawn()
  *
  * @example
  * ```typescript
- * // Timer without event
+ * // Timer without callback
  * ecs.spawn({
  *   ...createRepeatingTimer(5),
  *   spawner: true,
  * });
  *
- * // Repeating timer that publishes an event each cycle
+ * // Repeating timer with onComplete callback
  * ecs.spawn({
- *   ...createRepeatingTimer(3, { onComplete: 'spawnWave' }),
+ *   ...createRepeatingTimer(3, { onComplete: (data) => console.log('cycle', data.elapsed) }),
  * });
  * ```
  */
@@ -164,39 +164,6 @@ export function createRepeatingTimer(
 			justFinished: false,
 			onComplete: options?.onComplete,
 		},
-	};
-}
-
-// ==================== Typed Helpers (Kit Pattern) ====================
-
-/**
- * Type-safe timer helpers that validate event names against a world's event types.
- * Use `createTimerHelpers<typeof ecs>()` to get compile-time validation of `onComplete` event names.
- */
-export interface TimerHelpers<W extends AnyECSpresso> {
-	createTimer: (
-		duration: number,
-		options?: { onComplete?: EventNameMatching<EventsOfWorld<W>, TimerEventData> },
-	) => Pick<TimerComponentTypes, 'timer'>;
-	createRepeatingTimer: (
-		duration: number,
-		options?: { onComplete?: EventNameMatching<EventsOfWorld<W>, TimerEventData> },
-	) => Pick<TimerComponentTypes, 'timer'>;
-}
-
-/**
- * Create typed timer helpers that validate event names at compile time.
- *
- * @example
- * ```typescript
- * const { createTimer, createRepeatingTimer } = createTimerHelpers<typeof ecs>();
- * ecs.spawn({ ...createTimer(1.5, { onComplete: 'playerRespawn' }) });
- * ```
- */
-export function createTimerHelpers<W extends AnyECSpresso>(_world?: W): TimerHelpers<W> {
-	return {
-		createTimer: createTimer as TimerHelpers<W>['createTimer'],
-		createRepeatingTimer: createRepeatingTimer as TimerHelpers<W>['createRepeatingTimer'],
 	};
 }
 
@@ -244,26 +211,6 @@ export function createTimerPlugin<G extends string = 'timers'>(
 		phase = 'preUpdate',
 	} = options ?? {};
 
-	/**
-	 * Publishes timer completion event if onComplete is specified.
-	 * Cast bypasses the typed publish signature since the plugin
-	 * no longer carries event types — safety is enforced at the
-	 * call site via TimerHelpers.
-	 */
-	function publishTimerEvent(
-		eventBus: { publish: Function },
-		entityId: number,
-		timer: Timer
-	): void {
-		if (!timer.onComplete) return;
-		const eventData: TimerEventData = {
-			entityId,
-			duration: timer.duration,
-			elapsed: timer.elapsed,
-		};
-		eventBus.publish(timer.onComplete, eventData);
-	}
-
 	return definePlugin<TimerComponentTypes, {}, {}, {}, {}, 'timer-update', G>({
 		id: 'timers',
 		install(world) {
@@ -296,13 +243,13 @@ export function createTimerPlugin<G extends string = 'timers'>(
 							// Handle multiple cycles in one frame
 							while (timer.elapsed >= timer.duration) {
 								timer.justFinished = true;
-								publishTimerEvent(ecs.eventBus, entity.id, timer);
+								timer.onComplete?.({ entityId: entity.id, duration: timer.duration, elapsed: timer.elapsed });
 								timer.elapsed -= timer.duration;
 							}
 						} else {
 							// One-shot timer
 							timer.justFinished = true;
-							publishTimerEvent(ecs.eventBus, entity.id, timer);
+							timer.onComplete?.({ entityId: entity.id, duration: timer.duration, elapsed: timer.elapsed });
 							timer.active = false;
 							// Auto-remove one-shot timer entities after completion.
 							// If configurability is needed in the future, add an autoRemove option to TimerOptions.

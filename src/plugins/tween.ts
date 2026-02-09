@@ -6,7 +6,7 @@
  */
 
 import { definePlugin, type Plugin } from 'ecspresso';
-import type { SystemPhase, ComponentsOfWorld, EventsOfWorld, AnyECSpresso, EventNameMatching } from 'ecspresso';
+import type { SystemPhase, ComponentsOfWorld, AnyECSpresso } from 'ecspresso';
 import { linear, type EasingFn } from '../utils/easing';
 
 // ==================== Event Types ====================
@@ -51,7 +51,7 @@ export interface Tween {
 	completedLoops: number;
 	direction: 1 | -1;
 	state: 'pending' | 'active' | 'complete';
-	onComplete?: string;
+	onComplete?: (data: TweenEventData) => void;
 	justFinished: boolean;
 }
 
@@ -86,8 +86,8 @@ export interface TweenOptions {
 	loop?: LoopMode;
 	/** Number of loops. -1 = infinite (default: 1) */
 	loops?: number;
-	/** Event name to publish when tween completes */
-	onComplete?: string;
+	/** Callback invoked when tween completes */
+	onComplete?: (data: TweenEventData) => void;
 }
 
 /**
@@ -156,8 +156,8 @@ export interface TweenSequenceOptions {
 	loop?: LoopMode;
 	/** Number of loops. -1 = infinite (default: 1) */
 	loops?: number;
-	/** Event name to publish when tween completes */
-	onComplete?: string;
+	/** Callback invoked when tween completes */
+	onComplete?: (data: TweenEventData) => void;
 }
 
 /**
@@ -258,7 +258,7 @@ export interface TweenHelpers<W extends AnyECSpresso> {
 			easing?: EasingFn;
 			loop?: LoopMode;
 			loops?: number;
-			onComplete?: EventNameMatching<EventsOfWorld<W>, TweenEventData>;
+			onComplete?: (data: TweenEventData) => void;
 		},
 	) => Pick<TweenComponentTypes, 'tween'>;
 	createTweenSequence: (
@@ -266,7 +266,7 @@ export interface TweenHelpers<W extends AnyECSpresso> {
 		options?: {
 			loop?: LoopMode;
 			loops?: number;
-			onComplete?: EventNameMatching<EventsOfWorld<W>, TweenEventData>;
+			onComplete?: (data: TweenEventData) => void;
 		},
 	) => Pick<TweenComponentTypes, 'tween'>;
 }
@@ -410,30 +410,17 @@ function reverseAllTargets(tween: Tween): void {
 
 // ==================== Tween Processing Helpers ====================
 
-type TweenEcs = { markChanged: (entityId: number, componentName: any) => void; eventBus: { publish: (...args: any[]) => void }; commands: { removeComponent: (entityId: number, componentName: any) => void } };
-
-function publishTweenEvent(
-	ecs: { eventBus: { publish: (...args: any[]) => void } },
-	entityId: number,
-	tween: Tween,
-): void {
-	if (!tween.onComplete) return;
-	const eventData: TweenEventData = {
-		entityId,
-		stepCount: tween.steps.length,
-	};
-	ecs.eventBus.publish(tween.onComplete, eventData);
-}
+type TweenEcs = { markChanged: (entityId: number, componentName: any) => void; commands: { removeComponent: (entityId: number, componentName: any) => void } };
 
 function completeTween(
 	tween: Tween,
 	entityId: number,
-	ecs: { eventBus: { publish: (...args: any[]) => void }; commands: { removeComponent: (entityId: number, componentName: any) => void } },
+	ecs: { commands: { removeComponent: (entityId: number, componentName: any) => void } },
 ): void {
 	tween.state = 'complete';
 	tween.justFinished = true;
 
-	publishTweenEvent(ecs, entityId, tween);
+	tween.onComplete?.({ entityId, stepCount: tween.steps.length });
 	ecs.commands.removeComponent(entityId, 'tween');
 }
 
@@ -549,7 +536,7 @@ function processTweenProgress(
  * - 31 standard easing functions
  * - Loop modes: once, loop, yoyo
  * - `justFinished` flag for one-frame completion detection
- * - `onComplete` event publishing
+ * - `onComplete` callback on completion
  * - Change detection via markChanged
  */
 export function createTweenPlugin<G extends string = 'tweens'>(
@@ -599,8 +586,6 @@ export function createTweenPlugin<G extends string = 'tweens'>(
 
 						tween.elapsed += deltaTime;
 
-						// Process steps, handling overflow across multiple steps
-					// Cast required: plugin declares EventTypes={} but publishes runtime-configured events
 						processTweenProgress(tween, entityComponents, entity.id, ecs as unknown as TweenEcs);
 					}
 				})

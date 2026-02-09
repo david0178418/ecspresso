@@ -1,6 +1,5 @@
 import { expect, describe, test } from 'bun:test';
 import ECSpresso from './ecspresso';
-import type { TimerEventData } from './plugins/timers';
 import { createTimerPlugin } from './plugins/timers';
 import { createTransformPlugin, createLocalTransform, type TransformComponentTypes } from './plugins/transform';
 import type { ComponentsOf, EventsOf, ResourcesOf } from './types';
@@ -111,7 +110,7 @@ describe('Builder Type Inference', () => {
 		const ecs = ECSpresso.create()
 			.withPlugin(createTimerPlugin())
 			.withEventTypes<{
-				playerRespawn: TimerEventData;
+				playerRespawn: {};
 				scoreUpdate: { points: number };
 			}>()
 			.build();
@@ -124,7 +123,7 @@ describe('Builder Type Inference', () => {
 				repeat: false,
 				active: true,
 				justFinished: false,
-				onComplete: 'playerRespawn',
+				onComplete: () => ecs.eventBus.publish('playerRespawn', {}),
 			},
 		});
 		expect(entity.components.timer.duration).toBe(1);

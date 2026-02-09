@@ -173,21 +173,21 @@ describe('Component Removal on Completion', () => {
 
 // ==================== onComplete Event ====================
 
-describe('onComplete Event', () => {
+describe('onComplete Callback', () => {
 	test('fires with correct entityId', () => {
 		const ecs = createTestEcsWithEvents();
 		const received: CoroutineEventData[] = [];
-
-		ecs.eventBus.subscribe('coroutineDone', (data) => {
-			received.push(data);
-		});
 
 		function* testGen(): CoroutineGenerator {
 			yield;
 		}
 
 		const entity = ecs.spawn({
-			...createCoroutine(testGen(), { onComplete: 'coroutineDone' }),
+			...createCoroutine(testGen(), {
+				onComplete: (data) => {
+					received.push(data);
+				},
+			}),
 		});
 
 		ecs.update(0.016);
@@ -200,16 +200,16 @@ describe('onComplete Event', () => {
 		const ecs = createTestEcsWithEvents();
 		let fireCount = 0;
 
-		ecs.eventBus.subscribe('coroutineDone', () => {
-			fireCount++;
-		});
-
 		function* testGen(): CoroutineGenerator {
 			yield;
 		}
 
 		ecs.spawn({
-			...createCoroutine(testGen(), { onComplete: 'coroutineDone' }),
+			...createCoroutine(testGen(), {
+				onComplete: () => {
+					fireCount++;
+				},
+			}),
 		});
 
 		ecs.update(0.016);
@@ -231,6 +231,15 @@ describe('onComplete Event', () => {
 		// Should not throw
 		ecs.update(0.016);
 		ecs.update(0.016);
+	});
+
+	test('onComplete callback receives CoroutineEventData', () => {
+		function* gen() { yield; }
+		createCoroutine(gen(), {
+			onComplete: (data) => {
+				void (data.entityId satisfies number);
+			}
+		});
 	});
 });
 
@@ -888,28 +897,6 @@ describe('Cancellation', () => {
 // ==================== Helpers Type Safety ====================
 
 describe('Helpers Type Safety', () => {
-	test('rejects invalid onComplete event name', () => {
-		const helpers = createCoroutineHelpers<ReturnType<typeof createTestEcsWithEvents>>();
-
-		function* testGen(): CoroutineGenerator {
-			yield;
-		}
-
-		// @ts-expect-error - 'badEvent' payload does not extend CoroutineEventData
-		helpers.createCoroutine(testGen(), { onComplete: 'badEvent' });
-	});
-
-	test('accepts valid onComplete event name', () => {
-		const helpers = createCoroutineHelpers<ReturnType<typeof createTestEcsWithEvents>>();
-
-		function* testGen(): CoroutineGenerator {
-			yield;
-		}
-
-		// Should compile without error
-		helpers.createCoroutine(testGen(), { onComplete: 'coroutineDone' });
-	});
-
 	test('rejects invalid waitForEvent event type', () => {
 		const helpers = createCoroutineHelpers<ReturnType<typeof createTestEcsWithEvents>>();
 		const ecs = createTestEcsWithEvents();
@@ -929,6 +916,7 @@ describe('Helpers Type Safety', () => {
 	test('helpers work at runtime', () => {
 		const helpers = createCoroutineHelpers<ReturnType<typeof createTestEcsWithEvents>>();
 		let done = false;
+		let completeCalled = false;
 
 		const ecs = createTestEcsWithEvents();
 
@@ -937,9 +925,10 @@ describe('Helpers Type Safety', () => {
 			done = true;
 		}
 
-		ecs.spawn({ ...helpers.createCoroutine(testGen(), { onComplete: 'coroutineDone' }) });
+		ecs.spawn({ ...helpers.createCoroutine(testGen(), { onComplete: () => { completeCalled = true; } }) });
 
 		ecs.update(0.016);
 		expect(done).toBe(true);
+		expect(completeCalled).toBe(true);
 	});
 });

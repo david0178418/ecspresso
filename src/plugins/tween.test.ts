@@ -55,7 +55,6 @@ interface TestComponents {
 }
 
 interface TestEvents {
-	animDone: TweenEventData;
 	fadeComplete: TweenEventData;
 }
 
@@ -68,12 +67,6 @@ function createTestEcs() {
 		.build();
 }
 
-function createTestEcsWithEvents() {
-	return ECSpresso
-		.create<TestComponents, TestEvents, TestResources>()
-		.withPlugin(createTweenPlugin())
-		.build();
-}
 
 // ==================== Easing Math ====================
 
@@ -361,17 +354,16 @@ describe('Step Completion', () => {
 // ==================== Completion Event ====================
 
 describe('Completion Event', () => {
-	test('should fire onComplete event with TweenEventData', () => {
-		const ecs = createTestEcsWithEvents();
+	test('should fire onComplete callback with TweenEventData', () => {
+		const ecs = createTestEcs();
 
 		const events: TweenEventData[] = [];
-		ecs.eventBus.subscribe('animDone', (data) => {
-			events.push(data);
-		});
 
 		const entity = ecs.spawn({
 			position: { x: 0, y: 0 },
-			...createTween('position', 'x', 100, 1, { onComplete: 'animDone' }),
+			...createTween('position', 'x', 100, 1, {
+				onComplete: (data) => { events.push(data); },
+			}),
 		});
 
 		ecs.update(1.0);
@@ -384,16 +376,15 @@ describe('Completion Event', () => {
 	});
 
 	test('should fire onComplete only once', () => {
-		const ecs = createTestEcsWithEvents();
+		const ecs = createTestEcs();
 
 		let fireCount = 0;
-		ecs.eventBus.subscribe('animDone', () => {
-			fireCount++;
-		});
 
 		ecs.spawn({
 			position: { x: 0, y: 0 },
-			...createTween('position', 'x', 100, 1, { onComplete: 'animDone' }),
+			...createTween('position', 'x', 100, 1, {
+				onComplete: () => { fireCount++; },
+			}),
 		});
 
 		ecs.update(1.0);
@@ -831,11 +822,11 @@ describe('Helper API', () => {
 			easing: easeInQuad,
 			loop: 'yoyo',
 			loops: 3,
-			onComplete: 'animDone',
+			onComplete: () => {},
 		});
 		expect(result.tween.loop).toBe('yoyo');
 		expect(result.tween.totalLoops).toBe(3);
-		expect(result.tween.onComplete).toBe('animDone');
+		expect(typeof result.tween.onComplete).toBe('function');
 		const step = result.tween.steps[0];
 		if (!step) throw new Error('Expected step');
 		expect(step.easing).toBe(easeInQuad);
@@ -875,9 +866,9 @@ describe('Helper API', () => {
 	test('createTweenSequence should accept options', () => {
 		const result = createTweenSequence(
 			[{ targets: [{ component: 'position', field: 'x', to: 100 }], duration: 1 }],
-			{ onComplete: 'animDone', loop: 'loop', loops: 5 },
+			{ onComplete: () => {}, loop: 'loop', loops: 5 },
 		);
-		expect(result.tween.onComplete).toBe('animDone');
+		expect(typeof result.tween.onComplete).toBe('function');
 		expect(result.tween.loop).toBe('loop');
 		expect(result.tween.totalLoops).toBe(5);
 	});
@@ -1047,12 +1038,6 @@ describe('createTweenHelpers', () => {
 		helpers.createTween('transform', 'scale.y', 2, 0.5);
 	});
 
-	test('Helpers createTween rejects invalid onComplete event name', () => {
-		const { helpers } = createHelpersTestEcs();
-		// @ts-expect-error - 'bogusEvent' is not a valid event
-		helpers.createTween('position', 'x', 100, 1, { onComplete: 'bogusEvent' });
-	});
-
 	test('Helpers createTweenSequence rejects invalid component/field in targets', () => {
 		const { helpers } = createHelpersTestEcs();
 		helpers.createTweenSequence([
@@ -1145,17 +1130,16 @@ describe('createTweenHelpers', () => {
 		expect(pos2.y).toBe(200);
 	});
 
-	test('Helpers onComplete event fires with correct data', () => {
+	test('Helpers onComplete callback fires with correct data', () => {
 		const { ecs, helpers } = createHelpersTestEcs();
 
 		const events: TweenEventData[] = [];
-		ecs.eventBus.subscribe('animDone', (data) => {
-			events.push(data);
-		});
 
 		const entity = ecs.spawn({
 			position: { x: 0, y: 0 },
-			...helpers.createTween('position', 'x', 100, 1, { onComplete: 'animDone' }),
+			...helpers.createTween('position', 'x', 100, 1, {
+				onComplete: (data) => { events.push(data); },
+			}),
 		});
 
 		ecs.update(1.0);
@@ -1165,6 +1149,16 @@ describe('createTweenHelpers', () => {
 		if (!eventData) throw new Error('Expected event data');
 		expect(eventData.entityId).toBe(entity.id);
 		expect(eventData.stepCount).toBe(1);
+	});
+
+	test('onComplete callback receives TweenEventData', () => {
+		createTween('position', 'x', 100, 1, {
+			onComplete: (data) => {
+				// Type assertions - these would fail to compile if types are wrong
+				assertType<number>(data.entityId);
+				assertType<number>(data.stepCount);
+			}
+		});
 	});
 
 	test('Helpers tween with nested dot-path works at runtime', () => {

@@ -4,7 +4,6 @@ import {
 	defineParticleEffect,
 	createParticleEmitter,
 	createParticlePlugin,
-	createParticleHelpers,
 	burstParticles,
 	stopEmitter,
 	resumeEmitter,
@@ -161,9 +160,9 @@ describe('Particle System Plugin', () => {
 
 		test('respects onComplete option', () => {
 			const result = createParticleEmitter(config, {
-				onComplete: 'emitterDone',
+				onComplete: (_data) => {},
 			});
-			expect(result.particleEmitter.onComplete).toBe('emitterDone');
+			expect(typeof result.particleEmitter.onComplete).toBe('function');
 		});
 	});
 
@@ -196,6 +195,16 @@ describe('Particle System Plugin', () => {
 			const config = defineParticleEffect({ maxParticles: 10, texture: fakeTexture });
 			const comp = createParticleEmitter(config);
 			expect(comp.particleEmitter.config).toBe(config);
+		});
+
+		test('onComplete callback receives ParticleEmitterEventData', () => {
+			const config = defineParticleEffect({ maxParticles: 10, texture: fakeTexture });
+			const emitter = createParticleEmitter(config, {
+				onComplete: (data) => {
+					void (data.entityId satisfies number);
+				},
+			});
+			expect(typeof emitter.particleEmitter.onComplete).toBe('function');
 		});
 	});
 
@@ -573,10 +582,9 @@ describe('Particle System Plugin', () => {
 			});
 
 			const received: ParticleEmitterEventData[] = [];
-			ecs.on('emitterDone', (data) => { received.push(data); });
 
 			const entity = ecs.spawn({
-				...createParticleEmitter(config, { onComplete: 'emitterDone' }),
+				...createParticleEmitter(config, { onComplete: (data) => { received.push(data); } }),
 				localTransform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1 },
 				worldTransform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1 },
 			});
@@ -698,37 +706,6 @@ describe('Particle System Plugin', () => {
 
 			expect(stopEmitter(ecs, entity.id)).toBe(false);
 			expect(resumeEmitter(ecs, entity.id)).toBe(false);
-		});
-	});
-
-	// ==================== Helpers Pattern ====================
-
-	describe('createParticleHelpers', () => {
-		test('helpers createParticleEmitter works with ECSpresso builder', () => {
-			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, {}>()
-				.withPlugin(createParticlePlugin())
-				.build();
-			const helpers = createParticleHelpers<typeof ecs>();
-
-			const config = defineParticleEffect({
-				maxParticles: 10,
-				texture: fakeTexture,
-				spawnRate: 10,
-				lifetime: 1,
-				speed: 0,
-			});
-
-			const entity = ecs.spawn({
-				...helpers.createParticleEmitter(config),
-				localTransform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1 },
-				worldTransform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1 },
-			});
-
-			ecs.update(0.5);
-
-			const emitter = ecs.entityManager.getComponent(entity.id, 'particleEmitter') as ParticleEmitter;
-			expect(emitter.activeCount).toBeGreaterThan(0);
 		});
 	});
 
