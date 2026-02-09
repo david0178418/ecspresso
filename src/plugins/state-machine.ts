@@ -19,9 +19,7 @@ import type { SystemPhase } from 'ecspresso';
  * allowing users to annotate hooks with their concrete ECSpresso type.
  */
 export interface StateMachineWorld {
-	entityManager: {
-		getComponent(entityId: number, componentName: string): unknown | undefined;
-	};
+	getComponent(entityId: number, componentName: string): unknown | undefined;
 	eventBus: {
 		publish(eventType: string, data: unknown): void;
 	};
@@ -267,7 +265,7 @@ export function transitionTo(
 	entityId: number,
 	targetState: string,
 ): boolean {
-	const sm = ecs.entityManager.getComponent(entityId, 'stateMachine') as StateMachine | undefined;
+	const sm = ecs.getComponent(entityId, 'stateMachine') as StateMachine | undefined;
 	if (!sm) return false;
 	return performTransition(ecs, entityId, sm, targetState);
 }
@@ -286,7 +284,7 @@ export function sendEvent(
 	entityId: number,
 	eventName: string,
 ): boolean {
-	const sm = ecs.entityManager.getComponent(entityId, 'stateMachine') as StateMachine | undefined;
+	const sm = ecs.getComponent(entityId, 'stateMachine') as StateMachine | undefined;
 	if (!sm) return false;
 
 	const states = sm.definition.states as Record<string, StateConfig<string>>;
@@ -315,7 +313,7 @@ export function getStateMachineState(
 	ecs: StateMachineWorld,
 	entityId: number,
 ): string | undefined {
-	const sm = ecs.entityManager.getComponent(entityId, 'stateMachine') as StateMachine | undefined;
+	const sm = ecs.getComponent(entityId, 'stateMachine') as StateMachine | undefined;
 	return sm?.current;
 }
 

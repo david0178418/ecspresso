@@ -1814,6 +1814,211 @@ describe('ECSpresso', () => {
 		});
 	});
 
+	describe('Direct Component Access', () => {
+		test('getComponent returns the component value for an existing component', () => {
+			const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
+			const entity = world.spawn({ position: { x: 10, y: 20 } });
+
+			const position = world.getComponent(entity.id, 'position');
+			expect(position).toEqual({ x: 10, y: 20 });
+		});
+
+		test('getComponent returns undefined for a missing component', () => {
+			const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
+			const entity = world.spawn({ position: { x: 10, y: 20 } });
+
+			const velocity = world.getComponent(entity.id, 'velocity');
+			expect(velocity).toBeUndefined();
+		});
+
+		test('getComponent throws for a non-existent entity', () => {
+			const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
+
+			expect(() => world.getComponent(999, 'position')).toThrow();
+		});
+
+		test('getComponent return type is T | undefined', () => {
+			type IsExact<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
+			const world = ECSpresso.create<TestComponents>().build();
+			const entity = world.spawn({ position: { x: 0, y: 0 } });
+			const result = world.getComponent(entity.id, 'position');
+			const _typeCheck: IsExact<typeof result, { x: number; y: number } | undefined> = true;
+			expect(_typeCheck).toBe(true);
+		});
+
+		test('getComponent returns falsy values correctly', () => {
+			interface FalsyComponents {
+				count: number;
+				flag: boolean;
+				label: string;
+			}
+			const world = ECSpresso.create<FalsyComponents>().build();
+			const entity = world.spawn({ count: 0, flag: false, label: '' });
+
+			expect(world.getComponent(entity.id, 'count')).toBe(0);
+			expect(world.getComponent(entity.id, 'flag')).toBe(false);
+			expect(world.getComponent(entity.id, 'label')).toBe('');
+		});
+
+		test('getComponent rejects invalid component names at compile time', () => {
+			const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
+			world.spawn({ position: { x: 0, y: 0 } });
+
+			// @ts-expect-error - 'doesNotExist' is not a valid component name
+			world.getComponent(1, 'doesNotExist');
+		});
+
+		test('addComponent adds a new component to an existing entity', () => {
+			const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
+			const entity = world.spawn({ position: { x: 0, y: 0 } });
+
+			world.addComponent(entity.id, 'velocity', { x: 5, y: 10 });
+
+			expect(world.getComponent(entity.id, 'velocity')).toEqual({ x: 5, y: 10 });
+			expect(world.hasComponent(entity.id, 'velocity')).toBe(true);
+		});
+
+		test('addComponent replaces an existing component value', () => {
+			const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
+			const entity = world.spawn({ position: { x: 0, y: 0 } });
+
+			world.addComponent(entity.id, 'position', { x: 99, y: 99 });
+
+			expect(world.getComponent(entity.id, 'position')).toEqual({ x: 99, y: 99 });
+		});
+
+		test('addComponent throws for a non-existent entity', () => {
+			const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
+
+			expect(() => world.addComponent(999, 'position', { x: 0, y: 0 })).toThrow();
+		});
+
+		test('addComponent rejects invalid component names at compile time', () => {
+			const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
+			world.spawn({ position: { x: 0, y: 0 } });
+
+			// @ts-expect-error - 'doesNotExist' is not a valid component name
+			world.addComponent(1, 'doesNotExist', { value: 100 });
+			// @ts-expect-error - wrong value type for 'position'
+			world.addComponent(1, 'position', { x: 0, y: 0, z: 0 });
+		});
+
+		test('addComponent triggers component added callbacks', () => {
+			const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
+			const entity = world.spawn({ position: { x: 0, y: 0 } });
+			let addedValue: TestComponents['health'] | undefined;
+
+			world.onComponentAdded('health', (value) => {
+				addedValue = value;
+			});
+
+			world.addComponent(entity.id, 'health', { value: 50 });
+
+			expect(addedValue).toEqual({ value: 50 });
+		});
+
+		test('addComponent marks component as changed', () => {
+			const world = ECSpresso.create<TestComponents>().build();
+			const entity = world.spawn({ position: { x: 0, y: 0 } });
+
+			// Run a frame to reset change detection
+			world.update(1 / 60);
+
+			// Add component after the frame
+			world.addComponent(entity.id, 'velocity', { x: 1, y: 1 });
+
+			const changed = world.getEntitiesWithQuery(['velocity'], [], ['velocity']);
+			expect(changed.length).toBe(1);
+		});
+
+		test('addComponents adds multiple components at once', () => {
+			const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
+			const entity = world.spawn({ position: { x: 0, y: 0 } });
+
+			world.addComponents(entity.id, {
+				velocity: { x: 5, y: 10 },
+				health: { value: 100 },
+			});
+
+			expect(world.getComponent(entity.id, 'velocity')).toEqual({ x: 5, y: 10 });
+			expect(world.getComponent(entity.id, 'health')).toEqual({ value: 100 });
+		});
+
+		test('addComponents throws for a non-existent entity', () => {
+			const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
+
+			expect(() => world.addComponents(999, { position: { x: 0, y: 0 } })).toThrow();
+		});
+
+		test('addComponents rejects invalid component names at compile time', () => {
+			const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
+			world.spawn({ position: { x: 0, y: 0 } });
+
+			world.addComponents(1, {
+				velocity: { x: 1, y: 1 },
+				// @ts-expect-error - 'nonExistent' is not a valid component name
+				nonExistent: { x: 5, y: 10 },
+			});
+		});
+
+		test('removeComponent removes a component from an entity', () => {
+			const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
+			const entity = world.spawn({ position: { x: 0, y: 0 }, velocity: { x: 1, y: 1 } });
+
+			world.removeComponent(entity.id, 'velocity');
+
+			expect(world.getComponent(entity.id, 'velocity')).toBeUndefined();
+			expect(world.hasComponent(entity.id, 'velocity')).toBe(false);
+			// position should still be there
+			expect(world.hasComponent(entity.id, 'position')).toBe(true);
+		});
+
+		test('removeComponent throws for a non-existent entity', () => {
+			const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
+
+			expect(() => world.removeComponent(999, 'position')).toThrow();
+		});
+
+		test('removeComponent triggers component removed callbacks', () => {
+			const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
+			const entity = world.spawn({ position: { x: 0, y: 0 }, velocity: { x: 5, y: 10 } });
+			let removedValue: TestComponents['velocity'] | undefined;
+
+			world.onComponentRemoved('velocity', (value) => {
+				removedValue = value;
+			});
+
+			world.removeComponent(entity.id, 'velocity');
+
+			expect(removedValue).toEqual({ x: 5, y: 10 });
+		});
+
+		test('removeComponent rejects invalid component names at compile time', () => {
+			const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
+			world.spawn({ position: { x: 0, y: 0 } });
+
+			// @ts-expect-error - 'doesNotExist' is not a valid component name
+			world.removeComponent(1, 'doesNotExist');
+		});
+
+		test('direct component methods work in system process functions', () => {
+			const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
+			const entity = world.spawn({ velocity: { x: 5, y: 10 } });
+
+			world.addSystem('test-system')
+				.addQuery('entities', { with: ['velocity'] })
+				.setProcess((_queries, _dt, ecs) => {
+					if (!ecs.getComponent(entity.id, 'position')) {
+						ecs.addComponent(entity.id, 'position', { x: 0, y: 0 });
+					}
+				})
+				.build();
+
+			world.update(1 / 60);
+			expect(world.getComponent(entity.id, 'position')).toEqual({ x: 0, y: 0 });
+		});
+	});
+
 	describe('Resource Disposal via ECSpresso', () => {
 		test('disposeResource() should dispose a single resource', async () => {
 			let disposed = false;

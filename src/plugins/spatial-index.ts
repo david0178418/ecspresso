@@ -141,8 +141,8 @@ export function createSpatialIndexPlugin<G extends string = 'spatialIndex'>(
 
 						for (const entity of queries.transforms) {
 							const transform = entity.components[transformComponent];
-							const aabb = ecs.entityManager.getComponent(entity.id, 'aabbCollider');
-							const circle = ecs.entityManager.getComponent(entity.id, 'circleCollider');
+							const aabb = ecs.getComponent(entity.id, 'aabbCollider');
+							const circle = ecs.getComponent(entity.id, 'circleCollider');
 
 							// Only insert entities that have a collider
 							if (!aabb && !circle) continue;

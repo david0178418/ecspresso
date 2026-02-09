@@ -49,7 +49,7 @@ export default class CommandBuffer<
 		componentValue: ComponentTypes[K]
 	): void {
 		this.commands.push((ecs) => {
-			ecs.entityManager.addComponent(entityOrId, componentName, componentValue);
+			ecs.addComponent(entityOrId, componentName, componentValue);
 		});
 	}
 
@@ -63,7 +63,7 @@ export default class CommandBuffer<
 		componentName: K
 	): void {
 		this.commands.push((ecs) => {
-			ecs.entityManager.removeComponent(entityOrId, componentName);
+			ecs.removeComponent(entityOrId, componentName);
 		});
 	}
 
@@ -104,7 +104,7 @@ export default class CommandBuffer<
 		components: T & Record<Exclude<keyof T, keyof ComponentTypes>, never>
 	): void {
 		this.commands.push((ecs) => {
-			ecs.entityManager.addComponents(entityOrId, components);
+			ecs.addComponents(entityOrId, components);
 		});
 	}
 

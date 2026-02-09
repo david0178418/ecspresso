@@ -166,9 +166,7 @@ export interface ParticleEmitterEventData {
  * Structural interface for ECS methods used by particle helpers.
  */
 export interface ParticleWorld {
-	entityManager: {
-		getComponent(entityId: number, componentName: string): unknown | undefined;
-	};
+	getComponent(entityId: number, componentName: string): unknown | undefined;
 	markChanged(entityId: number, componentName: string): void;
 }
 
@@ -283,7 +281,7 @@ export function burstParticles(
 	entityId: number,
 	count?: number,
 ): boolean {
-	const emitter = ecs.entityManager.getComponent(entityId, 'particleEmitter') as ParticleEmitter | undefined;
+	const emitter = ecs.getComponent(entityId, 'particleEmitter') as ParticleEmitter | undefined;
 	if (!emitter) return false;
 	emitter.pendingBurst += count ?? emitter.config.burstCount;
 	ecs.markChanged(entityId, 'particleEmitter');
@@ -298,7 +296,7 @@ export function stopEmitter(
 	ecs: ParticleWorld,
 	entityId: number,
 ): boolean {
-	const emitter = ecs.entityManager.getComponent(entityId, 'particleEmitter') as ParticleEmitter | undefined;
+	const emitter = ecs.getComponent(entityId, 'particleEmitter') as ParticleEmitter | undefined;
 	if (!emitter) return false;
 	emitter.playing = false;
 	return true;
@@ -311,7 +309,7 @@ export function resumeEmitter(
 	ecs: ParticleWorld,
 	entityId: number,
 ): boolean {
-	const emitter = ecs.entityManager.getComponent(entityId, 'particleEmitter') as ParticleEmitter | undefined;
+	const emitter = ecs.getComponent(entityId, 'particleEmitter') as ParticleEmitter | undefined;
 	if (!emitter) return false;
 	emitter.playing = true;
 	return true;
@@ -694,8 +692,7 @@ export function createParticlePlugin<
 						}
 
 						// Read world transform for emission origin (cross-plugin structural access)
-						const em = ecs.entityManager as { getComponent(entityId: number, componentName: string): unknown };
-						const worldTransform = em.getComponent(entity.id, 'worldTransform') as WorldTransform | undefined;
+						const worldTransform = (ecs as unknown as ParticleWorld).getComponent(entity.id, 'worldTransform') as WorldTransform | undefined;
 						const ex = worldTransform?.x ?? 0;
 						const ey = worldTransform?.y ?? 0;
 						const erot = worldTransform?.rotation ?? 0;
@@ -769,9 +766,8 @@ export function createParticlePlugin<
 							const particles = createParticlePool(config.maxParticles);
 
 							// Add to scene (cross-plugin structural access for renderLayer)
-							const structuralEm = ecs.entityManager as { getComponent(entityId: number, componentName: string): unknown };
 							if (rootContainer) {
-								const layerName = structuralEm.getComponent(entity.id, 'renderLayer') as string | undefined;
+								const layerName = (ecs as unknown as ParticleWorld).getComponent(entity.id, 'renderLayer') as string | undefined;
 								if (layerName) {
 									(rootContainer as { addChild(child: unknown): void }).addChild(pixiContainer);
 								} else {
@@ -801,16 +797,16 @@ export function createParticlePlugin<
 				})
 				.setProcess((_queries, _dt, ecs) => {
 					// Sync ParticleState -> PixiJS Particle properties
-					const syncEm = ecs.entityManager as { getComponent(entityId: number, componentName: string): unknown };
+					const world = ecs as unknown as ParticleWorld;
 					for (const [entityId, data] of emitterData) {
-						const emitter = syncEm.getComponent(entityId, 'particleEmitter') as ParticleEmitter | undefined;
+						const emitter = world.getComponent(entityId, 'particleEmitter') as ParticleEmitter | undefined;
 						if (!emitter) continue;
 
 						const config = emitter.config;
 
 						// Local-space: sync container position to emitter's worldTransform
 						if (!config.worldSpace) {
-							const wt = syncEm.getComponent(entityId, 'worldTransform') as WorldTransform | undefined;
+							const wt = world.getComponent(entityId, 'worldTransform') as WorldTransform | undefined;
 							if (wt) {
 								const container = data.pixiContainer as {
 									position: { set(x: number, y: number): void };

@@ -214,9 +214,7 @@ export function* waitForEvent<ET extends Record<string, any>, E extends keyof ET
  * Structural interface for ECS methods used by cancelCoroutine.
  */
 export interface CoroutineWorld {
-	entityManager: {
-		getComponent(entityId: number, componentName: string): unknown | undefined;
-	};
+	getComponent(entityId: number, componentName: string): unknown | undefined;
 	commands: {
 		removeComponent(entityId: number, componentName: string): void;
 	};
@@ -229,7 +227,7 @@ export interface CoroutineWorld {
  * @returns true if the entity had a coroutine that was cancelled, false otherwise
  */
 export function cancelCoroutine(ecs: CoroutineWorld, entityId: number): boolean {
-	const state = ecs.entityManager.getComponent(entityId, 'coroutine') as CoroutineState | undefined;
+	const state = ecs.getComponent(entityId, 'coroutine') as CoroutineState | undefined;
 	if (!state) return false;
 	state.generator.return();
 	ecs.commands.removeComponent(entityId, 'coroutine');

@@ -170,7 +170,7 @@ export function addTrauma<
 	entityId: number,
 	amount: number,
 ): void {
-	const shake = ecs.entityManager.getComponent(entityId, 'cameraShake');
+	const shake = ecs.getComponent(entityId, 'cameraShake');
 	if (!shake) return;
 	shake.trauma = Math.min(1, Math.max(0, shake.trauma + amount));
 }
@@ -255,16 +255,16 @@ export function createCameraPlugin<G extends string = 'camera'>(
 					with: ['camera', 'cameraFollow'],
 				})
 				.setProcess((queries, deltaTime, ecs) => {
-					const em = ecs.entityManager;
 					const t = Math.min(1, deltaTime);
 					for (const entity of queries.cameras) {
 						const { camera, cameraFollow } = entity.components;
 						let targetWorld;
 						try {
-							targetWorld = em.getComponent(cameraFollow.target, 'worldTransform');
+							targetWorld = ecs.getComponent(cameraFollow.target, 'worldTransform');
 						} catch {
 							continue;
 						}
+						if (!targetWorld) continue;
 						if (!targetWorld) continue;
 
 						const goalX = targetWorld.x + cameraFollow.offsetX;
@@ -372,7 +372,7 @@ export function createCameraPlugin<G extends string = 'camera'>(
 					state.zoom = camera.zoom;
 					state.rotation = camera.rotation;
 
-					const shake = ecs.entityManager.getComponent(first.id, 'cameraShake');
+					const shake = ecs.getComponent(first.id, 'cameraShake');
 					if (shake && shake.trauma > 0) {
 						const intensity = shake.trauma * shake.trauma;
 						state.shakeOffsetX = shake.maxOffsetX * intensity * (randomFn() * 2 - 1);

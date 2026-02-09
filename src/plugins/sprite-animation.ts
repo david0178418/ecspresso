@@ -97,9 +97,7 @@ export interface SpriteAnimationEventData {
  * Structural interface for ECS methods used by sprite animation helpers.
  */
 export interface SpriteAnimationWorld {
-	entityManager: {
-		getComponent(entityId: number, componentName: string): unknown | undefined;
-	};
+	getComponent(entityId: number, componentName: string): unknown | undefined;
 	eventBus: {
 		publish(...args: any[]): void;
 	};
@@ -231,7 +229,7 @@ export function playAnimation(
 	animation: string,
 	options?: { restart?: boolean; speed?: number },
 ): boolean {
-	const anim = ecs.entityManager.getComponent(entityId, 'spriteAnimation') as SpriteAnimation | undefined;
+	const anim = ecs.getComponent(entityId, 'spriteAnimation') as SpriteAnimation | undefined;
 	if (!anim) return false;
 	if (!(animation in anim.set.clips)) return false;
 
@@ -265,7 +263,7 @@ export function stopAnimation(
 	ecs: SpriteAnimationWorld,
 	entityId: number,
 ): boolean {
-	const anim = ecs.entityManager.getComponent(entityId, 'spriteAnimation') as SpriteAnimation | undefined;
+	const anim = ecs.getComponent(entityId, 'spriteAnimation') as SpriteAnimation | undefined;
 	if (!anim) return false;
 
 	anim.playing = false;
@@ -281,7 +279,7 @@ export function resumeAnimation(
 	ecs: SpriteAnimationWorld,
 	entityId: number,
 ): boolean {
-	const anim = ecs.entityManager.getComponent(entityId, 'spriteAnimation') as SpriteAnimation | undefined;
+	const anim = ecs.getComponent(entityId, 'spriteAnimation') as SpriteAnimation | undefined;
 	if (!anim) return false;
 
 	anim.playing = true;

@@ -810,6 +810,59 @@ export default class ECSpresso<
 	}
 
 	/**
+		* Get a component value from an entity.
+		* @param entityId The entity ID
+		* @param componentName The component to retrieve
+		* @returns The component value, or undefined if the entity doesn't have it
+	*/
+	getComponent<K extends keyof ComponentTypes>(
+		entityId: number,
+		componentName: K
+	): ComponentTypes[K] | undefined {
+		return this._entityManager.getComponent(entityId, componentName);
+	}
+
+	/**
+		* Add or replace a component on an entity.
+		* Triggers component-added callbacks and marks the component as changed.
+		* @param entityOrId The entity or entity ID
+		* @param componentName The component to add
+		* @param value The component value
+	*/
+	addComponent<K extends keyof ComponentTypes>(
+		entityOrId: number | Entity<ComponentTypes>,
+		componentName: K,
+		value: ComponentTypes[K]
+	): void {
+		this._entityManager.addComponent(entityOrId, componentName, value);
+	}
+
+	/**
+		* Add multiple components to an entity at once.
+		* @param entityOrId The entity or entity ID
+		* @param components Object with component names as keys and component data as values
+	*/
+	addComponents<T extends { [K in keyof ComponentTypes]?: ComponentTypes[K] }>(
+		entityOrId: number | Entity<ComponentTypes>,
+		components: T & Record<Exclude<keyof T, keyof ComponentTypes>, never>
+	): void {
+		this._entityManager.addComponents(entityOrId, components);
+	}
+
+	/**
+		* Remove a component from an entity.
+		* Triggers component-removed and dispose callbacks.
+		* @param entityOrId The entity or entity ID
+		* @param componentName The component to remove
+	*/
+	removeComponent<K extends keyof ComponentTypes>(
+		entityOrId: number | Entity<ComponentTypes>,
+		componentName: K
+	): void {
+		this._entityManager.removeComponent(entityOrId, componentName);
+	}
+
+	/**
 		* Check if an entity has a component
 	*/
 	hasComponent<K extends keyof ComponentTypes>(

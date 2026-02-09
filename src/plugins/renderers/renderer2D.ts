@@ -473,19 +473,19 @@ export function createRenderer2DPlugin<G extends string = 'renderer2d'>(
 		if (cached) return cached;
 
 		// Try to get from components
-		const spriteComp = ecs.entityManager.getComponent(entityId, 'sprite');
+		const spriteComp = ecs.getComponent(entityId, 'sprite');
 		if (spriteComp) {
 			entityToPixiObject.set(entityId, spriteComp);
 			return spriteComp;
 		}
 
-		const graphicsComp = ecs.entityManager.getComponent(entityId, 'graphics');
+		const graphicsComp = ecs.getComponent(entityId, 'graphics');
 		if (graphicsComp) {
 			entityToPixiObject.set(entityId, graphicsComp);
 			return graphicsComp;
 		}
 
-		const containerComp = ecs.entityManager.getComponent(entityId, 'container');
+		const containerComp = ecs.getComponent(entityId, 'container');
 		if (containerComp) {
 			entityToPixiObject.set(entityId, containerComp);
 			return containerComp;
@@ -522,7 +522,7 @@ export function createRenderer2DPlugin<G extends string = 'renderer2d'>(
 		if (parentPixiObject) return parentPixiObject;
 
 		// 2. Check render layer component
-		const layerName = ecs.entityManager.getComponent(entityId, 'renderLayer');
+		const layerName = ecs.getComponent(entityId, 'renderLayer');
 		if (layerName) return getOrCreateLayerContainer(layerName, rootCont);
 
 		// 3. Fall back to root container
@@ -673,7 +673,7 @@ export function createRenderer2DPlugin<G extends string = 'renderer2d'>(
 						sprite.rotation = worldTransform.rotation;
 						sprite.scale.set(worldTransform.scaleX, worldTransform.scaleY);
 
-						const visibleComp = ecs.entityManager.getComponent(entity.id, 'visible');
+						const visibleComp = ecs.getComponent(entity.id, 'visible');
 						if (visibleComp) {
 							sprite.visible = visibleComp.visible;
 							if (visibleComp.alpha !== undefined) {
@@ -689,7 +689,7 @@ export function createRenderer2DPlugin<G extends string = 'renderer2d'>(
 						graphics.rotation = worldTransform.rotation;
 						graphics.scale.set(worldTransform.scaleX, worldTransform.scaleY);
 
-						const visibleComp = ecs.entityManager.getComponent(entity.id, 'visible');
+						const visibleComp = ecs.getComponent(entity.id, 'visible');
 						if (visibleComp) {
 							graphics.visible = visibleComp.visible;
 							if (visibleComp.alpha !== undefined) {
@@ -705,7 +705,7 @@ export function createRenderer2DPlugin<G extends string = 'renderer2d'>(
 						container.rotation = worldTransform.rotation;
 						container.scale.set(worldTransform.scaleX, worldTransform.scaleY);
 
-						const visibleComp = ecs.entityManager.getComponent(entity.id, 'visible');
+						const visibleComp = ecs.getComponent(entity.id, 'visible');
 						if (visibleComp) {
 							container.visible = visibleComp.visible;
 							if (visibleComp.alpha !== undefined) {

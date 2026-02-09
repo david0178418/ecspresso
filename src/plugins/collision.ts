@@ -462,8 +462,8 @@ export function createCollisionPlugin<L extends string, G extends string = 'phys
 						const info = buildBaseColliderInfo(
 							entity.id, worldTransform.x, worldTransform.y,
 							collisionLayer.layer, collisionLayer.collidesWith,
-							ecs.entityManager.getComponent(entity.id, 'aabbCollider'),
-							ecs.entityManager.getComponent(entity.id, 'circleCollider'),
+							ecs.getComponent(entity.id, 'aabbCollider'),
+							ecs.getComponent(entity.id, 'circleCollider'),
 						);
 						if (info) colliders.push(info);
 					}

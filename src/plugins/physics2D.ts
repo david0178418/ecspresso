@@ -144,12 +144,12 @@ export function createForce(x: number, y: number): { force: Vector2D } {
  * Accumulate a force onto an entity's force component.
  */
 export function applyForce(
-	ecs: { entityManager: { getComponent(id: number, name: 'force'): Vector2D | undefined } },
+	ecs: { getComponent(id: number, name: 'force'): Vector2D | undefined },
 	entityId: number,
 	fx: number,
 	fy: number,
 ): void {
-	const force = ecs.entityManager.getComponent(entityId, 'force');
+	const force = ecs.getComponent(entityId, 'force');
 	if (!force) return;
 	force.x += fx;
 	force.y += fy;
@@ -159,16 +159,16 @@ export function applyForce(
  * Apply an instantaneous impulse: velocity += impulse / mass.
  */
 export function applyImpulse(
-	ecs: { entityManager: {
+	ecs: {
 		getComponent(id: number, name: 'velocity'): Vector2D | undefined;
 		getComponent(id: number, name: 'rigidBody'): RigidBody | undefined;
-	} },
+	},
 	entityId: number,
 	ix: number,
 	iy: number,
 ): void {
-	const velocity = ecs.entityManager.getComponent(entityId, 'velocity');
-	const rigidBody = ecs.entityManager.getComponent(entityId, 'rigidBody');
+	const velocity = ecs.getComponent(entityId, 'velocity');
+	const rigidBody = ecs.getComponent(entityId, 'rigidBody');
 	if (!velocity || !rigidBody) return;
 	if (rigidBody.mass === Infinity || rigidBody.mass === 0) return;
 	velocity.x += ix / rigidBody.mass;
@@ -179,12 +179,12 @@ export function applyImpulse(
  * Directly set an entity's velocity.
  */
 export function setVelocity(
-	ecs: { entityManager: { getComponent(id: number, name: 'velocity'): Vector2D | undefined } },
+	ecs: { getComponent(id: number, name: 'velocity'): Vector2D | undefined },
 	entityId: number,
 	vx: number,
 	vy: number,
 ): void {
-	const velocity = ecs.entityManager.getComponent(entityId, 'velocity');
+	const velocity = ecs.getComponent(entityId, 'velocity');
 	if (!velocity) return;
 	velocity.x = vx;
 	velocity.y = vy;
@@ -200,9 +200,7 @@ interface Physics2DColliderInfo<L extends string = string> extends BaseColliderI
 // ==================== Collision Response ====================
 
 interface PhysicsEcsLike {
-	entityManager: {
-		getComponent(id: number, name: 'localTransform'): { x: number; y: number } | undefined;
-	};
+	getComponent(id: number, name: 'localTransform'): { x: number; y: number } | undefined;
 	eventBus: { publish(event: 'physicsCollision', data: Physics2DCollisionEvent): void };
 	markChanged(entityId: number, componentName: 'localTransform' | 'velocity'): void;
 }
@@ -229,7 +227,7 @@ function resolvePhysicsContact(
 		const correctionScale = contact.depth / totalInvMass;
 
 		if (invMassA > 0) {
-			const ltA = ecs.entityManager.getComponent(a.entityId, 'localTransform');
+			const ltA = ecs.getComponent(a.entityId, 'localTransform');
 			if (!ltA) return;
 			ltA.x -= correctionScale * invMassA * contact.normalX;
 			ltA.y -= correctionScale * invMassA * contact.normalY;
@@ -239,7 +237,7 @@ function resolvePhysicsContact(
 		}
 
 		if (invMassB > 0) {
-			const ltB = ecs.entityManager.getComponent(b.entityId, 'localTransform');
+			const ltB = ecs.getComponent(b.entityId, 'localTransform');
 			if (!ltB) return;
 			ltB.x += correctionScale * invMassB * contact.normalX;
 			ltB.y += correctionScale * invMassB * contact.normalY;
@@ -428,8 +426,8 @@ export function createPhysics2DPlugin<L extends string = never, G extends string
 						const base = buildBaseColliderInfo(
 							entity.id, localTransform.x, localTransform.y,
 							collisionLayer.layer, collisionLayer.collidesWith,
-							ecs.entityManager.getComponent(entity.id, 'aabbCollider'),
-							ecs.entityManager.getComponent(entity.id, 'circleCollider'),
+							ecs.getComponent(entity.id, 'aabbCollider'),
+							ecs.getComponent(entity.id, 'circleCollider'),
 						);
 						if (!base) continue;
 						colliders.push(Object.assign(base, { rigidBody, velocity }));
