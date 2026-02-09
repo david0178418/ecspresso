@@ -853,41 +853,41 @@ export default class ECSpresso<
 	/**
 		* Add or replace a component on an entity.
 		* Triggers component-added callbacks and marks the component as changed.
-		* @param entityOrId The entity or entity ID
+		* @param entityId The entity ID
 		* @param componentName The component to add
 		* @param value The component value
 	*/
 	addComponent<K extends keyof ComponentTypes>(
-		entityOrId: number | Entity<ComponentTypes>,
+		entityId: number,
 		componentName: K,
 		value: ComponentTypes[K]
 	): void {
-		this._entityManager.addComponent(entityOrId, componentName, value);
+		this._entityManager.addComponent(entityId, componentName, value);
 	}
 
 	/**
 		* Add multiple components to an entity at once.
-		* @param entityOrId The entity or entity ID
+		* @param entityId The entity ID
 		* @param components Object with component names as keys and component data as values
 	*/
 	addComponents<T extends { [K in keyof ComponentTypes]?: ComponentTypes[K] }>(
-		entityOrId: number | Entity<ComponentTypes>,
+		entityId: number,
 		components: T & Record<Exclude<keyof T, keyof ComponentTypes>, never>
 	): void {
-		this._entityManager.addComponents(entityOrId, components);
+		this._entityManager.addComponents(entityId, components);
 	}
 
 	/**
 		* Remove a component from an entity.
 		* Triggers component-removed and dispose callbacks.
-		* @param entityOrId The entity or entity ID
+		* @param entityId The entity ID
 		* @param componentName The component to remove
 	*/
 	removeComponent<K extends keyof ComponentTypes>(
-		entityOrId: number | Entity<ComponentTypes>,
+		entityId: number,
 		componentName: K
 	): void {
-		this._entityManager.removeComponent(entityOrId, componentName);
+		this._entityManager.removeComponent(entityId, componentName);
 	}
 
 	/**
@@ -910,7 +910,7 @@ export default class ECSpresso<
 		components: T & Record<Exclude<keyof T, keyof ComponentTypes>, never>
 	): FilteredEntity<ComponentTypes, keyof T & keyof ComponentTypes> {
 		const entity = this._entityManager.createEntity();
-		this._entityManager.addComponents(entity, components);
+		this._entityManager.addComponents(entity.id, components);
 		return entity as FilteredEntity<ComponentTypes, keyof T & keyof ComponentTypes>;
 	}
 
@@ -984,40 +984,37 @@ export default class ECSpresso<
 
 	/**
 	 * Remove an entity (and optionally its descendants)
-	 * @param entityOrId Entity or entity ID to remove
+	 * @param entityId Entity ID to remove
 	 * @param options Options for removal (cascade: true by default)
 	 * @returns true if entity was removed
 	 */
-	removeEntity(entityOrId: number | Entity<ComponentTypes>, options?: RemoveEntityOptions): boolean {
-		return this._entityManager.removeEntity(entityOrId, options);
+	removeEntity(entityId: number, options?: RemoveEntityOptions): boolean {
+		return this._entityManager.removeEntity(entityId, options);
 	}
 
 	// ==================== Hierarchy Methods ====================
 
 	/**
 	 * Create an entity as a child of another entity with initial components
-	 * @param parentOrId The parent entity or entity ID
+	 * @param parentId The parent entity ID
 	 * @param components Initial components to add
 	 * @returns The created child entity
 	 */
 	spawnChild<T extends { [K in keyof ComponentTypes]?: ComponentTypes[K] }>(
-		parentOrId: number | Entity<ComponentTypes>,
+		parentId: number,
 		components: T & Record<Exclude<keyof T, keyof ComponentTypes>, never>
 	): FilteredEntity<ComponentTypes, keyof T & keyof ComponentTypes> {
-		const entity = this._entityManager.spawnChild(parentOrId, components);
-		const parentId = typeof parentOrId === 'number' ? parentOrId : parentOrId.id;
+		const entity = this._entityManager.spawnChild(parentId, components);
 		this._emitHierarchyChanged(entity.id, null, parentId);
 		return entity;
 	}
 
 	/**
 	 * Set the parent of an entity
-	 * @param childOrId The entity or entity ID to set as a child
-	 * @param parentOrId The entity or entity ID to set as the parent
+	 * @param childId The entity ID to set as a child
+	 * @param parentId The entity ID to set as the parent
 	 */
-	setParent(childOrId: number | Entity<ComponentTypes>, parentOrId: number | Entity<ComponentTypes>): this {
-		const childId = typeof childOrId === 'number' ? childOrId : childOrId.id;
-		const parentId = typeof parentOrId === 'number' ? parentOrId : parentOrId.id;
+	setParent(childId: number, parentId: number): this {
 		const oldParent = this._entityManager.getParent(childId);
 		this._entityManager.setParent(childId, parentId);
 		this._emitHierarchyChanged(childId, oldParent, parentId);
@@ -1026,11 +1023,10 @@ export default class ECSpresso<
 
 	/**
 	 * Remove the parent relationship for an entity (orphan it)
-	 * @param childOrId The entity or entity ID to orphan
+	 * @param childId The entity ID to orphan
 	 * @returns true if a parent was removed, false if entity had no parent
 	 */
-	removeParent(childOrId: number | Entity<ComponentTypes>): boolean {
-		const childId = typeof childOrId === 'number' ? childOrId : childOrId.id;
+	removeParent(childId: number): boolean {
 		const oldParent = this._entityManager.getParent(childId);
 		const result = this._entityManager.removeParent(childId);
 		if (result) {
@@ -1041,96 +1037,96 @@ export default class ECSpresso<
 
 	/**
 	 * Get the parent of an entity
-	 * @param entityOrId The entity or entity ID to get the parent of
+	 * @param entityId The entity ID to get the parent of
 	 * @returns The parent entity ID, or null if no parent
 	 */
-	getParent(entityOrId: number | Entity<ComponentTypes>): number | null {
-		return this._entityManager.getParent(entityOrId);
+	getParent(entityId: number): number | null {
+		return this._entityManager.getParent(entityId);
 	}
 
 	/**
 	 * Get all children of an entity in insertion order
-	 * @param parentOrId The parent entity or entity ID
+	 * @param parentId The parent entity ID
 	 * @returns Readonly array of child entity IDs
 	 */
-	getChildren(parentOrId: number | Entity<ComponentTypes>): readonly number[] {
-		return this._entityManager.getChildren(parentOrId);
+	getChildren(parentId: number): readonly number[] {
+		return this._entityManager.getChildren(parentId);
 	}
 
 	/**
 	 * Get a child at a specific index
-	 * @param parentOrId The parent entity or entity ID
+	 * @param parentId The parent entity ID
 	 * @param index The index of the child
 	 * @returns The child entity ID, or null if index is out of bounds
 	 */
-	getChildAt(parentOrId: number | Entity<ComponentTypes>, index: number): number | null {
-		return this._entityManager.getChildAt(parentOrId, index);
+	getChildAt(parentId: number, index: number): number | null {
+		return this._entityManager.getChildAt(parentId, index);
 	}
 
 	/**
 	 * Get the index of a child within its parent's children list
-	 * @param parentOrId The parent entity or entity ID
-	 * @param childOrId The child entity or entity ID to find
+	 * @param parentId The parent entity ID
+	 * @param childId The child entity ID to find
 	 * @returns The index of the child, or -1 if not found
 	 */
-	getChildIndex(parentOrId: number | Entity<ComponentTypes>, childOrId: number | Entity<ComponentTypes>): number {
-		return this._entityManager.getChildIndex(parentOrId, childOrId);
+	getChildIndex(parentId: number, childId: number): number {
+		return this._entityManager.getChildIndex(parentId, childId);
 	}
 
 	/**
 	 * Get all ancestors of an entity in order [parent, grandparent, ...]
-	 * @param entityOrId The entity or entity ID to get ancestors of
+	 * @param entityId The entity ID to get ancestors of
 	 * @returns Readonly array of ancestor entity IDs
 	 */
-	getAncestors(entityOrId: number | Entity<ComponentTypes>): readonly number[] {
-		return this._entityManager.getAncestors(entityOrId);
+	getAncestors(entityId: number): readonly number[] {
+		return this._entityManager.getAncestors(entityId);
 	}
 
 	/**
 	 * Get all descendants of an entity in depth-first order
-	 * @param entityOrId The entity or entity ID to get descendants of
+	 * @param entityId The entity ID to get descendants of
 	 * @returns Readonly array of descendant entity IDs
 	 */
-	getDescendants(entityOrId: number | Entity<ComponentTypes>): readonly number[] {
-		return this._entityManager.getDescendants(entityOrId);
+	getDescendants(entityId: number): readonly number[] {
+		return this._entityManager.getDescendants(entityId);
 	}
 
 	/**
 	 * Get the root ancestor of an entity (topmost parent), or self if no parent
-	 * @param entityOrId The entity or entity ID to get the root of
+	 * @param entityId The entity ID to get the root of
 	 * @returns The root entity ID
 	 */
-	getRoot(entityOrId: number | Entity<ComponentTypes>): number {
-		return this._entityManager.getRoot(entityOrId);
+	getRoot(entityId: number): number {
+		return this._entityManager.getRoot(entityId);
 	}
 
 	/**
 	 * Get siblings of an entity (other children of the same parent)
-	 * @param entityOrId The entity or entity ID to get siblings of
+	 * @param entityId The entity ID to get siblings of
 	 * @returns Readonly array of sibling entity IDs
 	 */
-	getSiblings(entityOrId: number | Entity<ComponentTypes>): readonly number[] {
-		return this._entityManager.getSiblings(entityOrId);
+	getSiblings(entityId: number): readonly number[] {
+		return this._entityManager.getSiblings(entityId);
 	}
 
 	/**
 	 * Check if an entity is a descendant of another entity
-	 * @param entityOrId The potential descendant (entity or ID)
-	 * @param ancestorOrId The potential ancestor (entity or ID)
-	 * @returns true if entityOrId is a descendant of ancestorOrId
+	 * @param entityId The potential descendant ID
+	 * @param ancestorId The potential ancestor ID
+	 * @returns true if entityId is a descendant of ancestorId
 	 */
-	isDescendantOf(entityOrId: number | Entity<ComponentTypes>, ancestorOrId: number | Entity<ComponentTypes>): boolean {
-		return this._entityManager.isDescendantOf(entityOrId, ancestorOrId);
+	isDescendantOf(entityId: number, ancestorId: number): boolean {
+		return this._entityManager.isDescendantOf(entityId, ancestorId);
 	}
 
 	/**
 	 * Check if an entity is an ancestor of another entity
-	 * @param entityOrId The potential ancestor (entity or ID)
-	 * @param descendantOrId The potential descendant (entity or ID)
-	 * @returns true if entityOrId is an ancestor of descendantOrId
+	 * @param entityId The potential ancestor ID
+	 * @param descendantId The potential descendant ID
+	 * @returns true if entityId is an ancestor of descendantId
 	 */
-	isAncestorOf(entityOrId: number | Entity<ComponentTypes>, descendantOrId: number | Entity<ComponentTypes>): boolean {
-		return this._entityManager.isAncestorOf(entityOrId, descendantOrId);
+	isAncestorOf(entityId: number, descendantId: number): boolean {
+		return this._entityManager.isAncestorOf(entityId, descendantId);
 	}
 
 	/**
@@ -1259,23 +1255,22 @@ export default class ECSpresso<
 	/**
 	 * Mutate a component in place and automatically mark it as changed.
 	 * Throws if the entity does not exist or does not have the component.
-	 * @param entityOrId The entity or entity ID
+	 * @param entityId The entity ID
 	 * @param componentName The component to mutate
 	 * @param mutator A function that receives the component value for in-place mutation
 	 * @returns The mutated component value
 	 */
 	mutateComponent<K extends keyof ComponentTypes>(
-		entityOrId: number | Entity<ComponentTypes>,
+		entityId: number,
 		componentName: K,
 		mutator: (value: ComponentTypes[K]) => void
 	): ComponentTypes[K] {
-		const entityId = typeof entityOrId === 'number' ? entityOrId : entityOrId.id;
 		const component = this._entityManager.getComponent(entityId, componentName);
 		if (component === undefined) {
 			throw new Error(`Entity ${entityId} does not have component "${String(componentName)}"`);
 		}
 		mutator(component);
-		this._entityManager.markChanged(entityOrId, componentName);
+		this._entityManager.markChanged(entityId, componentName);
 		return component;
 	}
 
@@ -1283,11 +1278,11 @@ export default class ECSpresso<
 	 * Mark a component as changed on an entity.
 	 * Each call increments a global monotonic sequence; systems with changed
 	 * queries will see the mark exactly once (on their next execution).
-	 * @param entityOrId The entity or entity ID
+	 * @param entityId The entity ID
 	 * @param componentName The component that was changed
 	 */
-	markChanged<K extends keyof ComponentTypes>(entityOrId: number | Entity<ComponentTypes>, componentName: K): void {
-		this._entityManager.markChanged(entityOrId, componentName);
+	markChanged<K extends keyof ComponentTypes>(entityId: number, componentName: K): void {
+		this._entityManager.markChanged(entityId, componentName);
 	}
 
 	// ==================== Component Dispose ====================

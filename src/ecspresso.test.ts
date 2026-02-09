@@ -95,7 +95,7 @@ describe('ECSpresso', () => {
 			world.entityManager.addComponent(entity.id, 'position', { x: 0, y: 0, z: 0 });
 			// @ts-expect-error // TypeScript should complain if we try to add a component that doesn't exist
 			world.entityManager.addComponent(entity.id, 'doesNotExist', { value: 100 });
-			world.entityManager.addComponents(entity, {
+			world.entityManager.addComponents(entity.id, {
 				position: {
 					x: 10,
 					y: 20,
@@ -2089,11 +2089,11 @@ describe('ECSpresso', () => {
 			expect(world.getComponent(entity.id, 'position')).toEqual({ x: 5, y: 10 });
 		});
 
-		test('accepts entity object in addition to entity ID', () => {
+		test('accepts entity ID', () => {
 			const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
 			const entity = world.spawn({ health: { value: 100 } });
 
-			world.mutateComponent(entity, 'health', (h) => {
+			world.mutateComponent(entity.id, 'health', (h) => {
 				h.value -= 25;
 			});
 

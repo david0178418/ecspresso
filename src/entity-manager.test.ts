@@ -349,7 +349,7 @@ describe('Entity Manager', () => {
 				mutatedIds.push(entityId);
 			});
 
-			manager.addComponents(entity, {
+			manager.addComponents(entity.id, {
 				position: { x: 0, y: 0 },
 				velocity: { x: 1, y: 1 },
 				health: { value: 100 },
@@ -367,7 +367,7 @@ describe('Entity Manager', () => {
 				addedComponents.push(componentName);
 			});
 
-			manager.addComponents(entity, {
+			manager.addComponents(entity.id, {
 				position: { x: 0, y: 0 },
 				velocity: { x: 1, y: 1 },
 				health: { value: 100 },

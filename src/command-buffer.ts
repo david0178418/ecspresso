@@ -1,5 +1,5 @@
 import type ECSpresso from './ecspresso';
-import type { Entity, RemoveEntityOptions } from './types';
+import type { RemoveEntityOptions } from './types';
 
 /**
  * CommandBuffer queues structural changes to be executed later.
@@ -28,42 +28,42 @@ export default class CommandBuffer<
 
 	/**
 	 * Queue an entity removal command
-	 * @param entityOrId The entity or entity ID to remove
+	 * @param entityId The entity ID to remove
 	 * @param options Optional removal options (cascade, etc.)
 	 */
-	removeEntity(entityOrId: number | Entity<ComponentTypes>, options?: RemoveEntityOptions): void {
+	removeEntity(entityId: number, options?: RemoveEntityOptions): void {
 		this.commands.push((ecs) => {
-			ecs.removeEntity(entityOrId, options);
+			ecs.removeEntity(entityId, options);
 		});
 	}
 
 	/**
 	 * Queue a component addition command
-	 * @param entityOrId The entity or entity ID
+	 * @param entityId The entity ID
 	 * @param componentName The name of the component to add
 	 * @param componentValue The component data
 	 */
 	addComponent<K extends keyof ComponentTypes>(
-		entityOrId: number | Entity<ComponentTypes>,
+		entityId: number,
 		componentName: K,
 		componentValue: ComponentTypes[K]
 	): void {
 		this.commands.push((ecs) => {
-			ecs.addComponent(entityOrId, componentName, componentValue);
+			ecs.addComponent(entityId, componentName, componentValue);
 		});
 	}
 
 	/**
 	 * Queue a component removal command
-	 * @param entityOrId The entity or entity ID
+	 * @param entityId The entity ID
 	 * @param componentName The name of the component to remove
 	 */
 	removeComponent<K extends keyof ComponentTypes>(
-		entityOrId: number | Entity<ComponentTypes>,
+		entityId: number,
 		componentName: K
 	): void {
 		this.commands.push((ecs) => {
-			ecs.removeComponent(entityOrId, componentName);
+			ecs.removeComponent(entityId, componentName);
 		});
 	}
 
@@ -82,40 +82,40 @@ export default class CommandBuffer<
 
 	/**
 	 * Queue a child entity spawn command
-	 * @param parentOrId The parent entity or entity ID
+	 * @param parentId The parent entity ID
 	 * @param components The initial components for the new child entity
 	 */
 	spawnChild<T extends { [K in keyof ComponentTypes]?: ComponentTypes[K] }>(
-		parentOrId: number | Entity<ComponentTypes>,
+		parentId: number,
 		components: T & Record<Exclude<keyof T, keyof ComponentTypes>, never>
 	): void {
 		this.commands.push((ecs) => {
-			ecs.spawnChild(parentOrId, components);
+			ecs.spawnChild(parentId, components);
 		});
 	}
 
 	/**
 	 * Queue multiple component additions
-	 * @param entityOrId The entity or entity ID
+	 * @param entityId The entity ID
 	 * @param components Object with component names as keys and component data as values
 	 */
 	addComponents<T extends { [K in keyof ComponentTypes]?: ComponentTypes[K] }>(
-		entityOrId: number | Entity<ComponentTypes>,
+		entityId: number,
 		components: T & Record<Exclude<keyof T, keyof ComponentTypes>, never>
 	): void {
 		this.commands.push((ecs) => {
-			ecs.addComponents(entityOrId, components);
+			ecs.addComponents(entityId, components);
 		});
 	}
 
 	/**
 	 * Queue a parent assignment command
-	 * @param childOrId The child entity or entity ID
-	 * @param parentOrId The parent entity or entity ID
+	 * @param childId The child entity ID
+	 * @param parentId The parent entity ID
 	 */
-	setParent(childOrId: number | Entity<ComponentTypes>, parentOrId: number | Entity<ComponentTypes>): void {
+	setParent(childId: number, parentId: number): void {
 		this.commands.push((ecs) => {
-			ecs.setParent(childOrId, parentOrId);
+			ecs.setParent(childId, parentId);
 		});
 	}
 
@@ -123,38 +123,38 @@ export default class CommandBuffer<
 	 * Queue a component mutation command.
 	 * The mutator runs during playback, receiving the component for in-place mutation.
 	 * Automatically marks the component as changed.
-	 * @param entityOrId The entity or entity ID
+	 * @param entityId The entity ID
 	 * @param componentName The component to mutate
 	 * @param mutator A function that receives the component value for in-place mutation
 	 */
 	mutateComponent<K extends keyof ComponentTypes>(
-		entityOrId: number | Entity<ComponentTypes>,
+		entityId: number,
 		componentName: K,
 		mutator: (value: ComponentTypes[K]) => void
 	): void {
 		this.commands.push((ecs) => {
-			ecs.mutateComponent(entityOrId, componentName, mutator);
+			ecs.mutateComponent(entityId, componentName, mutator);
 		});
 	}
 
 	/**
 	 * Queue a markChanged command
-	 * @param entityOrId The entity or entity ID
+	 * @param entityId The entity ID
 	 * @param componentName The component to mark as changed
 	 */
-	markChanged<K extends keyof ComponentTypes>(entityOrId: number | Entity<ComponentTypes>, componentName: K): void {
+	markChanged<K extends keyof ComponentTypes>(entityId: number, componentName: K): void {
 		this.commands.push((ecs) => {
-			ecs.markChanged(entityOrId, componentName);
+			ecs.markChanged(entityId, componentName);
 		});
 	}
 
 	/**
 	 * Queue a parent removal command
-	 * @param childOrId The child entity or entity ID
+	 * @param childId The child entity ID
 	 */
-	removeParent(childOrId: number | Entity<ComponentTypes>): void {
+	removeParent(childId: number): void {
 		this.commands.push((ecs) => {
-			ecs.removeParent(childOrId);
+			ecs.removeParent(childId);
 		});
 	}
 

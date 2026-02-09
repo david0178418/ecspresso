@@ -99,24 +99,16 @@ class EntityManager<ComponentTypes> {
 		}
 	}
 
-	private resolveEntity(entityOrId: number | Entity<ComponentTypes>): Entity<ComponentTypes> | undefined {
-		return typeof entityOrId === 'number' ? this.entities.get(entityOrId) : entityOrId;
-	}
-
-	private resolveEntityId(entityOrId: number | Entity<ComponentTypes>): number {
-		return typeof entityOrId === 'number' ? entityOrId : entityOrId.id;
-	}
-
 	// TODO: Component object pooling if(/when) garbage collection is an issue...?
 	addComponent<ComponentName extends keyof ComponentTypes>(
-		entityOrId: number | Entity<ComponentTypes>,
+		entityId: number,
 		componentName: ComponentName,
 		data: ComponentTypes[ComponentName]
 	) {
-		const entity = this.resolveEntity(entityOrId);
+		const entity = this.entities.get(entityId);
 
 		if (!entity) {
-			throw new Error(`Cannot add component '${String(componentName)}': Entity with ID ${this.resolveEntityId(entityOrId)} does not exist`);
+			throw new Error(`Cannot add component '${String(componentName)}': Entity with ID ${entityId} does not exist`);
 		}
 
 		// Dispose old value if replacing an existing component
@@ -163,19 +155,19 @@ class EntityManager<ComponentTypes> {
 
 	/**
 	 * Add multiple components to an entity at once
-	 * @param entityOrId Entity or entity ID to add components to
+	 * @param entityId Entity ID to add components to
 	 * @param components Object with component names as keys and component data as values
 	 */
 	addComponents<
 		T extends { [K in keyof ComponentTypes]?: ComponentTypes[K] }
 	>(
-		entityOrId: number | Entity<ComponentTypes>,
+		entityId: number,
 		components: T & Record<Exclude<keyof T, keyof ComponentTypes>, never>
 	) {
-		const entity = this.resolveEntity(entityOrId);
+		const entity = this.entities.get(entityId);
 
 		if (!entity) {
-			throw new Error(`Cannot add components: Entity with ID ${this.resolveEntityId(entityOrId)} does not exist`);
+			throw new Error(`Cannot add components: Entity with ID ${entityId} does not exist`);
 		}
 
 		const outerPending = this._pendingBatchKeys;
@@ -183,7 +175,7 @@ class EntityManager<ComponentTypes> {
 		this._batchingDepth++;
 		for (const componentName in components) {
 			this.addComponent(
-				entity,
+				entity.id,
 				componentName as keyof ComponentTypes,
 				components[componentName as keyof T] as ComponentTypes[keyof ComponentTypes]
 			);
@@ -204,13 +196,13 @@ class EntityManager<ComponentTypes> {
 	}
 
 	removeComponent<ComponentName extends keyof ComponentTypes>(
-		entityOrId: number | Entity<ComponentTypes>,
+		entityId: number,
 		componentName: ComponentName
 	) {
-		const entity = this.resolveEntity(entityOrId);
+		const entity = this.entities.get(entityId);
 
 		if (!entity) {
-			throw new Error(`Cannot remove component '${String(componentName)}': Entity with ID ${this.resolveEntityId(entityOrId)} does not exist`);
+			throw new Error(`Cannot remove component '${String(componentName)}': Entity with ID ${entityId} does not exist`);
 		}
 		// Get old value for callbacks
 		const oldValue = entity.components[componentName] as ComponentTypes[ComponentName] | undefined;
@@ -346,8 +338,8 @@ class EntityManager<ComponentTypes> {
 		return true;
 	}
 
-	removeEntity(entityOrId: number | Entity<ComponentTypes>, options?: RemoveEntityOptions): boolean {
-		const entity = this.resolveEntity(entityOrId);
+	removeEntity(entityId: number, options?: RemoveEntityOptions): boolean {
+		const entity = this.entities.get(entityId);
 
 		if (!entity) return false;
 
@@ -514,11 +506,10 @@ class EntityManager<ComponentTypes> {
 
 	/**
 	 * Mark a component as changed on an entity, stamping the next sequence number.
-	 * @param entityOrId The entity or entity ID
+	 * @param entityId The entity ID
 	 * @param componentName The component that changed
 	 */
-	markChanged<K extends keyof ComponentTypes>(entityOrId: number | Entity<ComponentTypes>, componentName: K): void {
-		const entityId = this.resolveEntityId(entityOrId);
+	markChanged<K extends keyof ComponentTypes>(entityId: number, componentName: K): void {
 		const seq = ++this._changeSeq;
 		let entitySeqs = this.changeSeqs.get(entityId);
 		if (!entitySeqs) {
@@ -542,28 +533,27 @@ class EntityManager<ComponentTypes> {
 
 	/**
 	 * Create an entity as a child of another entity with initial components
-	 * @param parentOrId The parent entity or entity ID
+	 * @param parentId The parent entity ID
 	 * @param components Initial components to add
 	 * @returns The created child entity
 	 */
 	spawnChild<T extends { [K in keyof ComponentTypes]?: ComponentTypes[K] }>(
-		parentOrId: number | Entity<ComponentTypes>,
+		parentId: number,
 		components: T & Record<Exclude<keyof T, keyof ComponentTypes>, never>
 	): FilteredEntity<ComponentTypes, keyof T & keyof ComponentTypes> {
 		const entity = this.createEntity();
-		this.addComponents(entity, components);
-		this.setParent(entity.id, this.resolveEntityId(parentOrId));
+		this.addComponents(entity.id, components);
+		this.setParent(entity.id, parentId);
 		return entity as FilteredEntity<ComponentTypes, keyof T & keyof ComponentTypes>;
 	}
 
 	/**
 	 * Set the parent of an entity
-	 * @param childOrId The entity or entity ID to set as a child
-	 * @param parentOrId The entity or entity ID to set as the parent
+	 * @param childId The entity ID to set as a child
+	 * @param parentId The entity ID to set as the parent
 	 */
-	setParent(childOrId: number | Entity<ComponentTypes>, parentOrId: number | Entity<ComponentTypes>): this {
-		const childId = this.resolveEntityId(childOrId);
-		this.hierarchyManager.setParent(childId, this.resolveEntityId(parentOrId));
+	setParent(childId: number, parentId: number): this {
+		this.hierarchyManager.setParent(childId, parentId);
 		for (const hook of this._afterParentChangedHooks) {
 			hook(childId);
 		}
@@ -572,11 +562,10 @@ class EntityManager<ComponentTypes> {
 
 	/**
 	 * Remove the parent relationship for an entity (orphan it)
-	 * @param childOrId The entity or entity ID to orphan
+	 * @param childId The entity ID to orphan
 	 * @returns true if a parent was removed, false if entity had no parent
 	 */
-	removeParent(childOrId: number | Entity<ComponentTypes>): boolean {
-		const childId = this.resolveEntityId(childOrId);
+	removeParent(childId: number): boolean {
 		const result = this.hierarchyManager.removeParent(childId);
 		if (result) {
 			for (const hook of this._afterParentChangedHooks) {
@@ -588,96 +577,96 @@ class EntityManager<ComponentTypes> {
 
 	/**
 	 * Get the parent of an entity
-	 * @param entityOrId The entity or entity ID to get the parent of
+	 * @param entityId The entity ID to get the parent of
 	 * @returns The parent entity ID, or null if no parent
 	 */
-	getParent(entityOrId: number | Entity<ComponentTypes>): number | null {
-		return this.hierarchyManager.getParent(this.resolveEntityId(entityOrId));
+	getParent(entityId: number): number | null {
+		return this.hierarchyManager.getParent(entityId);
 	}
 
 	/**
 	 * Get all children of an entity in insertion order
-	 * @param parentOrId The parent entity or entity ID
+	 * @param parentId The parent entity ID
 	 * @returns Readonly array of child entity IDs
 	 */
-	getChildren(parentOrId: number | Entity<ComponentTypes>): readonly number[] {
-		return this.hierarchyManager.getChildren(this.resolveEntityId(parentOrId));
+	getChildren(parentId: number): readonly number[] {
+		return this.hierarchyManager.getChildren(parentId);
 	}
 
 	/**
 	 * Get a child at a specific index
-	 * @param parentOrId The parent entity or entity ID
+	 * @param parentId The parent entity ID
 	 * @param index The index of the child
 	 * @returns The child entity ID, or null if index is out of bounds
 	 */
-	getChildAt(parentOrId: number | Entity<ComponentTypes>, index: number): number | null {
-		return this.hierarchyManager.getChildAt(this.resolveEntityId(parentOrId), index);
+	getChildAt(parentId: number, index: number): number | null {
+		return this.hierarchyManager.getChildAt(parentId, index);
 	}
 
 	/**
 	 * Get the index of a child within its parent's children list
-	 * @param parentOrId The parent entity or entity ID
-	 * @param childOrId The child entity or entity ID to find
+	 * @param parentId The parent entity ID
+	 * @param childId The child entity ID to find
 	 * @returns The index of the child, or -1 if not found
 	 */
-	getChildIndex(parentOrId: number | Entity<ComponentTypes>, childOrId: number | Entity<ComponentTypes>): number {
-		return this.hierarchyManager.getChildIndex(this.resolveEntityId(parentOrId), this.resolveEntityId(childOrId));
+	getChildIndex(parentId: number, childId: number): number {
+		return this.hierarchyManager.getChildIndex(parentId, childId);
 	}
 
 	/**
 	 * Get all ancestors of an entity in order [parent, grandparent, ...]
-	 * @param entityOrId The entity or entity ID to get ancestors of
+	 * @param entityId The entity ID to get ancestors of
 	 * @returns Readonly array of ancestor entity IDs
 	 */
-	getAncestors(entityOrId: number | Entity<ComponentTypes>): readonly number[] {
-		return this.hierarchyManager.getAncestors(this.resolveEntityId(entityOrId));
+	getAncestors(entityId: number): readonly number[] {
+		return this.hierarchyManager.getAncestors(entityId);
 	}
 
 	/**
 	 * Get all descendants of an entity in depth-first order
-	 * @param entityOrId The entity or entity ID to get descendants of
+	 * @param entityId The entity ID to get descendants of
 	 * @returns Readonly array of descendant entity IDs
 	 */
-	getDescendants(entityOrId: number | Entity<ComponentTypes>): readonly number[] {
-		return this.hierarchyManager.getDescendants(this.resolveEntityId(entityOrId));
+	getDescendants(entityId: number): readonly number[] {
+		return this.hierarchyManager.getDescendants(entityId);
 	}
 
 	/**
 	 * Get the root ancestor of an entity (topmost parent), or self if no parent
-	 * @param entityOrId The entity or entity ID to get the root of
+	 * @param entityId The entity ID to get the root of
 	 * @returns The root entity ID
 	 */
-	getRoot(entityOrId: number | Entity<ComponentTypes>): number {
-		return this.hierarchyManager.getRoot(this.resolveEntityId(entityOrId));
+	getRoot(entityId: number): number {
+		return this.hierarchyManager.getRoot(entityId);
 	}
 
 	/**
 	 * Get siblings of an entity (other children of the same parent)
-	 * @param entityOrId The entity or entity ID to get siblings of
+	 * @param entityId The entity ID to get siblings of
 	 * @returns Readonly array of sibling entity IDs
 	 */
-	getSiblings(entityOrId: number | Entity<ComponentTypes>): readonly number[] {
-		return this.hierarchyManager.getSiblings(this.resolveEntityId(entityOrId));
+	getSiblings(entityId: number): readonly number[] {
+		return this.hierarchyManager.getSiblings(entityId);
 	}
 
 	/**
 	 * Check if an entity is a descendant of another entity
-	 * @param entityOrId The potential descendant (entity or ID)
-	 * @param ancestorOrId The potential ancestor (entity or ID)
-	 * @returns true if entityOrId is a descendant of ancestorOrId
+	 * @param entityId The potential descendant ID
+	 * @param ancestorId The potential ancestor ID
+	 * @returns true if entityId is a descendant of ancestorId
 	 */
-	isDescendantOf(entityOrId: number | Entity<ComponentTypes>, ancestorOrId: number | Entity<ComponentTypes>): boolean {
-		return this.hierarchyManager.isDescendantOf(this.resolveEntityId(entityOrId), this.resolveEntityId(ancestorOrId));
+	isDescendantOf(entityId: number, ancestorId: number): boolean {
+		return this.hierarchyManager.isDescendantOf(entityId, ancestorId);
 	}
 
 	/**
 	 * Check if an entity is an ancestor of another entity
-	 * @param entityOrId The potential ancestor (entity or ID)
-	 * @param descendantOrId The potential descendant (entity or ID)
-	 * @returns true if entityOrId is an ancestor of descendantOrId
+	 * @param entityId The potential ancestor ID
+	 * @param descendantId The potential descendant ID
+	 * @returns true if entityId is an ancestor of descendantId
 	 */
-	isAncestorOf(entityOrId: number | Entity<ComponentTypes>, descendantOrId: number | Entity<ComponentTypes>): boolean {
-		return this.hierarchyManager.isAncestorOf(this.resolveEntityId(entityOrId), this.resolveEntityId(descendantOrId));
+	isAncestorOf(entityId: number, descendantId: number): boolean {
+		return this.hierarchyManager.isAncestorOf(entityId, descendantId);
 	}
 
 	/**
