@@ -1,5 +1,6 @@
 import type ECSpresso from './ecspresso';
 import type { RemoveEntityOptions } from './types';
+import type { WorldConfig, EmptyConfig } from './type-utils';
 
 /**
  * CommandBuffer queues structural changes to be executed later.
@@ -18,13 +19,9 @@ import type { RemoveEntityOptions } from './types';
  * ```
  */
 export default class CommandBuffer<
-	ComponentTypes extends Record<string, any> = {},
-	EventTypes extends Record<string, any> = {},
-	ResourceTypes extends Record<string, any> = {},
-	AssetTypes extends Record<string, unknown> = {},
-	ScreenStates extends Record<string, any> = {},
+	Cfg extends WorldConfig = EmptyConfig,
 > {
-	private commands: Array<(ecs: ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>) => void> = [];
+	private commands: Array<(ecs: ECSpresso<Cfg>) => void> = [];
 
 	/**
 	 * Queue an entity removal command
@@ -43,10 +40,10 @@ export default class CommandBuffer<
 	 * @param componentName The name of the component to add
 	 * @param componentValue The component data
 	 */
-	addComponent<K extends keyof ComponentTypes>(
+	addComponent<K extends keyof Cfg['components']>(
 		entityId: number,
 		componentName: K,
-		componentValue: ComponentTypes[K]
+		componentValue: Cfg['components'][K]
 	): void {
 		this.commands.push((ecs) => {
 			ecs.addComponent(entityId, componentName, componentValue);
@@ -58,7 +55,7 @@ export default class CommandBuffer<
 	 * @param entityId The entity ID
 	 * @param componentName The name of the component to remove
 	 */
-	removeComponent<K extends keyof ComponentTypes>(
+	removeComponent<K extends keyof Cfg['components']>(
 		entityId: number,
 		componentName: K
 	): void {
@@ -72,8 +69,8 @@ export default class CommandBuffer<
 	 * @param components The initial components for the new entity
 	 * @returns void (entity ID not available until playback)
 	 */
-	spawn<T extends { [K in keyof ComponentTypes]?: ComponentTypes[K] }>(
-		components: T & Record<Exclude<keyof T, keyof ComponentTypes>, never>
+	spawn<T extends { [K in keyof Cfg['components']]?: Cfg['components'][K] }>(
+		components: T & Record<Exclude<keyof T, keyof Cfg['components']>, never>
 	): void {
 		this.commands.push((ecs) => {
 			ecs.spawn(components);
@@ -85,9 +82,9 @@ export default class CommandBuffer<
 	 * @param parentId The parent entity ID
 	 * @param components The initial components for the new child entity
 	 */
-	spawnChild<T extends { [K in keyof ComponentTypes]?: ComponentTypes[K] }>(
+	spawnChild<T extends { [K in keyof Cfg['components']]?: Cfg['components'][K] }>(
 		parentId: number,
-		components: T & Record<Exclude<keyof T, keyof ComponentTypes>, never>
+		components: T & Record<Exclude<keyof T, keyof Cfg['components']>, never>
 	): void {
 		this.commands.push((ecs) => {
 			ecs.spawnChild(parentId, components);
@@ -99,9 +96,9 @@ export default class CommandBuffer<
 	 * @param entityId The entity ID
 	 * @param components Object with component names as keys and component data as values
 	 */
-	addComponents<T extends { [K in keyof ComponentTypes]?: ComponentTypes[K] }>(
+	addComponents<T extends { [K in keyof Cfg['components']]?: Cfg['components'][K] }>(
 		entityId: number,
-		components: T & Record<Exclude<keyof T, keyof ComponentTypes>, never>
+		components: T & Record<Exclude<keyof T, keyof Cfg['components']>, never>
 	): void {
 		this.commands.push((ecs) => {
 			ecs.addComponents(entityId, components);
@@ -127,10 +124,10 @@ export default class CommandBuffer<
 	 * @param componentName The component to mutate
 	 * @param mutator A function that receives the component value for in-place mutation
 	 */
-	mutateComponent<K extends keyof ComponentTypes>(
+	mutateComponent<K extends keyof Cfg['components']>(
 		entityId: number,
 		componentName: K,
-		mutator: (value: ComponentTypes[K]) => void
+		mutator: (value: Cfg['components'][K]) => void
 	): void {
 		this.commands.push((ecs) => {
 			ecs.mutateComponent(entityId, componentName, mutator);
@@ -142,7 +139,7 @@ export default class CommandBuffer<
 	 * @param entityId The entity ID
 	 * @param componentName The component to mark as changed
 	 */
-	markChanged<K extends keyof ComponentTypes>(entityId: number, componentName: K): void {
+	markChanged<K extends keyof Cfg['components']>(entityId: number, componentName: K): void {
 		this.commands.push((ecs) => {
 			ecs.markChanged(entityId, componentName);
 		});
@@ -164,7 +161,7 @@ export default class CommandBuffer<
 	 * @param ecs The ECSpresso instance to execute commands on
 	 */
 	playback(
-		ecs: ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>
+		ecs: ECSpresso<Cfg>
 	): void {
 		// Execute all commands, catching errors to prevent one bad command from stopping all playback
 		for (const command of this.commands) {

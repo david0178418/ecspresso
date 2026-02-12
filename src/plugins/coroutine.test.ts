@@ -1,5 +1,6 @@
 import { describe, test, expect } from 'bun:test';
 import ECSpresso from '../ecspresso';
+import type { WorldConfigFrom } from '../type-utils';
 import {
 	createCoroutinePlugin,
 	createCoroutine,
@@ -33,14 +34,14 @@ interface TestResources {}
 
 function createTestEcs() {
 	return ECSpresso
-		.create<TestComponents, TestEvents, TestResources>()
+		.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 		.withPlugin(createCoroutinePlugin())
 		.build();
 }
 
 function createTestEcsWithEvents() {
 	return ECSpresso
-		.create<TestComponents, TestEvents, TestResources>()
+		.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 		.withPlugin(createCoroutinePlugin())
 		.build();
 }

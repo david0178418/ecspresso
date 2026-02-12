@@ -20,7 +20,7 @@ src/
 ├── screen-types.ts    # Screen type definitions
 ├── reactive-query-manager.ts # Reactive queries with enter/exit callbacks
 ├── types.ts           # Core type definitions
-├── type-utils.ts      # Plugin compatibility type utilities
+├── type-utils.ts      # WorldConfig, type extraction, plugin compatibility utilities
 ├── math.ts            # Vector2D type + pure vector math functions
 ├── index.ts           # Public API exports
 └── plugins/
@@ -57,13 +57,18 @@ src/
 
 ## Key Patterns
 
+### WorldConfig & Type Threading
+- **WorldConfig**: Single config object `{ components, events, resources, assets, screens }` replaces the 5 positional type params throughout the codebase. Core classes (`ECSpresso`, `SystemBuilder`, `CommandBuffer`, `System`, `Plugin`) are parameterized with `Cfg extends WorldConfig` and access slots via `Cfg['components']`, `Cfg['events']`, etc.
+- **WorldConfigFrom**: Constructs a `WorldConfig` from individual type dimensions: `WorldConfigFrom<Components, Events, Resources, Assets, Screens>`. All params default to `{}`. Used for direct constructor calls (`new ECSpresso<WorldConfigFrom<C, E, R>>()`) and plugin factories.
+- **EmptyConfig**: Alias for `WorldConfigFrom` with all defaults. Default type param for `ECSpresso`, `SystemBuilder`, `CommandBuffer`, `Plugin`.
+
 ### Builder & Type Inference
 - **Builder Pattern**: `world.addSystem().addQuery().setProcess()` — systems are registered via deferred finalization (no explicit terminator needed)
-- **Generic Type Parameters**: `<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>` — prefer builder inference (`.withPlugin()`, `.withComponentTypes<T>()`, `.withEventTypes<T>()`, `.withResource()`) over explicit type params to `create<>()`
+- **Builder Inference**: Prefer the builder chain (`.withPlugin()`, `.withComponentTypes<T>()`, `.withEventTypes<T>()`, `.withResource()`) over explicit type params to `create<>()`. The builder accumulates types into a `WorldConfig` via `MergeConfigs` and per-slot helpers (`WithComponents`, `WithEvents`, etc.).
 - **Type-Level Builder Methods**: `withComponentTypes<T>()`, `withEventTypes<T>()` — no runtime cost, accumulate via intersection with plugin types
 - **Inferred World Type**: `const ecs = ECSpresso.create().withPlugin(...).build(); type ECS = typeof ecs;` — derive full world type from the builder chain
 - **Built-in Resource Typing**: `.withAssets()` merges `$assets` into `ResourceTypes`; `.withScreens()` merges `$screen`. Without these builder calls, those keys are absent from `ResourceTypes`.
-- **Type Extraction**: `ComponentsOf<B>`, `EventsOf<B>`, `ResourcesOf<B>` for plugins; `ComponentsOfWorld<W>`, `EventsOfWorld<W>`, `AssetsOfWorld<W>` for ECSpresso instances
+- **Type Extraction**: `ComponentsOf<B>`, `EventsOf<B>`, `ResourcesOf<B>` for plugins; `ComponentsOfWorld<W>`, `EventsOfWorld<W>`, `AssetsOfWorld<W>` for ECSpresso instances. `ConfigOf<B>` extracts the full `WorldConfig`.
 
 ### System Execution
 - **Phase Order**: `preUpdate` → `fixedUpdate` → `update` → `postUpdate` → `render`
@@ -113,7 +118,7 @@ Plugins with completion semantics (timers, tween, particles, sprite-animation, c
 `createXxxKit<W>()` captures world type once; returned helpers validate component/field/sound/event names at compile time. Standalone untyped versions remain available. Read plugin source files for per-plugin API details.
 
 ### Application Plugin Factory
-`builder.pluginFactory()` (or `world.pluginFactory()`) captures accumulated types and returns a zero-param `definePlugin` equivalent. Eliminates repeated `<Components, Events, Resources>` across application-level plugins. `definePlugin<WorldType>({...})` is also available as a single-call alternative when a factory isn't needed. Library plugins (src/plugins/) remain generic and don't use this pattern.
+`builder.pluginFactory()` (or `world.pluginFactory()`) captures accumulated types and returns a zero-param `definePlugin` equivalent. Eliminates repeated type params across application-level plugins. `definePlugin<WorldType>({...})` (world type param, extracts config automatically) and `definePlugin<WorldConfigFrom<C, E, R>>({...})` (explicit config) are also available as single-call alternatives when a factory isn't needed. Library plugins (src/plugins/) remain generic and don't use this pattern.
 
 ### Plugin Type Parameters
 Most library plugins are parameterized with a string union (e.g. `L extends string` for collision layers, `S extends string` for state names, `Ch extends string` for audio channels, `A extends string` for input actions). Defaults allow backward-compatible untyped usage; narrowed unions enable compile-time validation.

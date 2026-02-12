@@ -12,6 +12,7 @@
 
 import { definePlugin, type Plugin, type BasePluginOptions } from 'ecspresso';
 import type { BaseWorld } from 'ecspresso';
+import type { WorldConfigFrom } from '../type-utils';
 import type { WorldTransform } from 'ecspresso/plugins/transform';
 
 // ==================== Value Types ====================
@@ -592,7 +593,7 @@ export function createParticlePlugin<
 	G extends string = 'particles',
 >(
 	options?: ParticlePluginOptions<G>,
-): Plugin<ParticleComponentTypes, {}, {}, {}, {}, ParticleLabels, G, never, 'particle-emitters'> {
+): Plugin<WorldConfigFrom<ParticleComponentTypes>, ParticleLabels, G, never, 'particle-emitters'> {
 	const {
 		systemGroup = 'particles',
 		priority = 0,
@@ -602,7 +603,7 @@ export function createParticlePlugin<
 	// Side storage for runtime particle data
 	const emitterData = new Map<number, EmitterRuntimeData>();
 
-	return definePlugin<ParticleComponentTypes, {}, {}, {}, {}, ParticleLabels, G, never, 'particle-emitters'>({
+	return definePlugin<WorldConfigFrom<ParticleComponentTypes>, ParticleLabels, G, never, 'particle-emitters'>({
 		id: 'particles',
 		install(world) {
 			// Required component: particleEmitter needs localTransform

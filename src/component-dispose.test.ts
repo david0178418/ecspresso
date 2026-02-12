@@ -1,6 +1,7 @@
 import { expect, describe, test, spyOn } from 'bun:test';
 import ECSpresso from './ecspresso';
 import { definePlugin } from './plugin';
+import type { WorldConfigFrom } from './type-utils';
 
 interface TestComponents {
 	mesh: { vertices: number[]; dispose: () => void };
@@ -199,7 +200,7 @@ describe('Component Dispose', () => {
 	test('plugin-registered dispose installed and fires correctly', () => {
 		const disposed: Array<TestComponents['mesh']> = [];
 
-		const plugin = definePlugin<TestComponents, {}, {}>({
+		const plugin = definePlugin<WorldConfigFrom<TestComponents, {}, {}>>({
 			id: 'test-dispose-plugin',
 			install(world) {
 				world.registerDispose('mesh', (mesh) => { disposed.push(mesh); });
@@ -267,21 +268,21 @@ describe('Component Dispose', () => {
 		const disposedMeshes: Array<TestComponents['mesh']> = [];
 		const disposedTextures: Array<TestComponents['texture']> = [];
 
-		const plugin1 = definePlugin<Pick<TestComponents, 'mesh'>, {}, {}>({
+		const plugin1 = definePlugin<WorldConfigFrom<Pick<TestComponents, 'mesh'>, {}, {}>>({
 			id: 'plugin1',
 			install(world) {
 				world.registerDispose('mesh', (mesh) => { disposedMeshes.push(mesh); });
 			},
 		});
 
-		const plugin2 = definePlugin<Pick<TestComponents, 'texture'>, {}, {}>({
+		const plugin2 = definePlugin<WorldConfigFrom<Pick<TestComponents, 'texture'>, {}, {}>>({
 			id: 'plugin2',
 			install(world) {
 				world.registerDispose('texture', (texture) => { disposedTextures.push(texture); });
 			},
 		});
 
-		const composite = definePlugin<Pick<TestComponents, 'mesh' | 'texture'>, {}, {}>({
+		const composite = definePlugin<WorldConfigFrom<Pick<TestComponents, 'mesh' | 'texture'>, {}, {}>>({
 			id: 'composite',
 			install(world) {
 				world.installPlugin(plugin1);
@@ -367,7 +368,7 @@ describe('Component Dispose', () => {
 	test('plugin-registered dispose receives entity ID', () => {
 		const received: Array<{ entityId: number }> = [];
 
-		const plugin = definePlugin<TestComponents, {}, {}>({
+		const plugin = definePlugin<WorldConfigFrom<TestComponents, {}, {}>>({
 			id: 'test-dispose-plugin',
 			install(world) {
 				world.registerDispose('mesh', (_mesh, entityId) => { received.push({ entityId }); });

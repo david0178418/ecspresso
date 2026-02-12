@@ -67,8 +67,10 @@ interface Components {
   health: { value: number };
 }
 
-// 2. Create a world
-const world = new ECSpresso<Components>();
+// 2. Create a world using the builder — types are inferred automatically
+const world = ECSpresso.create()
+  .withComponentTypes<Components>()
+  .build();
 
 // 3. Add a movement system
 world.addSystem('movement')
@@ -199,10 +201,11 @@ interface Resources {
   settings: { difficulty: 'easy' | 'hard' };
 }
 
-const world = new ECSpresso<Components, {}, Resources>();
-
-// Direct values
-world.addResource('score', { value: 0 });
+const world = ECSpresso.create()
+  .withComponentTypes<Components>()
+  .withResourceTypes<Resources>()
+  .withResource('score', { value: 0 })
+  .build();
 
 // Sync or async factories (lazy initialization)
 world.addResource('config', () => ({ difficulty: 'normal', soundEnabled: true }));
@@ -225,11 +228,10 @@ world.addSystem('scoring')
   });
 ```
 
-**Builder pattern** -- resources chain naturally with other builder methods:
+Resources also chain naturally with plugins in the builder:
 
 ```typescript
-const world = ECSpresso
-  .create<Components, Events, Resources>()
+const world = ECSpresso.create()
   .withPlugin(physicsPlugin)
   .withResource('config', { debug: true, maxEntities: 1000 })
   .withResource('score', () => ({ value: 0 }))
@@ -349,7 +351,10 @@ world.addSystem('renderer')
 **Fixed Timestep** -- The `fixedUpdate` phase uses a time accumulator for deterministic simulation. A spiral-of-death cap (8 steps) prevents runaway accumulation.
 
 ```typescript
-const world = ECSpresso.create<Components, Events, Resources>()
+const world = ECSpresso.create()
+  .withComponentTypes<Components>()
+  .withEventTypes<Events>()
+  .withResourceTypes<Resources>()
   .withFixedTimestep(1 / 60)  // 60Hz physics (default)
   .build();
 ```
@@ -440,7 +445,10 @@ interface Events {
   };
 }
 
-const world = new ECSpresso<Components, Events>();
+const world = ECSpresso.create()
+  .withComponentTypes<Components>()
+  .withEventTypes<Events>()
+  .build();
 
 // Subscribe - returns unsubscribe function
 const unsubscribe = world.on('playerDied', (data) => {
@@ -645,9 +653,18 @@ Commands execute in FIFO order. If a command fails (e.g., entity doesn't exist),
 Organize related systems and resources into reusable plugins:
 
 ```typescript
-import { definePlugin } from 'ecspresso';
+import ECSpresso, { definePlugin, type WorldConfigFrom } from 'ecspresso';
 
-const physicsPlugin = definePlugin<GameComponents, {}, GameResources>({
+interface PhysicsComponents {
+  position: { x: number; y: number };
+  velocity: { x: number; y: number };
+}
+
+interface PhysicsResources {
+  gravity: { value: number };
+}
+
+const physicsPlugin = definePlugin<WorldConfigFrom<PhysicsComponents, {}, PhysicsResources>>({
   id: 'physics',
   install(world) {
     world.addSystem('applyVelocity')
@@ -672,8 +689,8 @@ const physicsPlugin = definePlugin<GameComponents, {}, GameResources>({
   },
 });
 
-// Register plugins with the world
-const game = ECSpresso.create<GameComponents, {}, GameResources>()
+// Register plugins with the world — types merge automatically
+const game = ECSpresso.create()
   .withPlugin(physicsPlugin)
   .build();
 ```
@@ -720,7 +737,7 @@ const plugin = definePlugin<MyWorld>({
 Plugins can declare that certain components depend on others. When an entity gains a trigger component, any required components that aren't already present are auto-added with default values:
 
 ```typescript
-const transformPlugin = definePlugin<TransformComponents>({
+const transformPlugin = definePlugin<WorldConfigFrom<TransformComponents>>({
   id: 'transform',
   install(world) {
     world.registerRequired('localTransform', 'worldTransform', () => ({
@@ -867,7 +884,10 @@ type Assets = {
   level1Background: { data: ImageBitmap };
 };
 
-const game = ECSpresso.create<Components, Events, Resources, Assets>()
+const game = ECSpresso.create()
+  .withComponentTypes<Components>()
+  .withEventTypes<Events>()
+  .withResourceTypes<Resources>()
   .withAssets(assets => assets
     // Eager assets - loaded automatically during initialize()
     .add('playerTexture', async () => {
@@ -922,7 +942,10 @@ type Screens = {
   pause: ScreenDefinition<Record<string, never>, Record<string, never>>;
 };
 
-const game = ECSpresso.create<Components, Events, Resources, {}, Screens>()
+const game = ECSpresso.create()
+  .withComponentTypes<Components>()
+  .withEventTypes<Events>()
+  .withResourceTypes<Resources>()
   .withScreens(screens => screens
     .add('menu', {
       initialState: () => ({ selectedOption: 0 }),
@@ -1010,15 +1033,16 @@ world.addSystem('example')
   });
 
 // Plugin type compatibility - conflicting types error at compile time
-const plugin1 = definePlugin<{position: {x: number, y: number}}>({
+const plugin1 = definePlugin<WorldConfigFrom<{ position: { x: number; y: number } }>>({
   id: 'p1', install() {},
 });
-const plugin2 = definePlugin<{velocity: {x: number, y: number}}>({
+const plugin2 = definePlugin<WorldConfigFrom<{ velocity: { x: number; y: number } }>>({
   id: 'p2', install() {},
 });
+// Builder merges plugin types automatically — no manual type params needed
 const world = ECSpresso.create()
   .withPlugin(plugin1)
-  .withPlugin(plugin2)  // Types merge successfully
+  .withPlugin(plugin2)
   .build();
 ```
 

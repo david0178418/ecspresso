@@ -2,6 +2,7 @@ import { expect, describe, test } from 'bun:test';
 import ECSpresso from './ecspresso';
 import { definePlugin } from './plugin';
 import type { ScreenDefinition } from './screen-types';
+import type { WorldConfigFrom } from './type-utils';
 
 type TestComponents = {
 	position: { x: number; y: number };
@@ -204,7 +205,7 @@ describe('SystemBuilder Type Safety for AssetTypes and ScreenStates', () => {
 	});
 
 	test('plugin-defined systems thread A/S correctly', () => {
-		const plugin = definePlugin<TestComponents, TestEvents, TestResources, TestAssets, TestScreens>({
+		const plugin = definePlugin<WorldConfigFrom<TestComponents, TestEvents, TestResources, TestAssets, TestScreens>>({
 			id: 'test-plugin',
 			install(world) {
 				world.addSystem('pluginSystem')

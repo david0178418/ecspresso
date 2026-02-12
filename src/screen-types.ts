@@ -10,7 +10,7 @@ import type ECSpresso from './ecspresso';
 export interface ScreenDefinition<
 	Config extends Record<string, unknown> = Record<string, never>,
 	State extends Record<string, unknown> = Record<string, never>,
-	W = ECSpresso<any, any, any, any, any>,
+	W = ECSpresso<any>,
 > {
 	/**
 	 * Function to create initial state from config

@@ -1,5 +1,6 @@
 import { describe, test, expect } from 'bun:test';
 import ECSpresso from '../ecspresso';
+import type { WorldConfigFrom } from '../type-utils';
 import {
 	createCollisionPlugin,
 	createCollisionPairHandler,
@@ -30,7 +31,7 @@ describe('Collision Plugin', () => {
 	describe('AABB-AABB collision', () => {
 		test('should detect collision when overlapping', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withPlugin(createTransformPlugin())
 				.withPlugin(createCollisionPlugin({ layers: playerEnemyLayers }))
 				.build();
@@ -63,7 +64,7 @@ describe('Collision Plugin', () => {
 
 		test('should not detect collision when not overlapping', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withPlugin(createTransformPlugin())
 				.withPlugin(createCollisionPlugin({ layers: playerEnemyLayers }))
 				.build();
@@ -94,7 +95,7 @@ describe('Collision Plugin', () => {
 	describe('Circle-circle collision', () => {
 		test('should detect collision when overlapping', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withPlugin(createTransformPlugin())
 				.withPlugin(createCollisionPlugin({ layers: playerEnemyLayers }))
 				.build();
@@ -123,7 +124,7 @@ describe('Collision Plugin', () => {
 
 		test('should not detect collision when not overlapping', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withPlugin(createTransformPlugin())
 				.withPlugin(createCollisionPlugin({ layers: playerEnemyLayers }))
 				.build();
@@ -154,7 +155,7 @@ describe('Collision Plugin', () => {
 	describe('AABB-circle collision', () => {
 		test('should detect collision when overlapping', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withPlugin(createTransformPlugin())
 				.withPlugin(createCollisionPlugin({ layers: playerEnemyLayers }))
 				.build();
@@ -183,7 +184,7 @@ describe('Collision Plugin', () => {
 
 		test('should not detect collision when not overlapping', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withPlugin(createTransformPlugin())
 				.withPlugin(createCollisionPlugin({ layers: playerEnemyLayers }))
 				.build();
@@ -214,7 +215,7 @@ describe('Collision Plugin', () => {
 	describe('Layer filtering', () => {
 		test('should only collide when layers match', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withPlugin(createTransformPlugin())
 				.withPlugin(createCollisionPlugin({ layers: playerEnemyLayers }))
 				.build();
@@ -279,7 +280,7 @@ describe('Collision Plugin', () => {
 	describe('Collision event data', () => {
 		test('should contain correct entity IDs and layers', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withPlugin(createTransformPlugin())
 				.withPlugin(createCollisionPlugin({ layers: playerEnemyLayers }))
 				.build();
@@ -321,7 +322,7 @@ describe('Collision Plugin', () => {
 	describe('Deduplication', () => {
 		test('should only fire once per collision pair', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withPlugin(createTransformPlugin())
 				.withPlugin(createCollisionPlugin({ layers: playerEnemyLayers }))
 				.build();
@@ -354,7 +355,7 @@ describe('Collision Plugin', () => {
 	describe('Collider offset', () => {
 		test('should shift collision detection with offset', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withPlugin(createTransformPlugin())
 				.withPlugin(createCollisionPlugin({ layers: playerEnemyLayers }))
 				.build();
@@ -387,7 +388,7 @@ describe('Collision Plugin', () => {
 	describe('Multiple collisions', () => {
 		test('should detect multiple collisions in single update', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withPlugin(createTransformPlugin())
 				.withPlugin(createCollisionPlugin({ layers: playerEnemyLayers }))
 				.build();
@@ -503,7 +504,7 @@ describe('Collision Plugin', () => {
 			});
 
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withPlugin(createTransformPlugin())
 				.withPlugin(createCollisionPlugin({ layers: playerEnemyLayers }))
 				.build();
@@ -534,7 +535,7 @@ describe('Collision Plugin', () => {
 	describe('Entities without colliders or layers', () => {
 		test('should ignore entities without collision layer', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withPlugin(createTransformPlugin())
 				.withPlugin(createCollisionPlugin({ layers: playerEnemyLayers }))
 				.build();
@@ -565,7 +566,7 @@ describe('Collision Plugin', () => {
 	describe('World transform usage', () => {
 		test('should use world transform for collision detection with hierarchy', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withPlugin(createTransformPlugin())
 				.withPlugin(createCollisionPlugin({ layers: playerEnemyLayers }))
 				.build();

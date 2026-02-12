@@ -1,5 +1,6 @@
 import type ECSpresso from "./ecspresso";
 import type { FilteredEntity, QueryDefinition, System, SystemPhase } from "./types";
+import type { WorldConfig, EmptyConfig } from "./type-utils";
 
 /**
  * Builder class for creating type-safe ECS Systems with proper query inference.
@@ -7,37 +8,27 @@ import type { FilteredEntity, QueryDefinition, System, SystemPhase } from "./typ
  * finalized (at the start of initialize() or update()).
  */
 export class SystemBuilder<
-	ComponentTypes extends Record<string, any> = Record<string, any>,
-	EventTypes extends Record<string, any> = Record<string, any>,
-	ResourceTypes extends Record<string, any> = Record<string, any>,
-	AssetTypes extends Record<string, unknown> = Record<string, unknown>,
-	ScreenStates extends Record<string, any> = Record<string, any>,
-	Queries extends Record<string, QueryDefinition<ComponentTypes>> = {},
+	Cfg extends WorldConfig = EmptyConfig,
+	Queries extends Record<string, QueryDefinition<Cfg['components']>> = {},
 	Label extends string = string,
 	SysGroups extends string = never,
 > {
 	private queries: Queries = {} as Queries;
-	private processFunction?: ProcessFunction<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, Queries>;
-	private detachFunction?: LifecycleFunction<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>;
-	private initializeFunction?: LifecycleFunction<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>;
+	private processFunction?: ProcessFunction<Cfg, Queries>;
+	private detachFunction?: LifecycleFunction<Cfg>;
+	private initializeFunction?: LifecycleFunction<Cfg>;
 	private eventHandlers?: {
-		[EventName in keyof EventTypes]?: (
-			data: EventTypes[EventName],
-			ecs: ECSpresso<
-				ComponentTypes,
-				EventTypes,
-				ResourceTypes,
-				AssetTypes,
-				ScreenStates
-			>,
+		[EventName in keyof Cfg['events']]?: (
+			data: Cfg['events'][EventName],
+			ecs: ECSpresso<Cfg>,
 		) => void;
 	};
 	private _priority = 0;
 	private _phase: SystemPhase = 'update';
 	private _groups: string[] = [];
-	private _inScreens?: ReadonlyArray<keyof ScreenStates & string>;
-	private _excludeScreens?: ReadonlyArray<keyof ScreenStates & string>;
-	private _requiredAssets?: ReadonlyArray<keyof AssetTypes & string>;
+	private _inScreens?: ReadonlyArray<keyof Cfg['screens'] & string>;
+	private _excludeScreens?: ReadonlyArray<keyof Cfg['screens'] & string>;
+	private _requiredAssets?: ReadonlyArray<keyof Cfg['assets'] & string>;
 	private _runWhenEmpty = false;
 	private _entityEnterHandlers: Record<string, (entity: any, ecs: any) => void> = {};
 
@@ -51,8 +42,8 @@ export class SystemBuilder<
 	 * Create a system object with all configured properties.
 	 * @internal Used by ECSpresso to finalize and register the system
 	 */
-	_createSystemObject(): System<ComponentTypes, any, any, EventTypes, ResourceTypes, AssetTypes, ScreenStates> {
-		const system: System<ComponentTypes, any, any, EventTypes, ResourceTypes, AssetTypes, ScreenStates> = {
+	_createSystemObject(): System<Cfg, any, any> {
+		const system: System<Cfg, any, any> = {
 			label: this._label,
 			entityQueries: this.queries,
 			priority: this._priority,
@@ -132,7 +123,7 @@ export class SystemBuilder<
 	 * @param groupName The name of the group to add the system to
 	 * @returns This SystemBuilder instance for method chaining
 	 */
-	inGroup<G extends string>(groupName: G): SystemBuilder<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, Queries, Label, SysGroups | G> {
+	inGroup<G extends string>(groupName: G): SystemBuilder<Cfg, Queries, Label, SysGroups | G> {
 		if (!this._groups.includes(groupName)) {
 			this._groups.push(groupName);
 		}
@@ -146,7 +137,7 @@ export class SystemBuilder<
 	 * @param screens Array of screen names where this system should run
 	 * @returns This SystemBuilder instance for method chaining
 	 */
-	inScreens(screens: ReadonlyArray<keyof ScreenStates & string>): this {
+	inScreens(screens: ReadonlyArray<keyof Cfg['screens'] & string>): this {
 		this._inScreens = [...screens];
 		return this;
 	}
@@ -158,7 +149,7 @@ export class SystemBuilder<
 	 * @param screens Array of screen names where this system should NOT run
 	 * @returns This SystemBuilder instance for method chaining
 	 */
-	excludeScreens(screens: ReadonlyArray<keyof ScreenStates & string>): this {
+	excludeScreens(screens: ReadonlyArray<keyof Cfg['screens'] & string>): this {
 		this._excludeScreens = [...screens];
 		return this;
 	}
@@ -170,7 +161,7 @@ export class SystemBuilder<
 	 * @param assets Array of asset keys that must be loaded
 	 * @returns This SystemBuilder instance for method chaining
 	 */
-	requiresAssets(assets: ReadonlyArray<keyof AssetTypes & string>): this {
+	requiresAssets(assets: ReadonlyArray<keyof Cfg['assets'] & string>): this {
 		this._requiredAssets = [...assets];
 		return this;
 	}
@@ -189,11 +180,11 @@ export class SystemBuilder<
 	 */
 	addQuery<
 		QueryName extends string,
-		WithComponents extends keyof ComponentTypes,
-		WithoutComponents extends keyof ComponentTypes = never,
-		OptionalComponents extends keyof ComponentTypes = never,
-		NewQueries extends Queries & Record<QueryName, QueryDefinition<ComponentTypes, WithComponents, WithoutComponents, OptionalComponents>> =
-			Queries & Record<QueryName, QueryDefinition<ComponentTypes, WithComponents, WithoutComponents, OptionalComponents>>
+		WithComponents extends keyof Cfg['components'],
+		WithoutComponents extends keyof Cfg['components'] = never,
+		OptionalComponents extends keyof Cfg['components'] = never,
+		NewQueries extends Queries & Record<QueryName, QueryDefinition<Cfg['components'], WithComponents, WithoutComponents, OptionalComponents>> =
+			Queries & Record<QueryName, QueryDefinition<Cfg['components'], WithComponents, WithoutComponents, OptionalComponents>>
 	>(
 		name: QueryName,
 		definition: {
@@ -201,9 +192,9 @@ export class SystemBuilder<
 			without?: ReadonlyArray<WithoutComponents>;
 			changed?: ReadonlyArray<WithComponents>;
 			optional?: ReadonlyArray<OptionalComponents>;
-			parentHas?: ReadonlyArray<keyof ComponentTypes>;
+			parentHas?: ReadonlyArray<keyof Cfg['components']>;
 		}
-	): SystemBuilder<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, NewQueries, Label, SysGroups> {
+	): SystemBuilder<Cfg, NewQueries, Label, SysGroups> {
 		// Cast is needed because TypeScript can't preserve the type information
 		// when modifying an object property
 		const newBuilder = this as any;
@@ -220,7 +211,7 @@ export class SystemBuilder<
 	 * @returns This SystemBuilder instance for method chaining
 	 */
 	setProcess(
-		process: ProcessFunction<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, Queries>
+		process: ProcessFunction<Cfg, Queries>
 	): this {
 		this.processFunction = process;
 		return this;
@@ -238,12 +229,12 @@ export class SystemBuilder<
 		queryName: QN,
 		callback: (
 			entity: FilteredEntity<
-				ComponentTypes,
-				Queries[QN] extends QueryDefinition<ComponentTypes, infer W> ? W : never,
-				Queries[QN] extends QueryDefinition<ComponentTypes, any, infer WO> ? WO : never,
-				Queries[QN] extends QueryDefinition<ComponentTypes, any, any, infer O> ? O : never
+				Cfg['components'],
+				Queries[QN] extends QueryDefinition<Cfg['components'], infer W> ? W : never,
+				Queries[QN] extends QueryDefinition<Cfg['components'], any, infer WO> ? WO : never,
+				Queries[QN] extends QueryDefinition<Cfg['components'], any, any, infer O> ? O : never
 			>,
-			ecs: ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>
+			ecs: ECSpresso<Cfg>
 		) => void,
 	): this {
 		this._entityEnterHandlers[queryName] = callback;
@@ -257,7 +248,7 @@ export class SystemBuilder<
 	 * @returns This SystemBuilder instance for method chaining
 	 */
 	setOnDetach(
-		onDetach: LifecycleFunction<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>
+		onDetach: LifecycleFunction<Cfg>
 	): this {
 		this.detachFunction = onDetach;
 		return this;
@@ -270,7 +261,7 @@ export class SystemBuilder<
 	 * @returns This SystemBuilder instance for method chaining
 	 */
 	setOnInitialize(
-		onInitialize: LifecycleFunction<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>
+		onInitialize: LifecycleFunction<Cfg>
 	): this {
 		this.initializeFunction = onInitialize;
 		return this;
@@ -284,9 +275,9 @@ export class SystemBuilder<
 	 */
 	setEventHandlers(
 		handlers: {
-			[EventName in keyof EventTypes]?: (
-				data: EventTypes[EventName],
-				ecs: ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>
+			[EventName in keyof Cfg['events']]?: (
+				data: Cfg['events'][EventName],
+				ecs: ECSpresso<Cfg>
 			) => void;
 		}
 	): this {
@@ -318,40 +309,18 @@ type QueryResults<
  * @param ecs The ECSpresso instance providing access to all ECS functionality
  */
 type ProcessFunction<
-	ComponentTypes extends Record<string, any>,
-	EventTypes extends Record<string, any>,
-	ResourceTypes extends Record<string, any>,
-	AssetTypes extends Record<string, unknown>,
-	ScreenStates extends Record<string, any>,
-	Queries extends Record<string, QueryDefinition<ComponentTypes>>,
+	Cfg extends WorldConfig,
+	Queries extends Record<string, QueryDefinition<Cfg['components']>>,
 > = (
-	queries: QueryResults<ComponentTypes, Queries>,
+	queries: QueryResults<Cfg['components'], Queries>,
 	deltaTime: number,
-	ecs: ECSpresso<
-		ComponentTypes,
-		EventTypes,
-		ResourceTypes,
-		AssetTypes,
-		ScreenStates
-	>
+	ecs: ECSpresso<Cfg>
 ) => void;
 
 /**
- * Type for system initialization functions
+ * Type for system lifecycle functions
  * These can be asynchronous
  */
-type LifecycleFunction<
-	ComponentTypes extends Record<string, any>,
-	EventTypes extends Record<string, any>,
-	ResourceTypes extends Record<string, any>,
-	AssetTypes extends Record<string, unknown>,
-	ScreenStates extends Record<string, any>,
-> = (
-	ecs: ECSpresso<
-		ComponentTypes,
-		EventTypes,
-		ResourceTypes,
-		AssetTypes,
-		ScreenStates
-	>,
+type LifecycleFunction<Cfg extends WorldConfig> = (
+	ecs: ECSpresso<Cfg>,
 ) => void | Promise<void>;

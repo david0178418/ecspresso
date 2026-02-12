@@ -28,7 +28,8 @@ interface TestComponents extends SpriteAnimationComponentTypes {
 
 function createTestEcs() {
 	return ECSpresso
-		.create<TestComponents, {}, {}>()
+		.create()
+		.withComponentTypes<TestComponents>()
 		.withPlugin(createSpriteAnimationPlugin())
 		.build();
 }

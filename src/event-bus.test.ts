@@ -1,6 +1,7 @@
 import { expect, describe, test } from 'bun:test';
 import ECSpresso from './ecspresso';
 import { definePlugin } from './plugin';
+import type { WorldConfigFrom } from './type-utils';
 
 interface TestComponents {
 	position: { x: number; y: number };
@@ -20,7 +21,7 @@ interface TestEvents {
 
 describe('EventSystem', () => {
 	test('should allow subscribing to and publishing events', () => {
-		const { eventBus } = new ECSpresso<TestComponents, TestEvents>();
+		const { eventBus } = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents>>();
 		let receivedData: any = null;
 
 		const unsubscribe = eventBus.subscribe('entityCreated', (data) => {
@@ -37,7 +38,7 @@ describe('EventSystem', () => {
 	});
 
 	test('should handle one-time event subscriptions', () => {
-		const { eventBus } = new ECSpresso<TestComponents, TestEvents>();
+		const { eventBus } = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents>>();
 		let normalEventCount = 0;
 		let onceEventCount = 0;
 
@@ -58,7 +59,7 @@ describe('EventSystem', () => {
 	});
 
 	test('should handle unsubscribing from events', () => {
-		const { eventBus } = new ECSpresso<TestComponents, TestEvents>();
+		const { eventBus } = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents>>();
 		let eventCount = 0;
 
 		const unsubscribe = eventBus.subscribe('entityCreated', () => {
@@ -75,7 +76,7 @@ describe('EventSystem', () => {
 	});
 
 	test('should handle clearing all events', () => {
-		const { eventBus } = new ECSpresso<TestComponents, TestEvents>();
+		const { eventBus } = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents>>();
 		let count1 = 0;
 		let count2 = 0;
 
@@ -96,7 +97,7 @@ describe('EventSystem', () => {
 	});
 
 	test('should handle clearing specific events', () => {
-		const { eventBus } = new ECSpresso<TestComponents, TestEvents>();
+		const { eventBus } = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents>>();
 		let count1 = 0;
 		let count2 = 0;
 
@@ -114,7 +115,7 @@ describe('EventSystem', () => {
 	test('should auto-register event handlers from systems', () => {
 		let eventHandlerCalled = false;
 
-		const plugin = definePlugin<TestComponents, TestEvents, {}>({
+		const plugin = definePlugin<WorldConfigFrom<TestComponents, TestEvents>>({
 			id: 'health',
 			install(world) {
 				world.addSystem('health-system')
@@ -127,7 +128,9 @@ describe('EventSystem', () => {
 			},
 		});
 
-		const world = ECSpresso.create<TestComponents, TestEvents>()
+		const world = ECSpresso.create()
+			.withComponentTypes<TestComponents>()
+			.withEventTypes<TestEvents>()
 			.withPlugin(plugin)
 			.build();
 
@@ -149,7 +152,7 @@ describe('EventSystem', () => {
 		let receivedEntityManager: any = null;
 		let receivedData: any = null;
 
-		const plugin = definePlugin<TestComponents, TestEvents, {}>({
+		const plugin = definePlugin<WorldConfigFrom<TestComponents, TestEvents>>({
 			id: 'param-test',
 			install(world) {
 				world.addSystem('ParameterTestSystem')
@@ -162,7 +165,9 @@ describe('EventSystem', () => {
 			},
 		});
 
-		const world = ECSpresso.create<TestComponents, TestEvents>()
+		const world = ECSpresso.create()
+			.withComponentTypes<TestComponents>()
+			.withEventTypes<TestEvents>()
 			.withPlugin(plugin)
 			.build();
 
@@ -193,7 +198,9 @@ describe('EventSystem', () => {
 
 	test('should handle event handlers during system lifecycle', () => {
 		// Create a world
-		const world = ECSpresso.create<TestComponents, TestEvents>()
+		const world = ECSpresso.create()
+			.withComponentTypes<TestComponents>()
+			.withEventTypes<TestEvents>()
 			.build();
 
 		// Create an entity with health component
@@ -239,7 +246,7 @@ describe('EventSystem', () => {
 	test('should integrate event system with ECS for event-driven behavior', () => {
 		const damageLog: Record<number, string[]> = {};
 
-		const plugin = definePlugin<TestComponents, TestEvents, {}>({
+		const plugin = definePlugin<WorldConfigFrom<TestComponents, TestEvents>>({
 			id: 'damage',
 			install(world) {
 				world.addSystem('EventDrivenDamageSystem')
@@ -292,7 +299,9 @@ describe('EventSystem', () => {
 			},
 		});
 
-		const world = ECSpresso.create<TestComponents, TestEvents>()
+		const world = ECSpresso.create()
+			.withComponentTypes<TestComponents>()
+			.withEventTypes<TestEvents>()
 			.withPlugin(plugin)
 			.build();
 
@@ -329,7 +338,7 @@ describe('EventSystem', () => {
 	});
 
 	test('should unsubscribe specific callback by reference', () => {
-		const { eventBus } = new ECSpresso<TestComponents, TestEvents>();
+		const { eventBus } = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents>>();
 		let handler1Count = 0;
 		let handler2Count = 0;
 
@@ -355,7 +364,7 @@ describe('EventSystem', () => {
 	});
 
 	test('should return false when unsubscribing non-existent callback', () => {
-		const { eventBus } = new ECSpresso<TestComponents, TestEvents>();
+		const { eventBus } = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents>>();
 
 		const handler = () => {};
 		const differentHandler = () => {};
@@ -368,7 +377,7 @@ describe('EventSystem', () => {
 	});
 
 	test('should return false when unsubscribing from non-existent event type', () => {
-		const { eventBus } = new ECSpresso<TestComponents, TestEvents>();
+		const { eventBus } = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents>>();
 
 		const handler = () => {};
 
@@ -380,7 +389,7 @@ describe('EventSystem', () => {
 
 describe('publish correctness', () => {
 	test('once-handler fires exactly once across multiple publishes', () => {
-		const { eventBus } = new ECSpresso<TestComponents, TestEvents>();
+		const { eventBus } = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents>>();
 		let count = 0;
 		eventBus.once('entityCreated', () => { count++; });
 
@@ -392,7 +401,7 @@ describe('publish correctness', () => {
 	});
 
 	test('handler added during publish does not fire in same publish', () => {
-		const { eventBus } = new ECSpresso<TestComponents, TestEvents>();
+		const { eventBus } = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents>>();
 		let innerCalled = false;
 
 		eventBus.subscribe('entityCreated', () => {
@@ -410,7 +419,7 @@ describe('publish correctness', () => {
 	});
 
 	test('mid-publish unsubscribe of later handler does not crash', () => {
-		const { eventBus } = new ECSpresso<TestComponents, TestEvents>();
+		const { eventBus } = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents>>();
 
 		let laterCalls = 0;
 		const unsubLater = eventBus.subscribe('entityCreated', () => {
@@ -440,7 +449,7 @@ describe('publish correctness', () => {
 	});
 
 	test('multiple once-handlers are all removed after publish', () => {
-		const { eventBus } = new ECSpresso<TestComponents, TestEvents>();
+		const { eventBus } = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents>>();
 		let count1 = 0;
 		let count2 = 0;
 
@@ -466,7 +475,7 @@ describe('publish type safety', () => {
 	}
 
 	test('void events do not require data', () => {
-		const { eventBus } = new ECSpresso<TestComponents, TypeSafetyEvents>();
+		const { eventBus } = new ECSpresso<WorldConfigFrom<TestComponents, TypeSafetyEvents>>();
 		let called = false;
 		eventBus.subscribe('ping', () => { called = true; });
 		eventBus.publish('ping');
@@ -474,7 +483,7 @@ describe('publish type safety', () => {
 	});
 
 	test('undefined events do not require data', () => {
-		const { eventBus } = new ECSpresso<TestComponents, TypeSafetyEvents>();
+		const { eventBus } = new ECSpresso<WorldConfigFrom<TestComponents, TypeSafetyEvents>>();
 		let called = false;
 		eventBus.subscribe('signal', () => { called = true; });
 		eventBus.publish('signal');
@@ -482,21 +491,21 @@ describe('publish type safety', () => {
 	});
 
 	test('payload events require data', () => {
-		const { eventBus } = new ECSpresso<TestComponents, TypeSafetyEvents>();
+		const { eventBus } = new ECSpresso<WorldConfigFrom<TestComponents, TypeSafetyEvents>>();
 		// @ts-expect-error - data is required for hit events
 		eventBus.publish('hit');
 		eventBus.publish('hit', { damage: 10 });
 	});
 
 	test('literal events require data', () => {
-		const { eventBus } = new ECSpresso<TestComponents, TypeSafetyEvents>();
+		const { eventBus } = new ECSpresso<WorldConfigFrom<TestComponents, TypeSafetyEvents>>();
 		// @ts-expect-error - data is required for gameStart events
 		eventBus.publish('gameStart');
 		eventBus.publish('gameStart', true);
 	});
 
 	test('mixed types enforced independently', () => {
-		const { eventBus } = new ECSpresso<TestComponents, TypeSafetyEvents>();
+		const { eventBus } = new ECSpresso<WorldConfigFrom<TestComponents, TypeSafetyEvents>>();
 		eventBus.publish('ping');
 		eventBus.publish('signal');
 		// @ts-expect-error - data is required for hit events
@@ -508,7 +517,7 @@ describe('publish type safety', () => {
 	});
 
 	test('wrong data type is rejected', () => {
-		const { eventBus } = new ECSpresso<TestComponents, TypeSafetyEvents>();
+		const { eventBus } = new ECSpresso<WorldConfigFrom<TestComponents, TypeSafetyEvents>>();
 		// @ts-expect-error - wrong data type for hit
 		eventBus.publish('hit', 'wrong');
 		eventBus.publish('hit', { damage: 1 });

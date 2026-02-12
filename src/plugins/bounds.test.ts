@@ -1,5 +1,6 @@
 import { describe, test, expect } from 'bun:test';
 import ECSpresso from '../ecspresso';
+import type { WorldConfigFrom } from '../type-utils';
 import {
 	createBoundsPlugin,
 	createBounds,
@@ -25,7 +26,7 @@ describe('Bounds Plugin', () => {
 	describe('Destroy out of bounds', () => {
 		test('should remove entity when exiting bounds', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withResource('bounds', createBounds(800, 600))
 				.withPlugin(createTransformPlugin())
 				.withPlugin(createBoundsPlugin())
@@ -43,7 +44,7 @@ describe('Bounds Plugin', () => {
 
 		test('should keep entity when inside bounds', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withResource('bounds', createBounds(800, 600))
 				.withPlugin(createTransformPlugin())
 				.withPlugin(createBoundsPlugin())
@@ -60,7 +61,7 @@ describe('Bounds Plugin', () => {
 
 		test('should respect padding - positive padding extends threshold', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withResource('bounds', createBounds(800, 600))
 				.withPlugin(createTransformPlugin())
 				.withPlugin(createBoundsPlugin())
@@ -85,7 +86,7 @@ describe('Bounds Plugin', () => {
 
 		test('should fire entityOutOfBounds event with correct edge', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withResource('bounds', createBounds(800, 600))
 				.withPlugin(createTransformPlugin())
 				.withPlugin(createBoundsPlugin())
@@ -127,7 +128,7 @@ describe('Bounds Plugin', () => {
 
 		test('should not remove entity when autoRemove is false', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withResource('bounds', createBounds(800, 600))
 				.withPlugin(createTransformPlugin())
 				.withPlugin(createBoundsPlugin({ autoRemove: false }))
@@ -152,7 +153,7 @@ describe('Bounds Plugin', () => {
 	describe('Clamp to bounds', () => {
 		test('should clamp position to stay within bounds', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withResource('bounds', createBounds(800, 600))
 				.withPlugin(createTransformPlugin())
 				.withPlugin(createBoundsPlugin())
@@ -172,7 +173,7 @@ describe('Bounds Plugin', () => {
 
 		test('should clamp negative positions to minimum', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withResource('bounds', createBounds(800, 600))
 				.withPlugin(createTransformPlugin())
 				.withPlugin(createBoundsPlugin())
@@ -192,7 +193,7 @@ describe('Bounds Plugin', () => {
 
 		test('should respect margin - shrinks valid area', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withResource('bounds', createBounds(800, 600))
 				.withPlugin(createTransformPlugin())
 				.withPlugin(createBoundsPlugin())
@@ -212,7 +213,7 @@ describe('Bounds Plugin', () => {
 
 		test('should not change position when already within bounds', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withResource('bounds', createBounds(800, 600))
 				.withPlugin(createTransformPlugin())
 				.withPlugin(createBoundsPlugin())
@@ -234,7 +235,7 @@ describe('Bounds Plugin', () => {
 	describe('Wrap at bounds', () => {
 		test('should wrap to opposite edge when exiting right', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withResource('bounds', createBounds(800, 600))
 				.withPlugin(createTransformPlugin())
 				.withPlugin(createBoundsPlugin())
@@ -254,7 +255,7 @@ describe('Bounds Plugin', () => {
 
 		test('should wrap to opposite edge when exiting left', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withResource('bounds', createBounds(800, 600))
 				.withPlugin(createTransformPlugin())
 				.withPlugin(createBoundsPlugin())
@@ -274,7 +275,7 @@ describe('Bounds Plugin', () => {
 
 		test('should wrap vertically', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withResource('bounds', createBounds(800, 600))
 				.withPlugin(createTransformPlugin())
 				.withPlugin(createBoundsPlugin())
@@ -294,7 +295,7 @@ describe('Bounds Plugin', () => {
 
 		test('should respect padding for wrap threshold', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withResource('bounds', createBounds(800, 600))
 				.withPlugin(createTransformPlugin())
 				.withPlugin(createBoundsPlugin())
@@ -316,7 +317,7 @@ describe('Bounds Plugin', () => {
 	describe('Custom bounds', () => {
 		test('should use custom x/y offset', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withResource('bounds', createBounds(400, 300, 100, 50))
 				.withPlugin(createTransformPlugin())
 				.withPlugin(createBoundsPlugin())
@@ -340,7 +341,7 @@ describe('Bounds Plugin', () => {
 			}
 
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, CustomResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, CustomResources>>()
 				.withResource('gameBounds', createBounds(800, 600))
 				.withPlugin(createTransformPlugin())
 				.withPlugin(createBoundsPlugin({ boundsResourceKey: 'gameBounds' }))
@@ -403,7 +404,7 @@ describe('Bounds Plugin', () => {
 	describe('Change detection', () => {
 		test('should mark localTransform when clamped', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withResource('bounds', createBounds(800, 600))
 				.withPlugin(createTransformPlugin())
 				.withPlugin(createBoundsPlugin())
@@ -423,7 +424,7 @@ describe('Bounds Plugin', () => {
 
 		test('should NOT mark localTransform when entity is within bounds', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withResource('bounds', createBounds(800, 600))
 				.withPlugin(createTransformPlugin())
 				.withPlugin(createBoundsPlugin())
@@ -449,7 +450,7 @@ describe('Bounds Plugin', () => {
 
 		test('should mark localTransform when wrapped', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withResource('bounds', createBounds(800, 600))
 				.withPlugin(createTransformPlugin())
 				.withPlugin(createBoundsPlugin())
@@ -472,7 +473,7 @@ describe('Bounds Plugin', () => {
 		test('should work with physics plugin', () => {
 			const fixedDt = 1 / 60;
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withResource('bounds', createBounds(800, 600))
 				.withPlugin(createTransformPlugin())
 				.withPlugin(createPhysics2DPlugin())

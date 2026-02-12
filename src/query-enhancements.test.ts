@@ -1,6 +1,7 @@
 import { expect, describe, test } from 'bun:test';
 import ECSpresso from './ecspresso';
 import { createQueryDefinition, type QueryResultEntity } from './types';
+import type { WorldConfigFrom } from './type-utils';
 
 interface TestComponents {
 	position: { x: number; y: number };
@@ -17,7 +18,7 @@ interface TestComponents {
 
 describe('Optional Components', () => {
 	test('entity with optional component present returns its value', () => {
-		const world = new ECSpresso<TestComponents>();
+		const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 		const results: Array<{ pos: { x: number; y: number }; hp: { value: number } | undefined }> = [];
 
 		world.addSystem('test')
@@ -43,7 +44,7 @@ describe('Optional Components', () => {
 	});
 
 	test('entity without optional component returns undefined', () => {
-		const world = new ECSpresso<TestComponents>();
+		const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 		const results: Array<{ pos: { x: number; y: number }; hp: { value: number } | undefined }> = [];
 
 		world.addSystem('test')
@@ -69,7 +70,7 @@ describe('Optional Components', () => {
 	});
 
 	test('optional does NOT affect matching - entity without optional still appears', () => {
-		const world = new ECSpresso<TestComponents>();
+		const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 		const matched: number[] = [];
 
 		world.addSystem('test')
@@ -91,7 +92,7 @@ describe('Optional Components', () => {
 	});
 
 	test('optional component type is T | undefined (type-level check)', () => {
-		const world = new ECSpresso<TestComponents>();
+		const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 
 		world.addSystem('test')
 			.addQuery('entities', {
@@ -136,7 +137,7 @@ describe('Optional Components', () => {
 describe('Singleton Queries', () => {
 	describe('getSingleton', () => {
 		test('returns the entity when exactly 1 match', () => {
-			const world = new ECSpresso<TestComponents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 			const entity = world.spawn({ position: { x: 5, y: 10 }, tag: 'player' });
 
 			const result = world.getSingleton(['position', 'tag']);
@@ -146,13 +147,13 @@ describe('Singleton Queries', () => {
 		});
 
 		test('throws when 0 matches', () => {
-			const world = new ECSpresso<TestComponents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 
 			expect(() => world.getSingleton(['position', 'tag'])).toThrow();
 		});
 
 		test('throws when >1 matches', () => {
-			const world = new ECSpresso<TestComponents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 			world.spawn({ position: { x: 0, y: 0 }, tag: 'a' });
 			world.spawn({ position: { x: 1, y: 1 }, tag: 'b' });
 
@@ -160,7 +161,7 @@ describe('Singleton Queries', () => {
 		});
 
 		test('supports without filter', () => {
-			const world = new ECSpresso<TestComponents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 			world.spawn({ position: { x: 0, y: 0 }, dead: true });
 			const alive = world.spawn({ position: { x: 1, y: 1 } });
 
@@ -171,7 +172,7 @@ describe('Singleton Queries', () => {
 
 	describe('tryGetSingleton', () => {
 		test('returns entity when exactly 1 match', () => {
-			const world = new ECSpresso<TestComponents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 			const entity = world.spawn({ position: { x: 5, y: 10 } });
 
 			const result = world.tryGetSingleton(['position']);
@@ -180,14 +181,14 @@ describe('Singleton Queries', () => {
 		});
 
 		test('returns undefined when 0 matches', () => {
-			const world = new ECSpresso<TestComponents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 
 			const result = world.tryGetSingleton(['position']);
 			expect(result).toBeUndefined();
 		});
 
 		test('throws when >1 matches', () => {
-			const world = new ECSpresso<TestComponents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 			world.spawn({ position: { x: 0, y: 0 } });
 			world.spawn({ position: { x: 1, y: 1 } });
 
@@ -195,7 +196,7 @@ describe('Singleton Queries', () => {
 		});
 
 		test('correct type narrowing on returned entity', () => {
-			const world = new ECSpresso<TestComponents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 			world.spawn({ position: { x: 5, y: 10 }, velocity: { x: 1, y: 1 } });
 
 			const result = world.getSingleton(['position', 'velocity']);
@@ -212,7 +213,7 @@ describe('Singleton Queries', () => {
 
 describe('parentHas Relationship Queries', () => {
 	test('only entities whose parent has specified components match', () => {
-		const world = new ECSpresso<TestComponents>();
+		const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 		const matched: number[] = [];
 
 		world.addSystem('test')
@@ -234,7 +235,7 @@ describe('parentHas Relationship Queries', () => {
 	});
 
 	test('entity with no parent excluded', () => {
-		const world = new ECSpresso<TestComponents>();
+		const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 		const matched: number[] = [];
 
 		world.addSystem('test')
@@ -256,7 +257,7 @@ describe('parentHas Relationship Queries', () => {
 	});
 
 	test('entity whose parent lacks component excluded', () => {
-		const world = new ECSpresso<TestComponents>();
+		const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 		const matched: number[] = [];
 
 		world.addSystem('test')
@@ -279,7 +280,7 @@ describe('parentHas Relationship Queries', () => {
 	});
 
 	test('multiple parentHas components require ALL present on parent', () => {
-		const world = new ECSpresso<TestComponents>();
+		const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 		const matched: number[] = [];
 
 		world.addSystem('test')
@@ -306,7 +307,7 @@ describe('parentHas Relationship Queries', () => {
 	});
 
 	test('combined with with/without filters', () => {
-		const world = new ECSpresso<TestComponents>();
+		const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 		const matched: number[] = [];
 
 		world.addSystem('test')
@@ -334,7 +335,7 @@ describe('parentHas Relationship Queries', () => {
 	});
 
 	test('grandparent components NOT checked (direct parent only)', () => {
-		const world = new ECSpresso<TestComponents>();
+		const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 		const matched: number[] = [];
 
 		world.addSystem('test')
@@ -358,7 +359,7 @@ describe('parentHas Relationship Queries', () => {
 	});
 
 	test('works through addQuery in system builder', () => {
-		const world = new ECSpresso<TestComponents>();
+		const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 		const matched: number[] = [];
 
 		world.addSystem('test')
@@ -381,7 +382,7 @@ describe('parentHas Relationship Queries', () => {
 
 	describe('reactive query integration', () => {
 		test('onEnter fires when spawned as child of qualifying parent', () => {
-			const world = new ECSpresso<TestComponents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 			const entered: number[] = [];
 
 			world.addReactiveQuery('children', {
@@ -397,7 +398,7 @@ describe('parentHas Relationship Queries', () => {
 		});
 
 		test('onEnter fires when reparented to qualifying parent', () => {
-			const world = new ECSpresso<TestComponents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 			const entered: number[] = [];
 
 			world.addReactiveQuery('children', {
@@ -415,7 +416,7 @@ describe('parentHas Relationship Queries', () => {
 		});
 
 		test('onExit fires when orphaned', () => {
-			const world = new ECSpresso<TestComponents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 			const exited: number[] = [];
 
 			world.addReactiveQuery('children', {
@@ -432,7 +433,7 @@ describe('parentHas Relationship Queries', () => {
 		});
 
 		test('onExit fires when parent loses required component', () => {
-			const world = new ECSpresso<TestComponents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 			const exited: number[] = [];
 
 			world.addReactiveQuery('children', {
@@ -449,7 +450,7 @@ describe('parentHas Relationship Queries', () => {
 		});
 
 		test('onEnter fires when parent gains required component', () => {
-			const world = new ECSpresso<TestComponents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 			const entered: number[] = [];
 
 			world.addReactiveQuery('children', {

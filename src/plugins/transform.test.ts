@@ -1,5 +1,6 @@
 import { describe, test, expect } from 'bun:test';
 import ECSpresso from '../ecspresso';
+import type { WorldConfigFrom } from '../type-utils';
 import {
 	createTransformPlugin,
 	createTransform,
@@ -20,7 +21,7 @@ describe('Transform Plugin', () => {
 	describe('Transform propagation', () => {
 		test('should copy local transform to world transform for root entities', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withPlugin(createTransformPlugin())
 				.build();
 
@@ -40,7 +41,7 @@ describe('Transform Plugin', () => {
 
 		test('should combine transforms for child entities', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withPlugin(createTransformPlugin())
 				.build();
 
@@ -61,7 +62,7 @@ describe('Transform Plugin', () => {
 
 		test('should apply parent scale to child position', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withPlugin(createTransformPlugin())
 				.build();
 
@@ -84,7 +85,7 @@ describe('Transform Plugin', () => {
 
 		test('should apply parent rotation to child position', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withPlugin(createTransformPlugin())
 				.build();
 
@@ -107,7 +108,7 @@ describe('Transform Plugin', () => {
 
 		test('should propagate through multiple levels', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withPlugin(createTransformPlugin())
 				.build();
 
@@ -198,7 +199,7 @@ describe('Transform Plugin', () => {
 	describe('Plugin options', () => {
 		test('should use custom system group', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withPlugin(createTransformPlugin({ systemGroup: 'custom-transform' }))
 				.build();
 
@@ -233,7 +234,7 @@ describe('Transform Plugin', () => {
 	describe('Change detection', () => {
 		test('should propagate worldTransform when localTransform changed between updates', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withPlugin(createTransformPlugin())
 				.build();
 
@@ -258,7 +259,7 @@ describe('Transform Plugin', () => {
 
 		test('should propagate unconditionally even when localTransform not explicitly marked', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withPlugin(createTransformPlugin())
 				.build();
 
@@ -283,7 +284,7 @@ describe('Transform Plugin', () => {
 
 		test('should propagate entities spawned before first update', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withPlugin(createTransformPlugin())
 				.build();
 
@@ -302,7 +303,7 @@ describe('Transform Plugin', () => {
 
 		test('should cascade: parent moved → child worldTransform updated', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withPlugin(createTransformPlugin())
 				.build();
 
@@ -327,7 +328,7 @@ describe('Transform Plugin', () => {
 
 		test('should cascade unconditionally: child worldTransform recomputed every frame', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withPlugin(createTransformPlugin())
 				.build();
 
@@ -353,7 +354,7 @@ describe('Transform Plugin', () => {
 	describe('Cross-phase change detection', () => {
 		test('should propagate localTransform marked in update phase to postUpdate phase', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withPlugin(createTransformPlugin())
 				.build();
 
@@ -385,7 +386,7 @@ describe('Transform Plugin', () => {
 	describe('Orphaned entities', () => {
 		test('should handle entities not in hierarchy', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withPlugin(createTransformPlugin())
 				.build();
 

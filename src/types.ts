@@ -1,4 +1,5 @@
 import ECSpresso from "./ecspresso";
+import type { WorldConfig, EmptyConfig, WorldConfigFrom } from "./type-utils";
 
 /**
  * Execution phase for systems. Systems are grouped by phase and executed
@@ -170,13 +171,9 @@ export function createQueryDefinition<
 
 export
 interface System<
-	ComponentTypes extends Record<string, any> = {},
-	WithComponents extends keyof ComponentTypes = never,
-	WithoutComponents extends keyof ComponentTypes = never,
-	EventTypes extends Record<string, any> = {},
-	ResourceTypes extends Record<string, any> = {},
-	AssetTypes extends Record<string, unknown> = {},
-	ScreenStates extends Record<string, any> = {},
+	Cfg extends WorldConfig = EmptyConfig,
+	WithComponents extends keyof Cfg['components'] = never,
+	WithoutComponents extends keyof Cfg['components'] = never,
 > {
 	label: string;
 	/**
@@ -198,17 +195,17 @@ interface System<
 	 * Screens where this system should run. If specified, system only runs
 	 * when current screen is in this list.
 	 */
-	inScreens?: ReadonlyArray<keyof ScreenStates & string>;
+	inScreens?: ReadonlyArray<keyof Cfg['screens'] & string>;
 	/**
 	 * Screens where this system should NOT run. If specified, system skips
 	 * when current screen is in this list.
 	 */
-	excludeScreens?: ReadonlyArray<keyof ScreenStates & string>;
+	excludeScreens?: ReadonlyArray<keyof Cfg['screens'] & string>;
 	/**
 	 * Assets that must be loaded for this system to run.
 	 * System will be skipped if any required asset is not loaded.
 	 */
-	requiredAssets?: ReadonlyArray<keyof AssetTypes & string>;
+	requiredAssets?: ReadonlyArray<keyof Cfg['assets'] & string>;
 	/**
 	 * When true, the system's process function runs even when all queries
 	 * return zero entities. Default is false (system is skipped when all
@@ -216,7 +213,7 @@ interface System<
 	 */
 	runWhenEmpty?: boolean;
 	entityQueries?: {
-		[queryName: string]: QueryConfig<ComponentTypes, WithComponents, WithoutComponents>;
+		[queryName: string]: QueryConfig<Cfg['components'], WithComponents, WithoutComponents>;
 	};
 	/**
 	 * Process method that runs during each update cycle
@@ -226,16 +223,10 @@ interface System<
 	 */
 	process?(
 		queries: {
-			[queryName: string]: Array<FilteredEntity<ComponentTypes, WithComponents, WithoutComponents>>;
-		} | Array<FilteredEntity<ComponentTypes, WithComponents, WithoutComponents>>,
+			[queryName: string]: Array<FilteredEntity<Cfg['components'], WithComponents, WithoutComponents>>;
+		} | Array<FilteredEntity<Cfg['components'], WithComponents, WithoutComponents>>,
 		deltaTime: number,
-		ecs: ECSpresso<
-			ComponentTypes,
-			EventTypes,
-			ResourceTypes,
-			AssetTypes,
-			ScreenStates
-		>
+		ecs: ECSpresso<Cfg>
 	): void;
 
 	/**
@@ -245,13 +236,7 @@ interface System<
 	 * @param ecs The ECSpresso instance providing access to all ECS functionality
 	 */
 	onInitialize?(
-		ecs: ECSpresso<
-			ComponentTypes,
-			EventTypes,
-			ResourceTypes,
-			AssetTypes,
-			ScreenStates
-		>
+		ecs: ECSpresso<Cfg>
 	): void | Promise<void>;
 
 	/**
@@ -259,13 +244,7 @@ interface System<
 	 * @param ecs The ECSpresso instance providing access to all ECS functionality
 	 */
 	onDetach?(
-		ecs: import("./ecspresso").default<
-			ComponentTypes,
-			EventTypes,
-			ResourceTypes,
-			AssetTypes,
-			ScreenStates
-		>
+		ecs: import("./ecspresso").default<Cfg>
 	): void;
 
 	/**
@@ -274,21 +253,15 @@ interface System<
 	 * entity leaves query (component removed, entity destroyed) so re-entry
 	 * fires the callback again.
 	 */
-	onEntityEnter?: Record<string, (entity: FilteredEntity<ComponentTypes, WithComponents, WithoutComponents>, ecs: ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>) => void>;
+	onEntityEnter?: Record<string, (entity: FilteredEntity<Cfg['components'], WithComponents, WithoutComponents>, ecs: ECSpresso<Cfg>) => void>;
 
 	/**
 	 * Event handlers for specific event types
 	 */
 	eventHandlers?: {
-		[EventName in keyof EventTypes]?: (
-			data: EventTypes[EventName],
-			ecs: ECSpresso<
-				ComponentTypes,
-				EventTypes,
-				ResourceTypes,
-				AssetTypes,
-				ScreenStates
-			>
+		[EventName in keyof Cfg['events']]?: (
+			data: Cfg['events'][EventName],
+			ecs: ECSpresso<Cfg>
 		) => void;
 	};
 }
@@ -301,9 +274,10 @@ interface System<
  * widened, then Pick'd to the members plugins use. Method signatures stay in sync
  * with the source classes automatically; the member name lists are the only manual part.
  */
-type _Ecs = ECSpresso<Record<string, any>, Record<string, any>, Record<string, any>, Record<string, any>, Record<string, any>>;
+type _WidenedCfg = WorldConfigFrom<Record<string, any>, Record<string, any>, Record<string, any>, Record<string, unknown>, Record<string, any>>;
+type _Ecs = ECSpresso<_WidenedCfg>;
 type _EventBus = import("./event-bus").default<Record<string, any>>;
-type _CommandBuffer = import("./command-buffer").default<Record<string, any>, Record<string, any>, Record<string, any>, Record<string, any>, Record<string, any>>;
+type _CommandBuffer = import("./command-buffer").default<_WidenedCfg>;
 export type BaseWorld = Pick<_Ecs,
 	| 'getComponent'
 	| 'hasComponent'
@@ -318,4 +292,4 @@ export type BaseWorld = Pick<_Ecs,
 };
 
 // Re-export utility types from type-utils
-export type { Merge, MergeAll, TypesAreCompatible, ComponentsOf, EventsOf, ResourcesOf, LabelsOf, GroupsOf, AssetGroupNamesOf, ReactiveQueryNamesOf, AssetTypesOf, ScreenStatesOf, ComponentsOfWorld, EventsOfWorld, AssetsOfWorld, ScreenStatesOfWorld, AnyECSpresso, AnyPlugin, EventNameMatching, ChannelOfWorld } from './type-utils';
+export type { Merge, MergeAll, TypesAreCompatible, ComponentsOf, EventsOf, ResourcesOf, LabelsOf, GroupsOf, AssetGroupNamesOf, ReactiveQueryNamesOf, AssetTypesOf, ScreenStatesOf, ComponentsOfWorld, EventsOfWorld, AssetsOfWorld, ScreenStatesOfWorld, AnyECSpresso, AnyPlugin, EventNameMatching, ChannelOfWorld, WorldConfig, EmptyConfig, WorldConfigFrom, MergeConfigs, ConfigsAreCompatible, ConfigOf, WithComponents, WithEvents, WithResources, WithAssets, WithScreens } from './type-utils';

@@ -1,5 +1,6 @@
 import { describe, test, expect } from 'bun:test';
 import ECSpresso from '../ecspresso';
+import type { WorldConfigFrom } from '../type-utils';
 import {
 	createInputPlugin,
 	createActionBinding,
@@ -16,13 +17,16 @@ interface TestResources extends InputResourceTypes {}
 function createWorld(options?: { actions?: ActionMap; target?: EventTarget }) {
 	const target = options?.target ?? new EventTarget();
 	const ecs = ECSpresso
-		.create<TestComponents, TestEvents, TestResources>()
+		.create()
+		.withComponentTypes<TestComponents>()
+		.withEventTypes<TestEvents>()
+		.withResourceTypes<TestResources>()
 		.withPlugin(createInputPlugin({ target, actions: options?.actions }))
 		.build();
 	return { ecs, target };
 }
 
-async function initAndUpdate(ecs: ECSpresso<TestComponents, TestEvents, TestResources>, dt = 0.016) {
+async function initAndUpdate(ecs: ECSpresso<WorldConfigFrom<TestComponents, TestEvents, TestResources>>, dt = 0.016) {
 	await ecs.initialize();
 	ecs.update(dt);
 }
@@ -371,7 +375,10 @@ describe('Input Plugin', () => {
 		test('listeners removed on system removal', async () => {
 			const target = new EventTarget();
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create()
+				.withComponentTypes<TestComponents>()
+				.withEventTypes<TestEvents>()
+				.withResourceTypes<TestResources>()
 				.withPlugin(createInputPlugin({ target }))
 				.build();
 
@@ -394,7 +401,10 @@ describe('Input Plugin', () => {
 		test('default options work', async () => {
 			const target = new EventTarget();
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create()
+				.withComponentTypes<TestComponents>()
+				.withEventTypes<TestEvents>()
+				.withResourceTypes<TestResources>()
 				.withPlugin(createInputPlugin({ target }))
 				.build();
 
@@ -409,7 +419,10 @@ describe('Input Plugin', () => {
 		test('custom group/priority/phase', async () => {
 			const target = new EventTarget();
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create()
+				.withComponentTypes<TestComponents>()
+				.withEventTypes<TestEvents>()
+				.withResourceTypes<TestResources>()
 				.withPlugin(createInputPlugin({
 					target,
 					systemGroup: 'custom-input',

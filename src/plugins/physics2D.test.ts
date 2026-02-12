@@ -1,5 +1,6 @@
 import { describe, test, expect } from 'bun:test';
 import ECSpresso from '../ecspresso';
+import type { WorldConfigFrom } from '../type-utils';
 import { createTransform, createTransformPlugin } from './transform';
 import {
 	createAABBCollider,
@@ -36,7 +37,7 @@ const FIXED_DT = 1 / 60;
 
 function createEcs(options?: { gravity?: { x: number; y: number }; systemGroup?: string }) {
 	return ECSpresso
-		.create<TestComponents, TestEvents, TestResources>()
+		.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 		.withPlugin(createTransformPlugin())
 		.withPlugin(createPhysics2DPlugin({ ...options, layers: defaultLayers }))
 		.withFixedTimestep(FIXED_DT)
@@ -953,7 +954,7 @@ describe('Physics 2D Plugin', () => {
 
 		test('custom system group', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withPlugin(createTransformPlugin())
 				.withPlugin(createPhysics2DPlugin({ gravity: { x: 0, y: 100 }, systemGroup: 'custom-physics', layers: defaultLayers }))
 				.withFixedTimestep(FIXED_DT)

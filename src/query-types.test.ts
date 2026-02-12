@@ -1,6 +1,7 @@
 import { expect, describe, test } from 'bun:test';
 import ECSpresso from './ecspresso';
 import { QueryResultEntity, createQueryDefinition } from './types';
+import type { WorldConfigFrom } from './type-utils';
 
 interface Components {
 	position: { x: number; y: number };
@@ -39,7 +40,7 @@ describe('Query Type Utilities', () => {
 		}
 
 		// Create an ECS world and test the integration
-		const world = new ECSpresso<Components>();
+		const world = new ECSpresso<WorldConfigFrom<Components>>();
 
 		world.addSystem('movement')
 			.addQuery('entities', movingEntitiesQuery)
@@ -92,7 +93,7 @@ describe('Query Type Utilities', () => {
 			return { pos, sprite, isPlayer };
 		}
 
-		const world = new ECSpresso<Components>();
+		const world = new ECSpresso<WorldConfigFrom<Components>>();
 
 		world.addSystem('playerRenderer')
 			.addQuery('players', playerQuery)

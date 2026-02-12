@@ -23,31 +23,113 @@ export type TypesAreCompatible<T extends Record<string, any>, U extends Record<s
 			? false
 			: true;
 
+// ==================== WorldConfig ====================
+
 /**
- * Plugin compatibility checker.
- * Returns true if plugins can be merged without type conflicts.
- * All overlapping keys across all type categories must have identical types.
+ * Single config object that bundles all 5 world type dimensions.
+ * Replaces the 5 positional type params (ComponentTypes, EventTypes,
+ * ResourceTypes, AssetTypes, ScreenStates) throughout the codebase.
  */
-export type PluginsAreCompatible<
-	C1 extends Record<string, any>,
-	C2 extends Record<string, any>,
-	E1 extends Record<string, any>,
-	E2 extends Record<string, any>,
-	R1 extends Record<string, any>,
-	R2 extends Record<string, any>,
-	A1 extends Record<string, unknown> = {},
-	A2 extends Record<string, unknown> = {},
-	S1 extends Record<string, any> = {},
-	S2 extends Record<string, any> = {},
-> = TypesAreCompatible<C1, C2> extends true
-	? TypesAreCompatible<E1, E2> extends true
-		? TypesAreCompatible<R1, R2> extends true
-			? TypesAreCompatible<A1, A2> extends true
-				? TypesAreCompatible<S1, S2>
+export interface WorldConfig {
+	readonly components: Record<string, any>;
+	readonly events: Record<string, any>;
+	readonly resources: Record<string, any>;
+	readonly assets: Record<string, unknown>;
+	readonly screens: Record<string, ScreenDefinition<any, any>>;
+}
+
+/**
+ * Construct a WorldConfig from individual type dimensions.
+ * All parameters default to empty records.
+ */
+export type WorldConfigFrom<
+	C extends Record<string, any> = {},
+	E extends Record<string, any> = {},
+	R extends Record<string, any> = {},
+	A extends Record<string, unknown> = {},
+	S extends Record<string, ScreenDefinition<any, any>> = {},
+> = {
+	readonly components: C;
+	readonly events: E;
+	readonly resources: R;
+	readonly assets: A;
+	readonly screens: S;
+};
+
+/**
+ * Empty WorldConfig with all slots defaulting to {}.
+ */
+export type EmptyConfig = WorldConfigFrom;
+
+/**
+ * Merge two WorldConfig types by intersecting each slot.
+ */
+export type MergeConfigs<A extends WorldConfig, B extends WorldConfig> = {
+	readonly components: A['components'] & B['components'];
+	readonly events: A['events'] & B['events'];
+	readonly resources: A['resources'] & B['resources'];
+	readonly assets: A['assets'] & B['assets'];
+	readonly screens: A['screens'] & B['screens'];
+};
+
+// ==================== Per-slot replacement helpers ====================
+
+export type WithComponents<Cfg extends WorldConfig, T> = {
+	readonly components: Cfg['components'] & T;
+	readonly events: Cfg['events'];
+	readonly resources: Cfg['resources'];
+	readonly assets: Cfg['assets'];
+	readonly screens: Cfg['screens'];
+};
+
+export type WithEvents<Cfg extends WorldConfig, T> = {
+	readonly components: Cfg['components'];
+	readonly events: Cfg['events'] & T;
+	readonly resources: Cfg['resources'];
+	readonly assets: Cfg['assets'];
+	readonly screens: Cfg['screens'];
+};
+
+export type WithResources<Cfg extends WorldConfig, T> = {
+	readonly components: Cfg['components'];
+	readonly events: Cfg['events'];
+	readonly resources: Cfg['resources'] & T;
+	readonly assets: Cfg['assets'];
+	readonly screens: Cfg['screens'];
+};
+
+export type WithAssets<Cfg extends WorldConfig, T> = {
+	readonly components: Cfg['components'];
+	readonly events: Cfg['events'];
+	readonly resources: Cfg['resources'];
+	readonly assets: Cfg['assets'] & T;
+	readonly screens: Cfg['screens'];
+};
+
+export type WithScreens<Cfg extends WorldConfig, T> = {
+	readonly components: Cfg['components'];
+	readonly events: Cfg['events'];
+	readonly resources: Cfg['resources'];
+	readonly assets: Cfg['assets'];
+	readonly screens: Cfg['screens'] & T;
+};
+
+// ==================== Config Compatibility ====================
+
+/**
+ * Check if two WorldConfig types are compatible (no conflicting keys
+ * across any slot).
+ */
+export type ConfigsAreCompatible<A extends WorldConfig, B extends WorldConfig> =
+	TypesAreCompatible<A['components'], B['components']> extends true
+		? TypesAreCompatible<A['events'], B['events']> extends true
+			? TypesAreCompatible<A['resources'], B['resources']> extends true
+				? TypesAreCompatible<A['assets'], B['assets']> extends true
+					? TypesAreCompatible<A['screens'], B['screens']>
+					: false
 				: false
 			: false
-		: false
-	: false;
+		: false;
 
 /**
  * Utility type for merging two types
@@ -67,57 +149,70 @@ export type MergeAll<T extends any[]> = T extends [infer First, ...infer Rest] ?
 /**
  * Wildcard ECSpresso type that any concrete instance is assignable to.
  * Use as a generic constraint for functions that accept any ECSpresso world.
- * Matches the phantom type properties declared on the ECSpresso class.
+ * Matches the phantom _cfg property declared on the ECSpresso class.
  */
 export type AnyECSpresso = {
-	readonly _componentTypes: any;
-	readonly _eventTypes: any;
-	readonly _resourceTypes: any;
-	readonly _assetTypes: any;
-	readonly _screenStates: any;
+	readonly _cfg: WorldConfig;
 };
 
 /**
  * Wildcard Plugin type that any concrete plugin is assignable to.
- * Matches the phantom type properties declared on the Plugin interface.
+ * Matches the phantom _cfg property declared on the Plugin interface.
  */
 export type AnyPlugin = {
-	readonly _componentTypes?: any;
-	readonly _eventTypes?: any;
-	readonly _resourceTypes?: any;
-	readonly _assetTypes?: any;
-	readonly _screenStates?: any;
+	readonly _cfg?: WorldConfig;
 };
 
 // ==================== Structural Type Extraction ====================
-// These use phantom type properties for positional-independence.
+// These use the phantom _cfg property for positional-independence.
 // Works for both Plugin and ECSpresso instances since both declare
-// the same phantom properties.
+// the same phantom property.
+
+/**
+ * Extract the full WorldConfig from a Plugin or ECSpresso instance
+ */
+export type ConfigOf<B> =
+	B extends { readonly _cfg: infer Cfg extends WorldConfig } ? Cfg : never;
 
 /**
  * Extract the ComponentTypes from a Plugin or ECSpresso instance
  */
-export type ComponentsOf<B> = B extends { readonly _componentTypes: infer C extends Record<string, any> } ? C : B extends { readonly _componentTypes?: infer C extends Record<string, any> } ? C : never;
+export type ComponentsOf<B> =
+	B extends { readonly _cfg: { components: infer C extends Record<string, any> } } ? C :
+	B extends { readonly _cfg?: { components: infer C extends Record<string, any> } } ? C :
+	never;
 
 /**
  * Extract the EventTypes from a Plugin or ECSpresso instance
  */
-export type EventsOf<B> = B extends { readonly _eventTypes: infer E extends Record<string, any> } ? E : B extends { readonly _eventTypes?: infer E extends Record<string, any> } ? E : never;
+export type EventsOf<B> =
+	B extends { readonly _cfg: { events: infer E extends Record<string, any> } } ? E :
+	B extends { readonly _cfg?: { events: infer E extends Record<string, any> } } ? E :
+	never;
 
 /**
  * Extract the ResourceTypes from a Plugin or ECSpresso instance
  */
-export type ResourcesOf<B> = B extends { readonly _resourceTypes: infer R extends Record<string, any> } ? R : B extends { readonly _resourceTypes?: infer R extends Record<string, any> } ? R : never;
+export type ResourcesOf<B> =
+	B extends { readonly _cfg: { resources: infer R extends Record<string, any> } } ? R :
+	B extends { readonly _cfg?: { resources: infer R extends Record<string, any> } } ? R :
+	never;
 
 /**
  * Extract AssetTypes from a Plugin or ECSpresso instance
  */
-export type AssetTypesOf<B> = B extends { readonly _assetTypes: infer A extends Record<string, unknown> } ? A : B extends { readonly _assetTypes?: infer A extends Record<string, unknown> } ? A : never;
+export type AssetTypesOf<B> =
+	B extends { readonly _cfg: { assets: infer A extends Record<string, unknown> } } ? A :
+	B extends { readonly _cfg?: { assets: infer A extends Record<string, unknown> } } ? A :
+	never;
 
 /**
  * Extract ScreenStates from a Plugin or ECSpresso instance
  */
-export type ScreenStatesOf<B> = B extends { readonly _screenStates: infer S extends Record<string, ScreenDefinition<any, any>> } ? S : B extends { readonly _screenStates?: infer S extends Record<string, ScreenDefinition<any, any>> } ? S : never;
+export type ScreenStatesOf<B> =
+	B extends { readonly _cfg: { screens: infer S extends Record<string, ScreenDefinition<any, any>> } } ? S :
+	B extends { readonly _cfg?: { screens: infer S extends Record<string, ScreenDefinition<any, any>> } } ? S :
+	never;
 
 // ==================== Phantom Type Extraction ====================
 // These use phantom type properties for Labels, Groups, AssetGroupNames,
@@ -146,27 +241,27 @@ export type ReactiveQueryNamesOf<B> = B extends { readonly _reactiveQueryNames?:
 // ==================== World Type Extraction ====================
 // Convenience aliases that read better for ECSpresso world instances.
 // Structurally identical to the *Of types above since both classes
-// share the same phantom properties.
+// share the same phantom property.
 
 /**
  * Extract ComponentTypes from an ECSpresso world instance type.
  */
-export type ComponentsOfWorld<W> = W extends { readonly _componentTypes: infer C extends Record<string, any> } ? C : never;
+export type ComponentsOfWorld<W> = W extends { readonly _cfg: { components: infer C extends Record<string, any> } } ? C : never;
 
 /**
  * Extract EventTypes from an ECSpresso world instance type.
  */
-export type EventsOfWorld<W> = W extends { readonly _eventTypes: infer E extends Record<string, any> } ? E : never;
+export type EventsOfWorld<W> = W extends { readonly _cfg: { events: infer E extends Record<string, any> } } ? E : never;
 
 /**
  * Extract AssetTypes from an ECSpresso world instance type.
  */
-export type AssetsOfWorld<W> = W extends { readonly _assetTypes: infer A extends Record<string, unknown> } ? A : never;
+export type AssetsOfWorld<W> = W extends { readonly _cfg: { assets: infer A extends Record<string, unknown> } } ? A : never;
 
 /**
  * Extract ScreenStates from an ECSpresso world instance type
  */
-export type ScreenStatesOfWorld<W> = W extends { readonly _screenStates: infer S extends Record<string, ScreenDefinition<any, any>> } ? S : never;
+export type ScreenStatesOfWorld<W> = W extends { readonly _cfg: { screens: infer S extends Record<string, ScreenDefinition<any, any>> } } ? S : never;
 
 // ==================== Event Type Utilities ====================
 
@@ -191,6 +286,6 @@ export type EventNameMatching<ET extends Record<string, any>, Payload> = {
  * Falls back to `string` if the world has no audioSource component.
  */
 export type ChannelOfWorld<W> =
-	W extends { readonly _componentTypes: { audioSource: { channel: infer Ch extends string } } }
+	W extends { readonly _cfg: { components: { audioSource: { channel: infer Ch extends string } } } }
 		? Ch
 		: string;

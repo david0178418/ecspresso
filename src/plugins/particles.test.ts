@@ -35,7 +35,9 @@ interface TestEvents {
 
 function createTestEcs() {
 	return ECSpresso
-		.create<TestComponents, TestEvents, {}>()
+		.create()
+		.withComponentTypes<TestComponents>()
+		.withEventTypes<TestEvents>()
 		.withPlugin(createParticlePlugin())
 		.build();
 }

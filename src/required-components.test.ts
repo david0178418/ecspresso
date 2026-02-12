@@ -1,6 +1,7 @@
 import { expect, describe, test } from 'bun:test';
 import ECSpresso from './index';
 import { definePlugin } from './plugin';
+import type { WorldConfigFrom } from './type-utils';
 
 interface TestComponents {
 	position: { x: number; y: number };
@@ -217,7 +218,7 @@ describe('Required Components', () => {
 
 	describe('plugin registration', () => {
 		test('should register required components from plugin', () => {
-			const plugin = definePlugin<TestComponents, {}, {}>({
+			const plugin = definePlugin<WorldConfigFrom<TestComponents, {}, {}>>({
 				id: 'test',
 				install(world) {
 					world.registerRequired('position', 'velocity', () => ({ x: 0, y: 0 }));
@@ -234,14 +235,14 @@ describe('Required Components', () => {
 		});
 
 		test('should merge required components from multiple plugins', () => {
-			const plugin1 = definePlugin<Pick<TestComponents, 'position' | 'velocity'>, {}, {}>({
+			const plugin1 = definePlugin<WorldConfigFrom<Pick<TestComponents, 'position' | 'velocity'>, {}, {}>>({
 				id: 'b1',
 				install(world) {
 					world.registerRequired('position', 'velocity', () => ({ x: 0, y: 0 }));
 				},
 			});
 
-			const plugin2 = definePlugin<Pick<TestComponents, 'componentA' | 'componentB'>, {}, {}>({
+			const plugin2 = definePlugin<WorldConfigFrom<Pick<TestComponents, 'componentA' | 'componentB'>, {}, {}>>({
 				id: 'b2',
 				install(world) {
 					world.registerRequired('componentA', 'componentB', () => ({ b: 0 }));
@@ -261,14 +262,14 @@ describe('Required Components', () => {
 		});
 
 		test('should propagate required components through composite plugin', () => {
-			const plugin1 = definePlugin<Pick<TestComponents, 'position' | 'velocity'>, {}, {}>({
+			const plugin1 = definePlugin<WorldConfigFrom<Pick<TestComponents, 'position' | 'velocity'>, {}, {}>>({
 				id: 'b1',
 				install(world) {
 					world.registerRequired('position', 'velocity', () => ({ x: 0, y: 0 }));
 				},
 			});
 
-			const plugin2 = definePlugin<Pick<TestComponents, 'componentA' | 'componentB'>, {}, {}>({
+			const plugin2 = definePlugin<WorldConfigFrom<Pick<TestComponents, 'componentA' | 'componentB'>, {}, {}>>({
 				id: 'b2',
 				install(world) {
 					world.registerRequired('componentA', 'componentB', () => ({ b: 0 }));
@@ -276,7 +277,7 @@ describe('Required Components', () => {
 			});
 
 			const composite = definePlugin<
-				Pick<TestComponents, 'position' | 'velocity' | 'componentA' | 'componentB'>, {}, {}
+				WorldConfigFrom<Pick<TestComponents, 'position' | 'velocity' | 'componentA' | 'componentB'>, {}, {}>
 			>({
 				id: 'composite',
 				install(world) {

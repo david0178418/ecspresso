@@ -1,6 +1,7 @@
 import { expect, describe, test } from 'bun:test';
 import ECSpresso from './ecspresso';
 import type { FilteredEntity } from './types';
+import type { WorldConfigFrom } from './type-utils';
 
 interface TestComponents {
 	position: { x: number; y: number };
@@ -13,7 +14,7 @@ interface TestComponents {
 describe('Reactive Queries', () => {
 	describe('onEnter callback', () => {
 		test('should be called when entity spawned matching query', () => {
-			const world = new ECSpresso<TestComponents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 			const enteredEntities: number[] = [];
 
 			world.addReactiveQuery('moving', {
@@ -32,7 +33,7 @@ describe('Reactive Queries', () => {
 		});
 
 		test('should be called when component added makes entity match', () => {
-			const world = new ECSpresso<TestComponents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 			const enteredEntities: number[] = [];
 
 			world.addReactiveQuery('moving', {
@@ -50,7 +51,7 @@ describe('Reactive Queries', () => {
 		});
 
 		test('should not be called twice for same entity', () => {
-			const world = new ECSpresso<TestComponents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 			let callCount = 0;
 
 			world.addReactiveQuery('positioned', {
@@ -67,7 +68,7 @@ describe('Reactive Queries', () => {
 		});
 
 		test('should receive typed entity with guaranteed components', () => {
-			const world = new ECSpresso<TestComponents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 			let receivedEntity: FilteredEntity<TestComponents, 'position' | 'velocity'> | undefined;
 
 			world.addReactiveQuery('moving', {
@@ -90,7 +91,7 @@ describe('Reactive Queries', () => {
 
 	describe('onExit callback', () => {
 		test('should be called when component removed makes entity stop matching', () => {
-			const world = new ECSpresso<TestComponents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 			const exitedEntityIds: number[] = [];
 
 			world.addReactiveQuery('moving', {
@@ -111,7 +112,7 @@ describe('Reactive Queries', () => {
 		});
 
 		test('should be called when entity is removed', () => {
-			const world = new ECSpresso<TestComponents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 			const exitedEntityIds: number[] = [];
 
 			world.addReactiveQuery('moving', {
@@ -132,7 +133,7 @@ describe('Reactive Queries', () => {
 		});
 
 		test('should receive entityId (not entity object)', () => {
-			const world = new ECSpresso<TestComponents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 			let receivedId: number | undefined;
 
 			world.addReactiveQuery('positioned', {
@@ -151,7 +152,7 @@ describe('Reactive Queries', () => {
 
 	describe('without clause', () => {
 		test('onEnter when excluded component removed', () => {
-			const world = new ECSpresso<TestComponents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 			const enteredEntities: number[] = [];
 
 			world.addReactiveQuery('visible', {
@@ -177,7 +178,7 @@ describe('Reactive Queries', () => {
 		});
 
 		test('onExit when excluded component added', () => {
-			const world = new ECSpresso<TestComponents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 			const exitedEntityIds: number[] = [];
 
 			world.addReactiveQuery('visible', {
@@ -199,7 +200,7 @@ describe('Reactive Queries', () => {
 
 	describe('removeReactiveQuery', () => {
 		test('should stop callbacks after removal', () => {
-			const world = new ECSpresso<TestComponents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 			let callCount = 0;
 
 			world.addReactiveQuery('positioned', {
@@ -217,7 +218,7 @@ describe('Reactive Queries', () => {
 		});
 
 		test('should return true if query existed', () => {
-			const world = new ECSpresso<TestComponents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 
 			world.addReactiveQuery('test', {
 				with: ['position'],
@@ -229,7 +230,7 @@ describe('Reactive Queries', () => {
 		});
 
 		test('should return false if query did not exist', () => {
-			const world = new ECSpresso<TestComponents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 
 			const result = world.removeReactiveQuery('nonExistent');
 			expect(result).toBe(false);
@@ -238,7 +239,7 @@ describe('Reactive Queries', () => {
 
 	describe('integration', () => {
 		test('multiple reactive queries should work independently', () => {
-			const world = new ECSpresso<TestComponents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 			const entered1: number[] = [];
 			const entered2: number[] = [];
 
@@ -264,7 +265,7 @@ describe('Reactive Queries', () => {
 		});
 
 		test('existing matching entities should trigger onEnter when query added', () => {
-			const world = new ECSpresso<TestComponents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 
 			// Spawn entities first
 			const entity1 = world.spawn({ position: { x: 0, y: 0 } });
@@ -285,7 +286,7 @@ describe('Reactive Queries', () => {
 		});
 
 		test('component replaced should NOT trigger enter/exit', () => {
-			const world = new ECSpresso<TestComponents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 			let enterCount = 0;
 			let exitCount = 0;
 

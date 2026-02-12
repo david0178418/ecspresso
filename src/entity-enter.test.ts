@@ -14,16 +14,14 @@ interface TestEvents {
 	damaged: { entityId: number };
 }
 
-interface TestResources {
-	counter: number;
-}
-
 // ==================== Test Helpers ====================
 
 function createTestEcs() {
 	return ECSpresso
-		.create<TestComponents, TestEvents, TestResources>()
-		.withResource('counter', 0)
+		.create()
+		.withComponentTypes<TestComponents>()
+		.withEventTypes<TestEvents>()
+		.withResource('counter', 0 as number)
 		.build();
 }
 

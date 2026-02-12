@@ -1,5 +1,6 @@
 import { describe, test, expect } from 'bun:test';
 import ECSpresso from '../ecspresso';
+import type { WorldConfigFrom } from '../type-utils';
 import { createTimer, createRepeatingTimer, createTimerPlugin, type TimerEventData } from './timers';
 
 interface TestComponents {
@@ -20,7 +21,7 @@ describe('Timer Events', () => {
 	describe('One-Shot Timers with Events', () => {
 		test('should fire callback when timer completes', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withPlugin(createTimerPlugin())
 				.build();
 
@@ -55,7 +56,7 @@ describe('Timer Events', () => {
 
 		test('should fire callback only once for one-shot timer', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withPlugin(createTimerPlugin())
 				.build();
 
@@ -84,7 +85,7 @@ describe('Timer Events', () => {
 
 		test('should include timer metadata in callback data', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withPlugin(createTimerPlugin())
 				.build();
 
@@ -114,7 +115,7 @@ describe('Timer Events', () => {
 	describe('Repeating Timers with Events', () => {
 		test('should fire callback on each cycle for repeating timers', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withPlugin(createTimerPlugin())
 				.build();
 
@@ -146,7 +147,7 @@ describe('Timer Events', () => {
 
 		test('should preserve overflow time when firing repeating timer callbacks', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withPlugin(createTimerPlugin())
 				.build();
 
@@ -176,7 +177,7 @@ describe('Timer Events', () => {
 	describe('Multiple Timers with Callbacks', () => {
 		test('should allow multiple timers with independent callbacks', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withPlugin(createTimerPlugin())
 				.build();
 
@@ -238,7 +239,7 @@ describe('Timer Events', () => {
 	describe('Timers Without Events', () => {
 		test('should work normally when onComplete is not specified', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withPlugin(createTimerPlugin())
 				.build();
 
@@ -262,7 +263,7 @@ describe('Timer Events', () => {
 
 		test('should work with createTimer helper without callback', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withPlugin(createTimerPlugin())
 				.build();
 
@@ -280,7 +281,7 @@ describe('Timer Events', () => {
 	describe('Timer Helper Functions with Callbacks', () => {
 		test('createTimer should accept onComplete callback', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withPlugin(createTimerPlugin())
 				.build();
 
@@ -297,7 +298,7 @@ describe('Timer Events', () => {
 
 		test('createRepeatingTimer should accept onComplete callback', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withPlugin(createTimerPlugin())
 				.build();
 
@@ -314,7 +315,7 @@ describe('Timer Events', () => {
 
 		test('timer options should be optional', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withPlugin(createTimerPlugin())
 				.build();
 
@@ -329,7 +330,7 @@ describe('Timer Events', () => {
 	describe('Auto-Remove Behavior', () => {
 		test('should auto-remove one-shot timer entity after completion', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withPlugin(createTimerPlugin())
 				.build();
 
@@ -356,7 +357,7 @@ describe('Timer Events', () => {
 
 		test('should NOT auto-remove repeating timer entities', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withPlugin(createTimerPlugin())
 				.build();
 
@@ -387,7 +388,7 @@ describe('Timer Events', () => {
 
 		test('should auto-remove one-shot timer even without onComplete callback', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withPlugin(createTimerPlugin())
 				.build();
 
@@ -411,7 +412,7 @@ describe('Timer Events', () => {
 
 		test('should fire callback before entity is removed', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withPlugin(createTimerPlugin())
 				.build();
 
@@ -445,7 +446,7 @@ describe('Timer Events', () => {
 	describe('Edge Cases', () => {
 		test('should handle timer removal before completion', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withPlugin(createTimerPlugin())
 				.build();
 
@@ -479,7 +480,7 @@ describe('Timer Events', () => {
 
 		test('should handle onComplete callback that throws', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withPlugin(createTimerPlugin())
 				.build();
 
@@ -504,7 +505,7 @@ describe('Timer Events', () => {
 	describe('onComplete callback typing', () => {
 		test('data parameter infers as TimerEventData', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withPlugin(createTimerPlugin())
 				.build();
 

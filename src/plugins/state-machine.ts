@@ -10,6 +10,7 @@
 
 import { definePlugin, type Plugin, type BasePluginOptions } from 'ecspresso';
 import type { BaseWorld } from 'ecspresso';
+import type { WorldConfigFrom } from '../type-utils';
 
 // ==================== State Config ====================
 
@@ -345,14 +346,14 @@ export function createStateMachineHelpers<W extends BaseWorld = BaseWorld>(_worl
  */
 export function createStateMachinePlugin<S extends string = string, G extends string = 'stateMachine'>(
 	options?: StateMachinePluginOptions<G>,
-): Plugin<StateMachineComponentTypes<S>, StateMachineEventTypes<S>, {}, {}, {}, 'state-machine-update', G> {
+): Plugin<WorldConfigFrom<StateMachineComponentTypes<S>, StateMachineEventTypes<S>>, 'state-machine-update', G> {
 	const {
 		systemGroup = 'stateMachine',
 		priority = 0,
 		phase = 'update',
 	} = options ?? {};
 
-	return definePlugin<StateMachineComponentTypes<S>, StateMachineEventTypes<S>, {}, {}, {}, 'state-machine-update', G>({
+	return definePlugin<WorldConfigFrom<StateMachineComponentTypes<S>, StateMachineEventTypes<S>>, 'state-machine-update', G>({
 		id: 'stateMachine',
 		install(world) {
 			world

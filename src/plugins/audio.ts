@@ -8,6 +8,7 @@
 
 import { definePlugin, type Plugin, type BasePluginOptions } from 'ecspresso';
 import type { AssetsOfWorld, AnyECSpresso, ChannelOfWorld } from 'ecspresso';
+import type { WorldConfigFrom } from '../type-utils';
 import type { Howl } from 'howler';
 
 // ==================== Channel Definition ====================
@@ -337,7 +338,7 @@ interface MusicEntry<Ch extends string> {
  */
 export function createAudioPlugin<Ch extends string, G extends string = 'audio'>(
 	options: AudioPluginOptions<Ch, G>
-): Plugin<AudioComponentTypes<Ch>, AudioEventTypes<Ch>, AudioResourceTypes<Ch>, {}, {}, 'audio-sync', G, never, 'audio-sources'> {
+): Plugin<WorldConfigFrom<AudioComponentTypes<Ch>, AudioEventTypes<Ch>, AudioResourceTypes<Ch>>, 'audio-sync', G, never, 'audio-sources'> {
 	const {
 		channels: channelDefs,
 		systemGroup = 'audio',
@@ -557,7 +558,7 @@ export function createAudioPlugin<Ch extends string, G extends string = 'audio'>
 		},
 	};
 
-	return definePlugin<AudioComponentTypes<Ch>, AudioEventTypes<Ch>, AudioResourceTypes<Ch>, {}, {}, 'audio-sync', G, never, 'audio-sources'>({
+	return definePlugin<WorldConfigFrom<AudioComponentTypes<Ch>, AudioEventTypes<Ch>, AudioResourceTypes<Ch>>, 'audio-sync', G, never, 'audio-sources'>({
 		id: 'audio',
 		install(world) {
 			world.addResource('audioState', audioState);

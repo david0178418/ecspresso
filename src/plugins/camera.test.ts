@@ -1,5 +1,6 @@
 import { describe, test, expect } from 'bun:test';
 import ECSpresso from '../ecspresso';
+import type { WorldConfigFrom } from '../type-utils';
 import {
 	createCameraPlugin,
 	createCamera,
@@ -33,7 +34,7 @@ interface TestResources extends CameraResourceTypes {}
 
 function buildEcs(options?: { viewportWidth?: number; viewportHeight?: number; randomFn?: () => number }) {
 	return ECSpresso
-		.create<TestComponents, TestEvents, TestResources>()
+		.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 		.withPlugin(createTransformPlugin())
 		.withPlugin(createCameraPlugin(options))
 		.build();

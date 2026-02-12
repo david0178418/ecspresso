@@ -1,5 +1,6 @@
 import { describe, test, expect } from 'bun:test';
 import ECSpresso from '../ecspresso';
+import type { WorldConfigFrom } from '../type-utils';
 import {
 	createDiagnosticsPlugin,
 	type DiagnosticsData,
@@ -17,7 +18,7 @@ interface TestResources {}
 
 function createTestEcs() {
 	return ECSpresso
-		.create<TestComponents, TestEvents, TestResources>()
+		.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 		.withPlugin(createDiagnosticsPlugin())
 		.build();
 }
@@ -50,7 +51,7 @@ describe('Diagnostics Plugin', () => {
 
 	test('enableTimingOnInit: false does not enable diagnostics', async () => {
 		const ecs = ECSpresso
-			.create<TestComponents, TestEvents, TestResources>()
+			.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 			.withPlugin(createDiagnosticsPlugin({ enableTimingOnInit: false }))
 			.build();
 
@@ -103,7 +104,7 @@ describe('Diagnostics Plugin', () => {
 
 	test('system timings map is populated when diagnostics enabled', async () => {
 		const ecs = ECSpresso
-			.create<TestComponents, TestEvents, TestResources>()
+			.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 			.withPlugin(createDiagnosticsPlugin())
 			.build();
 
@@ -140,7 +141,7 @@ describe('Diagnostics Plugin', () => {
 
 	test('phase timings are populated when diagnostics enabled', async () => {
 		const ecs = ECSpresso
-			.create<TestComponents, TestEvents, TestResources>()
+			.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 			.withPlugin(createDiagnosticsPlugin())
 			.build();
 
@@ -215,7 +216,7 @@ describe('Diagnostics Plugin', () => {
 
 	test('custom fpsSampleCount works', async () => {
 		const ecs = ECSpresso
-			.create<TestComponents, TestEvents, TestResources>()
+			.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 			.withPlugin(createDiagnosticsPlugin({ fpsSampleCount: 10 }))
 			.build();
 
@@ -232,7 +233,7 @@ describe('Diagnostics Plugin', () => {
 
 	test('custom system group name', async () => {
 		const ecs = ECSpresso
-			.create<TestComponents, TestEvents, TestResources>()
+			.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 			.withPlugin(createDiagnosticsPlugin({ systemGroup: 'debug' }))
 			.build();
 

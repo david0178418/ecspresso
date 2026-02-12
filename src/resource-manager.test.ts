@@ -2,6 +2,7 @@ import { expect, describe, test } from 'bun:test';
 import ECSpresso from './ecspresso';
 import ResourceManager from './resource-manager';
 import { definePlugin } from './plugin';
+import type { WorldConfigFrom } from './type-utils';
 
 // Test class for factory function detection tests
 class _TestClass {
@@ -102,7 +103,7 @@ describe('ResourceManager', () => {
 	});
 
 	test('should handle resources in ECS systems', () => {
-		const plugin = definePlugin<TestComponents, TestEvents, TestResources>({
+		const plugin = definePlugin<WorldConfigFrom<TestComponents, TestEvents, TestResources>>({
 			id: 'config-aware',
 			install(world) {
 				world.addResource('config', { debug: true, maxEntities: 1000 });
@@ -119,7 +120,7 @@ describe('ResourceManager', () => {
 			},
 		});
 
-		const world = ECSpresso.create<TestComponents, TestEvents, TestResources>()
+		const world = ECSpresso.create()
 			.withPlugin(plugin)
 			.build();
 
@@ -157,7 +158,7 @@ describe('ResourceManager', () => {
 		// Track logged messages
 		const loggedMessages: string[] = [];
 
-		const plugin = definePlugin<TestComponents, TestEvents, TestResources>({
+		const plugin = definePlugin<WorldConfigFrom<TestComponents, TestEvents, TestResources>>({
 			id: 'resource-system',
 			install(world) {
 				world.addResource('logger', customLogger);
@@ -176,7 +177,7 @@ describe('ResourceManager', () => {
 			},
 		});
 
-		const world = ECSpresso.create<TestComponents, TestEvents, TestResources>()
+		const world = ECSpresso.create()
 			.withPlugin(plugin)
 			.build();
 
@@ -209,7 +210,7 @@ describe('ResourceManager', () => {
 		// Track logged messages
 		const loggedMessages: string[] = [];
 
-		const plugin = definePlugin<TestComponents, TestEvents, TestResources>({
+		const plugin = definePlugin<WorldConfigFrom<TestComponents, TestEvents, TestResources>>({
 			id: 'event-system',
 			install(world) {
 				world.addResource('gameState', gameState);
@@ -229,7 +230,7 @@ describe('ResourceManager', () => {
 			},
 		});
 
-		const world = ECSpresso.create<TestComponents, TestEvents, TestResources>()
+		const world = ECSpresso.create()
 			.withPlugin(plugin)
 			.build();
 
@@ -336,7 +337,7 @@ describe('ResourceManager', () => {
 			}
 
 			// Create ECS instance like in the examples
-			const world = new ECSpresso<InputComponents, {}, InputResources>();
+			const world = new ECSpresso<WorldConfigFrom<InputComponents, {}, InputResources>>();
 
 			// Add the controlMap resource using the factory function
 			world.addResource('controlMap', activeKeyMap);

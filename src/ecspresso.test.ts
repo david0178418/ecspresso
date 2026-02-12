@@ -1,6 +1,7 @@
 import { expect, describe, test } from 'bun:test';
 import ECSpresso from './ecspresso';
 import { definePlugin } from './plugin';
+import type { WorldConfigFrom } from './type-utils';
 
 interface TestComponents {
 	position: { x: number; y: number };
@@ -28,7 +29,7 @@ interface TestEvents {
 describe('ECSpresso', () => {
 	describe('type checks', () => {
 		test('should allow type-safe component access', () => {
-			const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents, TestResources>>();
 			const entity = world.entityManager.createEntity();
 
 			// @ts-expect-error // TypeScript should complain if we try to access a non-existent component
@@ -87,7 +88,7 @@ describe('ECSpresso', () => {
 		});
 
 		test('should allow type-safe component assignment', () => {
-			const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents, TestResources>>();
 
 			const entity = world.entityManager.createEntity();
 			world.entityManager.addComponent(entity.id, 'position', { x: 0, y: 0 });
@@ -115,7 +116,7 @@ describe('ECSpresso', () => {
 		});
 
 		test('should allow type-safe resource access', () => {
-			const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents, TestResources>>();
 
 			// @ts-expect-error // TypeScript should complain if we are missing fields
 			world.addResource('config', {});
@@ -139,7 +140,7 @@ describe('ECSpresso', () => {
 		});
 
 		test('should reject invalid dependsOn keys in addResource', () => {
-			const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents, TestResources>>();
 
 			world.addResource('config', {
 				// @ts-expect-error - 'nonExistent' is not a valid resource key
@@ -159,7 +160,7 @@ describe('ECSpresso', () => {
 		test('should type-check dependsOn keys in withResource builder', () => {
 			// Valid dependsOn compiles with inferred resource types
 			ECSpresso
-				.create<{}, {}, {}>()
+				.create()
 				.withResource('base', 10)
 				.withResource('derived', {
 					dependsOn: ['base'],
@@ -168,7 +169,7 @@ describe('ECSpresso', () => {
 
 			// Valid dependsOn compiles with pre-declared resource types
 			ECSpresso
-				.create<{}, {}, { base: number; derived: number }>()
+				.create<WorldConfigFrom<{}, {}, { base: number; derived: number }>>()
 				.withResource('derived', {
 					dependsOn: ['base'],
 					factory: () => 20,
@@ -178,7 +179,7 @@ describe('ECSpresso', () => {
 		});
 
 		test('should allow type-safe event publishing', () => {
-			const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents, TestResources>>();
 
 			// Event publishing type safety
 			world.eventBus.publish('playerDamaged', {
@@ -202,7 +203,7 @@ describe('ECSpresso', () => {
 		});
 
 		test('should allow type-safe system creation', () => {
-			const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents, TestResources>>();
 
 			world
 				.addSystem('some-system')
@@ -244,25 +245,25 @@ describe('ECSpresso', () => {
 		});
 
 		test('should handle plugin augmentation', () => {
-			const plugin1 = definePlugin<{cmpFromB1: number}, {evtFromB1: {data: number}}, {resFromB1: {data: number}}>({
+			const plugin1 = definePlugin<WorldConfigFrom<{cmpFromB1: number}, {evtFromB1: {data: number}}, {resFromB1: {data: number}}>>({
 				id: 'plugin1',
 				install(world) {
 					world.addResource('resFromB1', { data: 100 });
 				},
 			});
 
-			const plugin2 = definePlugin<{cmpFromB2: string}, {evtFromB2: {data: string}}, {resFromB2: {data: string}}>({
+			const plugin2 = definePlugin<WorldConfigFrom<{cmpFromB2: string}, {evtFromB2: {data: string}}, {resFromB2: {data: string}}>>({
 				id: 'plugin2',
 				install(world) {
 					world.addResource('resFromB2', { data: 'test' });
 				},
 			});
 
-			const merged = definePlugin<
+			const merged = definePlugin<WorldConfigFrom<
 				{cmpFromB1: number} & {cmpFromB2: string},
 				{evtFromB1: {data: number}} & {evtFromB2: {data: string}},
 				{resFromB1: {data: number}} & {resFromB2: {data: string}}
-			>({
+			>>({
 				id: 'merged',
 				install(world) {
 					world.installPlugin(plugin1);
@@ -290,7 +291,7 @@ describe('ECSpresso', () => {
 				},
 			});
 
-			const ecspresso = ECSpresso.create<TestComponents, TestEvents, TestResources>()
+			const ecspresso = ECSpresso.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withPlugin(merged)
 				.build();
 
@@ -332,17 +333,17 @@ describe('ECSpresso', () => {
 		});
 
 		test('should allow overlapping components, events and resources of the same type', () => {
-			const plugin1 = definePlugin<{cmp: number}, {evt: {data: number}}, {res: {data: number}}>({
+			const plugin1 = definePlugin<WorldConfigFrom<{cmp: number}, {evt: {data: number}}, {res: {data: number}}>>({
 				id: 'plugin1',
 				install() {},
 			});
-			const plugin2 = definePlugin<{cmp: number}, {evt: {data: number}}, {res: {data: number}}>({
+			const plugin2 = definePlugin<WorldConfigFrom<{cmp: number}, {evt: {data: number}}, {res: {data: number}}>>({
 				id: 'plugin2',
 				install() {},
 			});
 
 			// Test with traditional method-based installation
-			const ecspresso = ECSpresso.create<TestComponents, TestEvents, TestResources>()
+			const ecspresso = ECSpresso.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withPlugin(plugin1)
 				.withPlugin(plugin2)
 				.build();
@@ -362,11 +363,11 @@ describe('ECSpresso', () => {
 		});
 
 		test('should not allow conflicting components, events and resources of different types', () => {
-			const plugin3 = definePlugin<{cmp: number}, {evt: {data: number}}, {res: {data: number}}>({
+			const plugin3 = definePlugin<WorldConfigFrom<{cmp: number}, {evt: {data: number}}, {res: {data: number}}>>({
 				id: 'plugin3',
 				install() {},
 			});
-			const plugin4 = definePlugin<{cmp: string}, {evt: {data: string}}, {res: {data: string}}>({
+			const plugin4 = definePlugin<WorldConfigFrom<{cmp: string}, {evt: {data: string}}, {res: {data: string}}>>({
 				id: 'plugin4',
 				install() {},
 			});
@@ -377,12 +378,12 @@ describe('ECSpresso', () => {
 				.withPlugin(plugin4)
 				.build();
 
-			const plugin5 = definePlugin<{position: string}, {gameEnded: string}, {config: boolean}>({
+			const plugin5 = definePlugin<WorldConfigFrom<{position: string}, {gameEnded: string}, {config: boolean}>>({
 				id: 'plugin5',
 				install() {},
 			});
 
-			ECSpresso.create<TestComponents, TestEvents, TestResources>()
+			ECSpresso.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				// @ts-expect-error // TypeScript should complain if we try to install plugins that conflict with the type parameters passed to ecspresso
 				.withPlugin(plugin5)
 				.build();
@@ -394,7 +395,7 @@ describe('ECSpresso', () => {
 	// Core ECS functionality tests
 	describe('Core ECS', () => {
 		test('should run systems with queries', () => {
-			const plugin = definePlugin<TestComponents, {}, {}>({
+			const plugin = definePlugin<WorldConfigFrom<TestComponents>>({
 				id: 'movement',
 				install(world) {
 					world.addSystem('MovementSystem')
@@ -433,14 +434,14 @@ describe('ECSpresso', () => {
 		});
 
 		test('should manage resources', () => {
-			const plugin = definePlugin<TestComponents, {}, TestResources>({
+			const plugin = definePlugin<WorldConfigFrom<TestComponents, {}, TestResources>>({
 				id: 'resources',
 				install(world) {
 					world.addResource('config', { debug: true, maxEntities: 1000 });
 				},
 			});
 
-			const world = ECSpresso.create<TestComponents, {}, TestResources>()
+			const world = ECSpresso.create<WorldConfigFrom<TestComponents, {}, TestResources>>()
 				.withPlugin(plugin)
 				.build();
 
@@ -465,7 +466,7 @@ describe('ECSpresso', () => {
 		test('should remove systems by label', () => {
 			let processRan = false;
 
-			const plugin = definePlugin<TestComponents, {}, {}>({
+			const plugin = definePlugin<WorldConfigFrom<TestComponents>>({
 				id: 'movement',
 				install(world) {
 					world.addSystem('MovementSystem')
@@ -478,7 +479,7 @@ describe('ECSpresso', () => {
 				},
 			});
 
-			const world = ECSpresso.create<TestComponents>()
+			const world = ECSpresso.create<WorldConfigFrom<TestComponents>>()
 				.withPlugin(plugin)
 				.build();
 
@@ -507,7 +508,7 @@ describe('ECSpresso', () => {
 			let detachCalled = false;
 			let processCalled = false;
 
-			const plugin = definePlugin<TestComponents, {}, {}>({
+			const plugin = definePlugin<WorldConfigFrom<TestComponents>>({
 				id: 'movement-control',
 				install(world) {
 					world.addSystem('MovementControlSystem')
@@ -526,7 +527,7 @@ describe('ECSpresso', () => {
 				},
 			});
 
-			const world = ECSpresso.create<TestComponents>()
+			const world = ECSpresso.create<WorldConfigFrom<TestComponents>>()
 				.withPlugin(plugin)
 				.build();
 
@@ -553,7 +554,7 @@ describe('ECSpresso', () => {
 	// Entity and component management tests
 	describe('Entity & Component Management', () => {
 		test('should create entities with components using spawn method', () => {
-			const world = new ECSpresso<TestComponents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 
 			// Create entity with multiple components using spawn
 			const entity = world.spawn({
@@ -582,7 +583,7 @@ describe('ECSpresso', () => {
 
 		test('getComponent returns T | undefined for missing components', () => {
 			type IsExact<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
-			const world = ECSpresso.create<TestComponents>().build();
+			const world = ECSpresso.create<WorldConfigFrom<TestComponents>>().build();
 			const entity = world.spawn({ position: { x: 0, y: 0 } });
 			const result = world.entityManager.getComponent(entity.id, 'position');
 			const _typeCheck: IsExact<typeof result, { x: number; y: number } | undefined> = true;
@@ -595,7 +596,7 @@ describe('ECSpresso', () => {
 				flag: boolean;
 				label: string;
 			}
-			const world = ECSpresso.create<FalsyComponents>().build();
+			const world = ECSpresso.create<WorldConfigFrom<FalsyComponents>>().build();
 			const entity = world.spawn({ count: 0, flag: false, label: '' });
 
 			expect(world.entityManager.getComponent(entity.id, 'count')).toBe(0);
@@ -604,7 +605,7 @@ describe('ECSpresso', () => {
 		});
 
 		test('should handle state transitions in systems', () => {
-			const plugin = definePlugin<TestComponents, {}, {}>({
+			const plugin = definePlugin<WorldConfigFrom<TestComponents>>({
 				id: 'state',
 				install(world) {
 					world.addSystem('StateSystem')
@@ -621,7 +622,7 @@ describe('ECSpresso', () => {
 				},
 			});
 
-			const world = ECSpresso.create<TestComponents>()
+			const world = ECSpresso.create<WorldConfigFrom<TestComponents>>()
 				.withPlugin(plugin)
 				.build();
 
@@ -638,7 +639,7 @@ describe('ECSpresso', () => {
 		});
 
 		test('should track entity lifetimes', () => {
-			const plugin = definePlugin<TestComponents, {}, {}>({
+			const plugin = definePlugin<WorldConfigFrom<TestComponents>>({
 				id: 'lifetime',
 				install(world) {
 					world.addSystem('LifetimeSystem')
@@ -657,7 +658,7 @@ describe('ECSpresso', () => {
 				},
 			});
 
-			const world = ECSpresso.create<TestComponents>()
+			const world = ECSpresso.create<WorldConfigFrom<TestComponents>>()
 				.withPlugin(plugin)
 				.build();
 
@@ -701,7 +702,7 @@ describe('ECSpresso', () => {
 		});
 
 		test('should handle component additions and removals during update', () => {
-			const plugin = definePlugin<TestComponents, {}, {}>({
+			const plugin = definePlugin<WorldConfigFrom<TestComponents>>({
 				id: 'dynamic-component',
 				install(world) {
 					world.addSystem('DynamicComponentSystem')
@@ -718,7 +719,7 @@ describe('ECSpresso', () => {
 				},
 			});
 
-			const world = ECSpresso.create<TestComponents>()
+			const world = ECSpresso.create<WorldConfigFrom<TestComponents>>()
 				.withPlugin(plugin)
 				.build();
 
@@ -740,7 +741,7 @@ describe('ECSpresso', () => {
 	// Direct system addition tests
 	describe('Direct System Creation', () => {
 		test('should handle systems added directly via addSystem with type-safety', async () => {
-			const world = new ECSpresso<TestComponents, TestEvents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents>>();
 
 			// Create entities
 			world.spawn({
@@ -800,7 +801,7 @@ describe('ECSpresso', () => {
 		});
 
 		test('should provide equivalent functionality for systems added via plugin or directly', () => {
-			const directWorld = new ECSpresso<TestComponents>();
+			const directWorld = new ECSpresso<WorldConfigFrom<TestComponents>>();
 
 			directWorld.spawn({
 				position: { x: 0, y: 0 },
@@ -810,7 +811,7 @@ describe('ECSpresso', () => {
 			let pluginProcessed = false;
 			let directProcessed = false;
 
-			const plugin = definePlugin<TestComponents, {}, {}>({
+			const plugin = definePlugin<WorldConfigFrom<TestComponents>>({
 				id: 'test-plugin',
 				install(world) {
 					world.addSystem('PluginSystem')
@@ -824,7 +825,7 @@ describe('ECSpresso', () => {
 				},
 			});
 
-			const worldWithPlugin = ECSpresso.create<TestComponents>()
+			const worldWithPlugin = ECSpresso.create<WorldConfigFrom<TestComponents>>()
 				.withPlugin(plugin)
 				.build();
 
@@ -851,7 +852,7 @@ describe('ECSpresso', () => {
 		});
 
 		test('should support defining multiple systems via separate addSystem calls', () => {
-			const world = new ECSpresso<TestComponents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 
 			let system1Processed = false;
 			let system2Processed = false;
@@ -905,7 +906,7 @@ describe('ECSpresso', () => {
 	// Priority tests
 	describe('System Priority', () => {
 		test('should execute systems in priority order (higher priority first)', () => {
-			const world = new ECSpresso<TestComponents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 
 			// Track execution order
 			const executionOrder: string[] = [];
@@ -950,7 +951,7 @@ describe('ECSpresso', () => {
 		});
 
 		test('should maintain registration order for systems with the same priority', () => {
-			const world = new ECSpresso<TestComponents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 
 			// Track execution order
 			const executionOrder: string[] = [];
@@ -995,7 +996,7 @@ describe('ECSpresso', () => {
 		});
 
 		test('should maintain priority when adding systems through plugins', () => {
-			const pluginHigh = definePlugin<TestComponents, {}, {}>({
+			const pluginHigh = definePlugin<WorldConfigFrom<TestComponents>>({
 				id: 'plugin-high',
 				install(world) {
 					world.addSystem('PluginSystemHigh')
@@ -1009,7 +1010,7 @@ describe('ECSpresso', () => {
 				},
 			});
 
-			const pluginLow = definePlugin<TestComponents, {}, {}>({
+			const pluginLow = definePlugin<WorldConfigFrom<TestComponents>>({
 				id: 'plugin-low',
 				install(world) {
 					world.addSystem('PluginSystemLow')
@@ -1023,7 +1024,7 @@ describe('ECSpresso', () => {
 				},
 			});
 
-			const world = ECSpresso.create<TestComponents>()
+			const world = ECSpresso.create<WorldConfigFrom<TestComponents>>()
 				.withPlugin(pluginHigh)
 				.withPlugin(pluginLow)
 				.build();
@@ -1053,7 +1054,7 @@ describe('ECSpresso', () => {
 		});
 
 		test('should allow updating system priorities dynamically', () => {
-			const world = new ECSpresso<TestComponents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 
 			// Track execution order
 			const executionOrder: string[] = [];
@@ -1110,7 +1111,7 @@ describe('ECSpresso', () => {
 
 		test('should preserve cached sorting for performance', () => {
 			// This test verifies that the sorting happens only when needed
-			const world = new ECSpresso<TestComponents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 
 			// Add a lot of systems to make sorting noticeable
 			for (let i = 0; i < 5; i++) {
@@ -1155,7 +1156,7 @@ describe('ECSpresso', () => {
 	// Event convenience methods tests
 	describe('Event Convenience Methods', () => {
 		test('on() should subscribe and receive events', () => {
-			const world = new ECSpresso<TestComponents, TestEvents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents>>();
 			let receivedData: TestEvents['playerDamaged'] | undefined;
 
 			world.on('playerDamaged', (data) => {
@@ -1170,7 +1171,7 @@ describe('ECSpresso', () => {
 		});
 
 		test('on() should return a working unsubscribe function', () => {
-			const world = new ECSpresso<TestComponents, TestEvents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents>>();
 			let callCount = 0;
 
 			const unsubscribe = world.on('gameStarted', () => {
@@ -1187,7 +1188,7 @@ describe('ECSpresso', () => {
 		});
 
 		test('off() should remove subscription by callback reference', () => {
-			const world = new ECSpresso<TestComponents, TestEvents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents>>();
 			let callCount = 0;
 
 			const handler = () => { callCount++; };
@@ -1205,7 +1206,7 @@ describe('ECSpresso', () => {
 		});
 
 		test('off() should return false for non-existent callback', () => {
-			const world = new ECSpresso<TestComponents, TestEvents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents>>();
 
 			const handler1 = () => {};
 			const handler2 = () => {};
@@ -1217,7 +1218,7 @@ describe('ECSpresso', () => {
 		});
 
 		test('on() should provide type-safe event data', () => {
-			const world = new ECSpresso<TestComponents, TestEvents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents>>();
 
 			world.on('gameEnded', (data) => {
 				// TypeScript should know data has a winner property
@@ -1232,7 +1233,7 @@ describe('ECSpresso', () => {
 	// Post-update hooks tests
 	describe('Post-Update Hooks', () => {
 		test('onPostUpdate() hook should be called after update()', () => {
-			const world = new ECSpresso<TestComponents, TestEvents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents>>();
 			let hookCalled = false;
 
 			world.onPostUpdate(() => {
@@ -1245,7 +1246,7 @@ describe('ECSpresso', () => {
 		});
 
 		test('onPostUpdate() hook should receive ecs instance and deltaTime', () => {
-			const world = new ECSpresso<TestComponents, TestEvents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents>>();
 			let receivedEcs: typeof world | undefined;
 			let receivedDeltaTime: number | undefined;
 
@@ -1263,7 +1264,7 @@ describe('ECSpresso', () => {
 		});
 
 		test('multiple onPostUpdate() hooks should be called in registration order', () => {
-			const world = new ECSpresso<TestComponents, TestEvents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents>>();
 			const executionOrder: string[] = [];
 
 			world.onPostUpdate(() => { executionOrder.push('first'); });
@@ -1276,7 +1277,7 @@ describe('ECSpresso', () => {
 		});
 
 		test('onPostUpdate() should return a working unsubscribe function', () => {
-			const world = new ECSpresso<TestComponents, TestEvents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents>>();
 			let callCount = 0;
 
 			const unsubscribe = world.onPostUpdate(() => {
@@ -1293,7 +1294,7 @@ describe('ECSpresso', () => {
 		});
 
 		test('onPostUpdate() hooks should run after all systems', () => {
-			const world = new ECSpresso<TestComponents, TestEvents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents>>();
 			const executionOrder: string[] = [];
 
 			// Add a system
@@ -1317,7 +1318,7 @@ describe('ECSpresso', () => {
 		});
 
 		test('onPostUpdate() hooks should not be called if update() is not called', () => {
-			const world = new ECSpresso<TestComponents, TestEvents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents>>();
 			let hookCalled = false;
 
 			world.onPostUpdate(() => {
@@ -1332,7 +1333,7 @@ describe('ECSpresso', () => {
 	// Component lifecycle tests
 	describe('Component Lifecycle', () => {
 		test('onComponentAdded should be called when component is added', () => {
-			const world = new ECSpresso<TestComponents, TestEvents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents>>();
 			let callbackValue: TestComponents['health'] | undefined;
 			let callbackEntityId = -1;
 
@@ -1348,7 +1349,7 @@ describe('ECSpresso', () => {
 		});
 
 		test('onComponentAdded should be called when entity spawned with component', () => {
-			const world = new ECSpresso<TestComponents, TestEvents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents>>();
 			const spawnedEntities: number[] = [];
 
 			world.onComponentAdded('position', (_value, entity) => {
@@ -1362,7 +1363,7 @@ describe('ECSpresso', () => {
 		});
 
 		test('onComponentRemoved should be called when component explicitly removed', () => {
-			const world = new ECSpresso<TestComponents, TestEvents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents>>();
 			let removedValue: TestComponents['velocity'] | undefined;
 
 			world.onComponentRemoved('velocity', (value) => {
@@ -1376,7 +1377,7 @@ describe('ECSpresso', () => {
 		});
 
 		test('onComponentRemoved should be called for each component when entity removed', () => {
-			const world = new ECSpresso<TestComponents, TestEvents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents>>();
 			const removedComponents: string[] = [];
 
 			world.onComponentRemoved('position', () => {
@@ -1397,7 +1398,7 @@ describe('ECSpresso', () => {
 		});
 
 		test('onComponentAdded unsubscribe function should stop future callbacks', () => {
-			const world = new ECSpresso<TestComponents, TestEvents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents>>();
 			let callCount = 0;
 
 			const unsubscribe = world.onComponentAdded('health', () => {
@@ -1414,7 +1415,7 @@ describe('ECSpresso', () => {
 		});
 
 		test('onComponentRemoved unsubscribe function should stop future callbacks', () => {
-			const world = new ECSpresso<TestComponents, TestEvents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents>>();
 			let callCount = 0;
 
 			const unsubscribe = world.onComponentRemoved('position', () => {
@@ -1433,7 +1434,7 @@ describe('ECSpresso', () => {
 		});
 
 		test('callback should receive correct value and entity', () => {
-			const world = new ECSpresso<TestComponents, TestEvents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents>>();
 			let receivedValue: TestComponents['state'] | undefined;
 			let receivedEntityId: number | undefined;
 
@@ -1452,7 +1453,7 @@ describe('ECSpresso', () => {
 	// Entity hierarchy tests
 	describe('Entity Hierarchy', () => {
 		test('should set and get parent via convenience methods', () => {
-			const world = new ECSpresso<TestComponents, TestEvents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents>>();
 			const parent = world.spawn({ position: { x: 0, y: 0 } });
 			const child = world.spawn({ position: { x: 10, y: 10 } });
 
@@ -1462,7 +1463,7 @@ describe('ECSpresso', () => {
 		});
 
 		test('should get children via convenience method', () => {
-			const world = new ECSpresso<TestComponents, TestEvents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents>>();
 			const parent = world.spawn({ position: { x: 0, y: 0 } });
 			const child1 = world.spawn({ position: { x: 10, y: 10 } });
 			const child2 = world.spawn({ position: { x: 20, y: 20 } });
@@ -1474,7 +1475,7 @@ describe('ECSpresso', () => {
 		});
 
 		test('should remove parent via convenience method', () => {
-			const world = new ECSpresso<TestComponents, TestEvents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents>>();
 			const parent = world.spawn({ position: { x: 0, y: 0 } });
 			const child = world.spawn({ position: { x: 10, y: 10 } });
 
@@ -1485,7 +1486,7 @@ describe('ECSpresso', () => {
 		});
 
 		test('spawnChild should create entity with parent set', () => {
-			const world = new ECSpresso<TestComponents, TestEvents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents>>();
 			const parent = world.spawn({ position: { x: 0, y: 0 } });
 
 			const child = world.spawnChild(parent.id, { position: { x: 10, y: 10 } });
@@ -1496,7 +1497,7 @@ describe('ECSpresso', () => {
 		});
 
 		test('removeEntity should cascade to descendants by default', () => {
-			const world = new ECSpresso<TestComponents, TestEvents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents>>();
 			const parent = world.spawn({ position: { x: 0, y: 0 } });
 			const child = world.spawnChild(parent.id, { position: { x: 10, y: 10 } });
 			const grandchild = world.spawnChild(child.id, { position: { x: 20, y: 20 } });
@@ -1509,7 +1510,7 @@ describe('ECSpresso', () => {
 		});
 
 		test('removeEntity with cascade:false should orphan children', () => {
-			const world = new ECSpresso<TestComponents, TestEvents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents>>();
 			const parent = world.spawn({ position: { x: 0, y: 0 } });
 			const child = world.spawnChild(parent.id, { position: { x: 10, y: 10 } });
 
@@ -1521,7 +1522,7 @@ describe('ECSpresso', () => {
 		});
 
 		test('traversal methods should work via convenience methods', () => {
-			const world = new ECSpresso<TestComponents, TestEvents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents>>();
 			const root = world.spawn({ position: { x: 0, y: 0 } });
 			const child1 = world.spawnChild(root.id, { position: { x: 10, y: 10 } });
 			const child2 = world.spawnChild(root.id, { position: { x: 20, y: 20 } });
@@ -1539,7 +1540,7 @@ describe('ECSpresso', () => {
 		});
 
 		test('hierarchyChanged event should emit when parent is set', () => {
-			const world = new ECSpresso<TestComponents, TestEvents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents>>();
 			const parent = world.spawn({ position: { x: 0, y: 0 } });
 			const child = world.spawn({ position: { x: 10, y: 10 } });
 
@@ -1559,7 +1560,7 @@ describe('ECSpresso', () => {
 		});
 
 		test('hierarchyChanged event should emit when parent is removed', () => {
-			const world = new ECSpresso<TestComponents, TestEvents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents>>();
 			const parent = world.spawn({ position: { x: 0, y: 0 } });
 			const child = world.spawn({ position: { x: 10, y: 10 } });
 
@@ -1581,7 +1582,7 @@ describe('ECSpresso', () => {
 		});
 
 		test('hierarchyChanged event should emit when parent is changed', () => {
-			const world = new ECSpresso<TestComponents, TestEvents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents>>();
 			const parent1 = world.spawn({ position: { x: 0, y: 0 } });
 			const parent2 = world.spawn({ position: { x: 50, y: 50 } });
 			const child = world.spawn({ position: { x: 10, y: 10 } });
@@ -1604,7 +1605,7 @@ describe('ECSpresso', () => {
 		});
 
 		test('spawn and spawnChild should infer component types from arguments', () => {
-			const world = new ECSpresso<TestComponents, TestEvents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents>>();
 
 			// spawn should infer that position is present
 			const entity = world.spawn({ position: { x: 10, y: 20 } });
@@ -1637,7 +1638,7 @@ describe('ECSpresso', () => {
 	describe('withResource() Builder', () => {
 		test('should add direct value resource', () => {
 			const world = ECSpresso
-				.create<{}, {}, { config: { debug: boolean } }>()
+				.create<WorldConfigFrom<{}, {}, { config: { debug: boolean } }>>()
 				.withResource('config', { debug: true })
 				.build();
 
@@ -1646,7 +1647,7 @@ describe('ECSpresso', () => {
 
 		test('should add factory resource', async () => {
 			const world = ECSpresso
-				.create<{}, {}, { counter: number }>()
+				.create<WorldConfigFrom<{}, {}, { counter: number }>>()
 				.withResource('counter', () => 42)
 				.build();
 
@@ -1656,7 +1657,7 @@ describe('ECSpresso', () => {
 
 		test('should add factory with dependencies', async () => {
 			const world = ECSpresso
-				.create<{}, {}, { base: number; derived: number }>()
+				.create<WorldConfigFrom<{}, {}, { base: number; derived: number }>>()
 				.withResource('base', 10)
 				.withResource('derived', {
 					dependsOn: ['base'],
@@ -1671,7 +1672,7 @@ describe('ECSpresso', () => {
 		test('should add factory with onDispose', async () => {
 			let disposed = false;
 			const world = ECSpresso
-				.create<{}, {}, { db: { value: number } }>()
+				.create<WorldConfigFrom<{}, {}, { db: { value: number } }>>()
 				.withResource('db', {
 					factory: () => ({ value: 42 }),
 					onDispose: () => { disposed = true; }
@@ -1686,7 +1687,7 @@ describe('ECSpresso', () => {
 		});
 
 		test('should chain with withPlugin()', () => {
-			const plugin = definePlugin<{ position: { x: number; y: number } }, {}, { physics: { gravity: number } }>({
+			const plugin = definePlugin<WorldConfigFrom<{ position: { x: number; y: number } }, {}, { physics: { gravity: number } }>>({
 				id: 'physics',
 				install(world) {
 					world.addResource('physics', { gravity: 9.8 });
@@ -1705,7 +1706,7 @@ describe('ECSpresso', () => {
 
 		test('should infer types for merged resources', () => {
 			const world = ECSpresso
-				.create<{}, {}, { existing: string }>()
+				.create<WorldConfigFrom<{}, {}, { existing: string }>>()
 				.withResource('existing', 'test')
 				.withResource('newNum', 42)
 				.withResource('newBool', true)
@@ -1734,19 +1735,19 @@ describe('ECSpresso', () => {
 
 	describe('tryGetResource', () => {
 		test('returns undefined for non-existent resource', () => {
-			const world = ECSpresso.create<{}, {}, { score: number }>().build();
+			const world = ECSpresso.create<WorldConfigFrom<{}, {}, { score: number }>>().build();
 			expect(world.tryGetResource('score')).toBeUndefined();
 		});
 
 		test('returns value for existing resource', () => {
-			const world = ECSpresso.create<{}, {}, { score: number }>()
+			const world = ECSpresso.create<WorldConfigFrom<{}, {}, { score: number }>>()
 				.withResource('score', 42)
 				.build();
 			expect(world.tryGetResource('score')).toBe(42);
 		});
 
 		test('initializes factory resource on access', async () => {
-			const world = ECSpresso.create<{}, {}, { score: number }>()
+			const world = ECSpresso.create<WorldConfigFrom<{}, {}, { score: number }>>()
 				.withResource('score', () => 42)
 				.build();
 			// Factory not yet initialized, but tryGetResource should lazily init
@@ -1754,7 +1755,7 @@ describe('ECSpresso', () => {
 		});
 
 		test('type: known key returns T | undefined', () => {
-			const world = ECSpresso.create<{}, {}, { score: number }>().build();
+			const world = ECSpresso.create<WorldConfigFrom<{}, {}, { score: number }>>().build();
 			const result = world.tryGetResource('score');
 			// @ts-expect-error - result may be undefined, cannot use as number directly
 			const _n: number = result;
@@ -1762,7 +1763,7 @@ describe('ECSpresso', () => {
 		});
 
 		test('type: rejects unknown string key without explicit type param', () => {
-			const world = ECSpresso.create<{}, {}, { score: number }>().build();
+			const world = ECSpresso.create<WorldConfigFrom<{}, {}, { score: number }>>().build();
 			// @ts-expect-error - 'missing' is not a known key, and no explicit type param provided
 			world.tryGetResource('missing');
 		});
@@ -1779,7 +1780,7 @@ describe('ECSpresso', () => {
 
 	describe('Direct Component Access', () => {
 		test('getComponent returns the component value for an existing component', () => {
-			const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents, TestResources>>();
 			const entity = world.spawn({ position: { x: 10, y: 20 } });
 
 			const position = world.getComponent(entity.id, 'position');
@@ -1787,7 +1788,7 @@ describe('ECSpresso', () => {
 		});
 
 		test('getComponent returns undefined for a missing component', () => {
-			const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents, TestResources>>();
 			const entity = world.spawn({ position: { x: 10, y: 20 } });
 
 			const velocity = world.getComponent(entity.id, 'velocity');
@@ -1795,14 +1796,14 @@ describe('ECSpresso', () => {
 		});
 
 		test('getComponent throws for a non-existent entity', () => {
-			const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents, TestResources>>();
 
 			expect(() => world.getComponent(999, 'position')).toThrow();
 		});
 
 		test('getComponent return type is T | undefined', () => {
 			type IsExact<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
-			const world = ECSpresso.create<TestComponents>().build();
+			const world = ECSpresso.create<WorldConfigFrom<TestComponents>>().build();
 			const entity = world.spawn({ position: { x: 0, y: 0 } });
 			const result = world.getComponent(entity.id, 'position');
 			const _typeCheck: IsExact<typeof result, { x: number; y: number } | undefined> = true;
@@ -1815,7 +1816,7 @@ describe('ECSpresso', () => {
 				flag: boolean;
 				label: string;
 			}
-			const world = ECSpresso.create<FalsyComponents>().build();
+			const world = ECSpresso.create<WorldConfigFrom<FalsyComponents>>().build();
 			const entity = world.spawn({ count: 0, flag: false, label: '' });
 
 			expect(world.getComponent(entity.id, 'count')).toBe(0);
@@ -1824,7 +1825,7 @@ describe('ECSpresso', () => {
 		});
 
 		test('getComponent rejects invalid component names at compile time', () => {
-			const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents, TestResources>>();
 			world.spawn({ position: { x: 0, y: 0 } });
 
 			// @ts-expect-error - 'doesNotExist' is not a valid component name
@@ -1832,7 +1833,7 @@ describe('ECSpresso', () => {
 		});
 
 		test('addComponent adds a new component to an existing entity', () => {
-			const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents, TestResources>>();
 			const entity = world.spawn({ position: { x: 0, y: 0 } });
 
 			world.addComponent(entity.id, 'velocity', { x: 5, y: 10 });
@@ -1842,7 +1843,7 @@ describe('ECSpresso', () => {
 		});
 
 		test('addComponent replaces an existing component value', () => {
-			const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents, TestResources>>();
 			const entity = world.spawn({ position: { x: 0, y: 0 } });
 
 			world.addComponent(entity.id, 'position', { x: 99, y: 99 });
@@ -1851,13 +1852,13 @@ describe('ECSpresso', () => {
 		});
 
 		test('addComponent throws for a non-existent entity', () => {
-			const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents, TestResources>>();
 
 			expect(() => world.addComponent(999, 'position', { x: 0, y: 0 })).toThrow();
 		});
 
 		test('addComponent rejects invalid component names at compile time', () => {
-			const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents, TestResources>>();
 			world.spawn({ position: { x: 0, y: 0 } });
 
 			// @ts-expect-error - 'doesNotExist' is not a valid component name
@@ -1867,7 +1868,7 @@ describe('ECSpresso', () => {
 		});
 
 		test('addComponent triggers component added callbacks', () => {
-			const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents, TestResources>>();
 			const entity = world.spawn({ position: { x: 0, y: 0 } });
 			let addedValue: TestComponents['health'] | undefined;
 
@@ -1881,7 +1882,7 @@ describe('ECSpresso', () => {
 		});
 
 		test('addComponent marks component as changed', () => {
-			const world = ECSpresso.create<TestComponents>().build();
+			const world = ECSpresso.create<WorldConfigFrom<TestComponents>>().build();
 			const entity = world.spawn({ position: { x: 0, y: 0 } });
 
 			// Run a frame to reset change detection
@@ -1895,7 +1896,7 @@ describe('ECSpresso', () => {
 		});
 
 		test('addComponents adds multiple components at once', () => {
-			const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents, TestResources>>();
 			const entity = world.spawn({ position: { x: 0, y: 0 } });
 
 			world.addComponents(entity.id, {
@@ -1908,13 +1909,13 @@ describe('ECSpresso', () => {
 		});
 
 		test('addComponents throws for a non-existent entity', () => {
-			const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents, TestResources>>();
 
 			expect(() => world.addComponents(999, { position: { x: 0, y: 0 } })).toThrow();
 		});
 
 		test('addComponents rejects invalid component names at compile time', () => {
-			const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents, TestResources>>();
 			world.spawn({ position: { x: 0, y: 0 } });
 
 			world.addComponents(1, {
@@ -1925,7 +1926,7 @@ describe('ECSpresso', () => {
 		});
 
 		test('removeComponent removes a component from an entity', () => {
-			const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents, TestResources>>();
 			const entity = world.spawn({ position: { x: 0, y: 0 }, velocity: { x: 1, y: 1 } });
 
 			world.removeComponent(entity.id, 'velocity');
@@ -1937,13 +1938,13 @@ describe('ECSpresso', () => {
 		});
 
 		test('removeComponent throws for a non-existent entity', () => {
-			const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents, TestResources>>();
 
 			expect(() => world.removeComponent(999, 'position')).toThrow();
 		});
 
 		test('removeComponent triggers component removed callbacks', () => {
-			const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents, TestResources>>();
 			const entity = world.spawn({ position: { x: 0, y: 0 }, velocity: { x: 5, y: 10 } });
 			let removedValue: TestComponents['velocity'] | undefined;
 
@@ -1957,7 +1958,7 @@ describe('ECSpresso', () => {
 		});
 
 		test('removeComponent rejects invalid component names at compile time', () => {
-			const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents, TestResources>>();
 			world.spawn({ position: { x: 0, y: 0 } });
 
 			// @ts-expect-error - 'doesNotExist' is not a valid component name
@@ -1965,7 +1966,7 @@ describe('ECSpresso', () => {
 		});
 
 		test('direct component methods work in system process functions', () => {
-			const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents, TestResources>>();
 			const entity = world.spawn({ velocity: { x: 5, y: 10 } });
 
 			world.addSystem('test-system')
@@ -1983,7 +1984,7 @@ describe('ECSpresso', () => {
 
 	describe('mutateComponent', () => {
 		test('mutates a component in place and returns the component', () => {
-			const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents, TestResources>>();
 			const entity = world.spawn({ position: { x: 10, y: 20 } });
 
 			const result = world.mutateComponent(entity.id, 'position', (pos) => {
@@ -1996,7 +1997,7 @@ describe('ECSpresso', () => {
 		});
 
 		test('automatically marks the component as changed', () => {
-			const world = ECSpresso.create<TestComponents>().build();
+			const world = ECSpresso.create<WorldConfigFrom<TestComponents>>().build();
 			const entity = world.spawn({ position: { x: 0, y: 0 } });
 
 			// Run a frame to advance change detection past initial spawn
@@ -2015,20 +2016,20 @@ describe('ECSpresso', () => {
 		});
 
 		test('throws for a non-existent entity', () => {
-			const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents, TestResources>>();
 
 			expect(() => world.mutateComponent(999, 'position', () => {})).toThrow();
 		});
 
 		test('throws when the component does not exist on the entity', () => {
-			const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents, TestResources>>();
 			const entity = world.spawn({ position: { x: 0, y: 0 } });
 
 			expect(() => world.mutateComponent(entity.id, 'velocity', () => {})).toThrow();
 		});
 
 		test('rejects invalid component names at compile time', () => {
-			const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents, TestResources>>();
 			world.spawn({ position: { x: 0, y: 0 } });
 
 			try {
@@ -2041,7 +2042,7 @@ describe('ECSpresso', () => {
 
 		test('mutator receives correctly typed component value', () => {
 			type IsExact<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
-			const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents, TestResources>>();
 			const entity = world.spawn({ position: { x: 0, y: 0 } });
 
 			world.mutateComponent(entity.id, 'position', (pos) => {
@@ -2054,7 +2055,7 @@ describe('ECSpresso', () => {
 
 		test('return type matches the component type', () => {
 			type IsExact<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
-			const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents, TestResources>>();
 			const entity = world.spawn({ health: { value: 100 } });
 
 			const result = world.mutateComponent(entity.id, 'health', (h) => {
@@ -2067,7 +2068,7 @@ describe('ECSpresso', () => {
 		});
 
 		test('works in system process functions', () => {
-			const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents, TestResources>>();
 			const entity = world.spawn({
 				position: { x: 0, y: 0 },
 				velocity: { x: 5, y: 10 },
@@ -2090,7 +2091,7 @@ describe('ECSpresso', () => {
 		});
 
 		test('accepts entity ID', () => {
-			const world = new ECSpresso<TestComponents, TestEvents, TestResources>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents, TestResources>>();
 			const entity = world.spawn({ health: { value: 100 } });
 
 			world.mutateComponent(entity.id, 'health', (h) => {
@@ -2105,7 +2106,7 @@ describe('ECSpresso', () => {
 		test('disposeResource() should dispose a single resource', async () => {
 			let disposed = false;
 			const world = ECSpresso
-				.create<{}, {}, { db: { value: number } }>()
+				.create<WorldConfigFrom<{}, {}, { db: { value: number } }>>()
 				.withResource('db', {
 					factory: () => ({ value: 42 }),
 					onDispose: () => { disposed = true; }
@@ -2125,7 +2126,7 @@ describe('ECSpresso', () => {
 		test('disposeResources() should dispose all resources in reverse dependency order', async () => {
 			const order: string[] = [];
 			const world = ECSpresso
-				.create<{}, {}, { a: number; b: number; c: number }>()
+				.create<WorldConfigFrom<{}, {}, { a: number; b: number; c: number }>>()
 				.withResource('a', {
 					factory: () => 1,
 					onDispose: () => { order.push('a'); }
@@ -2151,7 +2152,7 @@ describe('ECSpresso', () => {
 		test('disposeResource() should pass ECSpresso as context to onDispose', async () => {
 			let receivedContext: any;
 			const world = ECSpresso
-				.create<{}, {}, { db: number }>()
+				.create<WorldConfigFrom<{}, {}, { db: number }>>()
 				.withResource('db', {
 					factory: () => 42,
 					onDispose: (_resource, context) => {
@@ -2168,7 +2169,7 @@ describe('ECSpresso', () => {
 
 		test('dispose should work with resources added via addResource()', async () => {
 			let disposed = false;
-			const world = new ECSpresso<{}, {}, { counter: number }>();
+			const world = new ECSpresso<WorldConfigFrom<{}, {}, { counter: number }>>();
 
 			world.addResource('counter', {
 				factory: () => 42,

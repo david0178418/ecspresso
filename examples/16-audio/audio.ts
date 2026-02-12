@@ -11,7 +11,7 @@
  * - Event-driven playback (playSound, stopMusic, soundEnded)
  */
 
-import ECSpresso from '../../src';
+import ECSpresso, { type WorldConfigFrom } from '../../src';
 import {
 	defineAudioChannels,
 	createAudioPlugin,
@@ -44,7 +44,7 @@ interface Events extends AudioEventTypes<Ch> {}
 interface Resources extends AudioResourceTypes<Ch> {}
 
 const ecs = ECSpresso
-	.create<Components, Events, Resources>()
+	.create<WorldConfigFrom<Components, Events, Resources>>()
 	.withAssets(a => a
 		.add('click', loadSound('/16-audio/assets/click.wav'))
 		.add('coin', loadSound('/16-audio/assets/coin.wav'))

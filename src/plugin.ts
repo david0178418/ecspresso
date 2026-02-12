@@ -1,41 +1,28 @@
 import type ECSpresso from './ecspresso';
 import type { SystemPhase } from './types';
-import type { ScreenDefinition } from './screen-types';
 import type {
+	WorldConfig,
+	EmptyConfig,
 	AnyECSpresso,
-	ComponentsOf,
-	EventsOf,
-	ResourcesOf,
-	AssetTypesOf,
-	ScreenStatesOf,
+	ConfigOf,
 } from './type-utils';
 
 /**
  * Plugin interface for ECSpresso. A plugin is a plain object with an `install`
- * function that configures a world directly, plus phantom type properties for
+ * function that configures a world directly, plus a phantom _cfg property for
  * compile-time type extraction.
- *
- * A plain object with an `install` function and phantom types for compile-time extraction.
  */
 export interface Plugin<
-	ComponentTypes extends Record<string, any> = {},
-	EventTypes extends Record<string, any> = {},
-	ResourceTypes extends Record<string, any> = {},
-	AssetTypes extends Record<string, unknown> = {},
-	ScreenStates extends Record<string, ScreenDefinition<any, any>> = {},
+	Cfg extends WorldConfig = EmptyConfig,
 	Labels extends string = never,
 	Groups extends string = never,
 	AssetGroupNames extends string = never,
 	ReactiveQueryNames extends string = never,
 > {
 	readonly id: string;
-	readonly install: (world: ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>) => void;
-	// Phantom types for structural extraction (never set at runtime)
-	readonly _componentTypes?: ComponentTypes;
-	readonly _eventTypes?: EventTypes;
-	readonly _resourceTypes?: ResourceTypes;
-	readonly _assetTypes?: AssetTypes;
-	readonly _screenStates?: ScreenStates;
+	readonly install: (world: ECSpresso<Cfg>) => void;
+	// Phantom type for structural extraction (never set at runtime)
+	readonly _cfg?: Cfg;
 	// Phantom types for positional extraction (never set at runtime)
 	readonly _labels?: Labels;
 	readonly _groups?: Groups;
@@ -62,13 +49,13 @@ export interface BasePluginOptions<G extends string = string> {
  *
  * @example
  * ```typescript
- * // Option 1: Explicit type params (original)
- * const myPlugin = definePlugin<MyComponents, MyEvents, MyResources>({
+ * // Option 1: Explicit config type param
+ * const myPlugin = definePlugin<WorldConfigFrom<MyComponents, MyEvents, MyResources>>({
  *   id: 'my-plugin',
  *   install(world) { ... },
  * });
  *
- * // Option 2: Single world type param (extracts C/E/R/A/S automatically)
+ * // Option 2: Single world type param (extracts config automatically)
  * type MyWorld = typeof ecs;
  * const myPlugin = definePlugin<MyWorld>({
  *   id: 'my-plugin',
@@ -86,26 +73,18 @@ export function definePlugin<
 	ReactiveQueryNames extends string = never,
 >(
 	config: { id: string; install: (world: W) => void }
-): Plugin<
-	ComponentsOf<W>, EventsOf<W>, ResourcesOf<W>,
-	AssetTypesOf<W>, ScreenStatesOf<W>,
-	Labels, Groups, AssetGroupNames, ReactiveQueryNames
->;
+): Plugin<ConfigOf<W>, Labels, Groups, AssetGroupNames, ReactiveQueryNames>;
 
-// Overload: explicit C/E/R/A/S type params (original)
+// Overload: explicit config type param
 export function definePlugin<
-	C extends Record<string, any> = {},
-	E extends Record<string, any> = {},
-	R extends Record<string, any> = {},
-	A extends Record<string, unknown> = {},
-	S extends Record<string, ScreenDefinition<any, any>> = {},
+	Cfg extends WorldConfig = EmptyConfig,
 	Labels extends string = never,
 	Groups extends string = never,
 	AssetGroupNames extends string = never,
 	ReactiveQueryNames extends string = never,
 >(
-	config: { id: string; install: (world: ECSpresso<C, E, R, A, S>) => void }
-): Plugin<C, E, R, A, S, Labels, Groups, AssetGroupNames, ReactiveQueryNames>;
+	config: { id: string; install: (world: ECSpresso<Cfg>) => void }
+): Plugin<Cfg, Labels, Groups, AssetGroupNames, ReactiveQueryNames>;
 
 // Implementation
 export function definePlugin(
@@ -113,4 +92,3 @@ export function definePlugin(
 ): Plugin {
 	return config as Plugin;
 }
-

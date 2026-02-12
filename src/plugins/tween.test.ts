@@ -62,7 +62,10 @@ interface TestResources {}
 
 function createTestEcs() {
 	return ECSpresso
-		.create<TestComponents, TestEvents, TestResources>()
+		.create()
+		.withComponentTypes<TestComponents>()
+		.withEventTypes<TestEvents>()
+		.withResourceTypes<TestResources>()
 		.withPlugin(createTweenPlugin())
 		.build();
 }
@@ -400,7 +403,10 @@ describe('Completion Event', () => {
 describe('justFinished Flag', () => {
 	test('should be true for one frame after completion (observable by same-phase system)', () => {
 		const ecs = ECSpresso
-			.create<TestComponents, TestEvents, TestResources>()
+			.create()
+			.withComponentTypes<TestComponents>()
+			.withEventTypes<TestEvents>()
+			.withResourceTypes<TestResources>()
 			.withPlugin(createTweenPlugin())
 			.build();
 
@@ -431,7 +437,10 @@ describe('justFinished Flag', () => {
 
 	test('should be false before completion', () => {
 		const ecs = ECSpresso
-			.create<TestComponents, TestEvents, TestResources>()
+			.create()
+			.withComponentTypes<TestComponents>()
+			.withEventTypes<TestEvents>()
+			.withResourceTypes<TestResources>()
 			.withPlugin(createTweenPlugin())
 			.build();
 
@@ -934,7 +943,10 @@ describe('Entity Removal Mid-Tween', () => {
 describe('Plugin Options', () => {
 	test('should respect custom phase', () => {
 		const ecs = ECSpresso
-			.create<TestComponents, TestEvents, TestResources>()
+			.create()
+			.withComponentTypes<TestComponents>()
+			.withEventTypes<TestEvents>()
+			.withResourceTypes<TestResources>()
 			.withPlugin(createTweenPlugin({ phase: 'postUpdate' }))
 			.build();
 
@@ -956,7 +968,10 @@ describe('Plugin Options', () => {
 
 function createHelpersTestEcs() {
 	const ecs = ECSpresso
-		.create<TestComponents, TestEvents, TestResources>()
+		.create()
+		.withComponentTypes<TestComponents>()
+		.withEventTypes<TestEvents>()
+		.withResourceTypes<TestResources>()
 		.withPlugin(createTweenPlugin())
 		.build();
 	const helpers = createTweenHelpers<typeof ecs>();

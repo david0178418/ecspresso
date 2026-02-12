@@ -1,5 +1,5 @@
 import { Graphics, Sprite } from 'pixi.js';
-import ECSpresso, { definePlugin } from "../../src";
+import ECSpresso, { definePlugin, type WorldConfigFrom } from "../../src";
 import {
 	createRenderer2DPlugin,
 	createLocalTransform,
@@ -27,7 +27,7 @@ interface BouncingResources {
 }
 
 function createBouncingPlugin() {
-	return definePlugin<BouncingComponents, BouncingEvents, BouncingResources>({
+	return definePlugin<WorldConfigFrom<BouncingComponents, BouncingEvents, BouncingResources>>({
 		id: 'bouncing',
 		install(world) {
 			world.addSystem('movement')

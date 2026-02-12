@@ -3,7 +3,7 @@ import AssetManager, { AssetConfiguratorImpl, createAssetConfigurator } from "./
 import ScreenManager, { ScreenConfiguratorImpl, createScreenConfigurator } from "./screen-manager";
 import type { ResourceFactoryWithDeps } from "./resource-manager";
 import { definePlugin, type Plugin } from "./plugin";
-import type { PluginsAreCompatible, TypesAreCompatible } from "./type-utils";
+import type { WorldConfig, EmptyConfig, ConfigsAreCompatible, MergeConfigs, TypesAreCompatible, WithComponents, WithEvents, WithResources } from "./type-utils";
 import type { AssetConfigurator, AssetsResource } from "./asset-types";
 import type { ScreenDefinition, ScreenConfigurator, ScreenResource } from "./screen-types";
 
@@ -12,32 +12,33 @@ import type { ScreenDefinition, ScreenConfigurator, ScreenResource } from "./scr
  * Auto-injects $assets/$screen when plugins contribute asset/screen types even without
  * explicit withAssets()/withScreens(). Also narrows the AssetGroupNames on $assets.
  */
-type FinalizeBuiltinResources<R, A extends Record<string, unknown>, S extends Record<string, ScreenDefinition<any, any>>, AG extends string> =
-	Omit<R, '$assets' | '$screen'>
-	& ([keyof A] extends [never] ? {} : { $assets: AssetsResource<A, AG> })
-	& ([keyof S] extends [never] ? {} : { $screen: ScreenResource<S> });
+type FinalizeBuiltinResources<Cfg extends WorldConfig, AG extends string> = {
+	readonly components: Cfg['components'];
+	readonly events: Cfg['events'];
+	readonly resources: Omit<Cfg['resources'], '$assets' | '$screen'>
+		& ([keyof Cfg['assets']] extends [never] ? {} : { $assets: AssetsResource<Cfg['assets'], AG> })
+		& ([keyof Cfg['screens']] extends [never] ? {} : { $screen: ScreenResource<Cfg['screens']> });
+	readonly assets: Cfg['assets'];
+	readonly screens: Cfg['screens'];
+};
 
 /**
 	* Builder class for ECSpresso that provides fluent type-safe plugin installation.
 	* Handles type checking during build process to ensure type safety.
 */
 export class ECSpressoBuilder<
-	C extends Record<string, any> = {},
-	E extends Record<string, any> = {},
-	R extends Record<string, any> = {},
-	A extends Record<string, unknown> = {},
-	S extends Record<string, ScreenDefinition<any, any>> = {},
+	Cfg extends WorldConfig = EmptyConfig,
 	Labels extends string = never,
 	Groups extends string = never,
 	AssetGroupNames extends string = never,
 	ReactiveQueryNames extends string = never,
 > {
 	/** The ECSpresso instance being built*/
-	private ecspresso: ECSpresso<C, E, R, A, S>;
+	private ecspresso: ECSpresso<Cfg>;
 	/** Asset configurator for collecting asset definitions */
-	private assetConfigurator: AssetConfiguratorImpl<A> | null = null;
+	private assetConfigurator: AssetConfiguratorImpl<Cfg['assets']> | null = null;
 	/** Screen configurator for collecting screen definitions */
-	private screenConfigurator: ScreenConfiguratorImpl<S> | null = null;
+	private screenConfigurator: ScreenConfiguratorImpl<Cfg['screens']> | null = null;
 	/** Pending resources to add during build */
 	private pendingResources: Array<{ key: string; value: unknown }> = [];
 	/** Pending dispose callbacks to register during build */
@@ -45,7 +46,7 @@ export class ECSpressoBuilder<
 	/** Pending required component registrations to apply during build */
 	private pendingRequiredComponents: Array<{ trigger: string; required: string; factory: (triggerValue: any) => unknown }> = [];
 	/** Pending plugins to install during build */
-	private pendingPlugins: Plugin<any, any, any, any, any, any, any, any, any>[] = [];
+	private pendingPlugins: Plugin<any, any, any, any, any>[] = [];
 	/** Fixed timestep interval (null means use default 1/60) */
 	private _fixedDt: number | null = null;
 
@@ -54,7 +55,7 @@ export class ECSpressoBuilder<
 		// ECSpresso imports ECSpressoBuilder (for create()), and ECSpressoBuilder
 		// needs to instantiate ECSpresso. Using require() defers the resolution.
 		const { default: ECSpressoClass } = require("./ecspresso");
-		this.ecspresso = new ECSpressoClass() as ECSpresso<C, E, R, A, S>;
+		this.ecspresso = new ECSpressoClass() as ECSpresso<Cfg>;
 	}
 
 	/**
@@ -62,39 +63,37 @@ export class ECSpressoBuilder<
 		* This overload allows any plugin to be added to an empty ECSpresso instance.
 	*/
 	withPlugin<
-		BC extends Record<string, any>,
-		BE extends Record<string, any>,
-		BR extends Record<string, any>,
-		BA extends Record<string, unknown> = {},
-		BS extends Record<string, ScreenDefinition<any, any>> = {},
+		PCfg extends WorldConfig,
 		BL extends string = never,
 		BG extends string = never,
 		BAG extends string = never,
 		BRQ extends string = never,
 	>(
-		this: ECSpressoBuilder<{}, {}, {}, A, S, Labels, Groups, AssetGroupNames, ReactiveQueryNames>,
-		plugin: Plugin<BC, BE, BR, BA, BS, BL, BG, BAG, BRQ>
-	): ECSpressoBuilder<BC, BE, BR, A & BA, S & BS, Labels | BL, Groups | BG, AssetGroupNames | BAG, ReactiveQueryNames | BRQ>;
+		this: ECSpressoBuilder<{ readonly components: {}; readonly events: {}; readonly resources: {}; readonly assets: Cfg['assets']; readonly screens: Cfg['screens'] }, Labels, Groups, AssetGroupNames, ReactiveQueryNames>,
+		plugin: Plugin<PCfg, BL, BG, BAG, BRQ>
+	): ECSpressoBuilder<{
+		readonly components: PCfg['components'];
+		readonly events: PCfg['events'];
+		readonly resources: PCfg['resources'];
+		readonly assets: Cfg['assets'] & PCfg['assets'];
+		readonly screens: Cfg['screens'] & PCfg['screens'];
+	}, Labels | BL, Groups | BG, AssetGroupNames | BAG, ReactiveQueryNames | BRQ>;
 
 	/**
 		* Add a subsequent plugin with type checking.
 		* This overload enforces plugin type compatibility.
 	*/
 	withPlugin<
-		BC extends Record<string, any>,
-		BE extends Record<string, any>,
-		BR extends Record<string, any>,
-		BA extends Record<string, unknown> = {},
-		BS extends Record<string, ScreenDefinition<any, any>> = {},
+		PCfg extends WorldConfig,
 		BL extends string = never,
 		BG extends string = never,
 		BAG extends string = never,
 		BRQ extends string = never,
 	>(
-		plugin: PluginsAreCompatible<C, BC, E, BE, R, BR, A, BA, S, BS> extends true
-			? Plugin<BC, BE, BR, BA, BS, BL, BG, BAG, BRQ>
+		plugin: ConfigsAreCompatible<Cfg, PCfg> extends true
+			? Plugin<PCfg, BL, BG, BAG, BRQ>
 			: never
-	): ECSpressoBuilder<C & BC, E & BE, R & BR, A & BA, S & BS, Labels | BL, Groups | BG, AssetGroupNames | BAG, ReactiveQueryNames | BRQ>;
+	): ECSpressoBuilder<MergeConfigs<Cfg, PCfg>, Labels | BL, Groups | BG, AssetGroupNames | BAG, ReactiveQueryNames | BRQ>;
 
 	/**
 		* Implementation of both overloads.
@@ -102,23 +101,19 @@ export class ECSpressoBuilder<
 		* we can safely assume the plugin is compatible here.
 	*/
 	withPlugin<
-		BC extends Record<string, any>,
-		BE extends Record<string, any>,
-		BR extends Record<string, any>,
-		BA extends Record<string, unknown> = {},
-		BS extends Record<string, ScreenDefinition<any, any>> = {},
+		PCfg extends WorldConfig,
 		BL extends string = never,
 		BG extends string = never,
 		BAG extends string = never,
 		BRQ extends string = never,
 	>(
-		plugin: Plugin<BC, BE, BR, BA, BS, BL, BG, BAG, BRQ>
-	): ECSpressoBuilder<C & BC, E & BE, R & BR, A & BA, S & BS, Labels | BL, Groups | BG, AssetGroupNames | BAG, ReactiveQueryNames | BRQ> {
+		plugin: Plugin<PCfg, BL, BG, BAG, BRQ>
+	): ECSpressoBuilder<MergeConfigs<Cfg, PCfg>, Labels | BL, Groups | BG, AssetGroupNames | BAG, ReactiveQueryNames | BRQ> {
 		// Defer plugin installation to build time
 		this.pendingPlugins.push(plugin);
 
 		// Return a builder with the updated type parameters
-		return this as unknown as ECSpressoBuilder<C & BC, E & BE, R & BR, A & BA, S & BS, Labels | BL, Groups | BG, AssetGroupNames | BAG, ReactiveQueryNames | BRQ>;
+		return this as unknown as ECSpressoBuilder<MergeConfigs<Cfg, PCfg>, Labels | BL, Groups | BG, AssetGroupNames | BAG, ReactiveQueryNames | BRQ>;
 	}
 
 	/**
@@ -126,11 +121,11 @@ export class ECSpressoBuilder<
 	 * This is a pure type-level operation with no runtime cost.
 	 * Conflicts with existing component types (same key, different type) produce a `never` return.
 	 */
-	withComponentTypes<T extends Record<string, any>>(): TypesAreCompatible<C, T> extends true
-		? ECSpressoBuilder<C & T, E, R, A, S, Labels, Groups, AssetGroupNames, ReactiveQueryNames>
+	withComponentTypes<T extends Record<string, any>>(): TypesAreCompatible<Cfg['components'], T> extends true
+		? ECSpressoBuilder<WithComponents<Cfg, T>, Labels, Groups, AssetGroupNames, ReactiveQueryNames>
 		: never;
-	withComponentTypes<T extends Record<string, any>>(): ECSpressoBuilder<C & T, E, R, A, S, Labels, Groups, AssetGroupNames, ReactiveQueryNames> {
-		return this as unknown as ECSpressoBuilder<C & T, E, R, A, S, Labels, Groups, AssetGroupNames, ReactiveQueryNames>;
+	withComponentTypes<T extends Record<string, any>>(): ECSpressoBuilder<WithComponents<Cfg, T>, Labels, Groups, AssetGroupNames, ReactiveQueryNames> {
+		return this as unknown as ECSpressoBuilder<WithComponents<Cfg, T>, Labels, Groups, AssetGroupNames, ReactiveQueryNames>;
 	}
 
 	/**
@@ -138,11 +133,11 @@ export class ECSpressoBuilder<
 	 * This is a pure type-level operation with no runtime cost.
 	 * Conflicts with existing event types (same key, different type) produce a `never` return.
 	 */
-	withEventTypes<T extends Record<string, any>>(): TypesAreCompatible<E, T> extends true
-		? ECSpressoBuilder<C, E & T, R, A, S, Labels, Groups, AssetGroupNames, ReactiveQueryNames>
+	withEventTypes<T extends Record<string, any>>(): TypesAreCompatible<Cfg['events'], T> extends true
+		? ECSpressoBuilder<WithEvents<Cfg, T>, Labels, Groups, AssetGroupNames, ReactiveQueryNames>
 		: never;
-	withEventTypes<T extends Record<string, any>>(): ECSpressoBuilder<C, E & T, R, A, S, Labels, Groups, AssetGroupNames, ReactiveQueryNames> {
-		return this as unknown as ECSpressoBuilder<C, E & T, R, A, S, Labels, Groups, AssetGroupNames, ReactiveQueryNames>;
+	withEventTypes<T extends Record<string, any>>(): ECSpressoBuilder<WithEvents<Cfg, T>, Labels, Groups, AssetGroupNames, ReactiveQueryNames> {
+		return this as unknown as ECSpressoBuilder<WithEvents<Cfg, T>, Labels, Groups, AssetGroupNames, ReactiveQueryNames>;
 	}
 
 	/**
@@ -150,11 +145,11 @@ export class ECSpressoBuilder<
 	 * This is a pure type-level operation with no runtime cost.
 	 * Conflicts with existing resource types (same key, different type) produce a `never` return.
 	 */
-	withResourceTypes<T extends Record<string, any>>(): TypesAreCompatible<R, T> extends true
-		? ECSpressoBuilder<C, E, R & T, A, S, Labels, Groups, AssetGroupNames, ReactiveQueryNames>
+	withResourceTypes<T extends Record<string, any>>(): TypesAreCompatible<Cfg['resources'], T> extends true
+		? ECSpressoBuilder<WithResources<Cfg, T>, Labels, Groups, AssetGroupNames, ReactiveQueryNames>
 		: never;
-	withResourceTypes<T extends Record<string, any>>(): ECSpressoBuilder<C, E, R & T, A, S, Labels, Groups, AssetGroupNames, ReactiveQueryNames> {
-		return this as unknown as ECSpressoBuilder<C, E, R & T, A, S, Labels, Groups, AssetGroupNames, ReactiveQueryNames>;
+	withResourceTypes<T extends Record<string, any>>(): ECSpressoBuilder<WithResources<Cfg, T>, Labels, Groups, AssetGroupNames, ReactiveQueryNames> {
+		return this as unknown as ECSpressoBuilder<WithResources<Cfg, T>, Labels, Groups, AssetGroupNames, ReactiveQueryNames>;
 	}
 
 	/**
@@ -168,17 +163,17 @@ export class ECSpressoBuilder<
 	 * @param resource The resource value, factory function, or factory with dependencies/disposal
 	 * @returns This builder with updated resource types
 	 */
-	withResource<K extends keyof R & string>(
+	withResource<K extends keyof Cfg['resources'] & string>(
 		key: K,
-		resource: R[K] | ((context: ECSpresso<C, E, R, A, S>) => R[K] | Promise<R[K]>) | ResourceFactoryWithDeps<R[K], ECSpresso<C, E, R, A, S>, keyof R & string>
-	): ECSpressoBuilder<C, E, R, A, S, Labels, Groups, AssetGroupNames, ReactiveQueryNames>;
+		resource: Cfg['resources'][K] | ((context: ECSpresso<Cfg>) => Cfg['resources'][K] | Promise<Cfg['resources'][K]>) | ResourceFactoryWithDeps<Cfg['resources'][K], ECSpresso<Cfg>, keyof Cfg['resources'] & string>
+	): ECSpressoBuilder<Cfg, Labels, Groups, AssetGroupNames, ReactiveQueryNames>;
 	withResource<K extends string, V>(
-		key: K & ([K] extends [keyof R] ? [V] extends [R[K & keyof R]] ? string : never : string),
-		resource: V | ((context: ECSpresso<C, E, R & Record<K, V>, A, S>) => V | Promise<V>) | ResourceFactoryWithDeps<V, ECSpresso<C, E, R & Record<K, V>, A, S>, keyof (R & Record<K, V>) & string>
-	): ECSpressoBuilder<C, E, R & Record<K, V>, A, S, Labels, Groups, AssetGroupNames, ReactiveQueryNames>;
-	withResource(key: string, resource: unknown): ECSpressoBuilder<C, E, any, A, S, Labels, Groups, AssetGroupNames, ReactiveQueryNames> {
+		key: K & ([K] extends [keyof Cfg['resources']] ? [V] extends [Cfg['resources'][K & keyof Cfg['resources']]] ? string : never : string),
+		resource: V | ((context: ECSpresso<WithResources<Cfg, Record<K, V>>>) => V | Promise<V>) | ResourceFactoryWithDeps<V, ECSpresso<WithResources<Cfg, Record<K, V>>>, keyof (Cfg['resources'] & Record<K, V>) & string>
+	): ECSpressoBuilder<WithResources<Cfg, Record<K, V>>, Labels, Groups, AssetGroupNames, ReactiveQueryNames>;
+	withResource(key: string, resource: unknown): ECSpressoBuilder<any, Labels, Groups, AssetGroupNames, ReactiveQueryNames> {
 		this.pendingResources.push({ key, value: resource });
-		return this as unknown as ECSpressoBuilder<C, E, any, A, S, Labels, Groups, AssetGroupNames, ReactiveQueryNames>;
+		return this as unknown as ECSpressoBuilder<any, Labels, Groups, AssetGroupNames, ReactiveQueryNames>;
 	}
 
 	/**
@@ -188,9 +183,9 @@ export class ECSpressoBuilder<
 	 * @param callback Function receiving the component value being disposed
 	 * @returns This builder for method chaining
 	 */
-	withDispose<K extends keyof C & string>(
+	withDispose<K extends keyof Cfg['components'] & string>(
 		componentName: K,
-		callback: (value: C[K], entityId: number) => void
+		callback: (value: Cfg['components'][K], entityId: number) => void
 	): this {
 		this.pendingDisposeCallbacks.push({ key: componentName, callback: callback as (value: unknown, entityId: number) => void });
 		return this;
@@ -206,12 +201,12 @@ export class ECSpressoBuilder<
 	 * @returns This builder for method chaining
 	 */
 	withRequired<
-		Trigger extends keyof C & string,
-		Required extends keyof C & string,
+		Trigger extends keyof Cfg['components'] & string,
+		Required extends keyof Cfg['components'] & string,
 	>(
 		trigger: Trigger,
 		required: Required,
-		factory: (triggerValue: C[Trigger]) => C[Required]
+		factory: (triggerValue: Cfg['components'][Trigger]) => Cfg['components'][Required]
 	): this {
 		this.pendingRequiredComponents.push({
 			trigger,
@@ -228,11 +223,23 @@ export class ECSpressoBuilder<
 	 */
 	withAssets<NewA extends Record<string, unknown>, NewG extends string = never>(
 		configurator: (assets: AssetConfigurator<{}, never>) => AssetConfigurator<NewA, NewG>
-	): ECSpressoBuilder<C, E, R & { $assets: AssetsResource<A & NewA, string> }, A & NewA, S, Labels, Groups, AssetGroupNames | NewG, ReactiveQueryNames> {
+	): ECSpressoBuilder<{
+		readonly components: Cfg['components'];
+		readonly events: Cfg['events'];
+		readonly resources: Cfg['resources'] & { $assets: AssetsResource<Cfg['assets'] & NewA, string> };
+		readonly assets: Cfg['assets'] & NewA;
+		readonly screens: Cfg['screens'];
+	}, Labels, Groups, AssetGroupNames | NewG, ReactiveQueryNames> {
 		const assetConfig = createAssetConfigurator<{}, never>();
 		configurator(assetConfig);
-		this.assetConfigurator = assetConfig as unknown as AssetConfiguratorImpl<A>;
-		return this as unknown as ECSpressoBuilder<C, E, R & { $assets: AssetsResource<A & NewA, string> }, A & NewA, S, Labels, Groups, AssetGroupNames | NewG, ReactiveQueryNames>;
+		this.assetConfigurator = assetConfig as unknown as AssetConfiguratorImpl<Cfg['assets']>;
+		return this as unknown as ECSpressoBuilder<{
+			readonly components: Cfg['components'];
+			readonly events: Cfg['events'];
+			readonly resources: Cfg['resources'] & { $assets: AssetsResource<Cfg['assets'] & NewA, string> };
+			readonly assets: Cfg['assets'] & NewA;
+			readonly screens: Cfg['screens'];
+		}, Labels, Groups, AssetGroupNames | NewG, ReactiveQueryNames>;
 	}
 
 	/**
@@ -241,12 +248,42 @@ export class ECSpressoBuilder<
 	 * @returns This builder with updated screen types
 	 */
 	withScreens<NewS extends Record<string, ScreenDefinition<any, any>>>(
-		configurator: (screens: ScreenConfigurator<{}, ECSpresso<C, E, R, A, Record<string, ScreenDefinition>>>) => ScreenConfigurator<NewS, ECSpresso<C, E, R, A, Record<string, ScreenDefinition>>>
-	): ECSpressoBuilder<C, E, R & { $screen: ScreenResource<S & NewS> }, A, S & NewS, Labels, Groups, AssetGroupNames, ReactiveQueryNames> {
-		const screenConfig = createScreenConfigurator<{}, ECSpresso<C, E, R, A, Record<string, ScreenDefinition>>>();
+		configurator: (screens: ScreenConfigurator<{}, ECSpresso<{
+			readonly components: Cfg['components'];
+			readonly events: Cfg['events'];
+			readonly resources: Cfg['resources'];
+			readonly assets: Cfg['assets'];
+			readonly screens: Record<string, ScreenDefinition>;
+		}>>) => ScreenConfigurator<NewS, ECSpresso<{
+			readonly components: Cfg['components'];
+			readonly events: Cfg['events'];
+			readonly resources: Cfg['resources'];
+			readonly assets: Cfg['assets'];
+			readonly screens: Record<string, ScreenDefinition>;
+		}>>
+	): ECSpressoBuilder<{
+		readonly components: Cfg['components'];
+		readonly events: Cfg['events'];
+		readonly resources: Cfg['resources'] & { $screen: ScreenResource<Cfg['screens'] & NewS> };
+		readonly assets: Cfg['assets'];
+		readonly screens: Cfg['screens'] & NewS;
+	}, Labels, Groups, AssetGroupNames, ReactiveQueryNames> {
+		const screenConfig = createScreenConfigurator<{}, ECSpresso<{
+			readonly components: Cfg['components'];
+			readonly events: Cfg['events'];
+			readonly resources: Cfg['resources'];
+			readonly assets: Cfg['assets'];
+			readonly screens: Record<string, ScreenDefinition>;
+		}>>();
 		configurator(screenConfig);
-		this.screenConfigurator = screenConfig as unknown as ScreenConfiguratorImpl<S>;
-		return this as unknown as ECSpressoBuilder<C, E, R & { $screen: ScreenResource<S & NewS> }, A, S & NewS, Labels, Groups, AssetGroupNames, ReactiveQueryNames>;
+		this.screenConfigurator = screenConfig as unknown as ScreenConfiguratorImpl<Cfg['screens']>;
+		return this as unknown as ECSpressoBuilder<{
+			readonly components: Cfg['components'];
+			readonly events: Cfg['events'];
+			readonly resources: Cfg['resources'] & { $screen: ScreenResource<Cfg['screens'] & NewS> };
+			readonly assets: Cfg['assets'];
+			readonly screens: Cfg['screens'] & NewS;
+		}, Labels, Groups, AssetGroupNames, ReactiveQueryNames>;
 	}
 
 	/**
@@ -263,8 +300,8 @@ export class ECSpressoBuilder<
 	 * Declare reactive query names that will be registered at runtime.
 	 * This is a pure type-level operation with no runtime cost.
 	 */
-	withReactiveQueryNames<N extends string>(): ECSpressoBuilder<C, E, R, A, S, Labels, Groups, AssetGroupNames, ReactiveQueryNames | N> {
-		return this as unknown as ECSpressoBuilder<C, E, R, A, S, Labels, Groups, AssetGroupNames, ReactiveQueryNames | N>;
+	withReactiveQueryNames<N extends string>(): ECSpressoBuilder<Cfg, Labels, Groups, AssetGroupNames, ReactiveQueryNames | N> {
+		return this as unknown as ECSpressoBuilder<Cfg, Labels, Groups, AssetGroupNames, ReactiveQueryNames | N>;
 	}
 
 	/**
@@ -278,18 +315,16 @@ export class ECSpressoBuilder<
 		PRQ extends string = never,
 	>(config: {
 		id: string;
-		install: (world: ECSpresso<C, E, R, A, S>) => void;
-	}) => Plugin<C, E, R, A, S, PL, PG, PAG, PRQ> {
-		return definePlugin as ReturnType<ECSpressoBuilder<C, E, R, A, S>['pluginFactory']>;
+		install: (world: ECSpresso<Cfg>) => void;
+	}) => Plugin<Cfg, PL, PG, PAG, PRQ> {
+		return definePlugin as ReturnType<ECSpressoBuilder<Cfg>['pluginFactory']>;
 	}
 
 	/**
 		* Complete the build process and return the built ECSpresso instance
 	*/
 	build(): ECSpresso<
-		C, E,
-		FinalizeBuiltinResources<R, A, S, [AssetGroupNames] extends [never] ? string : AssetGroupNames>,
-		A, S,
+		FinalizeBuiltinResources<Cfg, [AssetGroupNames] extends [never] ? string : AssetGroupNames>,
 		[Labels] extends [never] ? string : Labels,
 		[Groups] extends [never] ? string : Groups,
 		[AssetGroupNames] extends [never] ? string : AssetGroupNames,
@@ -302,35 +337,35 @@ export class ECSpressoBuilder<
 
 		// Apply pending resources
 		for (const { key, value } of this.pendingResources) {
-			this.ecspresso.addResource(key as keyof R, value as any);
+			this.ecspresso.addResource(key as keyof Cfg['resources'], value as any);
 		}
 
 		// Apply pending dispose callbacks
 		for (const { key, callback } of this.pendingDisposeCallbacks) {
-			this.ecspresso.registerDispose(key as keyof C, callback as (value: C[keyof C], entityId: number) => void);
+			this.ecspresso.registerDispose(key as keyof Cfg['components'], callback as (value: Cfg['components'][keyof Cfg['components']], entityId: number) => void);
 		}
 
 		// Apply pending required component registrations
 		for (const { trigger, required, factory } of this.pendingRequiredComponents) {
 			this.ecspresso.registerRequired(
-				trigger as keyof C,
-				required as keyof C,
-				factory as () => C[keyof C]
+				trigger as keyof Cfg['components'],
+				required as keyof Cfg['components'],
+				factory as () => Cfg['components'][keyof Cfg['components']]
 			);
 		}
 
 		// Set up asset manager if configured via withAssets(), or auto-create if plugins contributed assets
 		if (this.assetConfigurator) {
-			this.ecspresso._setAssetManager(this.assetConfigurator.getManager() as unknown as AssetManager<A>);
+			this.ecspresso._setAssetManager(this.assetConfigurator.getManager() as unknown as AssetManager<Cfg['assets']>);
 		} else if (this.ecspresso._hasPendingPluginAssets()) {
-			this.ecspresso._setAssetManager(new AssetManager() as unknown as AssetManager<A>);
+			this.ecspresso._setAssetManager(new AssetManager() as unknown as AssetManager<Cfg['assets']>);
 		}
 
 		// Set up screen manager if configured via withScreens(), or auto-create if plugins contributed screens
 		if (this.screenConfigurator) {
-			this.ecspresso._setScreenManager(this.screenConfigurator.getManager() as unknown as ScreenManager<S>);
+			this.ecspresso._setScreenManager(this.screenConfigurator.getManager() as unknown as ScreenManager<Cfg['screens']>);
 		} else if (this.ecspresso._hasPendingPluginScreens()) {
-			this.ecspresso._setScreenManager(new ScreenManager() as unknown as ScreenManager<S>);
+			this.ecspresso._setScreenManager(new ScreenManager() as unknown as ScreenManager<Cfg['screens']>);
 		}
 
 		// Set fixed timestep if configured
@@ -339,9 +374,7 @@ export class ECSpressoBuilder<
 		}
 
 		return this.ecspresso as unknown as ECSpresso<
-			C, E,
-			FinalizeBuiltinResources<R, A, S, [AssetGroupNames] extends [never] ? string : AssetGroupNames>,
-			A, S,
+			FinalizeBuiltinResources<Cfg, [AssetGroupNames] extends [never] ? string : AssetGroupNames>,
 			[Labels] extends [never] ? string : Labels,
 			[Groups] extends [never] ? string : Groups,
 			[AssetGroupNames] extends [never] ? string : AssetGroupNames,

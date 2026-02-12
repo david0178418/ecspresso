@@ -1,6 +1,7 @@
 import { expect, describe, test } from 'bun:test';
 import ECSpresso from './ecspresso';
 import { definePlugin } from './plugin';
+import type { WorldConfigFrom } from './type-utils';
 
 // Define test component and resource types
 interface PositionComponents {
@@ -23,7 +24,7 @@ interface PlayerResources {
 
 describe('Plugin', () => {
 	test('should create a plugin with correct type parameters', () => {
-		const plugin = definePlugin<PositionComponents, {}, PositionResources>({
+		const plugin = definePlugin<WorldConfigFrom<PositionComponents, {}, PositionResources>>({
 			id: 'test',
 			install() {},
 		});
@@ -31,7 +32,7 @@ describe('Plugin', () => {
 	});
 
 	test('should add systems via the install function', () => {
-		const plugin = definePlugin<PositionComponents, {}, PositionResources>({
+		const plugin = definePlugin<WorldConfigFrom<PositionComponents, {}, PositionResources>>({
 			id: 'test',
 			install(world) {
 				world.addSystem('test').setProcess(() => {});
@@ -47,7 +48,7 @@ describe('Plugin', () => {
 	});
 
 	test('should add resources via the install function', () => {
-		const plugin = definePlugin<PositionComponents, {}, PositionResources>({
+		const plugin = definePlugin<WorldConfigFrom<PositionComponents, {}, PositionResources>>({
 			id: 'test',
 			install(world) {
 				world.addResource('gravity', { value: 9.8 });
@@ -63,7 +64,7 @@ describe('Plugin', () => {
 	});
 
 	test('should handle a world installing a plugin', () => {
-		const plugin = definePlugin<PositionComponents, {}, PositionResources>({
+		const plugin = definePlugin<WorldConfigFrom<PositionComponents, {}, PositionResources>>({
 			id: 'test-plugin',
 			install(world) {
 				world.addResource('gravity', { value: 9.8 });
@@ -80,7 +81,7 @@ describe('Plugin', () => {
 	});
 
 	test('should combine two plugins with a composite plugin', () => {
-		const physicsPlugin = definePlugin<PositionComponents, {}, PositionResources>({
+		const physicsPlugin = definePlugin<WorldConfigFrom<PositionComponents, {}, PositionResources>>({
 			id: 'physics',
 			install(world) {
 				world.addResource('gravity', { value: 9.8 });
@@ -92,7 +93,7 @@ describe('Plugin', () => {
 			},
 		});
 
-		const playerPlugin = definePlugin<PlayerComponents, {}, PlayerResources>({
+		const playerPlugin = definePlugin<WorldConfigFrom<PlayerComponents, {}, PlayerResources>>({
 			id: 'player',
 			install(world) {
 				world.addResource('playerControls', { up: false, down: false, left: false, right: false });
@@ -105,7 +106,7 @@ describe('Plugin', () => {
 		});
 
 		// Combine the plugins using a composite plugin
-		const gamePlugin = definePlugin<PositionComponents & PlayerComponents, {}, PositionResources & PlayerResources>({
+		const gamePlugin = definePlugin<WorldConfigFrom<PositionComponents & PlayerComponents, {}, PositionResources & PlayerResources>>({
 			id: 'game',
 			install(world) {
 				world.installPlugin(physicsPlugin);
@@ -125,7 +126,7 @@ describe('Plugin', () => {
 	});
 
 	test('should support defining multiple systems in a plugin', () => {
-		const plugin = definePlugin<PositionComponents, {}, PositionResources>({
+		const plugin = definePlugin<WorldConfigFrom<PositionComponents, {}, PositionResources>>({
 			id: 'test',
 			install(world) {
 				world.addSystem('physics')
@@ -260,7 +261,7 @@ describe('world.pluginFactory()', () => {
 	});
 
 	test('includes types from installed plugins', () => {
-		const pluginA = definePlugin<{ alpha: number }, {}, { alphaRes: string }>({
+		const pluginA = definePlugin<WorldConfigFrom<{ alpha: number }, {}, { alphaRes: string }>>({
 			id: 'plugin-a',
 			install(world) {
 				world.addResource('alphaRes', 'hello');

@@ -1,6 +1,7 @@
 import { expect, describe, test } from 'bun:test';
 import ECSpresso from './ecspresso';
 import { definePlugin } from './plugin';
+import type { WorldConfigFrom } from './type-utils';
 
 // Define component types for testing
 interface TestComponents {
@@ -16,7 +17,7 @@ describe('SystemBuilder', () => {
 	test('should create a system that can query entities', () => {
 		const processedIds: number[] = [];
 
-		const plugin = definePlugin<TestComponents, {}, {}>({
+		const plugin = definePlugin<WorldConfigFrom<TestComponents, {}, {}>>({
 			id: 'test',
 			install(world) {
 				world.addSystem('TestSystem')
@@ -32,7 +33,7 @@ describe('SystemBuilder', () => {
 			},
 		});
 
-		const world = ECSpresso.create<TestComponents>()
+		const world = ECSpresso.create().withComponentTypes<TestComponents>()
 			.withPlugin(plugin)
 			.build();
 
@@ -59,7 +60,7 @@ describe('SystemBuilder', () => {
 			withHealth: [] as number[],
 		};
 
-		const plugin = definePlugin<TestComponents, {}, {}>({
+		const plugin = definePlugin<WorldConfigFrom<TestComponents, {}, {}>>({
 			id: 'multi-query',
 			install(world) {
 				world.addSystem('MultiQuerySystem')
@@ -80,7 +81,7 @@ describe('SystemBuilder', () => {
 			},
 		});
 
-		const world = ECSpresso.create<TestComponents>()
+		const world = ECSpresso.create().withComponentTypes<TestComponents>()
 			.withPlugin(plugin)
 			.build();
 
@@ -113,7 +114,7 @@ describe('SystemBuilder', () => {
 		let onDetachCalled = false;
 		let processCalledCount = 0;
 
-		const plugin = definePlugin<TestComponents, {}, {}>({
+		const plugin = definePlugin<WorldConfigFrom<TestComponents, {}, {}>>({
 			id: 'lifecycle',
 			install(world) {
 				world.addSystem('LifecycleSystem')
@@ -132,7 +133,7 @@ describe('SystemBuilder', () => {
 			},
 		});
 
-		const world = ECSpresso.create<TestComponents>()
+		const world = ECSpresso.create().withComponentTypes<TestComponents>()
 			.withPlugin(plugin)
 			.build();
 
@@ -157,7 +158,7 @@ describe('SystemBuilder', () => {
 	});
 
 	test('should support statically typed queries with correct component access', () => {
-		const plugin = definePlugin<TestComponents, {}, {}>({
+		const plugin = definePlugin<WorldConfigFrom<TestComponents, {}, {}>>({
 			id: 'typed',
 			install(world) {
 				world.addSystem('TypedSystem')
@@ -178,7 +179,7 @@ describe('SystemBuilder', () => {
 			},
 		});
 
-		const world = ECSpresso.create<TestComponents>()
+		const world = ECSpresso.create().withComponentTypes<TestComponents>()
 			.withPlugin(plugin)
 			.build();
 
@@ -200,7 +201,7 @@ describe('SystemBuilder', () => {
 		let system1Processed = false;
 		let system2Processed = false;
 
-		const world = ECSpresso.create<TestComponents>().build();
+		const world = ECSpresso.create().withComponentTypes<TestComponents>().build();
 
 		world.addSystem('system1')
 			.addQuery('moving', { with: ['position', 'velocity'] })

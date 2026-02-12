@@ -13,12 +13,12 @@ interface TestEvents {
 	test: boolean;
 }
 
-interface TestResources {
-	counter: number;
-}
-
 function createEcs() {
-	return ECSpresso.create<TestComponents, TestEvents, TestResources>().build();
+	return ECSpresso.create()
+		.withComponentTypes<TestComponents>()
+		.withEventTypes<TestEvents>()
+		.withResource('counter', 0 as number)
+		.build();
 }
 
 describe('Change Detection', () => {

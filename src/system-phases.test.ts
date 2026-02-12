@@ -12,12 +12,12 @@ interface TestEvents {
 	test: boolean;
 }
 
-interface TestResources {
-	counter: number;
-}
-
 function createEcs() {
-	return ECSpresso.create<TestComponents, TestEvents, TestResources>().build();
+	return ECSpresso.create()
+		.withComponentTypes<TestComponents>()
+		.withEventTypes<TestEvents>()
+		.withResource('counter', 0 as number)
+		.build();
 }
 
 describe('System Phases', () => {
@@ -133,7 +133,10 @@ describe('System Phases', () => {
 
 	describe('fixedUpdate accumulator', () => {
 		test('dt=1/30 with fixedDt=1/60 runs fixedUpdate twice', () => {
-			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>()
+			const ecs = ECSpresso.create()
+				.withComponentTypes<TestComponents>()
+				.withEventTypes<TestEvents>()
+				.withResource('counter', 0 as number)
 				.withFixedTimestep(1 / 60)
 				.build();
 
@@ -150,7 +153,10 @@ describe('System Phases', () => {
 		});
 
 		test('dt=1/120 with fixedDt=1/60 runs fixedUpdate zero times', () => {
-			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>()
+			const ecs = ECSpresso.create()
+				.withComponentTypes<TestComponents>()
+				.withEventTypes<TestEvents>()
+				.withResource('counter', 0 as number)
 				.withFixedTimestep(1 / 60)
 				.build();
 
@@ -167,7 +173,10 @@ describe('System Phases', () => {
 		});
 
 		test('accumulator carries over between frames', () => {
-			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>()
+			const ecs = ECSpresso.create()
+				.withComponentTypes<TestComponents>()
+				.withEventTypes<TestEvents>()
+				.withResource('counter', 0 as number)
 				.withFixedTimestep(1 / 60)
 				.build();
 
@@ -190,7 +199,10 @@ describe('System Phases', () => {
 	describe('fixedUpdate receives fixedDt', () => {
 		test('fixedUpdate systems receive fixedDt, not the raw frame delta', () => {
 			const fixedDt = 1 / 50;
-			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>()
+			const ecs = ECSpresso.create()
+				.withComponentTypes<TestComponents>()
+				.withEventTypes<TestEvents>()
+				.withResource('counter', 0 as number)
 				.withFixedTimestep(fixedDt)
 				.build();
 
@@ -209,7 +221,10 @@ describe('System Phases', () => {
 		test('update phase still receives the raw frame delta', () => {
 			const fixedDt = 1 / 50;
 			const frameDt = 1 / 30;
-			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>()
+			const ecs = ECSpresso.create()
+				.withComponentTypes<TestComponents>()
+				.withEventTypes<TestEvents>()
+				.withResource('counter', 0 as number)
 				.withFixedTimestep(fixedDt)
 				.build();
 
@@ -227,7 +242,10 @@ describe('System Phases', () => {
 
 	describe('spiral-of-death cap', () => {
 		test('large delta capped at 8 fixed steps', () => {
-			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>()
+			const ecs = ECSpresso.create()
+				.withComponentTypes<TestComponents>()
+				.withEventTypes<TestEvents>()
+				.withResource('counter', 0 as number)
 				.withFixedTimestep(1 / 60)
 				.build();
 
@@ -244,7 +262,10 @@ describe('System Phases', () => {
 		});
 
 		test('accumulator resets after hitting spiral-of-death cap', () => {
-			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>()
+			const ecs = ECSpresso.create()
+				.withComponentTypes<TestComponents>()
+				.withEventTypes<TestEvents>()
+				.withResource('counter', 0 as number)
 				.withFixedTimestep(1 / 60)
 				.build();
 
@@ -267,7 +288,10 @@ describe('System Phases', () => {
 
 	describe('interpolation alpha', () => {
 		test('correct value after update with remainder', () => {
-			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>()
+			const ecs = ECSpresso.create()
+				.withComponentTypes<TestComponents>()
+				.withEventTypes<TestEvents>()
+				.withResource('counter', 0 as number)
 				.withFixedTimestep(1 / 60)
 				.build();
 
@@ -279,7 +303,10 @@ describe('System Phases', () => {
 		});
 
 		test('alpha is 0 when accumulator is exactly consumed', () => {
-			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>()
+			const ecs = ECSpresso.create()
+				.withComponentTypes<TestComponents>()
+				.withEventTypes<TestEvents>()
+				.withResource('counter', 0 as number)
 				.withFixedTimestep(1 / 60)
 				.build();
 
@@ -290,7 +317,10 @@ describe('System Phases', () => {
 		});
 
 		test('alpha is 0 before any update', () => {
-			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>()
+			const ecs = ECSpresso.create()
+				.withComponentTypes<TestComponents>()
+				.withEventTypes<TestEvents>()
+				.withResource('counter', 0 as number)
 				.withFixedTimestep(1 / 60)
 				.build();
 
@@ -329,7 +359,10 @@ describe('System Phases', () => {
 		});
 
 		test('entity spawned in fixedUpdate visible to postUpdate', () => {
-			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>()
+			const ecs = ECSpresso.create()
+				.withComponentTypes<TestComponents>()
+				.withEventTypes<TestEvents>()
+				.withResource('counter', 0 as number)
 				.withFixedTimestep(1 / 60)
 				.build();
 
@@ -392,7 +425,10 @@ describe('System Phases', () => {
 		});
 
 		test('marks from fixedUpdate visible to postUpdate', () => {
-			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>()
+			const ecs = ECSpresso.create()
+				.withComponentTypes<TestComponents>()
+				.withEventTypes<TestEvents>()
+				.withResource('counter', 0 as number)
 				.withFixedTimestep(1 / 60)
 				.build();
 
@@ -444,7 +480,10 @@ describe('System Phases', () => {
 
 		test('withFixedTimestep() configures dt', () => {
 			const customDt = 1 / 30;
-			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>()
+			const ecs = ECSpresso.create()
+				.withComponentTypes<TestComponents>()
+				.withEventTypes<TestEvents>()
+				.withResource('counter', 0 as number)
 				.withFixedTimestep(customDt)
 				.build();
 
@@ -581,7 +620,10 @@ describe('System Phases', () => {
 
 	describe('multiple fixedUpdate steps process queries correctly', () => {
 		test('entity state accumulates across fixed steps', () => {
-			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>()
+			const ecs = ECSpresso.create()
+				.withComponentTypes<TestComponents>()
+				.withEventTypes<TestEvents>()
+				.withResource('counter', 0 as number)
 				.withFixedTimestep(1 / 60)
 				.build();
 

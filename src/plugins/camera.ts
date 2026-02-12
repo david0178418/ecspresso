@@ -15,6 +15,7 @@
 import { definePlugin, type Plugin } from 'ecspresso';
 import type { SystemPhase } from 'ecspresso';
 import type ECSpresso from 'ecspresso';
+import type { WorldConfigFrom } from '../type-utils';
 import type { TransformComponentTypes } from './transform';
 
 // ==================== Component Types ====================
@@ -163,10 +164,9 @@ export function createCameraBounds(
 }
 
 export function addTrauma<
-	C extends CombinedComponentTypes,
-	R extends CameraResourceTypes,
+	Cfg extends WorldConfigFrom<CombinedComponentTypes, {}, CameraResourceTypes>,
 >(
-	ecs: ECSpresso<C, any, R>,
+	ecs: ECSpresso<Cfg>,
 	entityId: number,
 	amount: number,
 ): void {
@@ -221,7 +221,7 @@ export function screenToWorld(
 
 export function createCameraPlugin<G extends string = 'camera'>(
 	options?: CameraPluginOptions<G>,
-): Plugin<CombinedComponentTypes, {}, CameraResourceTypes, {}, {}, 'camera-follow' | 'camera-shake-update' | 'camera-bounds' | 'camera-state-sync', G> {
+): Plugin<WorldConfigFrom<CombinedComponentTypes, {}, CameraResourceTypes>, 'camera-follow' | 'camera-shake-update' | 'camera-bounds' | 'camera-state-sync', G> {
 	const {
 		viewportWidth = 800,
 		viewportHeight = 600,
@@ -230,7 +230,7 @@ export function createCameraPlugin<G extends string = 'camera'>(
 		randomFn = Math.random,
 	} = options ?? {};
 
-	return definePlugin<CombinedComponentTypes, {}, CameraResourceTypes, {}, {}, 'camera-follow' | 'camera-shake-update' | 'camera-bounds' | 'camera-state-sync', G>({
+	return definePlugin<WorldConfigFrom<CombinedComponentTypes, {}, CameraResourceTypes>, 'camera-follow' | 'camera-shake-update' | 'camera-bounds' | 'camera-state-sync', G>({
 		id: 'camera',
 		install(world) {
 			world.addResource('cameraState', {

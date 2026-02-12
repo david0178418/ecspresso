@@ -7,6 +7,7 @@
  */
 
 import { definePlugin, type Plugin, type BasePluginOptions } from 'ecspresso';
+import type { WorldConfigFrom } from '../type-utils';
 import type { TransformComponentTypes } from './transform';
 
 // ==================== Component Types ====================
@@ -229,7 +230,7 @@ type CombinedComponentTypes = BoundsComponentTypes & TransformComponentTypes;
  */
 export function createBoundsPlugin<ResourceTypes extends BoundsResourceTypes = BoundsResourceTypes, G extends string = 'physics'>(
 	options?: BoundsPluginOptions<G>
-): Plugin<CombinedComponentTypes, BoundsEventTypes, ResourceTypes, {}, {}, 'bounds-destroy' | 'bounds-clamp' | 'bounds-wrap', G> {
+): Plugin<WorldConfigFrom<CombinedComponentTypes, BoundsEventTypes, ResourceTypes>, 'bounds-destroy' | 'bounds-clamp' | 'bounds-wrap', G> {
 	const {
 		systemGroup = 'physics',
 		priority = 50,
@@ -238,7 +239,7 @@ export function createBoundsPlugin<ResourceTypes extends BoundsResourceTypes = B
 		phase = 'postUpdate',
 	} = options ?? {};
 
-	return definePlugin<CombinedComponentTypes, BoundsEventTypes, ResourceTypes, {}, {}, 'bounds-destroy' | 'bounds-clamp' | 'bounds-wrap', G>({
+	return definePlugin<WorldConfigFrom<CombinedComponentTypes, BoundsEventTypes, ResourceTypes>, 'bounds-destroy' | 'bounds-clamp' | 'bounds-wrap', G>({
 		id: 'bounds',
 		install(world) {
 			// Destroy out of bounds system

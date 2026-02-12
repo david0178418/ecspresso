@@ -1,7 +1,7 @@
 import { describe, test, expect } from 'bun:test';
 import ECSpresso from '../ecspresso';
 import type { BaseWorld } from '../types';
-import type { Plugin } from '../plugin';
+import type { WorldConfigFrom, ComponentsOf } from '../type-utils';
 import {
 	defineStateMachine,
 	createStateMachine,
@@ -36,7 +36,10 @@ interface TestResources {
 
 function createTestEcs() {
 	return ECSpresso
-		.create<TestComponents, TestEvents, TestResources>()
+		.create()
+		.withComponentTypes<TestComponents>()
+		.withEventTypes<TestEvents>()
+		.withResourceTypes<TestResources>()
 		.withPlugin(createStateMachinePlugin())
 		.withResource('playerNearby', false)
 		.build();
@@ -631,12 +634,15 @@ describe('State Machine Plugin', () => {
 	// --- createStateMachineHelpers ---
 
 	describe('createStateMachineHelpers', () => {
-		type TestECS = ECSpresso<TestComponents, TestEvents, TestResources>;
+		type TestECS = ECSpresso<WorldConfigFrom<TestComponents, TestEvents, TestResources>>;
 
 		function createHelpersTestEcs() {
 			const helpers = createStateMachineHelpers<TestECS>();
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create()
+				.withComponentTypes<TestComponents>()
+				.withEventTypes<TestEvents>()
+				.withResourceTypes<TestResources>()
 				.withPlugin(createStateMachinePlugin())
 				.withResource('playerNearby', false)
 				.build();
@@ -822,7 +828,7 @@ describe('State Machine Plugin', () => {
 			type States = 'idle' | 'chase';
 			const plugin = createStateMachinePlugin<States>();
 
-			type PluginComponents = (typeof plugin) extends Plugin<infer C, infer _E, infer _R, infer _A, infer _S, infer _L, infer _G, infer _AG, infer _RQ> ? C : never;
+			type PluginComponents = ComponentsOf<typeof plugin>;
 			const _check: IsExact<PluginComponents['stateMachine']['current'], States> = true;
 			expect(_check).toBe(true);
 		});

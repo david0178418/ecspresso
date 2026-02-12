@@ -7,6 +7,7 @@
  */
 
 import { definePlugin, type Plugin, type BasePluginOptions } from 'ecspresso';
+import type { WorldConfigFrom } from '../type-utils';
 import type { TransformComponentTypes } from './transform';
 import { buildBaseColliderInfo, detectCollisions, tryGetSpatialIndex, type Contact, type BaseColliderInfo } from '../utils/narrowphase';
 
@@ -429,14 +430,14 @@ function onCollisionDetected<L extends string>(
  */
 export function createCollisionPlugin<L extends string, G extends string = 'physics'>(
 	options: CollisionPluginOptions<G> & { layers: LayerFactories<Record<L, readonly string[]>> }
-): Plugin<CombinedComponentTypes<L>, CollisionEventTypes<L>, {}, {}, {}, 'collision-detection', G> {
+): Plugin<WorldConfigFrom<CombinedComponentTypes<L>, CollisionEventTypes<L>>, 'collision-detection', G> {
 	const {
 		systemGroup = 'physics',
 		priority = 0,
 		phase = 'postUpdate',
 	} = options;
 
-	return definePlugin<CombinedComponentTypes<L>, CollisionEventTypes<L>, {}, {}, {}, 'collision-detection', G>({
+	return definePlugin<WorldConfigFrom<CombinedComponentTypes<L>, CollisionEventTypes<L>>, 'collision-detection', G>({
 		id: 'collision',
 		install(world) {
 			world

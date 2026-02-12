@@ -5,6 +5,7 @@ import CommandBuffer from './command-buffer';
 import type { ScreenDefinition } from './screen-types';
 import type { AssetsResource } from './asset-types';
 import type { ScreenResource } from './screen-types';
+import type { WorldConfigFrom } from './type-utils';
 
 // ── shared test types ────────────────────────────────────────────────
 
@@ -190,7 +191,7 @@ describe('ECSpressoBuilder.withResource factory receives typed context', () => {
 
 describe('Plugin install addResource factory receives full generic params', () => {
 	test('factory function ecs param is fully typed inside install', () => {
-		const plugin = definePlugin<TC, TE, TR, TA, TS>({
+		const plugin = definePlugin<WorldConfigFrom<TC, TE, TR, TA, TS>>({
 			id: 'test',
 			install(world) {
 				world.addResource('score', (w) => {
@@ -213,7 +214,7 @@ describe('Plugin install addResource factory receives full generic params', () =
 	});
 
 	test('factory ecs param rejects invalid keys inside install', () => {
-		definePlugin<TC, TE, TR, TA, TS>({
+		definePlugin<WorldConfigFrom<TC, TE, TR, TA, TS>>({
 			id: 'test',
 			install(world) {
 				world.addResource('score', (w) => {
@@ -239,7 +240,7 @@ describe('CommandBuffer carries full generic params', () => {
 		const ecs = createFullWorld();
 		// Resource type includes user-defined TR plus built-in $assets/$screen from builder
 		type FullR = TR & { $assets: AssetsResource<TA> } & { $screen: ScreenResource<TS> };
-		const buffer = new CommandBuffer<TC, TE, FullR, TA, TS>();
+		const buffer = new CommandBuffer<WorldConfigFrom<TC, TE, FullR, TA, TS>>();
 
 		buffer.spawn({ position: { x: 1, y: 2 } });
 		buffer.playback(ecs);

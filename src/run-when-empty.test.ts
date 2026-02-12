@@ -1,5 +1,6 @@
 import { expect, describe, test } from 'bun:test';
 import ECSpresso from './ecspresso';
+import type { WorldConfigFrom } from './type-utils';
 
 interface TestComponents {
 	position: { x: number; y: number };
@@ -10,7 +11,7 @@ interface TestComponents {
 describe('runWhenEmpty', () => {
 	describe('default behavior (runWhenEmpty not set)', () => {
 		test('system with queries and no matching entities is skipped', () => {
-			const world = new ECSpresso<TestComponents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 			let ran = false;
 
 			world.addSystem('movement')
@@ -23,7 +24,7 @@ describe('runWhenEmpty', () => {
 		});
 
 		test('system without queries always runs', () => {
-			const world = new ECSpresso<TestComponents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 			let ran = false;
 
 			world.addSystem('noQuery')
@@ -37,7 +38,7 @@ describe('runWhenEmpty', () => {
 
 	describe('runWhenEmpty enabled', () => {
 		test('system with queries and no matching entities still runs', () => {
-			const world = new ECSpresso<TestComponents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 			let ran = false;
 
 			world.addSystem('spawner')
@@ -51,7 +52,7 @@ describe('runWhenEmpty', () => {
 		});
 
 		test('receives empty arrays for each query, not undefined', () => {
-			const world = new ECSpresso<TestComponents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 			let receivedQueries: Record<string, unknown[]> | undefined;
 
 			world.addSystem('spawner')
@@ -68,7 +69,7 @@ describe('runWhenEmpty', () => {
 		});
 
 		test('runs normally when entities match', () => {
-			const world = new ECSpresso<TestComponents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 			let count = 0;
 
 			world.addSystem('movement')
@@ -84,7 +85,7 @@ describe('runWhenEmpty', () => {
 		});
 
 		test('runs when all of multiple queries are empty', () => {
-			const world = new ECSpresso<TestComponents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 			let ran = false;
 
 			world.addSystem('multiQuery')
@@ -99,7 +100,7 @@ describe('runWhenEmpty', () => {
 		});
 
 		test('multiple queries all receive empty arrays', () => {
-			const world = new ECSpresso<TestComponents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 			let receivedQueries: Record<string, unknown[]> | undefined;
 
 			world.addSystem('multiQuery')
@@ -120,7 +121,7 @@ describe('runWhenEmpty', () => {
 
 	describe('diagnostics compatibility', () => {
 		test('runs with diagnostics enabled and empty queries', () => {
-			const world = new ECSpresso<TestComponents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 			let ran = false;
 
 			world.addSystem('spawner')
@@ -135,7 +136,7 @@ describe('runWhenEmpty', () => {
 		});
 
 		test('timing is recorded when running with empty queries', () => {
-			const world = new ECSpresso<TestComponents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 
 			world.addSystem('spawner')
 				.addQuery('movers', { with: ['position', 'velocity'] as const })
@@ -151,7 +152,7 @@ describe('runWhenEmpty', () => {
 
 	describe('change detection interaction', () => {
 		test('system last-seen sequence updates when running with empty queries', () => {
-			const world = new ECSpresso<TestComponents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 			let callCount = 0;
 
 			world.addSystem('spawner')
@@ -168,7 +169,7 @@ describe('runWhenEmpty', () => {
 
 	describe('builder chaining', () => {
 		test('chains with inPhase()', () => {
-			const world = new ECSpresso<TestComponents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 			let ran = false;
 
 			world.addSystem('spawner')
@@ -183,7 +184,7 @@ describe('runWhenEmpty', () => {
 		});
 
 		test('chains with inGroup()', () => {
-			const world = new ECSpresso<TestComponents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 			let ran = false;
 
 			world.addSystem('spawner')
@@ -199,7 +200,7 @@ describe('runWhenEmpty', () => {
 		});
 
 		test('system registered and runs via update()', () => {
-			const world = new ECSpresso<TestComponents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 			let ran = false;
 
 			world.addSystem('spawner')

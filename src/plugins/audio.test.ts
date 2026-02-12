@@ -1,5 +1,6 @@
 import { describe, test, expect, mock } from 'bun:test';
 import ECSpresso from '../ecspresso';
+import type { WorldConfigFrom } from '../type-utils';
 import {
 	defineAudioChannels,
 	createAudioSource,
@@ -157,7 +158,7 @@ function createTestEcs() {
 	const bgmHowl = createMockHowl();
 
 	const ecs = ECSpresso
-		.create<TestComponents, TestEvents, TestResources>()
+		.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 		.withPlugin(createAudioPlugin({ channels: testChannels }))
 		.withResource('$assets' as never, {
 			get(key: string) {

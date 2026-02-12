@@ -1,6 +1,7 @@
 import { expect, describe, test } from 'bun:test';
 import ECSpresso from './ecspresso';
 import { definePlugin } from './plugin';
+import type { WorldConfigFrom } from './type-utils';
 
 interface TestComponents {
 	position: { x: number; y: number };
@@ -10,7 +11,7 @@ interface TestComponents {
 describe('System Groups', () => {
 	describe('inGroup builder method', () => {
 		test('system should be assigned to a group', () => {
-			const world = new ECSpresso<TestComponents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 
 			world.addSystem('renderSystem')
 				.inGroup('rendering')
@@ -21,7 +22,7 @@ describe('System Groups', () => {
 		});
 
 		test('system can belong to multiple groups', () => {
-			const world = new ECSpresso<TestComponents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 
 			world.addSystem('physicsRenderer')
 				.inGroup('physics')
@@ -36,7 +37,7 @@ describe('System Groups', () => {
 
 	describe('disable/enable group', () => {
 		test('disabled group systems should not run', () => {
-			const world = new ECSpresso<TestComponents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 			let renderingRan = false;
 			let otherRan = false;
 
@@ -59,7 +60,7 @@ describe('System Groups', () => {
 		});
 
 		test('other systems should still run when group is disabled', () => {
-			const world = new ECSpresso<TestComponents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 			const executionOrder: string[] = [];
 
 			world.addSystem('systemA')
@@ -81,7 +82,7 @@ describe('System Groups', () => {
 		});
 
 		test('re-enabling group should allow systems to run again', () => {
-			const world = new ECSpresso<TestComponents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 			let runCount = 0;
 
 			world.addSystem('renderSystem')
@@ -105,7 +106,7 @@ describe('System Groups', () => {
 
 	describe('isSystemGroupEnabled', () => {
 		test('should return true for enabled groups', () => {
-			const world = new ECSpresso<TestComponents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 
 			world.addSystem('testSystem')
 				.inGroup('testGroup')
@@ -115,7 +116,7 @@ describe('System Groups', () => {
 		});
 
 		test('should return false for disabled groups', () => {
-			const world = new ECSpresso<TestComponents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 
 			world.addSystem('testSystem')
 				.inGroup('testGroup')
@@ -127,7 +128,7 @@ describe('System Groups', () => {
 		});
 
 		test('should return true for non-existent groups (default enabled)', () => {
-			const world = new ECSpresso<TestComponents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 
 			expect(world.isSystemGroupEnabled('nonExistent')).toBe(true);
 		});
@@ -135,7 +136,7 @@ describe('System Groups', () => {
 
 	describe('getSystemsInGroup', () => {
 		test('should return all system labels in group', () => {
-			const world = new ECSpresso<TestComponents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 
 			world.addSystem('system1')
 				.inGroup('groupA')
@@ -153,7 +154,7 @@ describe('System Groups', () => {
 		});
 
 		test('should return empty array for non-existent group', () => {
-			const world = new ECSpresso<TestComponents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 
 			expect(world.getSystemsInGroup('nonExistent')).toEqual([]);
 		});
@@ -163,7 +164,7 @@ describe('System Groups', () => {
 		test('should work with plugin-installed systems', () => {
 			let pluginRan = false;
 
-			const plugin = definePlugin<TestComponents, {}, {}>({
+			const plugin = definePlugin<WorldConfigFrom<TestComponents, {}, {}>>({
 				id: 'grouped-plugin',
 				install(world) {
 					world.addSystem('pluginSystem')
@@ -173,7 +174,7 @@ describe('System Groups', () => {
 				},
 			});
 
-			const world = ECSpresso.create<TestComponents>()
+			const world = ECSpresso.create()
 				.withPlugin(plugin)
 				.build();
 
@@ -191,7 +192,7 @@ describe('System Groups', () => {
 		});
 
 		test('system in multiple groups - any disabled should skip', () => {
-			const world = new ECSpresso<TestComponents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 			let systemRan = false;
 
 			world.addSystem('multiGroupSystem')
@@ -210,7 +211,7 @@ describe('System Groups', () => {
 		});
 
 		test('system with no groups should always run', () => {
-			const world = new ECSpresso<TestComponents>();
+			const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
 			let systemRan = false;
 
 			world.addSystem('noGroupSystem')

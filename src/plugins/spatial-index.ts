@@ -12,6 +12,7 @@
 
 import { definePlugin, type Plugin } from 'ecspresso';
 import type { SystemPhase } from 'ecspresso';
+import type { WorldConfigFrom } from '../type-utils';
 import type { TransformComponentTypes } from './transform';
 import type { CollisionComponentTypes } from './collision';
 import {
@@ -108,7 +109,7 @@ export interface SpatialIndexPluginOptions<G extends string = 'spatialIndex'> {
  */
 export function createSpatialIndexPlugin<G extends string = 'spatialIndex'>(
 	options?: SpatialIndexPluginOptions<G>,
-): Plugin<SpatialIndexComponentTypes, {}, SpatialIndexResourceTypes, {}, {}, SpatialIndexLabel, G> {
+): Plugin<WorldConfigFrom<SpatialIndexComponentTypes, {}, SpatialIndexResourceTypes>, SpatialIndexLabel, G> {
 	const {
 		cellSize = 64,
 		systemGroup = 'spatialIndex',
@@ -119,7 +120,7 @@ export function createSpatialIndexPlugin<G extends string = 'spatialIndex'>(
 	const grid = createGrid(cellSize);
 	const resource = createSpatialIndexResource(grid);
 
-	return definePlugin<SpatialIndexComponentTypes, {}, SpatialIndexResourceTypes, {}, {}, SpatialIndexLabel, G>({
+	return definePlugin<WorldConfigFrom<SpatialIndexComponentTypes, {}, SpatialIndexResourceTypes>, SpatialIndexLabel, G>({
 		id: 'spatialIndex',
 		install(world) {
 			world.addResource('spatialIndex', resource);

@@ -9,6 +9,7 @@
 
 import { definePlugin, type Plugin, type BasePluginOptions } from 'ecspresso';
 import type ECSpresso from 'ecspresso';
+import type { WorldConfigFrom } from '../type-utils';
 
 // ==================== Component Types ====================
 
@@ -218,14 +219,14 @@ export function createTransform(
  */
 export function createTransformPlugin<G extends string = 'transform'>(
 	options?: TransformPluginOptions<G>
-): Plugin<TransformComponentTypes, {}, {}, {}, {}, 'transform-propagation', G> {
+): Plugin<WorldConfigFrom<TransformComponentTypes>, 'transform-propagation', G> {
 	const {
 		systemGroup = 'transform',
 		priority = 500,
 		phase = 'postUpdate',
 	} = options ?? {};
 
-	return definePlugin<TransformComponentTypes, {}, {}, {}, {}, 'transform-propagation', G>({
+	return definePlugin<WorldConfigFrom<TransformComponentTypes>, 'transform-propagation', G>({
 		id: 'transform',
 		install(world) {
 			// localTransform requires worldTransform — initialize from localTransform values
@@ -254,7 +255,7 @@ export function createTransformPlugin<G extends string = 'transform'>(
  * Marks worldTransform as changed so downstream systems (e.g. renderer
  * sync) pick up the updated values.
  */
-function propagateTransforms(ecs: ECSpresso<TransformComponentTypes>): void {
+function propagateTransforms(ecs: ECSpresso<WorldConfigFrom<TransformComponentTypes>>): void {
 	const em = ecs.entityManager;
 
 	// Use parent-first traversal for entities in hierarchy

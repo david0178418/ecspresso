@@ -11,6 +11,7 @@
 
 import { definePlugin, type Plugin } from 'ecspresso';
 import type { SystemPhase } from 'ecspresso';
+import type { WorldConfigFrom } from '../type-utils';
 import type { TransformComponentTypes } from './transform';
 import type { CollisionComponentTypes, LayerFactories } from './collision';
 import type { Vector2D } from 'ecspresso';
@@ -329,7 +330,7 @@ function onPhysicsContact(
  */
 export function createPhysics2DPlugin<L extends string = never, G extends string = 'physics2D', CG extends string = never>(
 	options?: Physics2DPluginOptions<G, CG> & { layers?: LayerFactories<Record<L, readonly string[]>> },
-): Plugin<Physics2DComponentTypes<L>, Physics2DEventTypes, Physics2DResourceTypes, {}, {}, 'physics2D-integration' | 'physics2D-collision', G | CG> {
+): Plugin<WorldConfigFrom<Physics2DComponentTypes<L>, Physics2DEventTypes, Physics2DResourceTypes>, 'physics2D-integration' | 'physics2D-collision', G | CG> {
 	const {
 		gravity = { x: 0, y: 0 },
 		systemGroup = 'physics2D',
@@ -339,7 +340,7 @@ export function createPhysics2DPlugin<L extends string = never, G extends string
 		phase = 'fixedUpdate',
 	} = options ?? {};
 
-	return definePlugin<Physics2DComponentTypes<L>, Physics2DEventTypes, Physics2DResourceTypes, {}, {}, 'physics2D-integration' | 'physics2D-collision', G | CG>({
+	return definePlugin<WorldConfigFrom<Physics2DComponentTypes<L>, Physics2DEventTypes, Physics2DResourceTypes>, 'physics2D-integration' | 'physics2D-collision', G | CG>({
 		id: 'physics2D',
 		install(world) {
 			// rigidBody requires velocity and force — auto-add with zero defaults

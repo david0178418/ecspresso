@@ -2,6 +2,7 @@ import { describe, test, expect, spyOn } from 'bun:test';
 import ECSpresso from './ecspresso';
 import CommandBuffer from './command-buffer';
 import { createTimer, createTimerPlugin } from './plugins/timers';
+import type { WorldConfigFrom } from './type-utils';
 
 interface TestComponents {
 	position: { x: number; y: number };
@@ -18,11 +19,13 @@ interface TestResources {
 	counter: number;
 }
 
+type TestConfig = WorldConfigFrom<TestComponents, TestEvents, TestResources>;
+
 describe('CommandBuffer', () => {
 	describe('Basic Operations', () => {
 		test('should queue commands without executing immediately', () => {
-			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>().build();
-			const buffer = new CommandBuffer<TestComponents, TestEvents, TestResources>();
+			const ecs = ECSpresso.create<TestConfig>().build();
+			const buffer = new CommandBuffer<TestConfig>();
 
 			const entity = ecs.spawn({ position: { x: 0, y: 0 } });
 
@@ -34,8 +37,8 @@ describe('CommandBuffer', () => {
 		});
 
 		test('should execute commands in FIFO order on playback', () => {
-			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>().build();
-			const buffer = new CommandBuffer<TestComponents, TestEvents, TestResources>();
+			const ecs = ECSpresso.create<TestConfig>().build();
+			const buffer = new CommandBuffer<TestConfig>();
 
 
 			// Queue multiple commands
@@ -54,8 +57,8 @@ describe('CommandBuffer', () => {
 		});
 
 		test('should clear all queued commands', () => {
-			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>().build();
-			const buffer = new CommandBuffer<TestComponents, TestEvents, TestResources>();
+			const ecs = ECSpresso.create<TestConfig>().build();
+			const buffer = new CommandBuffer<TestConfig>();
 
 			// Queue commands
 			buffer.spawn({ position: { x: 1, y: 1 } });
@@ -72,8 +75,8 @@ describe('CommandBuffer', () => {
 		});
 
 		test('should not re-execute commands after playback', () => {
-			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>().build();
-			const buffer = new CommandBuffer<TestComponents, TestEvents, TestResources>();
+			const ecs = ECSpresso.create<TestConfig>().build();
+			const buffer = new CommandBuffer<TestConfig>();
 
 			buffer.spawn({ position: { x: 1, y: 1 } });
 
@@ -89,8 +92,8 @@ describe('CommandBuffer', () => {
 
 	describe('removeEntity', () => {
 		test('should queue entity removal', () => {
-			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>().build();
-			const buffer = new CommandBuffer<TestComponents, TestEvents, TestResources>();
+			const ecs = ECSpresso.create<TestConfig>().build();
+			const buffer = new CommandBuffer<TestConfig>();
 
 			const entity = ecs.spawn({ position: { x: 0, y: 0 } });
 
@@ -102,8 +105,8 @@ describe('CommandBuffer', () => {
 		});
 
 		test('should remove multiple entities in order', () => {
-			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>().build();
-			const buffer = new CommandBuffer<TestComponents, TestEvents, TestResources>();
+			const ecs = ECSpresso.create<TestConfig>().build();
+			const buffer = new CommandBuffer<TestConfig>();
 
 			const e1 = ecs.spawn({ position: { x: 1, y: 1 } });
 			const e2 = ecs.spawn({ position: { x: 2, y: 2 } });
@@ -122,8 +125,8 @@ describe('CommandBuffer', () => {
 
 	describe('addComponent', () => {
 		test('should queue component addition', () => {
-			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>().build();
-			const buffer = new CommandBuffer<TestComponents, TestEvents, TestResources>();
+			const ecs = ECSpresso.create<TestConfig>().build();
+			const buffer = new CommandBuffer<TestConfig>();
 
 			const entity = ecs.spawn({ position: { x: 0, y: 0 } });
 
@@ -135,8 +138,8 @@ describe('CommandBuffer', () => {
 		});
 
 		test('should add multiple components to same entity', () => {
-			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>().build();
-			const buffer = new CommandBuffer<TestComponents, TestEvents, TestResources>();
+			const ecs = ECSpresso.create<TestConfig>().build();
+			const buffer = new CommandBuffer<TestConfig>();
 
 			const entity = ecs.spawn({ position: { x: 0, y: 0 } });
 
@@ -152,8 +155,8 @@ describe('CommandBuffer', () => {
 
 	describe('removeComponent', () => {
 		test('should queue component removal', () => {
-			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>().build();
-			const buffer = new CommandBuffer<TestComponents, TestEvents, TestResources>();
+			const ecs = ECSpresso.create<TestConfig>().build();
+			const buffer = new CommandBuffer<TestConfig>();
 
 			const entity = ecs.spawn({ position: { x: 0, y: 0 }, velocity: { x: 1, y: 1 } });
 
@@ -167,8 +170,8 @@ describe('CommandBuffer', () => {
 
 	describe('spawn', () => {
 		test('should queue entity spawn', () => {
-			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>().build();
-			const buffer = new CommandBuffer<TestComponents, TestEvents, TestResources>();
+			const ecs = ECSpresso.create<TestConfig>().build();
+			const buffer = new CommandBuffer<TestConfig>();
 
 			buffer.spawn({ position: { x: 10, y: 20 }, velocity: { x: 1, y: 1 } });
 
@@ -182,8 +185,8 @@ describe('CommandBuffer', () => {
 		});
 
 		test('should spawn multiple entities', () => {
-			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>().build();
-			const buffer = new CommandBuffer<TestComponents, TestEvents, TestResources>();
+			const ecs = ECSpresso.create<TestConfig>().build();
+			const buffer = new CommandBuffer<TestConfig>();
 
 			buffer.spawn({ position: { x: 1, y: 1 } });
 			buffer.spawn({ position: { x: 2, y: 2 } });
@@ -197,8 +200,8 @@ describe('CommandBuffer', () => {
 
 	describe('spawnChild', () => {
 		test('should queue child entity spawn', () => {
-			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>().build();
-			const buffer = new CommandBuffer<TestComponents, TestEvents, TestResources>();
+			const ecs = ECSpresso.create<TestConfig>().build();
+			const buffer = new CommandBuffer<TestConfig>();
 
 			const parent = ecs.spawn({ position: { x: 0, y: 0 } });
 
@@ -215,8 +218,8 @@ describe('CommandBuffer', () => {
 
 	describe('addComponents', () => {
 		test('should queue multiple component additions', () => {
-			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>().build();
-			const buffer = new CommandBuffer<TestComponents, TestEvents, TestResources>();
+			const ecs = ECSpresso.create<TestConfig>().build();
+			const buffer = new CommandBuffer<TestConfig>();
 
 			const entity = ecs.spawn({ position: { x: 0, y: 0 } });
 
@@ -237,8 +240,8 @@ describe('CommandBuffer', () => {
 
 	describe('setParent', () => {
 		test('should queue parent assignment', () => {
-			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>().build();
-			const buffer = new CommandBuffer<TestComponents, TestEvents, TestResources>();
+			const ecs = ECSpresso.create<TestConfig>().build();
+			const buffer = new CommandBuffer<TestConfig>();
 
 			const parent = ecs.spawn({ position: { x: 0, y: 0 } });
 			const child = ecs.spawn({ position: { x: 5, y: 5 } });
@@ -255,8 +258,8 @@ describe('CommandBuffer', () => {
 
 	describe('removeParent', () => {
 		test('should queue parent removal', () => {
-			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>().build();
-			const buffer = new CommandBuffer<TestComponents, TestEvents, TestResources>();
+			const ecs = ECSpresso.create<TestConfig>().build();
+			const buffer = new CommandBuffer<TestConfig>();
 
 			const parent = ecs.spawn({ position: { x: 0, y: 0 } });
 			const child = ecs.spawnChild(parent.id, { position: { x: 5, y: 5 } });
@@ -273,8 +276,8 @@ describe('CommandBuffer', () => {
 
 	describe('mutateComponent', () => {
 		test('should queue a component mutation', () => {
-			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>().build();
-			const buffer = new CommandBuffer<TestComponents, TestEvents, TestResources>();
+			const ecs = ECSpresso.create<TestConfig>().build();
+			const buffer = new CommandBuffer<TestConfig>();
 
 			const entity = ecs.spawn({ position: { x: 0, y: 0 } });
 
@@ -291,8 +294,8 @@ describe('CommandBuffer', () => {
 		});
 
 		test('should handle non-existent entity gracefully during playback', () => {
-			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>().build();
-			const buffer = new CommandBuffer<TestComponents, TestEvents, TestResources>();
+			const ecs = ECSpresso.create<TestConfig>().build();
+			const buffer = new CommandBuffer<TestConfig>();
 
 			buffer.mutateComponent(999, 'position', (pos) => {
 				pos.x = 1;
@@ -304,7 +307,7 @@ describe('CommandBuffer', () => {
 		});
 
 		test('commands.mutateComponent works via ECSpresso integration', () => {
-			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>().build();
+			const ecs = ECSpresso.create<TestConfig>().build();
 			const entity = ecs.spawn({ health: { value: 100 } });
 
 			ecs.addSystem('damage')
@@ -323,8 +326,8 @@ describe('CommandBuffer', () => {
 
 	describe('Complex Scenarios', () => {
 		test('should handle mixed operations in correct order', () => {
-			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>().build();
-			const buffer = new CommandBuffer<TestComponents, TestEvents, TestResources>();
+			const ecs = ECSpresso.create<TestConfig>().build();
+			const buffer = new CommandBuffer<TestConfig>();
 
 			// Create initial entity
 			const e1 = ecs.spawn({ position: { x: 0, y: 0 } });
@@ -344,8 +347,8 @@ describe('CommandBuffer', () => {
 		});
 
 		test('should handle entity creation and immediate removal', () => {
-			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>().build();
-			const buffer = new CommandBuffer<TestComponents, TestEvents, TestResources>();
+			const ecs = ECSpresso.create<TestConfig>().build();
+			const buffer = new CommandBuffer<TestConfig>();
 
 			const entity = ecs.spawn({ position: { x: 0, y: 0 } });
 
@@ -361,8 +364,8 @@ describe('CommandBuffer', () => {
 		});
 
 		test('should handle operations on non-existent entities gracefully', () => {
-			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>().build();
-			const buffer = new CommandBuffer<TestComponents, TestEvents, TestResources>();
+			const ecs = ECSpresso.create<TestConfig>().build();
+			const buffer = new CommandBuffer<TestConfig>();
 
 			// Queue operations on non-existent entity
 			buffer.addComponent(999, 'position', { x: 0, y: 0 });
@@ -378,7 +381,7 @@ describe('CommandBuffer', () => {
 
 	describe('Integration with ECSpresso', () => {
 		test('ECSpresso should have commands property', () => {
-			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>().build();
+			const ecs = ECSpresso.create<TestConfig>().build();
 
 			expect(ecs.commands).toBeDefined();
 			expect(typeof ecs.commands.removeEntity).toBe('function');
@@ -386,7 +389,7 @@ describe('CommandBuffer', () => {
 		});
 
 		test('commands should execute automatically after update()', () => {
-			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>().build();
+			const ecs = ECSpresso.create<TestConfig>().build();
 
 			ecs.addSystem('test')
 				.setProcess((_queries, _deltaTime, ecs) => {
@@ -404,7 +407,7 @@ describe('CommandBuffer', () => {
 		});
 
 		test('queries should reflect post-playback state', () => {
-			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>().build();
+			const ecs = ECSpresso.create<TestConfig>().build();
 
 			const entity = ecs.spawn({ position: { x: 0, y: 0 }, tag: true });
 
@@ -432,7 +435,7 @@ describe('CommandBuffer', () => {
 		});
 
 		test('immediate methods should still work alongside commands', () => {
-			const ecs = ECSpresso.create<TestComponents, TestEvents, TestResources>().build();
+			const ecs = ECSpresso.create<TestConfig>().build();
 
 			// Immediate spawn
 			const e1 = ecs.spawn({ position: { x: 0, y: 0 } });
@@ -451,7 +454,7 @@ describe('CommandBuffer', () => {
 	describe('Integration with Timer Events', () => {
 		test('timer onComplete callback can use command buffer to remove entities', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<TestConfig>()
 				.withPlugin(createTimerPlugin())
 				.build();
 
@@ -485,7 +488,7 @@ describe('CommandBuffer', () => {
 
 		test('multiple timers with onComplete callbacks that queue commands', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<TestConfig>()
 				.withPlugin(createTimerPlugin())
 				.build();
 
@@ -509,7 +512,7 @@ describe('CommandBuffer', () => {
 
 		test('commands queued in onComplete callback execute in same frame', () => {
 			const ecs = ECSpresso
-				.create<TestComponents, TestEvents, TestResources>()
+				.create<TestConfig>()
 				.withPlugin(createTimerPlugin())
 				.build();
 

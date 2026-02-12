@@ -7,6 +7,7 @@
 
 import { definePlugin, type Plugin } from 'ecspresso';
 import type { SystemPhase } from 'ecspresso';
+import type { WorldConfigFrom } from '../type-utils';
 
 // ==================== Types ====================
 
@@ -90,7 +91,7 @@ function createRingBuffer(capacity: number) {
 
 export function createDiagnosticsPlugin<G extends string = 'diagnostics'>(
 	options?: DiagnosticsPluginOptions<G>,
-): Plugin<{}, {}, DiagnosticsResourceTypes, {}, {}, 'diagnostics-collect', G> {
+): Plugin<WorldConfigFrom<{}, {}, DiagnosticsResourceTypes>, 'diagnostics-collect', G> {
 	const {
 		systemGroup = 'diagnostics',
 		enableTimingOnInit = true,
@@ -107,7 +108,7 @@ export function createDiagnosticsPlugin<G extends string = 'diagnostics'>(
 
 	const ringBuffer = createRingBuffer(fpsSampleCount);
 
-	return definePlugin<{}, {}, DiagnosticsResourceTypes, {}, {}, 'diagnostics-collect', G>({
+	return definePlugin<WorldConfigFrom<{}, {}, DiagnosticsResourceTypes>, 'diagnostics-collect', G>({
 		id: 'diagnostics',
 		install(world) {
 			world.addResource('diagnostics', initialData);

@@ -13,17 +13,14 @@ import { version } from "../package.json";
 import type { AssetDefinition, AssetHandle, AssetEvents } from "./asset-types";
 import type { ScreenDefinition, ScreenEvents } from "./screen-types";
 import { ECSpressoBuilder } from "./ecspresso-builder";
+import type { WorldConfig, EmptyConfig } from "./type-utils";
 
 /**
 	* Interface declaration for ECSpresso constructor to ensure type augmentation works properly.
 	* This merges with the class declaration below.
 */
 export default interface ECSpresso<
-	ComponentTypes extends Record<string, any> = {},
-	EventTypes extends Record<string, any> = {},
-	ResourceTypes extends Record<string, any> = {},
-	AssetTypes extends Record<string, unknown> = {},
-	ScreenStates extends Record<string, ScreenDefinition<any, any>> = {},
+	Cfg extends WorldConfig = EmptyConfig,
 	Labels extends string = string,
 	Groups extends string = string,
 	AssetGroupNames extends string = string,
@@ -32,7 +29,7 @@ export default interface ECSpresso<
 	/**
 		* Default constructor
 	*/
-	new(): ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, Labels, Groups, AssetGroupNames, ReactiveQueryNames>;
+	new(): ECSpresso<Cfg, Labels, Groups, AssetGroupNames, ReactiveQueryNames>;
 }
 
 const PHASE_ORDER: readonly SystemPhase[] = [
@@ -46,42 +43,31 @@ const EmptyQueryResults = {};
 	* It handles creation and management of entities, components, and systems, and provides lifecycle hooks.
 */
 export default class ECSpresso<
-	ComponentTypes extends Record<string, any> = {},
-	EventTypes extends Record<string, any> = {},
-	ResourceTypes extends Record<string, any> = {},
-	AssetTypes extends Record<string, unknown> = {},
-	ScreenStates extends Record<string, ScreenDefinition<any, any>> = {},
+	Cfg extends WorldConfig = EmptyConfig,
 	Labels extends string = string,
 	Groups extends string = string,
 	AssetGroupNames extends string = string,
 	ReactiveQueryNames extends string = string,
 > {
-	// Phantom type properties for structural type extraction (no runtime cost).
-	// Only the 5 externally-extracted type params get phantom properties.
-	// Labels, Groups, AssetGroupNames, ReactiveQueryNames are internal to
-	// the builder and continue using positional inference in type-utils.ts.
-	declare readonly _componentTypes: ComponentTypes;
-	declare readonly _eventTypes: EventTypes;
-	declare readonly _resourceTypes: ResourceTypes;
-	declare readonly _assetTypes: AssetTypes;
-	declare readonly _screenStates: ScreenStates;
+	// Phantom type property for structural type extraction (no runtime cost).
+	declare readonly _cfg: Cfg;
 
 	/** Library version*/
 	public static readonly VERSION = version;
 
 	/** Access/modify stored components and entities*/
-	private _entityManager: EntityManager<ComponentTypes>;
+	private _entityManager: EntityManager<Cfg['components']>;
 	/** Publish/subscribe to events*/
-	private _eventBus: EventBus<EventTypes>;
+	private _eventBus: EventBus<Cfg['events']>;
 	/** Access/modify registered resources*/
-	private _resourceManager: ResourceManager<ResourceTypes, ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>>;
+	private _resourceManager: ResourceManager<Cfg['resources'], ECSpresso<Cfg>>;
 	/** Command buffer for deferred structural changes */
-	private _commandBuffer: CommandBuffer<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>;
+	private _commandBuffer: CommandBuffer<Cfg>;
 
 	/** Registered systems that will be updated in order*/
-	private _systems: Array<System<ComponentTypes, any, any, EventTypes, ResourceTypes, AssetTypes, ScreenStates>> = [];
+	private _systems: Array<System<Cfg, any, any>> = [];
 	/** Systems grouped by execution phase, each sorted by priority */
-	private _phaseSystems: Record<SystemPhase, Array<System<ComponentTypes, any, any, EventTypes, ResourceTypes, AssetTypes, ScreenStates>>> = {
+	private _phaseSystems: Record<SystemPhase, Array<System<Cfg, any, any>>> = {
 		preUpdate: [], fixedUpdate: [], update: [], postUpdate: [], render: [],
 	};
 	/** Track installed plugins to prevent duplicates*/
@@ -89,13 +75,13 @@ export default class ECSpresso<
 	/** Disabled system groups */
 	private _disabledGroups: Set<string> = new Set();
 	/** Asset manager for loading and accessing assets */
-	private _assetManager: AssetManager<AssetTypes> | null = null;
+	private _assetManager: AssetManager<Cfg['assets']> | null = null;
 	/** Screen manager for state/screen transitions */
-	private _screenManager: ScreenManager<ScreenStates> | null = null;
+	private _screenManager: ScreenManager<Cfg['screens']> | null = null;
 	/** Reactive query manager for enter/exit callbacks */
-	private _reactiveQueryManager: ReactiveQueryManager<ComponentTypes>;
+	private _reactiveQueryManager: ReactiveQueryManager<Cfg['components']>;
 	/** Post-update hooks to be called after all systems in update() */
-	private _postUpdateHooks: Array<(ecs: ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>, deltaTime: number) => void> = [];
+	private _postUpdateHooks: Array<(ecs: ECSpresso<Cfg>, deltaTime: number) => void> = [];
 	/** Global tick counter, incremented at the end of each update() */
 	private _currentTick: number = 0;
 	/** Per-system last-seen change sequence for change detection */
@@ -111,7 +97,7 @@ export default class ECSpresso<
 	/** Maximum fixed update steps per frame (spiral-of-death protection) */
 	private _maxFixedSteps: number = 8;
 	/** Registry of required component relationships: trigger -> [{component, factory}] */
-	private _requiredComponents: Map<keyof ComponentTypes, Array<{ component: keyof ComponentTypes; factory: (triggerValue: any) => any }>> = new Map();
+	private _requiredComponents: Map<keyof Cfg['components'], Array<{ component: keyof Cfg['components']; factory: (triggerValue: any) => any }>> = new Map();
 	/** Pending plugin assets awaiting manager creation at build time */
 	private _pendingPluginAssets: Array<[string, AssetDefinition<unknown>]> = [];
 	/** Pending plugin screens awaiting manager creation at build time */
@@ -136,11 +122,11 @@ export default class ECSpresso<
 		* Creates a new ECSpresso instance.
 	*/
 	constructor() {
-		this._entityManager = new EntityManager<ComponentTypes>();
-		this._eventBus = new EventBus<EventTypes>();
-		this._resourceManager = new ResourceManager<ResourceTypes, ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>>();
-		this._reactiveQueryManager = new ReactiveQueryManager<ComponentTypes>(this._entityManager);
-		this._commandBuffer = new CommandBuffer<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>();
+		this._entityManager = new EntityManager<Cfg['components']>();
+		this._eventBus = new EventBus<Cfg['events']>();
+		this._resourceManager = new ResourceManager<Cfg['resources'], ECSpresso<Cfg>>();
+		this._reactiveQueryManager = new ReactiveQueryManager<Cfg['components']>(this._entityManager);
+		this._commandBuffer = new CommandBuffer<Cfg>();
 
 		// Wire up lifecycle hooks for change detection, required components, and reactive queries
 		this._subscribeLifecycleHooks();
@@ -206,7 +192,6 @@ export default class ECSpresso<
 
 	/**
 		* Creates a new ECSpresso builder for type-safe plugin installation.
-		* This is the preferred way to create an ECSpresso instance with plugins.
 		* Types are inferred from the builder chain — use `.withPlugin()`,
 		* `.withComponentTypes<T>()`, `.withEventTypes<T>()`, and `.withResource()`
 		* to accumulate types without manual aggregate interfaces.
@@ -226,14 +211,8 @@ export default class ECSpresso<
 	 * type ECS = typeof ecs;
 		* ```
 	*/
-	static create<
-		C extends Record<string, any> = {},
-		E extends Record<string, any> = {},
-		R extends Record<string, any> = {},
-		A extends Record<string, unknown> = {},
-		S extends Record<string, ScreenDefinition<any, any>> = {},
-	>(): ECSpressoBuilder<C, E, R, A, S, never, never, never, never> {
-		return new ECSpressoBuilder<C, E, R, A, S, never, never, never, never>();
+	static create<Cfg2 extends WorldConfig = EmptyConfig>(): ECSpressoBuilder<Cfg2, never, never, never, never> {
+		return new ECSpressoBuilder<Cfg2, never, never, never, never>();
 	}
 
 	/**
@@ -242,8 +221,8 @@ export default class ECSpresso<
 		* @param label Unique name to identify the system
 		* @returns A SystemBuilder instance for method chaining
 	*/
-	addSystem(label: string): SystemBuilder<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates> {
-		const builder = new SystemBuilder<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>(label);
+	addSystem(label: string): SystemBuilder<Cfg> {
+		const builder = new SystemBuilder<Cfg>(label);
 		this._pendingFinalizers.push(() => {
 			this._registerSystem(builder._createSystemObject());
 		});
@@ -276,7 +255,7 @@ export default class ECSpresso<
 	 */
 	update(deltaTime: number) {
 		this._finalizePendingBuilders();
-		const currentScreen = (this._screenManager?.getCurrentScreen() ?? null) as (keyof ScreenStates & string) | null;
+		const currentScreen = (this._screenManager?.getCurrentScreen() ?? null) as (keyof Cfg['screens'] & string) | null;
 		const timing = this._diagnosticsEnabled;
 
 		// 1. preUpdate phase
@@ -330,9 +309,9 @@ export default class ECSpresso<
 	 * @private
 	 */
 	private _executePhase(
-		systems: ReadonlyArray<System<ComponentTypes, any, any, EventTypes, ResourceTypes, AssetTypes, ScreenStates>>,
+		systems: ReadonlyArray<System<Cfg, any, any>>,
 		deltaTime: number,
-		currentScreen: (keyof ScreenStates & string) | null
+		currentScreen: (keyof Cfg['screens'] & string) | null
 	): void {
 		for (const system of systems) {
 			if (!system.process && !system.onEntityEnter) continue;
@@ -466,7 +445,7 @@ export default class ECSpresso<
 	private _runPhase(
 		phase: SystemPhase,
 		deltaTime: number,
-		currentScreen: (keyof ScreenStates & string) | null,
+		currentScreen: (keyof Cfg['screens'] & string) | null,
 		timing: boolean
 	): void {
 		if (timing) {
@@ -501,19 +480,19 @@ export default class ECSpresso<
 		// Key/value casts are needed because the class generic doesn't constrain ResourceTypes
 		// to contain $assets/$screen — the builder merges them into R at the type level.
 		if (this._assetManager) {
-			this._assetManager.setEventBus(this._eventBus as unknown as EventBus<AssetEvents<keyof AssetTypes & string>>);
+			this._assetManager.setEventBus(this._eventBus as unknown as EventBus<AssetEvents<keyof Cfg['assets'] & string>>);
 			await this._assetManager.loadEagerAssets();
-			this._resourceManager.add('$assets' as keyof ResourceTypes, this._assetManager.createResource() as unknown as ResourceTypes[keyof ResourceTypes]);
+			this._resourceManager.add('$assets' as keyof Cfg['resources'], this._assetManager.createResource() as unknown as Cfg['resources'][keyof Cfg['resources']]);
 		}
 
 		// Set up screen manager if present
 		if (this._screenManager) {
 			this._screenManager.setDependencies(
-				this._eventBus as unknown as EventBus<ScreenEvents<keyof ScreenStates & string>>,
+				this._eventBus as unknown as EventBus<ScreenEvents<keyof Cfg['screens'] & string>>,
 				this._assetManager,
-				this as unknown as ECSpresso<any, any, any, any, any>
+				this as unknown as ECSpresso<any>
 			);
-			this._resourceManager.add('$screen' as keyof ResourceTypes, this._screenManager.createResource() as unknown as ResourceTypes[keyof ResourceTypes]);
+			this._resourceManager.add('$screen' as keyof Cfg['resources'], this._screenManager.createResource() as unknown as Cfg['resources'][keyof Cfg['resources']]);
 		}
 
 		for (const system of this._systems) {
@@ -527,7 +506,7 @@ export default class ECSpresso<
 	 * @param keys Optional array of resource keys to initialize. If not provided, all pending resources will be initialized.
 	 * @returns Promise that resolves when the specified resources are initialized
 	 */
-	async initializeResources<K extends keyof ResourceTypes>(...keys: K[]): Promise<void> {
+	async initializeResources<K extends keyof Cfg['resources']>(...keys: K[]): Promise<void> {
 		await this._resourceManager.initializeResources(this, ...keys);
 	}
 
@@ -682,7 +661,7 @@ export default class ECSpresso<
 		* Internal method to register a system with this ECSpresso instance
 		* @internal Used by SystemBuilder - replaces direct private property access
 	*/
-	_registerSystem(system: System<ComponentTypes, any, any, EventTypes, ResourceTypes, AssetTypes, ScreenStates>): void {
+	_registerSystem(system: System<Cfg, any, any>): void {
 		this._systems.push(system);
 		// Initialize the system's last-seen sequence to the current change threshold.
 		// Before any update this is 0, so newly added systems see spawn marks.
@@ -718,7 +697,7 @@ export default class ECSpresso<
 	/**
 		* Check if a resource exists
 	*/
-	hasResource<K extends keyof ResourceTypes>(key: K): boolean {
+	hasResource<K extends keyof Cfg['resources']>(key: K): boolean {
 		return this._resourceManager.has(key);
 	}
 
@@ -729,7 +708,7 @@ export default class ECSpresso<
 	 * @throws Error if resource not found
 	 * @see tryGetResource — the non-throwing alternative that returns undefined
 	 */
-	getResource<K extends keyof ResourceTypes>(key: K): ResourceTypes[K] {
+	getResource<K extends keyof Cfg['resources']>(key: K): Cfg['resources'][K] {
 		if (!this._resourceManager.has(key)) {
 			throw new Error(`Resource '${String(key)}' not found. Available resources: [${this.getResourceKeys().map(k => String(k)).join(', ')}]`);
 		}
@@ -754,10 +733,10 @@ export default class ECSpresso<
 	 * const si = ecs.tryGetResource<SpatialIndex>('spatialIndex') ?? null;
 	 * ```
 	 */
-	tryGetResource<K extends keyof ResourceTypes>(key: K): ResourceTypes[K] | undefined;
+	tryGetResource<K extends keyof Cfg['resources']>(key: K): Cfg['resources'][K] | undefined;
 	tryGetResource<T>(key: unknown extends T ? never : string): T | undefined;
 	tryGetResource(key: string): unknown {
-		const k = key as keyof ResourceTypes;
+		const k = key as keyof Cfg['resources'];
 		if (!this._resourceManager.has(k)) return undefined;
 		return this._resourceManager.get(k, this);
 	}
@@ -765,12 +744,12 @@ export default class ECSpresso<
 	/**
 		* Add a resource to the ECS instance
 	*/
-	addResource<K extends keyof ResourceTypes>(
+	addResource<K extends keyof Cfg['resources']>(
 		key: K,
 		resource:
-			| ResourceTypes[K]
-			| ((ecs: ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>) => ResourceTypes[K] | Promise<ResourceTypes[K]>)
-			| ResourceFactoryWithDeps<ResourceTypes[K], ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>, keyof ResourceTypes & string>
+			| Cfg['resources'][K]
+			| ((ecs: ECSpresso<Cfg>) => Cfg['resources'][K] | Promise<Cfg['resources'][K]>)
+			| ResourceFactoryWithDeps<Cfg['resources'][K], ECSpresso<Cfg>, keyof Cfg['resources'] & string>
 	): this {
 		this._resourceManager.add(key, resource);
 		return this;
@@ -781,7 +760,7 @@ export default class ECSpresso<
 		* @param key The resource key to remove
 		* @returns True if the resource was removed, false if it didn't exist
 	*/
-	removeResource<K extends keyof ResourceTypes>(key: K): boolean {
+	removeResource<K extends keyof Cfg['resources']>(key: K): boolean {
 		return this._resourceManager.remove(key);
 	}
 
@@ -790,7 +769,7 @@ export default class ECSpresso<
 	 * @param key The resource key to dispose
 	 * @returns True if the resource existed and was disposed, false if it didn't exist
 	 */
-	async disposeResource<K extends keyof ResourceTypes>(key: K): Promise<boolean> {
+	async disposeResource<K extends keyof Cfg['resources']>(key: K): Promise<boolean> {
 		return this._resourceManager.disposeResource(key, this);
 	}
 
@@ -810,9 +789,9 @@ export default class ECSpresso<
 		* @returns This ECSpresso instance for chaining
 		* @throws Error if the resource doesn't exist
 	*/
-	updateResource<K extends keyof ResourceTypes>(
+	updateResource<K extends keyof Cfg['resources']>(
 		key: K,
-		updater: (current: ResourceTypes[K]) => ResourceTypes[K]
+		updater: (current: Cfg['resources'][K]) => Cfg['resources'][K]
 	): this {
 		const currentResource = this.getResource(key);
 		const updatedResource = updater(currentResource);
@@ -824,8 +803,8 @@ export default class ECSpresso<
 		* Get all resource keys that are currently registered
 		* @returns Array of resource keys
 	*/
-	getResourceKeys(): Array<keyof ResourceTypes> {
-		return this._resourceManager.getKeys() as Array<keyof ResourceTypes>;
+	getResourceKeys(): Array<keyof Cfg['resources']> {
+		return this._resourceManager.getKeys() as Array<keyof Cfg['resources']>;
 	}
 
 	/**
@@ -833,7 +812,7 @@ export default class ECSpresso<
 		* @param key The resource key to check
 		* @returns True if the resource needs initialization
 	*/
-	resourceNeedsInitialization<K extends keyof ResourceTypes>(key: K): boolean {
+	resourceNeedsInitialization<K extends keyof Cfg['resources']>(key: K): boolean {
 		return this._resourceManager.needsInitialization(key);
 	}
 
@@ -843,10 +822,10 @@ export default class ECSpresso<
 		* @param componentName The component to retrieve
 		* @returns The component value, or undefined if the entity doesn't have it
 	*/
-	getComponent<K extends keyof ComponentTypes>(
+	getComponent<K extends keyof Cfg['components']>(
 		entityId: number,
 		componentName: K
-	): ComponentTypes[K] | undefined {
+	): Cfg['components'][K] | undefined {
 		return this._entityManager.getComponent(entityId, componentName);
 	}
 
@@ -857,10 +836,10 @@ export default class ECSpresso<
 		* @param componentName The component to add
 		* @param value The component value
 	*/
-	addComponent<K extends keyof ComponentTypes>(
+	addComponent<K extends keyof Cfg['components']>(
 		entityId: number,
 		componentName: K,
-		value: ComponentTypes[K]
+		value: Cfg['components'][K]
 	): void {
 		this._entityManager.addComponent(entityId, componentName, value);
 	}
@@ -870,9 +849,9 @@ export default class ECSpresso<
 		* @param entityId The entity ID
 		* @param components Object with component names as keys and component data as values
 	*/
-	addComponents<T extends { [K in keyof ComponentTypes]?: ComponentTypes[K] }>(
+	addComponents<T extends { [K in keyof Cfg['components']]?: Cfg['components'][K] }>(
 		entityId: number,
-		components: T & Record<Exclude<keyof T, keyof ComponentTypes>, never>
+		components: T & Record<Exclude<keyof T, keyof Cfg['components']>, never>
 	): void {
 		this._entityManager.addComponents(entityId, components);
 	}
@@ -883,7 +862,7 @@ export default class ECSpresso<
 		* @param entityId The entity ID
 		* @param componentName The component to remove
 	*/
-	removeComponent<K extends keyof ComponentTypes>(
+	removeComponent<K extends keyof Cfg['components']>(
 		entityId: number,
 		componentName: K
 	): void {
@@ -893,7 +872,7 @@ export default class ECSpresso<
 	/**
 		* Check if an entity has a component
 	*/
-	hasComponent<K extends keyof ComponentTypes>(
+	hasComponent<K extends keyof Cfg['components']>(
 		entityId: number,
 		componentName: K
 	): boolean {
@@ -906,26 +885,26 @@ export default class ECSpresso<
 		* @param components Object with component names as keys and component data as values
 		* @returns The created entity with all components added
 		*/
-	spawn<T extends { [K in keyof ComponentTypes]?: ComponentTypes[K] }>(
-		components: T & Record<Exclude<keyof T, keyof ComponentTypes>, never>
-	): FilteredEntity<ComponentTypes, keyof T & keyof ComponentTypes> {
+	spawn<T extends { [K in keyof Cfg['components']]?: Cfg['components'][K] }>(
+		components: T & Record<Exclude<keyof T, keyof Cfg['components']>, never>
+	): FilteredEntity<Cfg['components'], keyof T & keyof Cfg['components']> {
 		const entity = this._entityManager.createEntity();
 		this._entityManager.addComponents(entity.id, components);
-		return entity as FilteredEntity<ComponentTypes, keyof T & keyof ComponentTypes>;
+		return entity as FilteredEntity<Cfg['components'], keyof T & keyof Cfg['components']>;
 	}
 
 	/**
 		* Get all entities with specific components
 	*/
 	getEntitiesWithQuery<
-		WithComponents extends keyof ComponentTypes,
-		WithoutComponents extends keyof ComponentTypes = never
+		WithComponents extends keyof Cfg['components'],
+		WithoutComponents extends keyof Cfg['components'] = never
 	>(
 		withComponents: ReadonlyArray<WithComponents>,
 		withoutComponents: ReadonlyArray<WithoutComponents> = [],
-		changedComponents?: ReadonlyArray<keyof ComponentTypes>,
-		parentHas?: ReadonlyArray<keyof ComponentTypes>,
-	): Array<FilteredEntity<ComponentTypes, WithComponents, WithoutComponents>> {
+		changedComponents?: ReadonlyArray<keyof Cfg['components']>,
+		parentHas?: ReadonlyArray<keyof Cfg['components']>,
+	): Array<FilteredEntity<Cfg['components'], WithComponents, WithoutComponents>> {
 		return this._entityManager.getEntitiesWithQuery(
 			withComponents,
 			withoutComponents,
@@ -943,12 +922,12 @@ export default class ECSpresso<
 	 * @throws If zero or more than one entity matches
 	 */
 	getSingleton<
-		WithComponents extends keyof ComponentTypes,
-		WithoutComponents extends keyof ComponentTypes = never
+		WithComponents extends keyof Cfg['components'],
+		WithoutComponents extends keyof Cfg['components'] = never
 	>(
 		withComponents: ReadonlyArray<WithComponents>,
 		withoutComponents: ReadonlyArray<WithoutComponents> = [] as unknown as ReadonlyArray<WithoutComponents>,
-	): FilteredEntity<ComponentTypes, WithComponents, WithoutComponents> {
+	): FilteredEntity<Cfg['components'], WithComponents, WithoutComponents> {
 		const results = this._entityManager.getEntitiesWithQuery(withComponents, withoutComponents);
 		if (results.length === 0) {
 			throw new Error(`getSingleton: no entity matches query with=[${String(withComponents)}] without=[${String(withoutComponents)}]`);
@@ -968,12 +947,12 @@ export default class ECSpresso<
 	 * @throws If more than one entity matches
 	 */
 	tryGetSingleton<
-		WithComponents extends keyof ComponentTypes,
-		WithoutComponents extends keyof ComponentTypes = never
+		WithComponents extends keyof Cfg['components'],
+		WithoutComponents extends keyof Cfg['components'] = never
 	>(
 		withComponents: ReadonlyArray<WithComponents>,
 		withoutComponents: ReadonlyArray<WithoutComponents> = [] as unknown as ReadonlyArray<WithoutComponents>,
-	): FilteredEntity<ComponentTypes, WithComponents, WithoutComponents> | undefined {
+	): FilteredEntity<Cfg['components'], WithComponents, WithoutComponents> | undefined {
 		const results = this._entityManager.getEntitiesWithQuery(withComponents, withoutComponents);
 		if (results.length === 0) return undefined;
 		if (results.length > 1) {
@@ -1000,10 +979,10 @@ export default class ECSpresso<
 	 * @param components Initial components to add
 	 * @returns The created child entity
 	 */
-	spawnChild<T extends { [K in keyof ComponentTypes]?: ComponentTypes[K] }>(
+	spawnChild<T extends { [K in keyof Cfg['components']]?: Cfg['components'][K] }>(
 		parentId: number,
-		components: T & Record<Exclude<keyof T, keyof ComponentTypes>, never>
-	): FilteredEntity<ComponentTypes, keyof T & keyof ComponentTypes> {
+		components: T & Record<Exclude<keyof T, keyof Cfg['components']>, never>
+	): FilteredEntity<Cfg['components'], keyof T & keyof Cfg['components']> {
 		const entity = this._entityManager.spawnChild(parentId, components);
 		this._emitHierarchyChanged(entity.id, null, parentId);
 		return entity;
@@ -1260,11 +1239,11 @@ export default class ECSpresso<
 	 * @param mutator A function that receives the component value for in-place mutation
 	 * @returns The mutated component value
 	 */
-	mutateComponent<K extends keyof ComponentTypes>(
+	mutateComponent<K extends keyof Cfg['components']>(
 		entityId: number,
 		componentName: K,
-		mutator: (value: ComponentTypes[K]) => void
-	): ComponentTypes[K] {
+		mutator: (value: Cfg['components'][K]) => void
+	): Cfg['components'][K] {
 		const component = this._entityManager.getComponent(entityId, componentName);
 		if (component === undefined) {
 			throw new Error(`Entity ${entityId} does not have component "${String(componentName)}"`);
@@ -1281,7 +1260,7 @@ export default class ECSpresso<
 	 * @param entityId The entity ID
 	 * @param componentName The component that was changed
 	 */
-	markChanged<K extends keyof ComponentTypes>(entityId: number, componentName: K): void {
+	markChanged<K extends keyof Cfg['components']>(entityId: number, componentName: K): void {
 		this._entityManager.markChanged(entityId, componentName);
 	}
 
@@ -1294,9 +1273,9 @@ export default class ECSpresso<
 	 * @param componentName The component type to register disposal for
 	 * @param callback Function receiving the component value being disposed and the entity ID
 	 */
-	registerDispose<K extends keyof ComponentTypes>(
+	registerDispose<K extends keyof Cfg['components']>(
 		componentName: K,
-		callback: (value: ComponentTypes[K], entityId: number) => void
+		callback: (value: Cfg['components'][K], entityId: number) => void
 	): void {
 		this._entityManager.registerDispose(componentName, callback);
 	}
@@ -1313,12 +1292,12 @@ export default class ECSpresso<
 	 * @param factory Function that creates the default value for the required component
 	 */
 	registerRequired<
-		Trigger extends keyof ComponentTypes,
-		Required extends keyof ComponentTypes,
+		Trigger extends keyof Cfg['components'],
+		Required extends keyof Cfg['components'],
 	>(
 		trigger: Trigger,
 		required: Required,
-		factory: (triggerValue: ComponentTypes[Trigger]) => ComponentTypes[Required]
+		factory: (triggerValue: Cfg['components'][Trigger]) => Cfg['components'][Required]
 	): void {
 		if (String(trigger) === String(required)) {
 			throw new Error(`Cannot require a component to depend on itself: '${String(trigger)}'`);
@@ -1343,8 +1322,8 @@ export default class ECSpresso<
 	 * @throws Error if adding trigger→newRequired would create a cycle
 	 */
 	private _checkRequiredCycle(
-		trigger: keyof ComponentTypes,
-		newRequired: keyof ComponentTypes
+		trigger: keyof Cfg['components'],
+		newRequired: keyof Cfg['components']
 	): void {
 		checkRequiredCycle(
 			trigger,
@@ -1361,9 +1340,9 @@ export default class ECSpresso<
 	 * @param handler Function receiving the new component value and the entity
 	 * @returns Unsubscribe function to remove the callback
 	 */
-	onComponentAdded<K extends keyof ComponentTypes>(
+	onComponentAdded<K extends keyof Cfg['components']>(
 		componentName: K,
-		handler: (value: ComponentTypes[K], entity: Entity<ComponentTypes>) => void
+		handler: (value: Cfg['components'][K], entity: Entity<Cfg['components']>) => void
 	): () => void {
 		return this._entityManager.onComponentAdded(componentName, handler);
 	}
@@ -1374,9 +1353,9 @@ export default class ECSpresso<
 	 * @param handler Function receiving the old component value and the entity
 	 * @returns Unsubscribe function to remove the callback
 	 */
-	onComponentRemoved<K extends keyof ComponentTypes>(
+	onComponentRemoved<K extends keyof Cfg['components']>(
 		componentName: K,
-		handler: (oldValue: ComponentTypes[K], entity: Entity<ComponentTypes>) => void
+		handler: (oldValue: Cfg['components'][K], entity: Entity<Cfg['components']>) => void
 	): () => void {
 		return this._entityManager.onComponentRemoved(componentName, handler);
 	}
@@ -1389,12 +1368,12 @@ export default class ECSpresso<
 	 * @param definition Query definition with with/without arrays and onEnter/onExit callbacks
 	 */
 	addReactiveQuery<
-		WithComponents extends keyof ComponentTypes,
-		WithoutComponents extends keyof ComponentTypes = never,
-		OptionalComponents extends keyof ComponentTypes = never,
+		WithComponents extends keyof Cfg['components'],
+		WithoutComponents extends keyof Cfg['components'] = never,
+		OptionalComponents extends keyof Cfg['components'] = never,
 	>(
 		name: ReactiveQueryNames,
-		definition: ReactiveQueryDefinition<ComponentTypes, WithComponents, WithoutComponents, OptionalComponents>
+		definition: ReactiveQueryDefinition<Cfg['components'], WithComponents, WithoutComponents, OptionalComponents>
 	): void {
 		this._reactiveQueryManager.addQuery(name, definition);
 	}
@@ -1416,9 +1395,9 @@ export default class ECSpresso<
 	 * @param callback The callback to invoke when the event is published
 	 * @returns An unsubscribe function
 	 */
-	on<E extends keyof EventTypes>(
+	on<E extends keyof Cfg['events']>(
 		eventType: E,
-		callback: (data: EventTypes[E]) => void
+		callback: (data: Cfg['events'][E]) => void
 	): () => void {
 		return this._eventBus.subscribe(eventType, callback);
 	}
@@ -1429,9 +1408,9 @@ export default class ECSpresso<
 	 * @param callback The callback to remove
 	 * @returns true if the callback was found and removed, false otherwise
 	 */
-	off<E extends keyof EventTypes>(
+	off<E extends keyof Cfg['events']>(
 		eventType: E,
-		callback: (data: EventTypes[E]) => void
+		callback: (data: Cfg['events'][E]) => void
 	): boolean {
 		return this._eventBus.unsubscribe(eventType, callback);
 	}
@@ -1442,7 +1421,7 @@ export default class ECSpresso<
 	 * @returns An unsubscribe function to remove the hook
 	 */
 	onPostUpdate(
-		callback: (ecs: ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>, deltaTime: number) => void
+		callback: (ecs: ECSpresso<Cfg>, deltaTime: number) => void
 	): () => void {
 		this._postUpdateHooks.push(callback);
 		return () => {
@@ -1455,7 +1434,7 @@ export default class ECSpresso<
 
 	// ==================== Asset Management ====================
 
-	private requireAssetManager(): AssetManager<AssetTypes> {
+	private requireAssetManager(): AssetManager<Cfg['assets']> {
 		if (!this._assetManager) {
 			throw new Error('Asset manager not configured. Use withAssets() in builder.');
 		}
@@ -1465,35 +1444,35 @@ export default class ECSpresso<
 	/**
 	 * Get a loaded asset by key. Throws if not loaded.
 	 */
-	getAsset<K extends keyof AssetTypes>(key: K): AssetTypes[K] {
+	getAsset<K extends keyof Cfg['assets']>(key: K): Cfg['assets'][K] {
 		return this.requireAssetManager().get(key);
 	}
 
 	/**
 	 * Get a loaded asset or undefined if not loaded
 	 */
-	getAssetOrUndefined<K extends keyof AssetTypes>(key: K): AssetTypes[K] | undefined {
+	getAssetOrUndefined<K extends keyof Cfg['assets']>(key: K): Cfg['assets'][K] | undefined {
 		return this._assetManager?.getOrUndefined(key);
 	}
 
 	/**
 	 * Get a handle to an asset with status information
 	 */
-	getAssetHandle<K extends keyof AssetTypes>(key: K): AssetHandle<AssetTypes[K]> {
+	getAssetHandle<K extends keyof Cfg['assets']>(key: K): AssetHandle<Cfg['assets'][K]> {
 		return this.requireAssetManager().getHandle(key);
 	}
 
 	/**
 	 * Check if an asset is loaded
 	 */
-	isAssetLoaded<K extends keyof AssetTypes>(key: K): boolean {
+	isAssetLoaded<K extends keyof Cfg['assets']>(key: K): boolean {
 		return this._assetManager?.isLoaded(key) ?? false;
 	}
 
 	/**
 	 * Load a single asset
 	 */
-	async loadAsset<K extends keyof AssetTypes>(key: K): Promise<AssetTypes[K]> {
+	async loadAsset<K extends keyof Cfg['assets']>(key: K): Promise<Cfg['assets'][K]> {
 		return this.requireAssetManager().loadAsset(key);
 	}
 
@@ -1520,7 +1499,7 @@ export default class ECSpresso<
 
 	// ==================== Screen Management ====================
 
-	private requireScreenManager(): ScreenManager<ScreenStates> {
+	private requireScreenManager(): ScreenManager<Cfg['screens']> {
 		if (!this._screenManager) {
 			throw new Error('Screen manager not configured. Use withScreens() in builder.');
 		}
@@ -1530,9 +1509,9 @@ export default class ECSpresso<
 	/**
 	 * Transition to a new screen, clearing the stack
 	 */
-	async setScreen<K extends keyof ScreenStates>(
+	async setScreen<K extends keyof Cfg['screens']>(
 		name: K,
-		config: ScreenStates[K] extends ScreenDefinition<infer C, any> ? C : never
+		config: Cfg['screens'][K] extends ScreenDefinition<infer C, any> ? C : never
 	): Promise<void> {
 		return this.requireScreenManager().setScreen(name, config);
 	}
@@ -1540,9 +1519,9 @@ export default class ECSpresso<
 	/**
 	 * Push a screen onto the stack (overlay)
 	 */
-	async pushScreen<K extends keyof ScreenStates>(
+	async pushScreen<K extends keyof Cfg['screens']>(
 		name: K,
-		config: ScreenStates[K] extends ScreenDefinition<infer C, any> ? C : never
+		config: Cfg['screens'][K] extends ScreenDefinition<infer C, any> ? C : never
 	): Promise<void> {
 		return this.requireScreenManager().pushScreen(name, config);
 	}
@@ -1557,7 +1536,7 @@ export default class ECSpresso<
 	/**
 	 * Get the current screen name
 	 */
-	getCurrentScreen(): keyof ScreenStates | null {
+	getCurrentScreen(): keyof Cfg['screens'] | null {
 		return this._screenManager?.getCurrentScreen() ?? null;
 	}
 
@@ -1565,26 +1544,26 @@ export default class ECSpresso<
 	 * Get the current screen config (immutable), narrowed to a specific screen.
 	 * Throws if the current screen doesn't match.
 	 */
-	getScreenConfig<K extends keyof ScreenStates & string>(screen: K): ScreenStates[K] extends ScreenDefinition<infer C, any> ? Readonly<C> : never;
+	getScreenConfig<K extends keyof Cfg['screens'] & string>(screen: K): Cfg['screens'][K] extends ScreenDefinition<infer C, any> ? Readonly<C> : never;
 	/**
 	 * Get the current screen config (immutable).
 	 * Returns a union of all possible config types.
 	 */
-	getScreenConfig(): { [K in keyof ScreenStates]: ScreenStates[K] extends ScreenDefinition<infer C, any> ? Readonly<C> : never }[keyof ScreenStates];
-	getScreenConfig(screen?: keyof ScreenStates & string) {
+	getScreenConfig(): { [K in keyof Cfg['screens']]: Cfg['screens'][K] extends ScreenDefinition<infer C, any> ? Readonly<C> : never }[keyof Cfg['screens']];
+	getScreenConfig(screen?: keyof Cfg['screens'] & string) {
 		return this.requireScreenManager().getConfig(screen);
 	}
 
 	/**
 	 * Get the current screen config narrowed to a specific screen, or null if not on that screen.
 	 */
-	getScreenConfigOrNull<K extends keyof ScreenStates & string>(screen: K): (ScreenStates[K] extends ScreenDefinition<infer C, any> ? Readonly<C> : never) | null;
+	getScreenConfigOrNull<K extends keyof Cfg['screens'] & string>(screen: K): (Cfg['screens'][K] extends ScreenDefinition<infer C, any> ? Readonly<C> : never) | null;
 	/**
 	 * Get the current screen config or null.
 	 * Returns a union of all possible config types, or null.
 	 */
-	getScreenConfigOrNull(): { [K in keyof ScreenStates]: ScreenStates[K] extends ScreenDefinition<infer C, any> ? Readonly<C> : never }[keyof ScreenStates] | null;
-	getScreenConfigOrNull(screen?: keyof ScreenStates & string) {
+	getScreenConfigOrNull(): { [K in keyof Cfg['screens']]: Cfg['screens'][K] extends ScreenDefinition<infer C, any> ? Readonly<C> : never }[keyof Cfg['screens']] | null;
+	getScreenConfigOrNull(screen?: keyof Cfg['screens'] & string) {
 		return this._screenManager?.getConfigOrNull(screen) ?? null;
 	}
 
@@ -1592,26 +1571,26 @@ export default class ECSpresso<
 	 * Get the current screen state (mutable), narrowed to a specific screen.
 	 * Throws if the current screen doesn't match.
 	 */
-	getScreenState<K extends keyof ScreenStates & string>(screen: K): ScreenStates[K] extends ScreenDefinition<any, infer S> ? S : never;
+	getScreenState<K extends keyof Cfg['screens'] & string>(screen: K): Cfg['screens'][K] extends ScreenDefinition<any, infer S> ? S : never;
 	/**
 	 * Get the current screen state (mutable).
 	 * Returns a union of all possible state types.
 	 */
-	getScreenState(): { [K in keyof ScreenStates]: ScreenStates[K] extends ScreenDefinition<any, infer S> ? S : never }[keyof ScreenStates];
-	getScreenState(screen?: keyof ScreenStates & string) {
+	getScreenState(): { [K in keyof Cfg['screens']]: Cfg['screens'][K] extends ScreenDefinition<any, infer S> ? S : never }[keyof Cfg['screens']];
+	getScreenState(screen?: keyof Cfg['screens'] & string) {
 		return this.requireScreenManager().getState(screen);
 	}
 
 	/**
 	 * Get the current screen state narrowed to a specific screen, or null if not on that screen.
 	 */
-	getScreenStateOrNull<K extends keyof ScreenStates & string>(screen: K): (ScreenStates[K] extends ScreenDefinition<any, infer S> ? S : never) | null;
+	getScreenStateOrNull<K extends keyof Cfg['screens'] & string>(screen: K): (Cfg['screens'][K] extends ScreenDefinition<any, infer S> ? S : never) | null;
 	/**
 	 * Get the current screen state or null.
 	 * Returns a union of all possible state types, or null.
 	 */
-	getScreenStateOrNull(): { [K in keyof ScreenStates]: ScreenStates[K] extends ScreenDefinition<any, infer S> ? S : never }[keyof ScreenStates] | null;
-	getScreenStateOrNull(screen?: keyof ScreenStates & string) {
+	getScreenStateOrNull(): { [K in keyof Cfg['screens']]: Cfg['screens'][K] extends ScreenDefinition<any, infer S> ? S : never }[keyof Cfg['screens']] | null;
+	getScreenStateOrNull(screen?: keyof Cfg['screens'] & string) {
 		return this._screenManager?.getStateOrNull(screen) ?? null;
 	}
 
@@ -1619,17 +1598,17 @@ export default class ECSpresso<
 	 * Update the current screen state, narrowed to a specific screen.
 	 * Throws if the current screen doesn't match.
 	 */
-	updateScreenState<K extends keyof ScreenStates & string>(
+	updateScreenState<K extends keyof Cfg['screens'] & string>(
 		screen: K,
-		update: Partial<ScreenStates[K] extends ScreenDefinition<any, infer S> ? S : never> |
-			((current: ScreenStates[K] extends ScreenDefinition<any, infer S> ? S : never) => Partial<ScreenStates[K] extends ScreenDefinition<any, infer S> ? S : never>)
+		update: Partial<Cfg['screens'][K] extends ScreenDefinition<any, infer S> ? S : never> |
+			((current: Cfg['screens'][K] extends ScreenDefinition<any, infer S> ? S : never) => Partial<Cfg['screens'][K] extends ScreenDefinition<any, infer S> ? S : never>)
 	): void;
 	/**
 	 * Update the current screen state.
 	 */
-	updateScreenState<K extends keyof ScreenStates>(
-		update: Partial<ScreenStates[K] extends ScreenDefinition<any, infer S> ? S : never> |
-			((current: ScreenStates[K] extends ScreenDefinition<any, infer S> ? S : never) => Partial<ScreenStates[K] extends ScreenDefinition<any, infer S> ? S : never>)
+	updateScreenState<K extends keyof Cfg['screens']>(
+		update: Partial<Cfg['screens'][K] extends ScreenDefinition<any, infer S> ? S : never> |
+			((current: Cfg['screens'][K] extends ScreenDefinition<any, infer S> ? S : never) => Partial<Cfg['screens'][K] extends ScreenDefinition<any, infer S> ? S : never>)
 	): void;
 	updateScreenState(
 		screenOrUpdate: unknown,
@@ -1645,14 +1624,14 @@ export default class ECSpresso<
 	/**
 	 * Check if a screen is the current screen
 	 */
-	isCurrentScreen(screenName: keyof ScreenStates): boolean {
+	isCurrentScreen(screenName: keyof Cfg['screens']): boolean {
 		return this._screenManager?.isCurrent(screenName) ?? false;
 	}
 
 	/**
 	 * Check if a screen is active (current or in stack)
 	 */
-	isScreenActive(screenName: keyof ScreenStates): boolean {
+	isScreenActive(screenName: keyof Cfg['screens']): boolean {
 		return this._screenManager?.isActive(screenName) ?? false;
 	}
 
@@ -1669,7 +1648,7 @@ export default class ECSpresso<
 	 * Internal method to set the asset manager and drain pending plugin assets
 	 * @internal Used by ECSpressoBuilder
 	 */
-	_setAssetManager(manager: AssetManager<AssetTypes>): void {
+	_setAssetManager(manager: AssetManager<Cfg['assets']>): void {
 		this._assetManager = manager;
 		for (const [key, definition] of this._pendingPluginAssets) {
 			this._assetManager.register(key, definition as any);
@@ -1681,7 +1660,7 @@ export default class ECSpresso<
 	 * Internal method to set the screen manager and drain pending plugin screens
 	 * @internal Used by ECSpressoBuilder
 	 */
-	_setScreenManager(manager: ScreenManager<ScreenStates>): void {
+	_setScreenManager(manager: ScreenManager<Cfg['screens']>): void {
 		this._screenManager = manager;
 		for (const [name, definition] of this._pendingPluginScreens) {
 			this._screenManager.register(name, definition as any);
@@ -1727,7 +1706,7 @@ export default class ECSpresso<
 	 * Install a plugin into this ECSpresso instance.
 	 * Deduplicates by plugin ID. Composite plugins call this in their install function.
 	 */
-	installPlugin(plugin: Plugin<any, any, any, any, any, any, any, any, any>): this {
+	installPlugin(plugin: Plugin<any, any, any, any, any>): this {
 		// Prevent duplicate installation of the same plugin
 		if (this._installedPlugins.has(plugin.id)) {
 			return this;
@@ -1753,10 +1732,10 @@ export default class ECSpresso<
 		PRQ extends string = never,
 	>(config: {
 		id: string;
-		install: (world: ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>) => void;
-	}) => Plugin<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, PL, PG, PAG, PRQ> {
+		install: (world: ECSpresso<Cfg>) => void;
+	}) => Plugin<Cfg, PL, PG, PAG, PRQ> {
 		return definePlugin as ReturnType<
-			ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>['pluginFactory']
+			ECSpresso<Cfg>['pluginFactory']
 		>;
 	}
 
@@ -1773,4 +1752,3 @@ export default class ECSpresso<
 		return factory(this);
 	}
 }
-

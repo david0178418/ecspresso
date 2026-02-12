@@ -10,6 +10,7 @@
  */
 
 import { definePlugin, type Plugin, type BasePluginOptions } from 'ecspresso';
+import type { WorldConfigFrom } from '../type-utils';
 
 // ==================== Public Types ====================
 
@@ -361,7 +362,7 @@ function snapshotRaw(raw: RawInputState, prevActionsActive: ReadonlySet<string>,
  */
 export function createInputPlugin<A extends string = string, G extends string = 'input'>(
 	options?: InputPluginOptions<A, G>
-): Plugin<{}, {}, InputResourceTypes<A>, {}, {}, 'input-state', G> {
+): Plugin<WorldConfigFrom<{}, {}, InputResourceTypes<A>>, 'input-state', G> {
 	const {
 		systemGroup = 'input',
 		priority = 100,
@@ -454,7 +455,7 @@ export function createInputPlugin<A extends string = string, G extends string = 
 		cleanupFns.push(() => { target.removeEventListener(type, handler); });
 	}
 
-	return definePlugin<{}, {}, InputResourceTypes<A>, {}, {}, 'input-state', G>({
+	return definePlugin<WorldConfigFrom<{}, {}, InputResourceTypes<A>>, 'input-state', G>({
 		id: 'input',
 		install(world) {
 			world.addResource('inputState', inputState);
