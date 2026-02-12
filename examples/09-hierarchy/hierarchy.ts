@@ -264,32 +264,32 @@ function registerClickHandler(
 	world: ECS
 ): void {
 	graphics.on('pointerdown', () => {
+		if (!world.entityManager.getEntity(entityId)) return;
+
 		const celestialBody = world.getComponent(entityId, 'celestialBody');
 		if (!celestialBody) return;
 
 		const descendants = world.getDescendants(entityId);
 
-		// Publish destruction event
 		world.eventBus.publish('bodyDestroyed', {
 			name: celestialBody.name,
 			childCount: descendants.length,
 		});
 
-		// Remove entity (cascade: true by default removes all children)
+		// cascade: true (default) removes all children
 		world.removeEntity(entityId);
-
-		console.log(`Destroyed ${celestialBody.name} and ${descendants.length} descendants`);
 	});
 }
 
 function centerOnEntity(entityId: number, world: ECS): void {
+	if (!world.entityManager.getEntity(entityId)) return;
+
 	const worldTransform = world.getComponent(entityId, 'worldTransform');
 	if (!worldTransform) return;
 
 	const pixiApp = world.getResource('pixiApp');
 	const camera = world.getResource('camera');
 
-	// Center the camera on the entity
 	camera.x = pixiApp.screen.width / 2 - worldTransform.x;
 	camera.y = pixiApp.screen.height / 2 - worldTransform.y;
 }
@@ -298,21 +298,12 @@ function updateHierarchyDisplay(world: ECS): void {
 	const treeEl = document.getElementById('hierarchy-tree');
 	if (!treeEl) return;
 
-	// Clear existing content
 	treeEl.innerHTML = '';
 
 	const roots = world.getRootEntities();
 
 	if (roots.length === 0) {
-		const bodies = world.getEntitiesWithQuery(['celestialBody']);
-		if (bodies.length === 0) {
-			treeEl.textContent = '(empty - all bodies destroyed)';
-		} else {
-			for (const body of bodies) {
-				const item = createTreeItem(body.id, body.components.celestialBody.name, 0, world);
-				treeEl.appendChild(item);
-			}
-		}
+		treeEl.textContent = '(empty - all bodies destroyed)';
 		return;
 	}
 
@@ -328,10 +319,8 @@ function createTreeItem(
 	world: ECS
 ): HTMLElement {
 	const item = document.createElement('div');
-	item.style.paddingLeft = `${depth * 16}px`;
 	item.style.cursor = 'pointer';
-	item.style.padding = '2px 4px';
-	item.style.paddingLeft = `${depth * 16 + 4}px`;
+	item.style.padding = `2px 4px 2px ${depth * 16 + 4}px`;
 
 	const prefix = depth === 0 ? '' : '- ';
 	item.textContent = `${prefix}${name}`;
@@ -377,10 +366,6 @@ ecs.on('bodyDestroyed', (data) => {
 			: '';
 		infoPanel.textContent = `Destroyed ${data.name}${childText}. WASD/Arrows to scroll, click to destroy.`;
 	}
-});
-
-ecs.on('hierarchyChanged', (data) => {
-	console.log('Hierarchy changed:', data);
 });
 
 // ==================== Start ====================
