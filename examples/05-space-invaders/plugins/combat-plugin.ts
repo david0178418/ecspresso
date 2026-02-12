@@ -1,10 +1,8 @@
-import type ECSpresso from '../../../src/ecspresso';
 import { createTimer } from '../../../src/plugins/timers';
 import { createCollisionPairHandler } from '../../../src/plugins/collision';
-import { definePlugin, type Components, type Events, type Resources } from '../types';
+import { definePlugin, type World } from '../types';
 import type collisionLayers from '../collision-layers';
 
-type ECS = ECSpresso<Components, Events, Resources>;
 type Layer = keyof typeof collisionLayers;
 
 /**
@@ -18,7 +16,7 @@ export default function createCombatPlugin() {
 			world.addSystem('combat')
 				.inGroup('gameplay')
 				.setEventHandlers({
-					collision: createCollisionPairHandler<ECS, Layer>({
+					collision: createCollisionPairHandler<World, Layer>({
 						'playerProjectile:enemy': (projectileId, enemyId, ecs) => {
 							ecs.commands.removeEntity(projectileId);
 

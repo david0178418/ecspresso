@@ -5,231 +5,226 @@ import {
 	WebGLRenderer,
 	Vector3
 } from 'three';
+import ECSpresso from '../../src';
 import type { TimerComponentTypes } from '../../src/plugins/timers';
-import { createPluginFactory } from '../../src/plugin';
 
-/**
- * All event types used in the 3D Turret Shooter game
- */
-export interface Events {
-	// Game state events
-	gameInit: true;
-	gameStart: true;
-	gamePause: true;
-	gameResume: true;
-	gameOver: {
-		win: boolean;
-		score: number;
-	};
-	waveComplete: {
-		wave: number;
-	};
+export const builder = ECSpresso.create()
+	.withComponentTypes<
+		TimerComponentTypes &
+		{
+			// Timer tags
+			enemySpawner: true;
+			pendingDestroy: true;
+			messageTimer: true;
+			// 3D position, rotation and scale
+			position: {
+				x: number;
+				y: number;
+				z: number;
+			};
+			rotation: {
+				x: number;
+				y: number;
+				z: number;
+			};
+			scale: {
+				x: number;
+				y: number;
+				z: number;
+			};
 
-	// Input events
-	inputMouseMove: {
-		x: number;
-		y: number;
-	};
-	inputMouseDown: {
-		button: number;
-	};
-	inputMouseUp: {
-		button: number;
-	};
-	inputKeyDown: {
-		key: string;
-	};
-	inputKeyUp: {
-		key: string;
-	};
+			// 3D velocity and movement
+			velocity: {
+				x: number;
+				y: number;
+				z: number;
+			};
 
-	// Gameplay events
-	playerShoot: {
-		direction: Vector3;
-	};
-	playerHit: {
-		damage: number;
-	};
-	enemySpawn: {
-		type: 'ground' | 'air';
-		position: Vector3;
-	};
-	enemyDestroyed: {
-		entityId: number;
-		points: number;
-	};
-	entityDestroyed: {
-		entityId: number;
-	};
+			// 3D model/mesh
+			model: Object3D;
 
-	// UI events
-	updateScore: {
-		points: number;
-	};
-	updateHealth: {
-		health: number;
-	};
-	updateWave: {
-		wave: number;
-	};
-}
+			// Game object types
+			player: {
+				health: number;
+				maxHealth: number;
+				lastShotTime: number;
+				fireRate: number; // shots per second
+			};
+			enemy: {
+				type: 'ground' | 'air';
+				health: number;
+				speed: number;
+				attackDamage: number;
+				scoreValue: number;
+				isDestroying?: boolean; // Flag to track if enemy is already being destroyed
+			};
+			projectile: {
+				owner: 'player';
+				damage: number;
+				speed: number;
+			};
 
-/**
- * All component types used in the 3D Turret Shooter game
- */
-export interface Components extends TimerComponentTypes {
-	// Timer tags
-	enemySpawner: true;
-	pendingDestroy: true;
-	messageTimer: true;
-	// 3D position, rotation and scale
-	position: {
-		x: number;
-		y: number;
-		z: number;
-	};
-	rotation: {
-		x: number;
-		y: number;
-		z: number;
-	};
-	scale: {
-		x: number;
-		y: number;
-		z: number;
-	};
+			// Collisions
+			collider: {
+				radius: number; // Simple sphere collider
+			};
 
-	// 3D velocity and movement
-	velocity: {
-		x: number;
-		y: number;
-		z: number;
-	};
+			// Additional components
+			lifetime: {
+				remaining: number;
+			};
+			radarBlip: {
+				type: 'ground' | 'air';
+				distance: number;
+				angle: number;
+			};
+		}
+	>()
+	.withEventTypes<{
+		// Game state events
+		gameInit: true;
+		gameStart: true;
+		gamePause: true;
+		gameResume: true;
+		gameOver: {
+			win: boolean;
+			score: number;
+		};
+		waveComplete: {
+			wave: number;
+		};
 
-	// 3D model/mesh
-	model: Object3D;
-
-	// Game object types
-	player: {
-		health: number;
-		maxHealth: number;
-		lastShotTime: number;
-		fireRate: number; // shots per second
-	};
-	enemy: {
-		type: 'ground' | 'air';
-		health: number;
-		speed: number;
-		attackDamage: number;
-		scoreValue: number;
-		isDestroying?: boolean; // Flag to track if enemy is already being destroyed
-	};
-	projectile: {
-		owner: 'player';
-		damage: number;
-		speed: number;
-	};
-
-	// Collisions
-	collider: {
-		radius: number; // Simple sphere collider
-	};
-
-	// Additional components
-	lifetime: {
-		remaining: number;
-	};
-	radarBlip: {
-		type: 'ground' | 'air';
-		distance: number;
-		angle: number;
-	};
-}
-
-/**
- * All resource types used in the 3D Turret Shooter game
- */
-export interface Resources {
-	// Three.js resources
-	renderer: WebGLRenderer;
-	scene: Scene;
-	camera: PerspectiveCamera;
-
-	// Game state
-	gameState: {
-		status: 'ready' | 'playing' | 'paused' | 'gameOver';
-		wave: number;
-		score: number;
-	};
-
-	// Player input
-	input: {
-		mousePosition: {
+		// Input events
+		inputMouseMove: {
 			x: number;
 			y: number;
 		};
-		mouseButtons: {
-			left: boolean;
-			right: boolean;
-			middle: boolean;
+		inputMouseDown: {
+			button: number;
 		};
-		keys: Record<string, boolean>;
-	};
+		inputMouseUp: {
+			button: number;
+		};
+		inputKeyDown: {
+			key: string;
+		};
+		inputKeyUp: {
+			key: string;
+		};
 
-	// Game configuration
-	config: {
-		playerFireRate: number;
-		playerProjectileSpeed: number;
-		playerProjectileDamage: number;
-		maxEnemies: number;
-		enemySpawnRate: number; // enemies per second
-		waveCount: number;
-		enemiesPerWave: number;
-	};
+		// Gameplay events
+		playerShoot: {
+			direction: Vector3;
+		};
+		playerHit: {
+			damage: number;
+		};
+		enemySpawn: {
+			type: 'ground' | 'air';
+			position: Vector3;
+		};
+		enemyDestroyed: {
+			entityId: number;
+			points: number;
+		};
+		entityDestroyed: {
+			entityId: number;
+		};
 
-	// Game assets
-	assets: {
-		models: Record<string, Object3D>;
-		textures: Record<string, any>;
-	};
+		// UI events
+		updateScore: {
+			points: number;
+		};
+		updateHealth: {
+			health: number;
+		};
+		updateWave: {
+			wave: number;
+		};
+	}>()
+	.withResourceTypes<{
+		// Three.js resources
+		renderer: WebGLRenderer;
+		scene: Scene;
+		camera: PerspectiveCamera;
 
-	// Wave management
-	waveManager: {
-		currentWave: number;
-		enemiesRemaining: number;
-		waveStartTime: number;
-	};
+		// Game state
+		gameState: {
+			status: 'ready' | 'playing' | 'paused' | 'gameOver';
+			wave: number;
+			score: number;
+		};
 
-	// UI elements
-	uiElements: {
-		scoreElement: HTMLElement | null;
-		healthElement: HTMLElement | null;
-		waveElement: HTMLElement | null;
-		messageElement: HTMLElement | null;
-		radarElement: HTMLElement | null;
-	};
+		// Player input
+		input: {
+			mousePosition: {
+				x: number;
+				y: number;
+			};
+			mouseButtons: {
+				left: boolean;
+				right: boolean;
+				middle: boolean;
+			};
+			keys: Record<string, boolean>;
+		};
 
-	// Radar system
-	radar: {
-		range: number; // Maximum radar detection range
-		updateFrequency: number; // How often (in seconds) the radar updates
-		lastUpdateTime: number;
-	};
+		// Game configuration
+		config: {
+			playerFireRate: number;
+			playerProjectileSpeed: number;
+			playerProjectileDamage: number;
+			maxEnemies: number;
+			enemySpawnRate: number; // enemies per second
+			waveCount: number;
+			enemiesPerWave: number;
+		};
 
-	// Player initial rotation (for enemy spawn direction)
-	playerInitialRotation: {
-		y: number; // Initial horizontal rotation angle
-	};
+		// Game assets
+		assets: {
+			models: Record<string, Object3D>;
+			textures: Record<string, any>;
+		};
 
-	// Event listeners (for cleanup)
-	eventListeners: {
-		mousemove: (event: MouseEvent) => void;
-		mousedown: (event: MouseEvent) => void;
-		mouseup: (event: MouseEvent) => void;
-		keydown: (event: KeyboardEvent) => void;
-		keyup: (event: KeyboardEvent) => void;
-		contextmenu: (event: MouseEvent) => void;
-	};
-}
+		// Wave management
+		waveManager: {
+			currentWave: number;
+			enemiesRemaining: number;
+			waveStartTime: number;
+		};
 
-export const definePlugin = createPluginFactory<Components, Events, Resources>();
+		// UI elements
+		uiElements: {
+			scoreElement: HTMLElement | null;
+			healthElement: HTMLElement | null;
+			waveElement: HTMLElement | null;
+			messageElement: HTMLElement | null;
+			radarElement: HTMLElement | null;
+		};
+
+		// Radar system
+		radar: {
+			range: number; // Maximum radar detection range
+			updateFrequency: number; // How often (in seconds) the radar updates
+			lastUpdateTime: number;
+		};
+
+		// Player initial rotation (for enemy spawn direction)
+		playerInitialRotation: {
+			y: number; // Initial horizontal rotation angle
+		};
+
+		// Event listeners (for cleanup)
+		eventListeners: {
+			mousemove: (event: MouseEvent) => void;
+			mousedown: (event: MouseEvent) => void;
+			mouseup: (event: MouseEvent) => void;
+			keydown: (event: KeyboardEvent) => void;
+			keyup: (event: KeyboardEvent) => void;
+			contextmenu: (event: MouseEvent) => void;
+		};
+	}>();
+
+export const definePlugin = builder.pluginFactory();
+
+export type World = ReturnType<typeof builder.build>;

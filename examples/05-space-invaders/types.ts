@@ -1,4 +1,5 @@
 import { Container, Text } from 'pixi.js';
+import ECSpresso from '../../src';
 import type { TimerComponentTypes } from '../../src/plugins/timers';
 import type { TransformComponentTypes } from '../../src/plugins/transform';
 import type { Physics2DComponentTypes } from '../../src/plugins/physics2D';
@@ -7,88 +8,88 @@ import type { CollisionComponentTypes, CollisionEventTypes, LayersOf } from '../
 import type collisionLayers from './collision-layers';
 import type { Renderer2DComponentTypes, Renderer2DResourceTypes } from '../../src/plugins/renderers/renderer2D';
 import type { InputResourceTypes } from '../../src/plugins/input';
-import { createPluginFactory } from '../../src/plugin';
 
 type Layer = LayersOf<typeof collisionLayers>;
 
-/**
- * All event types used in the Space Invaders game
- */
-export interface Events extends CollisionEventTypes<Layer> {
-	// Game state
-	gameInit: true;
-	gameStart: true;
-	gamePause: true;
-	gameResume: true;
-	gameOver: { win: boolean; score: number };
-	levelComplete: { level: number };
+export const builder = ECSpresso.create()
+	.withComponentTypes<
+		TimerComponentTypes &
+		TransformComponentTypes &
+		Physics2DComponentTypes<Layer> &
+		BoundsComponentTypes &
+		CollisionComponentTypes<Layer> &
+		Renderer2DComponentTypes &
+		{
+			player: boolean;
+			enemy: { type: 'grunt' | 'elite' | 'boss'; points: number; health: number };
+			projectile: { owner: 'player' | 'enemy'; damage: number };
+		}
+	>()
+	.withEventTypes<
+		CollisionEventTypes<Layer> &
+		{
+			// Game state
+			gameInit: true;
+			gameStart: true;
+			gamePause: true;
+			gameResume: true;
+			gameOver: { win: boolean; score: number };
+			levelComplete: { level: number };
 
-	// Gameplay
-	playerShoot: {};
-	playerDeath: {};
-	enemyShoot: { enemyId: number };
-	enemyMove: { direction: 'left' | 'right' | 'down' };
+			// Gameplay
+			playerShoot: {};
+			playerDeath: {};
+			enemyShoot: { enemyId: number };
+			enemyMove: { direction: 'left' | 'right' | 'down' };
 
-	// Timer completions
-	playerRespawn: void;
-	messageHide: void;
-	levelTransitionComplete: void;
-	descentComplete: void;
+			// Timer completions
+			playerRespawn: void;
+			messageHide: void;
+			levelTransitionComplete: void;
+			descentComplete: void;
 
-	// UI
-	updateScore: { points: number };
-	updateLives: { lives: number };
-}
+			// UI
+			updateScore: { points: number };
+			updateLives: { lives: number };
+		}
+	>()
+	.withResourceTypes<
+		Renderer2DResourceTypes &
+		InputResourceTypes &
+		{
+			uiContainer: Container;
 
-/**
- * All component types used in the Space Invaders game
- */
-export interface Components
-	extends TimerComponentTypes,
-	        TransformComponentTypes,
-	        Physics2DComponentTypes<Layer>,
-	        BoundsComponentTypes,
-	        CollisionComponentTypes<Layer>,
-	        Renderer2DComponentTypes {
-	player: boolean;
-	enemy: { type: 'grunt' | 'elite' | 'boss'; points: number; health: number };
-	projectile: { owner: 'player' | 'enemy'; damage: number };
-}
+			gameState: {
+				status: 'ready' | 'playing' | 'paused' | 'gameOver';
+				level: number;
+				lives: number;
+			};
 
-/**
- * All resource types used in the Space Invaders game
- */
-export interface Resources extends Renderer2DResourceTypes, InputResourceTypes {
-	uiContainer: Container;
+			config: {
+				playerSpeed: number;
+				enemySpeed: number;
+				projectileSpeed: number;
+				enemiesPerRow: number;
+				enemyRows: number;
+				shootCooldown: number;
+			};
 
-	gameState: {
-		status: 'ready' | 'playing' | 'paused' | 'gameOver';
-		level: number;
-		lives: number;
-	};
+			score: { value: number };
 
-	config: {
-		playerSpeed: number;
-		enemySpeed: number;
-		projectileSpeed: number;
-		enemiesPerRow: number;
-		enemyRows: number;
-		shootCooldown: number;
-	};
+			enemyMovementState: {
+				isMovingDown: boolean;
+				currentDirection: 'left' | 'right';
+				lastEdgeHit: 'left' | 'right' | null;
+			};
 
-	score: { value: number };
+			uiElements: {
+				scoreText: Text;
+				livesText: Text;
+				messageText: Text;
+			};
+		}
+	>();
 
-	enemyMovementState: {
-		isMovingDown: boolean;
-		currentDirection: 'left' | 'right';
-		lastEdgeHit: 'left' | 'right' | null;
-	};
+export const definePlugin = builder.pluginFactory();
 
-	uiElements: {
-		scoreText: Text;
-		livesText: Text;
-		messageText: Text;
-	};
-}
-
-export const definePlugin = createPluginFactory<Components, Events, Resources>();
+export type World = ReturnType<typeof builder.build>;

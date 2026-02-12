@@ -17,8 +17,7 @@ import {
 	AdditiveBlending,
 	Scene
 } from 'three';
-import type ECSpresso from '../../src';
-import type { Components, Events, Resources } from './types';
+import type { World } from './types';
 
 // Helper to create a simple ground plane
 export function createGround() {
@@ -351,7 +350,7 @@ export function createUIElement(id: string, text: string, x: string, y: string):
 }
 
 // Helper to update UI elements with game state info
-export function updateUI(ecs: ECSpresso<Components, Events, Resources>) {
+export function updateUI(ecs: World) {
 	const uiElements = ecs.getResource('uiElements');
 	const gameState = ecs.getResource('gameState');
 

@@ -1,4 +1,3 @@
-import ECSpresso from '../../src';
 import { createRenderer2DPlugin } from '../../src/plugins/renderers/renderer2D';
 import { createTimerPlugin } from '../../src/plugins/timers';
 import { createPhysics2DPlugin } from '../../src/plugins/physics2D';
@@ -10,9 +9,9 @@ import createInputProcessingPlugin, { createInputPlugin } from './plugins/input-
 import createSpawnerPlugin from './plugins/spawner-plugin';
 import createUIPlugin from './plugins/ui-plugin';
 import createGameLogicPlugin from './plugins/game-logic-plugin';
+import { builder } from './types';
 
-const game = ECSpresso
-	.create()
+const game = builder
 	.withResource('gameState', { status: 'ready', level: 1, lives: 3 })
 	.withResource('config', {
 		playerSpeed: 200,

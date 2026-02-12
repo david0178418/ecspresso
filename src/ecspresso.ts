@@ -6,7 +6,7 @@ import ScreenManager from "./screen-manager";
 import ReactiveQueryManager, { type ReactiveQueryDefinition } from "./reactive-query-manager";
 import CommandBuffer from "./command-buffer";
 import type { System, SystemPhase, FilteredEntity, Entity, RemoveEntityOptions, HierarchyEntry, HierarchyIteratorOptions } from "./types";
-import type { Plugin } from "./plugin";
+import { definePlugin, type Plugin } from "./plugin";
 import { SystemBuilder } from "./system-builder";
 import { checkRequiredCycle } from "./utils/check-required-cycle";
 import { version } from "../package.json";
@@ -1740,6 +1740,25 @@ export default class ECSpresso<
 		plugin.install(this as any);
 
 		return this;
+	}
+
+	/**
+	 * Create a plugin factory from the built world's types.
+	 * Returns a definePlugin equivalent with no manual type parameters.
+	 * Replaces the `createPluginFactory<C, E, R>()` + manual types.ts pattern.
+	 */
+	pluginFactory(): <
+		PL extends string = never,
+		PG extends string = never,
+		PAG extends string = never,
+		PRQ extends string = never,
+	>(config: {
+		id: string;
+		install: (world: ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>) => void;
+	}) => Plugin<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates, PL, PG, PAG, PRQ> {
+		return definePlugin as ReturnType<
+			ECSpresso<ComponentTypes, EventTypes, ResourceTypes, AssetTypes, ScreenStates>['pluginFactory']
+		>;
 	}
 
 	/**

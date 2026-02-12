@@ -1,9 +1,10 @@
 import {
+	type Object3D,
 	Scene,
 	WebGLRenderer,
 	PerspectiveCamera,
 } from 'three';
-import { definePlugin, type Resources } from '../types';
+import { definePlugin } from '../types';
 import { createGround, createSkybox, createUIElement, setupLighting } from '../utils';
 
 export default async function createInitPlugin() {
@@ -70,7 +71,7 @@ export default async function createInitPlugin() {
 					});
 
 					// Initialize assets object
-					const assets: Resources['assets'] = {
+					const assets: { models: Record<string, Object3D>; textures: Record<string, any> } = {
 						models: {},
 						textures: {}
 					};

@@ -1,16 +1,15 @@
 import { Graphics, Sprite } from "pixi.js";
-import ECSpresso from "../../src";
 import { createLocalTransform } from "../../src/plugins/renderers/renderer2D";
 import { createRigidBody } from "../../src/plugins/physics2D";
 import { createAABBCollider } from "../../src/plugins/collision";
 import { createClampToBounds } from "../../src/plugins/bounds";
 import collisionLayers from "./collision-layers";
-import { Components, Events, Resources } from "./types";
+import type { World } from "./types";
 
 /**
  * Spawns an enemy formation based on the current level
  */
-export function spawnEnemyFormation(ecs: ECSpresso<Components, Events, Resources>): void {
+export function spawnEnemyFormation(ecs: World): void {
 	const config = ecs.getResource('config');
 	const gameState = ecs.getResource('gameState');
 	const bounds = ecs.getResource('bounds');
@@ -74,7 +73,7 @@ const enemyDrawers: Record<EnemyType, (graphics: Graphics, color: number) => voi
 	},
 };
 
-export function createEnemySprite(ecs: ECSpresso<Components, Events, Resources>, type: EnemyType, color: number): Sprite {
+export function createEnemySprite(ecs: World, type: EnemyType, color: number): Sprite {
 	const pixi = ecs.getResource('pixiApp');
 	const graphics = new Graphics();
 	enemyDrawers[type](graphics, color);
@@ -85,7 +84,7 @@ export function createEnemySprite(ecs: ECSpresso<Components, Events, Resources>,
 	return sprite;
 }
 
-export function createPlayerSprite(ecs: ECSpresso<Components, Events, Resources>): Sprite {
+export function createPlayerSprite(ecs: World): Sprite {
 	const pixi = ecs.getResource('pixiApp');
 	const graphics = new Graphics()
 		.rect(-20, -10, 40, 20)
@@ -101,7 +100,7 @@ export function createPlayerSprite(ecs: ECSpresso<Components, Events, Resources>
 	return sprite;
 }
 
-export function createProjectileSprite(ecs: ECSpresso<Components, Events, Resources>, owner: 'player' | 'enemy'): Sprite {
+export function createProjectileSprite(ecs: World, owner: 'player' | 'enemy'): Sprite {
 	const pixi = ecs.getResource('pixiApp');
 	const graphics = new Graphics()
 		.rect(-2, -8, 4, 16)
@@ -113,7 +112,7 @@ export function createProjectileSprite(ecs: ECSpresso<Components, Events, Resour
 	return sprite;
 }
 
-export function spawnPlayer(ecs: ECSpresso<Components, Events, Resources>): number {
+export function spawnPlayer(ecs: World): number {
 	const bounds = ecs.getResource('bounds');
 	const playerSprite = createPlayerSprite(ecs);
 

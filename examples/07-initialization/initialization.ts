@@ -1,104 +1,35 @@
-import ECSpresso, { createPluginFactory } from "../../src";
+import ECSpresso from "../../src";
 
-interface Components {
-	position: { x: number; y: number };
-	velocity: { x: number; y: number };
-	sprite: { id: string; scale: number };
-	health: number;
-}
+const builder = ECSpresso.create()
+	.withComponentTypes<{
+		position: { x: number; y: number };
+		velocity: { x: number; y: number };
+		sprite: { id: string; scale: number };
+		health: number;
+	}>()
+	.withEventTypes<{
+		gameReady: void;
+		gameStart: void;
+		playerMove: { dx: number; dy: number };
+	}>()
+	.withResourceTypes<{
+		gameState: {
+			status: 'loading' | 'ready' | 'playing' | 'paused';
+			score: number;
+			startTime?: number;
+		};
+		assets: {
+			loaded: boolean;
+			sprites: Record<string, unknown>;
+			sounds: Record<string, unknown>;
+		};
+		controlSettings: {
+			sensitivity: number;
+			invertY: boolean;
+		};
+	}>();
 
-interface Events {
-	gameReady: void;
-	gameStart: void;
-	playerMove: { dx: number; dy: number };
-}
-
-interface Resources {
-	gameState: {
-		status: 'loading' | 'ready' | 'playing' | 'paused';
-		score: number;
-		startTime?: number;
-	};
-	assets: {
-		loaded: boolean;
-		sprites: Record<string, unknown>;
-		sounds: Record<string, unknown>;
-	};
-	controlSettings: {
-		sensitivity: number;
-		invertY: boolean;
-	};
-}
-
-const definePlugin = createPluginFactory<Components, Events, Resources>();
-
-async function main() {
-	console.log("Running initialization example");
-
-	// Create the world with the various game plugins
-	const world = ECSpresso
-		.create()
-		.withPlugin(createGamePlugin())
-		.withPlugin(createPlayerPlugin())
-		.withPlugin(createRenderingPlugin())
-		.build()
-		// Add resources using factory functions
-		.addResource('gameState', {
-			status: 'loading',
-			score: 0
-		})
-		.addResource('assets', async () => {
-			// Simulate loading assets asynchronously
-			console.log("Loading assets...");
-			await new Promise(resolve => setTimeout(resolve, 500));
-
-			return {
-				loaded: true,
-				sprites: {
-					player: { url: 'player.png' },
-					enemy: { url: 'enemy.png' },
-					background: { url: 'background.png' }
-				},
-				sounds: {
-					jump: { url: 'jump.mp3' },
-					explosion: { url: 'explosion.mp3' }
-				}
-			};
-		})
-		.addResource('controlSettings', (ecs) => {
-			console.log("Initializing control settings with access to ECSpresso instance:", ecs ? "Yes" : "No");
-
-			// Get game state from the already loaded resource
-			const gameState = ecs.getResource('gameState');
-			console.log("Game state during controlSettings initialization:", gameState?.status);
-
-			return {
-				sensitivity: gameState.status === 'loading' ? 1.5 : 1.0, // Different sensitivity based on game state
-				invertY: false
-			};
-		});
-
-	// Initialize everything - this will:
-	// 1. Initialize all resources (like assets and controlSettings)
-	// 2. Call onInitialize for all systems
-	console.log("Starting initialization...");
-	await world.initialize();
-	console.log("Initialization complete!");
-
-	// Trigger game start
-	world.eventBus.publish('gameStart');
-
-	// Run a few update cycles to simulate the game loop
-	for (let i = 0; i < 5; i++) {
-		world.update(1/60);
-		await new Promise(resolve => setTimeout(resolve, 100));
-
-		// Simulate player movement every other frame
-		if (i % 2 === 0) {
-			world.eventBus.publish('playerMove', { dx: 1, dy: 0 });
-		}
-	}
-}
+const definePlugin = builder.pluginFactory();
 
 function createGamePlugin() {
 	return definePlugin({
@@ -211,6 +142,73 @@ function createRenderingPlugin() {
 				});
 		},
 	});
+}
+
+async function main() {
+	console.log("Running initialization example");
+
+	// Create the world with the various game plugins
+	const world = builder
+		.withPlugin(createGamePlugin())
+		.withPlugin(createPlayerPlugin())
+		.withPlugin(createRenderingPlugin())
+		.build()
+		// Add resources using factory functions
+		.addResource('gameState', {
+			status: 'loading',
+			score: 0
+		})
+		.addResource('assets', async () => {
+			// Simulate loading assets asynchronously
+			console.log("Loading assets...");
+			await new Promise(resolve => setTimeout(resolve, 500));
+
+			return {
+				loaded: true,
+				sprites: {
+					player: { url: 'player.png' },
+					enemy: { url: 'enemy.png' },
+					background: { url: 'background.png' }
+				},
+				sounds: {
+					jump: { url: 'jump.mp3' },
+					explosion: { url: 'explosion.mp3' }
+				}
+			};
+		})
+		.addResource('controlSettings', (ecs) => {
+			console.log("Initializing control settings with access to ECSpresso instance:", ecs ? "Yes" : "No");
+
+			// Get game state from the already loaded resource
+			const gameState = ecs.getResource('gameState');
+			console.log("Game state during controlSettings initialization:", gameState?.status);
+
+			return {
+				sensitivity: gameState.status === 'loading' ? 1.5 : 1.0, // Different sensitivity based on game state
+				invertY: false
+			};
+		});
+
+	// Initialize everything - this will:
+	// 1. Initialize all resources (like assets and controlSettings)
+	// 2. Call onInitialize for all systems
+	console.log("Starting initialization...");
+	await world.initialize();
+	console.log("Initialization complete!");
+
+	// Trigger game start
+	world.eventBus.publish('gameStart');
+
+	// Run a few update cycles to simulate the game loop
+	for (let i = 0; i < 5; i++) {
+		world.update(1/60);
+		await new Promise(resolve => setTimeout(resolve, 100));
+
+		// Simulate player movement every other frame
+		if (i % 2 === 0) {
+			world.eventBus.publish('playerMove', { dx: 1, dy: 0 });
+		}
+	}
 }
 
 // Run the example

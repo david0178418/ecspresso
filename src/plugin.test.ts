@@ -241,3 +241,113 @@ describe('Plugin', () => {
 		expect(world.hasResource('playerControls')).toBe(true);
 	});
 });
+
+describe('world.pluginFactory()', () => {
+	test('basic factory from built world', () => {
+		const ecs = ECSpresso.create()
+			.withComponentTypes<{ position: { x: number; y: number }; velocity: { x: number; y: number } }>()
+			.withResourceTypes<{ gravity: { value: number } }>()
+			.build();
+
+		const define = ecs.pluginFactory();
+
+		const plugin = define({
+			id: 'world-factory-basic',
+			install(world) {
+				world.addResource('gravity', { value: 9.8 });
+				world.addSystem('mover')
+					.addQuery('movers', { with: ['position', 'velocity'] })
+					.setProcess(() => {});
+			},
+		});
+
+		const world2 = ECSpresso.create()
+			.withPlugin(plugin)
+			.build();
+
+		expect(world2.installedPlugins).toContain('world-factory-basic');
+		expect(world2.hasResource('gravity')).toBe(true);
+	});
+
+	test('multiple plugins from same factory', () => {
+		const ecs = ECSpresso.create()
+			.withComponentTypes<{ position: { x: number; y: number }; health: number }>()
+			.withResourceTypes<{ gravity: { value: number }; score: number }>()
+			.build();
+
+		const define = ecs.pluginFactory();
+
+		const physicsPlugin = define({
+			id: 'physics',
+			install(world) {
+				world.addResource('gravity', { value: 9.8 });
+			},
+		});
+
+		const scorePlugin = define({
+			id: 'scoring',
+			install(world) {
+				world.addResource('score', 0);
+			},
+		});
+
+		const world2 = ECSpresso.create()
+			.withPlugin(physicsPlugin)
+			.withPlugin(scorePlugin)
+			.build();
+
+		expect(world2.installedPlugins).toContain('physics');
+		expect(world2.installedPlugins).toContain('scoring');
+		expect(world2.hasResource('gravity')).toBe(true);
+		expect(world2.hasResource('score')).toBe(true);
+	});
+
+	test('compile-time rejection of invalid names', () => {
+		const ecs = ECSpresso.create()
+			.withComponentTypes<{ position: { x: number; y: number } }>()
+			.withEventTypes<{ hit: { damage: number } }>()
+			.build();
+
+		const define = ecs.pluginFactory();
+
+		define({
+			id: 'type-check',
+			install(world) {
+				// @ts-expect-error - 'nonexistent' is not a valid component
+				world.addSystem('bad').addQuery('q', { with: ['nonexistent'] });
+
+				// @ts-expect-error - 'boom' is not a valid event
+				world.eventBus.publish('boom', {});
+			},
+		});
+	});
+
+	test('includes types from installed plugins', () => {
+		const pluginA = definePlugin<{ alpha: number }, {}, { alphaRes: string }>({
+			id: 'plugin-a',
+			install(world) {
+				world.addResource('alphaRes', 'hello');
+			},
+		});
+
+		const ecs = ECSpresso.create()
+			.withPlugin(pluginA)
+			.withComponentTypes<{ beta: boolean }>()
+			.build();
+
+		const define = ecs.pluginFactory();
+
+		const pluginB = define({
+			id: 'plugin-b',
+			install(world) {
+				// Can access both plugin-a's types and the extra types
+				world.addSystem('combo')
+					.addQuery('q', { with: ['alpha', 'beta'] })
+					.setProcess(() => {});
+				world.addResource('alphaRes', 'overwritten');
+			},
+		});
+
+		expect(pluginB.id).toBe('plugin-b');
+	});
+});
