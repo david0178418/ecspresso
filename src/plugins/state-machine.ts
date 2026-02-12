@@ -9,31 +9,7 @@
  */
 
 import { definePlugin, type Plugin } from 'ecspresso';
-import type { SystemPhase } from 'ecspresso';
-
-// ==================== World Interface ====================
-
-/**
- * Structural interface for ECS methods available inside state machine hooks.
- * Uses method syntax for bivariant parameter checking under strictFunctionTypes,
- * allowing users to annotate hooks with their concrete ECSpresso type.
- */
-export interface StateMachineWorld {
-	getComponent(entityId: number, componentName: string): unknown | undefined;
-	eventBus: {
-		publish(eventType: string, data: unknown): void;
-	};
-	spawn(components: Record<string, unknown>): { id: number };
-	removeEntity(entityOrId: number): boolean;
-	hasComponent(entityId: number, componentName: string): boolean;
-	getResource(key: string): unknown;
-	hasResource(key: string): boolean;
-	markChanged(entityId: number, componentName: string): void;
-	commands: {
-		spawn(components: Record<string, unknown>): void;
-		removeEntity(entityId: number): void;
-	};
-}
+import type { SystemPhase, BaseWorld } from 'ecspresso';
 
 // ==================== State Config ====================
 
@@ -43,7 +19,7 @@ export interface StateMachineWorld {
  * @template S - Union of state name strings
  * @template W - World interface type for hooks/guards (default: StateMachineWorld)
  */
-export interface StateConfig<S extends string, W extends StateMachineWorld = StateMachineWorld> {
+export interface StateConfig<S extends string, W extends BaseWorld = BaseWorld> {
 	/** Called when entering this state */
 	onEnter?(ecs: W, entityId: number): void;
 	/** Called when exiting this state */
@@ -219,7 +195,7 @@ export function createStateMachine<S extends string>(
  * Returns true if the target state exists, false otherwise.
  */
 function performTransition(
-	ecs: StateMachineWorld,
+	ecs: BaseWorld,
 	entityId: number,
 	sm: StateMachine,
 	targetState: string,
@@ -261,7 +237,7 @@ function performTransition(
  * @returns true if transition succeeded, false if entity has no stateMachine or target state doesn't exist
  */
 export function transitionTo(
-	ecs: StateMachineWorld,
+	ecs: BaseWorld,
 	entityId: number,
 	targetState: string,
 ): boolean {
@@ -280,7 +256,7 @@ export function transitionTo(
  * @returns true if a transition occurred, false otherwise
  */
 export function sendEvent(
-	ecs: StateMachineWorld,
+	ecs: BaseWorld,
 	entityId: number,
 	eventName: string,
 ): boolean {
@@ -310,7 +286,7 @@ export function sendEvent(
  * @returns The current state string, or undefined if entity has no stateMachine
  */
 export function getStateMachineState(
-	ecs: StateMachineWorld,
+	ecs: BaseWorld,
 	entityId: number,
 ): string | undefined {
 	const sm = ecs.getComponent(entityId, 'stateMachine') as StateMachine | undefined;
@@ -324,14 +300,14 @@ export function getStateMachineState(
  * Creates helpers that validate hook parameters against the world type W.
  * Call after .build() using typeof ecs.
  */
-export interface StateMachineHelpers<W extends StateMachineWorld> {
+export interface StateMachineHelpers<W extends BaseWorld> {
 	defineStateMachine: <S extends string>(
 		id: string,
 		config: { initial: NoInfer<S>; states: Record<S, StateConfig<NoInfer<S>, W>> },
 	) => StateMachineDefinition<S>;
 }
 
-export function createStateMachineHelpers<W extends StateMachineWorld = StateMachineWorld>(_world?: W): StateMachineHelpers<W> {
+export function createStateMachineHelpers<W extends BaseWorld = BaseWorld>(_world?: W): StateMachineHelpers<W> {
 	return {
 		defineStateMachine: defineStateMachine as StateMachineHelpers<W>['defineStateMachine'],
 	};
@@ -397,13 +373,13 @@ export function createStateMachinePlugin<S extends string = string, G extends st
 				.setOnEntityEnter('machines', (entity, ecs) => {
 					const sm = entity.components.stateMachine;
 					const states = sm.definition.states as Record<string, StateConfig<string>>;
-					states[sm.current]?.onEnter?.(ecs as unknown as StateMachineWorld, entity.id);
+					states[sm.current]?.onEnter?.(ecs as unknown as BaseWorld, entity.id);
 				})
 				.setProcess((queries, deltaTime, ecs) => {
 					for (const entity of queries.machines) {
 						const sm = entity.components.stateMachine;
 						const states = sm.definition.states as Record<string, StateConfig<string>>;
-						const ecsWorld = ecs as unknown as StateMachineWorld;
+						const ecsWorld = ecs as unknown as BaseWorld;
 
 						// Accumulate state time
 						sm.stateTime += deltaTime;

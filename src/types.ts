@@ -293,5 +293,29 @@ interface System<
 	};
 }
 
+// ==================== Base World ====================
+
+/**
+ * Widened ECSpresso type for use in plugin hooks, helpers, and structural typing.
+ * Derived from ECSpresso, EventBus, and CommandBuffer with all generic parameters
+ * widened, then Pick'd to the members plugins use. Method signatures stay in sync
+ * with the source classes automatically; the member name lists are the only manual part.
+ */
+type _Ecs = ECSpresso<Record<string, any>, Record<string, any>, Record<string, any>, Record<string, any>, Record<string, any>>;
+type _EventBus = import("./event-bus").default<Record<string, any>>;
+type _CommandBuffer = import("./command-buffer").default<Record<string, any>, Record<string, any>, Record<string, any>, Record<string, any>, Record<string, any>>;
+export type BaseWorld = Pick<_Ecs,
+	| 'getComponent'
+	| 'hasComponent'
+	| 'removeEntity'
+	| 'spawn'
+	| 'markChanged'
+	| 'getResource'
+	| 'hasResource'
+> & {
+	eventBus: Pick<_EventBus, 'publish'>;
+	commands: Pick<_CommandBuffer, 'spawn' | 'removeEntity' | 'addComponent' | 'removeComponent'>;
+};
+
 // Re-export utility types from type-utils
 export type { Merge, MergeAll, TypesAreCompatible, ComponentsOf, EventsOf, ResourcesOf, LabelsOf, GroupsOf, AssetGroupNamesOf, ReactiveQueryNamesOf, AssetTypesOf, ScreenStatesOf, ComponentsOfWorld, EventsOfWorld, AssetsOfWorld, ScreenStatesOfWorld, AnyECSpresso, AnyPlugin, EventNameMatching, ChannelOfWorld } from './type-utils';

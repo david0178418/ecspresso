@@ -10,7 +10,7 @@
  */
 
 import { definePlugin, type Plugin } from 'ecspresso';
-import type { SystemPhase } from 'ecspresso';
+import type { SystemPhase, BaseWorld } from 'ecspresso';
 
 // ==================== Loop Mode ====================
 
@@ -89,19 +89,6 @@ export interface SpriteAnimationComponentTypes<A extends string = string> {
 export interface SpriteAnimationEventData {
 	entityId: number;
 	animation: string;
-}
-
-// ==================== World Interface ====================
-
-/**
- * Structural interface for ECS methods used by sprite animation helpers.
- */
-export interface SpriteAnimationWorld {
-	getComponent(entityId: number, componentName: string): unknown | undefined;
-	markChanged(entityId: number, componentName: string): void;
-	commands: {
-		removeComponent(entityId: number, componentName: string): void;
-	};
 }
 
 // ==================== Plugin Options ====================
@@ -221,7 +208,7 @@ export function createSpriteAnimation<A extends string>(
  * @returns false if entity has no spriteAnimation or animation name doesn't exist
  */
 export function playAnimation(
-	ecs: SpriteAnimationWorld,
+	ecs: BaseWorld,
 	entityId: number,
 	animation: string,
 	options?: { restart?: boolean; speed?: number },
@@ -257,7 +244,7 @@ export function playAnimation(
  * @returns false if entity has no spriteAnimation
  */
 export function stopAnimation(
-	ecs: SpriteAnimationWorld,
+	ecs: BaseWorld,
 	entityId: number,
 ): boolean {
 	const anim = ecs.getComponent(entityId, 'spriteAnimation') as SpriteAnimation | undefined;
@@ -273,7 +260,7 @@ export function stopAnimation(
  * @returns false if entity has no spriteAnimation
  */
 export function resumeAnimation(
-	ecs: SpriteAnimationWorld,
+	ecs: BaseWorld,
 	entityId: number,
 ): boolean {
 	const anim = ecs.getComponent(entityId, 'spriteAnimation') as SpriteAnimation | undefined;
@@ -285,15 +272,10 @@ export function resumeAnimation(
 
 // ==================== Animation Processing Helpers ====================
 
-type AnimEcs = {
-	markChanged: (entityId: number, componentName: any) => void;
-	commands: { removeComponent: (entityId: number, componentName: any) => void };
-};
-
 function completeAnimation(
 	anim: SpriteAnimation,
 	entityId: number,
-	ecs: AnimEcs,
+	ecs: BaseWorld,
 ): void {
 	anim.playing = false;
 	anim.justFinished = true;
@@ -307,7 +289,7 @@ function handleBoundary(
 	anim: SpriteAnimation,
 	clip: SpriteAnimationClip,
 	entityId: number,
-	ecs: AnimEcs,
+	ecs: BaseWorld,
 ): boolean {
 	anim.completedLoops++;
 
@@ -342,7 +324,7 @@ function advanceFrame(
 	anim: SpriteAnimation,
 	clip: SpriteAnimationClip,
 	entityId: number,
-	ecs: AnimEcs,
+	ecs: BaseWorld,
 ): boolean {
 	const nextFrame = anim.currentFrame + anim.direction;
 
@@ -359,7 +341,7 @@ function processFrameAdvancement(
 	anim: SpriteAnimation,
 	clip: SpriteAnimationClip,
 	entityId: number,
-	ecs: AnimEcs,
+	ecs: BaseWorld,
 ): void {
 	// Process frame overflow
 	// eslint-disable-next-line no-constant-condition
@@ -443,7 +425,7 @@ export function createSpriteAnimationPlugin<
 						anim.elapsed += deltaTime * anim.speed;
 
 						// Cast required: plugin declares EventTypes={} but publishes runtime-configured events
-						processFrameAdvancement(anim, clip, entity.id, ecs as unknown as AnimEcs);
+						processFrameAdvancement(anim, clip, entity.id, ecs as unknown as BaseWorld);
 
 						// Sync sprite texture if frame changed
 						if (anim.currentFrame !== previousFrame || previousFrame === 0) {

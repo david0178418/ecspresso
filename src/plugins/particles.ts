@@ -11,7 +11,7 @@
  */
 
 import { definePlugin, type Plugin } from 'ecspresso';
-import type { SystemPhase } from 'ecspresso';
+import type { SystemPhase, BaseWorld } from 'ecspresso';
 import type { WorldTransform } from 'ecspresso/plugins/transform';
 
 // ==================== Value Types ====================
@@ -160,16 +160,6 @@ export interface ParticleEmitterEventData {
 	entityId: number;
 }
 
-// ==================== World Interface ====================
-
-/**
- * Structural interface for ECS methods used by particle helpers.
- */
-export interface ParticleWorld {
-	getComponent(entityId: number, componentName: string): unknown | undefined;
-	markChanged(entityId: number, componentName: string): void;
-}
-
 // ==================== Plugin Options ====================
 
 export interface ParticlePluginOptions<G extends string = 'particles'> {
@@ -277,7 +267,7 @@ export function createParticleEmitter(
  * Returns false if entity has no particleEmitter component.
  */
 export function burstParticles(
-	ecs: ParticleWorld,
+	ecs: BaseWorld,
 	entityId: number,
 	count?: number,
 ): boolean {
@@ -293,7 +283,7 @@ export function burstParticles(
  * Existing particles continue their lifecycle.
  */
 export function stopEmitter(
-	ecs: ParticleWorld,
+	ecs: BaseWorld,
 	entityId: number,
 ): boolean {
 	const emitter = ecs.getComponent(entityId, 'particleEmitter') as ParticleEmitter | undefined;
@@ -306,7 +296,7 @@ export function stopEmitter(
  * Resume a stopped emitter.
  */
 export function resumeEmitter(
-	ecs: ParticleWorld,
+	ecs: BaseWorld,
 	entityId: number,
 ): boolean {
 	const emitter = ecs.getComponent(entityId, 'particleEmitter') as ParticleEmitter | undefined;
@@ -666,7 +656,7 @@ export function createParticlePlugin<
 						}
 
 						// Read world transform for emission origin (cross-plugin structural access)
-						const worldTransform = (ecs as unknown as ParticleWorld).getComponent(entity.id, 'worldTransform') as WorldTransform | undefined;
+						const worldTransform = (ecs as unknown as BaseWorld).getComponent(entity.id, 'worldTransform') as WorldTransform | undefined;
 						const ex = worldTransform?.x ?? 0;
 						const ey = worldTransform?.y ?? 0;
 						const erot = worldTransform?.rotation ?? 0;
@@ -739,7 +729,7 @@ export function createParticlePlugin<
 
 							// Add to scene (cross-plugin structural access for renderLayer)
 							if (rootContainer) {
-								const layerName = (ecs as unknown as ParticleWorld).getComponent(entity.id, 'renderLayer') as string | undefined;
+								const layerName = (ecs as unknown as BaseWorld).getComponent(entity.id, 'renderLayer') as string | undefined;
 								if (layerName) {
 									(rootContainer as { addChild(child: unknown): void }).addChild(pixiContainer);
 								} else {
@@ -769,7 +759,7 @@ export function createParticlePlugin<
 				})
 				.setProcess((_queries, _dt, ecs) => {
 					// Sync ParticleState -> PixiJS Particle properties
-					const world = ecs as unknown as ParticleWorld;
+					const world = ecs as unknown as BaseWorld;
 					for (const [entityId, data] of emitterData) {
 						const emitter = world.getComponent(entityId, 'particleEmitter') as ParticleEmitter | undefined;
 						if (!emitter) continue;

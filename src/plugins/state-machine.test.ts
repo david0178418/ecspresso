@@ -1,5 +1,6 @@
 import { describe, test, expect } from 'bun:test';
 import ECSpresso from '../ecspresso';
+import type { BaseWorld } from '../types';
 import type { Plugin } from '../plugin';
 import {
 	defineStateMachine,
@@ -12,7 +13,6 @@ import {
 	type StateMachine,
 	type StateMachineComponentTypes,
 	type StateMachineEventTypes,
-	type StateMachineWorld,
 	type StateTransitionEvent,
 	type StatesOf,
 } from './state-machine';
@@ -840,7 +840,7 @@ describe('State Machine Plugin', () => {
 
 	describe('typed helpers runtime', () => {
 		function createTypedHelpersEcs() {
-			const helpers = createStateMachineHelpers<StateMachineWorld>();
+			const helpers = createStateMachineHelpers<BaseWorld>();
 			const ecs = ECSpresso
 				.create()
 				.withPlugin(createStateMachinePlugin())
