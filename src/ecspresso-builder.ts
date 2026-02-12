@@ -270,7 +270,6 @@ export class ECSpressoBuilder<
 	/**
 	 * Create a plugin factory from the builder's accumulated types.
 	 * Returns a definePlugin equivalent with no manual type parameters.
-	 * Replaces the `createPluginFactory<C, E, R>()` + manual types.ts pattern.
 	 */
 	pluginFactory(): <
 		PL extends string = never,

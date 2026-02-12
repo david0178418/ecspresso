@@ -1745,7 +1745,6 @@ export default class ECSpresso<
 	/**
 	 * Create a plugin factory from the built world's types.
 	 * Returns a definePlugin equivalent with no manual type parameters.
-	 * Replaces the `createPluginFactory<C, E, R>()` + manual types.ts pattern.
 	 */
 	pluginFactory(): <
 		PL extends string = never,

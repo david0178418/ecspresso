@@ -680,14 +680,17 @@ const game = ECSpresso.create<GameComponents, {}, GameResources>()
 
 ### Plugin Factory
 
-When multiple plugins share the same types (common in application code), use `createPluginFactory` to capture the type parameters once:
+When multiple plugins share the same types (common in application code), use `pluginFactory()` on the builder or built world to capture types automatically:
 
 ```typescript
-import { createPluginFactory } from 'ecspresso';
+// types.ts — builder accumulates all types
+export const builder = ECSpresso.create()
+  .withPlugin(createPhysicsPlugin())
+  .withComponentTypes<{ player: boolean; enemy: EnemyData }>()
+  .withResourceTypes<{ score: number }>();
 
-// types.ts — capture types once
-const definePlugin = createPluginFactory<Components, Events, Resources>();
-export { definePlugin };
+// Types flow from the builder — no manual imports or extends chains
+export const definePlugin = builder.pluginFactory();
 
 // movement-plugin.ts — no type params needed
 import { definePlugin } from './types';
