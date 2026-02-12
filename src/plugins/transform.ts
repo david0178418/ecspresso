@@ -7,8 +7,7 @@
  * @see https://docs.rs/bevy/latest/bevy/transform/components/struct.GlobalTransform.html
  */
 
-import { definePlugin, type Plugin } from 'ecspresso';
-import type { SystemPhase } from 'ecspresso';
+import { definePlugin, type Plugin, type BasePluginOptions } from 'ecspresso';
 import type ECSpresso from 'ecspresso';
 
 // ==================== Component Types ====================
@@ -59,14 +58,7 @@ export interface TransformComponentTypes {
 /**
  * Configuration options for the transform plugin.
  */
-export interface TransformPluginOptions<G extends string = 'transform'> {
-	/** System group name (default: 'transform') */
-	systemGroup?: G;
-	/** Priority for transform propagation (default: 500, runs after physics) */
-	priority?: number;
-	/** Execution phase (default: 'postUpdate') */
-	phase?: SystemPhase;
-}
+export interface TransformPluginOptions<G extends string = 'transform'> extends BasePluginOptions<G> {}
 
 // ==================== Default Values ====================
 

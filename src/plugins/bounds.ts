@@ -6,8 +6,7 @@
  * Supports destroy, clamp, and wrap behaviors.
  */
 
-import { definePlugin, type Plugin } from 'ecspresso';
-import type { SystemPhase } from 'ecspresso';
+import { definePlugin, type Plugin, type BasePluginOptions } from 'ecspresso';
 import type { TransformComponentTypes } from './transform';
 
 // ==================== Component Types ====================
@@ -102,17 +101,11 @@ export interface BoundsEventTypes {
 /**
  * Configuration options for the bounds plugin.
  */
-export interface BoundsPluginOptions<G extends string = 'physics'> {
-	/** System group name (default: 'physics') */
-	systemGroup?: G;
-	/** Priority for bounds systems (default: 50) */
-	priority?: number;
+export interface BoundsPluginOptions<G extends string = 'physics'> extends BasePluginOptions<G> {
 	/** Resource key for bounds rectangle (default: 'bounds') */
 	boundsResourceKey?: string;
 	/** Whether to auto-remove entities when out of bounds (default: true) */
 	autoRemove?: boolean;
-	/** Execution phase (default: 'postUpdate') */
-	phase?: SystemPhase;
 }
 
 // ==================== Helper Functions ====================

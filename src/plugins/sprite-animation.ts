@@ -9,8 +9,8 @@
  * This plugin declares only `spriteAnimation` as its component type.
  */
 
-import { definePlugin, type Plugin } from 'ecspresso';
-import type { SystemPhase, BaseWorld } from 'ecspresso';
+import { definePlugin, type Plugin, type BasePluginOptions } from 'ecspresso';
+import type { BaseWorld } from 'ecspresso';
 
 // ==================== Loop Mode ====================
 
@@ -93,14 +93,7 @@ export interface SpriteAnimationEventData {
 
 // ==================== Plugin Options ====================
 
-export interface SpriteAnimationPluginOptions<G extends string = 'spriteAnimation'> {
-	/** System group name (default: 'spriteAnimation') */
-	systemGroup?: G;
-	/** Priority for animation system (default: 0) */
-	priority?: number;
-	/** Execution phase (default: 'update') */
-	phase?: SystemPhase;
-}
+export interface SpriteAnimationPluginOptions<G extends string = 'spriteAnimation'> extends BasePluginOptions<G> {}
 
 // ==================== Helper Functions ====================
 

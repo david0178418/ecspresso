@@ -7,8 +7,8 @@
  * `waitForEvent`, `parallel`, `race`) compose via `yield*`.
  */
 
-import { definePlugin, type Plugin } from 'ecspresso';
-import type { SystemPhase, EventsOfWorld, AnyECSpresso } from 'ecspresso';
+import { definePlugin, type Plugin, type BasePluginOptions } from 'ecspresso';
+import type { EventsOfWorld, AnyECSpresso } from 'ecspresso';
 
 // ==================== Generator Protocol ====================
 
@@ -39,14 +39,7 @@ export interface CoroutineComponentTypes {
 
 // ==================== Plugin Options ====================
 
-export interface CoroutinePluginOptions<G extends string = 'coroutines'> {
-	/** System group name (default: 'coroutines') */
-	systemGroup?: G;
-	/** Priority for coroutine update system (default: 0) */
-	priority?: number;
-	/** Execution phase (default: 'update') */
-	phase?: SystemPhase;
-}
+export interface CoroutinePluginOptions<G extends string = 'coroutines'> extends BasePluginOptions<G> {}
 
 // ==================== Component Factory ====================
 

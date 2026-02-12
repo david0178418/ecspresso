@@ -6,8 +6,7 @@
  * Supports AABB and circle colliders.
  */
 
-import { definePlugin, type Plugin } from 'ecspresso';
-import type { SystemPhase } from 'ecspresso';
+import { definePlugin, type Plugin, type BasePluginOptions } from 'ecspresso';
 import type { TransformComponentTypes } from './transform';
 import { buildBaseColliderInfo, detectCollisions, tryGetSpatialIndex, type Contact, type BaseColliderInfo } from '../utils/narrowphase';
 
@@ -99,15 +98,9 @@ export interface CollisionEventTypes<L extends string = never> {
 /**
  * Configuration options for the collision plugin.
  */
-export interface CollisionPluginOptions<G extends string = 'physics'> {
-	/** System group name (default: 'physics') */
-	systemGroup?: G;
-	/** Priority for collision system (default: 0) */
-	priority?: number;
+export interface CollisionPluginOptions<G extends string = 'physics'> extends BasePluginOptions<G> {
 	/** Name of the collision event (default: 'collision') */
 	collisionEventName?: string;
-	/** Execution phase (default: 'postUpdate') */
-	phase?: SystemPhase;
 }
 
 // ==================== Helper Functions ====================

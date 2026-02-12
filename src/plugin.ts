@@ -1,4 +1,5 @@
 import type ECSpresso from './ecspresso';
+import type { SystemPhase } from './types';
 import type { ScreenDefinition } from './screen-types';
 import type {
 	AnyECSpresso,
@@ -40,6 +41,19 @@ export interface Plugin<
 	readonly _groups?: Groups;
 	readonly _assetGroupNames?: AssetGroupNames;
 	readonly _reactiveQueryNames?: ReactiveQueryNames;
+}
+
+/**
+ * Common configuration options shared by most plugins.
+ * Plugin-specific options interfaces extend this with additional fields.
+ */
+export interface BasePluginOptions<G extends string = string> {
+	/** System group name for all systems registered by this plugin */
+	systemGroup?: G;
+	/** Priority for the plugin's primary system (default varies per plugin) */
+	priority?: number;
+	/** Execution phase for the plugin's primary system */
+	phase?: SystemPhase;
 }
 
 /**

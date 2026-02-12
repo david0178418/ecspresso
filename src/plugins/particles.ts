@@ -10,8 +10,8 @@
  * side-storage Map for PixiJS objects, kit pattern for typed helpers.
  */
 
-import { definePlugin, type Plugin } from 'ecspresso';
-import type { SystemPhase, BaseWorld } from 'ecspresso';
+import { definePlugin, type Plugin, type BasePluginOptions } from 'ecspresso';
+import type { BaseWorld } from 'ecspresso';
 import type { WorldTransform } from 'ecspresso/plugins/transform';
 
 // ==================== Value Types ====================
@@ -162,14 +162,7 @@ export interface ParticleEmitterEventData {
 
 // ==================== Plugin Options ====================
 
-export interface ParticlePluginOptions<G extends string = 'particles'> {
-	/** System group name (default: 'particles') */
-	systemGroup?: G;
-	/** Priority for update system (default: 0) */
-	priority?: number;
-	/** Execution phase for update system (default: 'update') */
-	phase?: SystemPhase;
-}
+export interface ParticlePluginOptions<G extends string = 'particles'> extends BasePluginOptions<G> {}
 
 // ==================== Pure Functions (Simulation Engine) ====================
 

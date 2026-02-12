@@ -9,8 +9,7 @@
  * in the system's process step, so all systems see consistent state.
  */
 
-import { definePlugin, type Plugin } from 'ecspresso';
-import type { SystemPhase } from 'ecspresso';
+import { definePlugin, type Plugin, type BasePluginOptions } from 'ecspresso';
 
 // ==================== Public Types ====================
 
@@ -186,13 +185,7 @@ export interface InputResourceTypes<A extends string = string> {
 	inputState: InputState<A>;
 }
 
-export interface InputPluginOptions<A extends string = string, G extends string = 'input'> {
-	/** System group name (default: 'input') */
-	systemGroup?: G;
-	/** Priority for input system (default: 100) */
-	priority?: number;
-	/** Execution phase (default: 'preUpdate') */
-	phase?: SystemPhase;
+export interface InputPluginOptions<A extends string = string, G extends string = 'input'> extends BasePluginOptions<G> {
 	/** Initial action mappings */
 	actions?: ActionMap<A>;
 	/** EventTarget to attach listeners to (default: globalThis). Pass a custom target for testability. */

@@ -8,8 +8,8 @@
  * One system processes all state machine entities each tick.
  */
 
-import { definePlugin, type Plugin } from 'ecspresso';
-import type { SystemPhase, BaseWorld } from 'ecspresso';
+import { definePlugin, type Plugin, type BasePluginOptions } from 'ecspresso';
+import type { BaseWorld } from 'ecspresso';
 
 // ==================== State Config ====================
 
@@ -111,14 +111,7 @@ export type StatesOf<D> = D extends StateMachineDefinition<infer S> ? S : never;
 /**
  * Configuration options for the state machine plugin.
  */
-export interface StateMachinePluginOptions<G extends string = 'stateMachine'> {
-	/** System group name (default: 'stateMachine') */
-	systemGroup?: G;
-	/** Priority for state machine system (default: 0) */
-	priority?: number;
-	/** Execution phase (default: 'update') */
-	phase?: SystemPhase;
-}
+export interface StateMachinePluginOptions<G extends string = 'stateMachine'> extends BasePluginOptions<G> {}
 
 // ==================== Helper Functions ====================
 

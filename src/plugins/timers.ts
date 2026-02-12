@@ -5,8 +5,7 @@
  * Timers are components processed each frame, automatically cleaned up when entities are removed.
  */
 
-import { definePlugin, type Plugin } from 'ecspresso';
-import type { SystemPhase } from 'ecspresso';
+import { definePlugin, type Plugin, type BasePluginOptions } from 'ecspresso';
 
 // ==================== Event Types ====================
 
@@ -74,14 +73,7 @@ export interface TimerComponentTypes {
 /**
  * Configuration options for the timer plugin.
  */
-export interface TimerPluginOptions<G extends string = 'timers'> {
-	/** System group name (default: 'timers') */
-	systemGroup?: G;
-	/** Priority for timer update system (default: 0) */
-	priority?: number;
-	/** Execution phase (default: 'preUpdate') */
-	phase?: SystemPhase;
-}
+export interface TimerPluginOptions<G extends string = 'timers'> extends BasePluginOptions<G> {}
 
 // ==================== Helper Functions ====================
 

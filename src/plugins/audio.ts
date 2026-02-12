@@ -6,8 +6,8 @@
  * and asset manager integration.
  */
 
-import { definePlugin, type Plugin } from 'ecspresso';
-import type { SystemPhase, AssetsOfWorld, AnyECSpresso, ChannelOfWorld } from 'ecspresso';
+import { definePlugin, type Plugin, type BasePluginOptions } from 'ecspresso';
+import type { AssetsOfWorld, AnyECSpresso, ChannelOfWorld } from 'ecspresso';
 import type { Howl } from 'howler';
 
 // ==================== Channel Definition ====================
@@ -196,15 +196,9 @@ export interface AudioResourceTypes<Ch extends string = string> {
 /**
  * Configuration options for the audio plugin.
  */
-export interface AudioPluginOptions<Ch extends string, G extends string = 'audio'> {
+export interface AudioPluginOptions<Ch extends string, G extends string = 'audio'> extends BasePluginOptions<G> {
 	/** Channel definitions from defineAudioChannels */
 	channels: Readonly<Record<Ch, AudioChannelConfig>>;
-	/** System group name (default: 'audio') */
-	systemGroup?: G;
-	/** Priority for audio sync system (default: 0) */
-	priority?: number;
-	/** Execution phase (default: 'update') */
-	phase?: SystemPhase;
 }
 
 // ==================== Helper Functions ====================

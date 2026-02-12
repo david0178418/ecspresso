@@ -5,8 +5,8 @@
  * field over time with standard easing functions, sequences, and completion events.
  */
 
-import { definePlugin, type Plugin } from 'ecspresso';
-import type { SystemPhase, ComponentsOfWorld, AnyECSpresso } from 'ecspresso';
+import { definePlugin, type Plugin, type BasePluginOptions } from 'ecspresso';
+import type { ComponentsOfWorld, AnyECSpresso } from 'ecspresso';
 import { linear, type EasingFn } from '../utils/easing';
 
 // ==================== Event Types ====================
@@ -66,14 +66,7 @@ export interface TweenComponentTypes {
 
 // ==================== Plugin Options ====================
 
-export interface TweenPluginOptions<G extends string = 'tweens'> {
-	/** System group name (default: 'tweens') */
-	systemGroup?: G;
-	/** Priority for tween update system (default: 0) */
-	priority?: number;
-	/** Execution phase (default: 'update') */
-	phase?: SystemPhase;
-}
+export interface TweenPluginOptions<G extends string = 'tweens'> extends BasePluginOptions<G> {}
 
 // ==================== Helper Functions ====================
 
