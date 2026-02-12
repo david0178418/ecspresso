@@ -153,11 +153,24 @@ ecs.addSystem('initialize')
 	.setOnInitialize((ecs) => {
 		const pixiApp = ecs.getResource('pixiApp');
 
-		// Add reactive query to auto-update hierarchy display
+		// Add reactive query to auto-update hierarchy display.
+		// Callbacks are deferred to a microtask so the display rebuilds after
+		// all synchronous entity removals have completed (the onExit hook fires
+		// via beforeEntityRemoved, before the entity is actually deleted).
+		let displayUpdateScheduled = false;
+		function scheduleDisplayUpdate(): void {
+			if (displayUpdateScheduled) return;
+			displayUpdateScheduled = true;
+			queueMicrotask(() => {
+				displayUpdateScheduled = false;
+				updateHierarchyDisplay(ecs);
+			});
+		}
+
 		ecs.addReactiveQuery('celestialBodies', {
 			with: ['celestialBody'],
-			onEnter: () => updateHierarchyDisplay(ecs),
-			onExit: () => updateHierarchyDisplay(ecs),
+			onEnter: scheduleDisplayUpdate,
+			onExit: scheduleDisplayUpdate,
 		});
 
 		const centerX = pixiApp.screen.width / 2;

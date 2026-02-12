@@ -467,34 +467,6 @@ export function createRenderer2DPlugin<G extends string = 'renderer2d'>(
 		throw new Error('renderer2D: createLayerContainer called before initialization');
 	};
 
-	// Helper to get the PixiJS display object for an entity
-	function getPixiObject(entityId: number, ecs: ECSpresso<WorldConfigFrom<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes>>): Container | null {
-		// Check cache first
-		const cached = entityToPixiObject.get(entityId);
-		if (cached) return cached;
-
-		// Try to get from components
-		const spriteComp = ecs.getComponent(entityId, 'sprite');
-		if (spriteComp) {
-			entityToPixiObject.set(entityId, spriteComp);
-			return spriteComp;
-		}
-
-		const graphicsComp = ecs.getComponent(entityId, 'graphics');
-		if (graphicsComp) {
-			entityToPixiObject.set(entityId, graphicsComp);
-			return graphicsComp;
-		}
-
-		const containerComp = ecs.getComponent(entityId, 'container');
-		if (containerComp) {
-			entityToPixiObject.set(entityId, containerComp);
-			return containerComp;
-		}
-
-		return null;
-	}
-
 	// Helper to get or create a render layer container
 	function getOrCreateLayerContainer(
 		layerName: string,
@@ -510,23 +482,21 @@ export function createRenderer2DPlugin<G extends string = 'renderer2d'>(
 		return cont;
 	}
 
-	// Helper to resolve the target container for an entity
+	// Helper to resolve the target container for an entity.
+	// Scene graph stays flat (rootContainer or render layer) because the render
+	// sync positions objects using absolute worldTransform.  Nesting under a
+	// parent's display object would double-apply the parent's transform.
 	function resolveTargetContainer(
 		entityId: number,
 		ecs: ECSpresso<WorldConfigFrom<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes>>
 	): Container {
 		const rootCont = ecs.getResource('rootContainer');
 
-		// 1. Check ECS parent hierarchy
-		const parentId = ecs.getParent(entityId);
-		const parentPixiObject = parentId !== null ? getPixiObject(parentId, ecs) : null;
-		if (parentPixiObject) return parentPixiObject;
-
-		// 2. Check render layer component
+		// 1. Check render layer component
 		const layerName = ecs.getComponent(entityId, 'renderLayer');
 		if (layerName) return getOrCreateLayerContainer(layerName, rootCont);
 
-		// 3. Fall back to root container
+		// 2. Fall back to root container
 		return rootCont;
 	}
 
