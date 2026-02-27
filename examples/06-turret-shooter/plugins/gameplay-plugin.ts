@@ -35,7 +35,8 @@ export default function createGameplayPlugin() {
 				.addQuery('projectiles', {
 					with: ['projectile', 'position', 'collider']
 				})
-				.setProcess(({ enemies, projectiles }, _deltaTime, ecs) => {
+				.withResources(['waveManager'])
+				.setProcess(({ enemies, projectiles }, _deltaTime, ecs, { waveManager }) => {
 					// Check projectile collisions with enemies
 					for (const projectile of projectiles) {
 						const projectilePosition = projectile.components.position;
@@ -82,7 +83,6 @@ export default function createGameplayPlugin() {
 									});
 
 									// Reduce enemies remaining in wave
-									const waveManager = ecs.getResource('waveManager');
 									waveManager.enemiesRemaining--;
 
 									// Check if wave is complete

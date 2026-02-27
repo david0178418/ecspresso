@@ -27,9 +27,8 @@ export default function createInputProcessingPlugin() {
 				.inPhase('preUpdate')
 				.inGroup('gameplay')
 				.setPriority(90)
-				.setProcess((_queries, _dt, ecs) => {
-					const input = ecs.getResource('inputState');
-					const gameState = ecs.getResource('gameState');
+				.withResources(['inputState', 'gameState'])
+				.setProcess((_queries, _dt, ecs, { inputState: input, gameState }) => {
 
 					if (input.actions.justActivated('shoot') && gameState.status === 'playing') {
 						ecs.eventBus.publish('playerShoot', {});
@@ -38,9 +37,8 @@ export default function createInputProcessingPlugin() {
 			world.addSystem('pause-handling')
 				.inPhase('preUpdate')
 				.setPriority(90)
-				.setProcess((_queries, _dt, ecs) => {
-					const input = ecs.getResource('inputState');
-					const gameState = ecs.getResource('gameState');
+				.withResources(['inputState', 'gameState'])
+				.setProcess((_queries, _dt, ecs, { inputState: input, gameState }) => {
 
 					if (!input.actions.justActivated('pause')) return;
 

@@ -12,9 +12,10 @@ export class SystemBuilder<
 	Queries extends Record<string, QueryDefinition<Cfg['components']>> = {},
 	Label extends string = string,
 	SysGroups extends string = never,
+	ResourceKeys extends keyof Cfg['resources'] = never,
 > {
 	private queries: Queries = {} as Queries;
-	private processFunction?: ProcessFunction<Cfg, Queries>;
+	private processFunction?: InternalProcessFunction<Cfg, Queries>;
 	private detachFunction?: LifecycleFunction<Cfg>;
 	private initializeFunction?: LifecycleFunction<Cfg>;
 	private eventHandlers?: {
@@ -31,6 +32,7 @@ export class SystemBuilder<
 	private _requiredAssets?: ReadonlyArray<keyof Cfg['assets'] & string>;
 	private _runWhenEmpty = false;
 	private _entityEnterHandlers: Record<string, (entity: any, ecs: any) => void> = {};
+	private _resourceKeys?: string[];
 
 	constructor(private _label: string) {}
 
@@ -123,7 +125,7 @@ export class SystemBuilder<
 	 * @param groupName The name of the group to add the system to
 	 * @returns This SystemBuilder instance for method chaining
 	 */
-	inGroup<G extends string>(groupName: G): SystemBuilder<Cfg, Queries, Label, SysGroups | G> {
+	inGroup<G extends string>(groupName: G): SystemBuilder<Cfg, Queries, Label, SysGroups | G, ResourceKeys> {
 		if (!this._groups.includes(groupName)) {
 			this._groups.push(groupName);
 		}
@@ -176,6 +178,20 @@ export class SystemBuilder<
 	}
 
 	/**
+	 * Declare resource dependencies for this system. Resources are resolved
+	 * once (on first process call) and the same object is reused every frame.
+	 * The resolved resources are passed as the 4th parameter to setProcess.
+	 * @param keys Array of resource keys to resolve
+	 * @returns This SystemBuilder instance for method chaining
+	 */
+	withResources<RK extends keyof Cfg['resources'] & string>(
+		keys: readonly RK[]
+	): SystemBuilder<Cfg, Queries, Label, SysGroups, RK> {
+		(this as any)._resourceKeys = [...keys];
+		return this as any;
+	}
+
+	/**
 	 * Add a query definition to the system
 	 */
 	addQuery<
@@ -194,7 +210,7 @@ export class SystemBuilder<
 			optional?: ReadonlyArray<OptionalComponents>;
 			parentHas?: ReadonlyArray<keyof Cfg['components']>;
 		}
-	): SystemBuilder<Cfg, NewQueries, Label, SysGroups> {
+	): SystemBuilder<Cfg, NewQueries, Label, SysGroups, ResourceKeys> {
 		// Cast is needed because TypeScript can't preserve the type information
 		// when modifying an object property
 		const newBuilder = this as any;
@@ -206,14 +222,32 @@ export class SystemBuilder<
 	}
 
 	/**
-	 * Set the system's process function that runs each update
+	 * Set the system's process function that runs each update.
+	 * If withResources() was called, the callback receives a 4th parameter
+	 * containing the resolved resources (cached once, zero per-frame allocation).
 	 * @param process Function to process entities matching the system's queries each update
 	 * @returns This SystemBuilder instance for method chaining
 	 */
 	setProcess(
-		process: ProcessFunction<Cfg, Queries>
+		process: ProcessFunction<Cfg, Queries, ResourceKeys>
 	): this {
-		this.processFunction = process;
+		if (this._resourceKeys?.length) {
+			const keys = this._resourceKeys;
+			let resolved: Record<string, unknown> | undefined;
+			this.processFunction = ((queries, dt, ecs) => {
+				if (!resolved) {
+					resolved = {};
+					for (const key of keys) {
+						resolved[key] = ecs.getResource(key as keyof Cfg['resources'] & string);
+					}
+				}
+				(process as Function)(queries, dt, ecs, resolved);
+			}) as InternalProcessFunction<Cfg, Queries>;
+		} else {
+			// When ResourceKeys is never, ProcessFunction collapses to InternalProcessFunction.
+			// TypeScript can't prove this while ResourceKeys is still generic, so cast through Function.
+			this.processFunction = process as unknown as InternalProcessFunction<Cfg, Queries>;
+		}
 		return this;
 	}
 
@@ -303,18 +337,48 @@ type QueryResults<
 };
 
 /**
- * Function signature for system process methods
+ * Conditional tuple type that adds a typed resources parameter when
+ * ResourceKeys is non-never, or adds nothing when it is never.
+ */
+type ResourcesParam<
+	Cfg extends WorldConfig,
+	ResourceKeys extends keyof Cfg['resources'],
+> = [ResourceKeys] extends [never]
+	? []
+	: [resources: { readonly [K in ResourceKeys]: Cfg['resources'][K] }];
+
+/**
+ * Function signature for system process methods.
+ * When the system declares resource dependencies via withResources(),
+ * the callback receives a 4th parameter with the resolved resources.
  * @param queries Results of entity queries defined by the system
  * @param deltaTime Time elapsed since last update in seconds
  * @param ecs The ECSpresso instance providing access to all ECS functionality
+ * @param resources Resolved resource values (when withResources() was called)
  */
 type ProcessFunction<
+	Cfg extends WorldConfig,
+	Queries extends Record<string, QueryDefinition<Cfg['components']>>,
+	ResourceKeys extends keyof Cfg['resources'] = never,
+> = (
+	queries: QueryResults<Cfg['components'], Queries>,
+	deltaTime: number,
+	ecs: ECSpresso<Cfg>,
+	...resources: ResourcesParam<Cfg, ResourceKeys>
+) => void;
+
+/**
+ * Internal 3-param process function used for storage on System objects.
+ * When resources are declared, the SystemBuilder wraps the user's function
+ * into a 3-param closure that resolves and caches resources internally.
+ */
+type InternalProcessFunction<
 	Cfg extends WorldConfig,
 	Queries extends Record<string, QueryDefinition<Cfg['components']>>,
 > = (
 	queries: QueryResults<Cfg['components'], Queries>,
 	deltaTime: number,
-	ecs: ECSpresso<Cfg>
+	ecs: ECSpresso<Cfg>,
 ) => void;
 
 /**

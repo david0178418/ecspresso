@@ -109,10 +109,8 @@ export default function createAIPlugin() {
 				.addQuery('spawners', {
 					with: ['timer', 'enemySpawner'],
 				})
-				.setProcess(({ spawners }, _deltaTime, ecs) => {
-					const waveManager = ecs.getResource('waveManager');
-					const config = ecs.getResource('config');
-					const playerInitialRotation = ecs.getResource('playerInitialRotation');
+				.withResources(['waveManager', 'config', 'playerInitialRotation'])
+				.setProcess(({ spawners }, _deltaTime, ecs, { waveManager, config, playerInitialRotation }) => {
 
 					for (const spawner of spawners) {
 						if (!spawner.components.timer.justFinished) continue;

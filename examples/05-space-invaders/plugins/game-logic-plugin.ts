@@ -110,12 +110,9 @@ export default function createGameLogicPlugin() {
 			world.addSystem('enemy-controller')
 				.inGroup('gameplay')
 				.addQuery('enemies', { with: ['enemy', 'worldTransform'] })
-				.setProcess(({ enemies }, deltaTime, ecs) => {
+				.withResources(['gameState', 'enemyMovementState', 'bounds', 'score'])
+				.setProcess(({ enemies }, deltaTime, ecs, { gameState, enemyMovementState: movementState, bounds, score }) => {
 					if (enemies.length === 0) return;
-
-					const gameState = ecs.getResource('gameState');
-					const movementState = ecs.getResource('enemyMovementState');
-					const bounds = ecs.getResource('bounds');
 
 					let minX = Number.MAX_VALUE;
 					let maxX = Number.MIN_VALUE;
@@ -131,7 +128,7 @@ export default function createGameLogicPlugin() {
 
 					// Game over if enemies reach bottom
 					if (maxY > bounds.height - 100) {
-						ecs.eventBus.publish('gameOver', { win: false, score: ecs.getResource('score').value });
+						ecs.eventBus.publish('gameOver', { win: false, score: score.value });
 						return;
 					}
 
@@ -162,9 +159,8 @@ export default function createGameLogicPlugin() {
 				.inGroup('gameplay')
 				.inPhase('preUpdate')
 				.addQuery('players', { with: ['player', 'velocity'] })
-				.setProcess(({ players }, _deltaTime, ecs) => {
-					const input = ecs.getResource('inputState');
-					const config = ecs.getResource('config');
+				.withResources(['inputState', 'config'])
+				.setProcess(({ players }, _deltaTime, _ecs, { inputState: input, config }) => {
 
 					for (const player of players) {
 						player.components.velocity.x = input.actions.isActive('moveLeft') ? -config.playerSpeed

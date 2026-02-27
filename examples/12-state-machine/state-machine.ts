@@ -189,8 +189,8 @@ ecs
 	.addQuery('players', {
 		with: ['player', 'velocity', 'speed'],
 	})
-	.setProcess((queries, _dt, ecs) => {
-		const input = ecs.getResource('inputState');
+	.withResources(['inputState'])
+	.setProcess((queries, _dt, ecs, { inputState: input }) => {
 
 		for (const entity of queries.players) {
 			const { speed } = entity.components;

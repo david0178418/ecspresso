@@ -254,8 +254,8 @@ export default function createGameStatePlugin() {
 				.addQuery('messageTimers', {
 					with: ['timer', 'messageTimer'],
 				})
-				.setProcess(({ messageTimers }, _deltaTime, ecs) => {
-					const uiElements = ecs.getResource('uiElements');
+				.withResources(['uiElements'])
+				.setProcess(({ messageTimers }, _deltaTime, ecs, { uiElements }) => {
 
 					for (const entity of messageTimers) {
 						if (entity.components.timer.justFinished) {

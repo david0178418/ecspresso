@@ -133,10 +133,8 @@ ecs.addSystem('orbit')
 // Scrolls the view based on input actions
 ecs.addSystem('camera')
 	.inPhase('preUpdate')
-	.setProcess((_queries, deltaTime, ecs) => {
-		const input = ecs.getResource('inputState');
-		const camera = ecs.getResource('camera');
-		const rootContainer = ecs.getResource('rootContainer');
+	.withResources(['inputState', 'camera', 'rootContainer'])
+	.setProcess((_queries, deltaTime, _ecs, { inputState: input, camera, rootContainer }) => {
 
 		const scrollSpeed = 400;
 

@@ -41,8 +41,8 @@ function createBouncingPlugin() {
 				});
 			world.addSystem('bounce')
 				.addQuery('bouncing', { with: ['localTransform', 'velocity', 'radius'] })
-				.setProcess((queries, _dt, ecs) => {
-					const bounds = ecs.getResource('bounds');
+				.withResources(['bounds'])
+				.setProcess((queries, _dt, ecs, { bounds }) => {
 					for (const entity of queries.bouncing) {
 						const { localTransform, velocity, radius } = entity.components;
 						if (localTransform.x > bounds.width - radius || localTransform.x < radius) {

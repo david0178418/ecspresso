@@ -197,6 +197,133 @@ describe('SystemBuilder', () => {
 		expect(updatedHealth).toEqual({ value: 99 });
 	});
 
+	test('withResources injects typed resources into process callback', () => {
+		interface Resources {
+			config: { speed: number };
+			score: { value: number };
+		}
+
+		const received: { config: Resources['config']; score: Resources['score'] }[] = [];
+
+		const world = ECSpresso.create()
+			.withComponentTypes<TestComponents>()
+			.withResourceTypes<Resources>()
+			.withResource('config', { speed: 42 })
+			.withResource('score', { value: 100 })
+			.build();
+
+		world.addSystem('resourceSystem')
+			.addQuery('entities', { with: ['position'] })
+			.withResources(['config', 'score'])
+			.setProcess((_queries, _dt, _ecs, { config, score }) => {
+				received.push({ config, score });
+			});
+
+		world.spawn({ position: { x: 0, y: 0 } });
+		world.update(1 / 60);
+		world.update(1 / 60);
+
+		expect(received).toHaveLength(2);
+		expect(received[0]!.config.speed).toBe(42);
+		expect(received[0]!.score.value).toBe(100);
+	});
+
+	test('withResources resolves once and reuses the same object', () => {
+		const resourceObjects: Record<string, unknown>[] = [];
+
+		const world = ECSpresso.create()
+			.withComponentTypes<TestComponents>()
+			.withResourceTypes<{ config: { speed: number } }>()
+			.withResource('config', { speed: 10 })
+			.build();
+
+		world.addSystem('cacheTest')
+			.withResources(['config'])
+			.runWhenEmpty()
+			.setProcess((_queries, _dt, _ecs, resources) => {
+				resourceObjects.push(resources);
+			});
+
+		world.update(1 / 60);
+		world.update(1 / 60);
+		world.update(1 / 60);
+
+		expect(resourceObjects).toHaveLength(3);
+		// Same reference every frame — zero allocation
+		expect(resourceObjects[0]).toBe(resourceObjects[1]);
+		expect(resourceObjects[1]).toBe(resourceObjects[2]);
+	});
+
+	test('withResources works without queries (runWhenEmpty)', () => {
+		let callCount = 0;
+
+		const world = ECSpresso.create()
+			.withComponentTypes<TestComponents>()
+			.withResourceTypes<{ state: { paused: boolean } }>()
+			.withResource('state', { paused: false })
+			.build();
+
+		world.addSystem('noQueryResources')
+			.withResources(['state'])
+			.runWhenEmpty()
+			.setProcess((_queries, _dt, _ecs, { state }) => {
+				if (!state.paused) callCount++;
+			});
+
+		world.update(1 / 60);
+		expect(callCount).toBe(1);
+	});
+
+	test('withResources works regardless of chain order with addQuery', () => {
+		const results: number[] = [];
+
+		const world = ECSpresso.create()
+			.withComponentTypes<TestComponents>()
+			.withResourceTypes<{ multiplier: { value: number } }>()
+			.withResource('multiplier', { value: 3 })
+			.build();
+
+		// withResources before addQuery
+		world.addSystem('resourceFirst')
+			.withResources(['multiplier'])
+			.addQuery('entities', { with: ['position'] })
+			.setProcess((_queries, _dt, _ecs, { multiplier }) => {
+				results.push(multiplier.value);
+			});
+
+		// addQuery before withResources
+		world.addSystem('queryFirst')
+			.addQuery('entities', { with: ['position'] })
+			.withResources(['multiplier'])
+			.setProcess((_queries, _dt, _ecs, { multiplier }) => {
+				results.push(multiplier.value * 10);
+			});
+
+		world.spawn({ position: { x: 0, y: 0 } });
+		world.update(1 / 60);
+
+		expect(results).toContain(3);
+		expect(results).toContain(30);
+	});
+
+	test('systems without withResources still work with 3-param setProcess', () => {
+		let called = false;
+
+		const world = ECSpresso.create()
+			.withComponentTypes<TestComponents>()
+			.build();
+
+		world.addSystem('classic')
+			.addQuery('entities', { with: ['position'] })
+			.setProcess((queries, _dt, _ecs) => {
+				if (queries.entities.length > 0) called = true;
+			});
+
+		world.spawn({ position: { x: 0, y: 0 } });
+		world.update(1 / 60);
+		expect(called).toBe(true);
+	});
+
 	test('should support multiple addSystem calls on same world', () => {
 		let system1Processed = false;
 		let system2Processed = false;

@@ -74,8 +74,8 @@ const ecs = ECSpresso.create()
 ecs.addSystem('player-input')
 	.inPhase('preUpdate')
 	.addQuery('players', { with: ['player', 'velocity'] })
-	.setProcess((queries, _dt, ecs) => {
-		const input = ecs.getResource('inputState');
+	.withResources(['inputState'])
+	.setProcess((queries, _dt, _ecs, { inputState: input }) => {
 		for (const entity of queries.players) {
 			const { velocity } = entity.components;
 			velocity.x = 0;
@@ -92,8 +92,8 @@ ecs.addSystem('player-input')
 ecs.addSystem('shake-trigger')
 	.inPhase('preUpdate')
 	.addQuery('cameras', { with: ['camera', 'cameraShake'] })
-	.setProcess((queries, _dt, ecs) => {
-		const input = ecs.getResource('inputState');
+	.withResources(['inputState'])
+	.setProcess((queries, _dt, ecs, { inputState: input }) => {
 		if (input.actions.justActivated('shake')) {
 			for (const cam of queries.cameras) {
 				addTrauma(ecs, cam.id, 0.6);
@@ -106,12 +106,10 @@ ecs.addSystem('shake-trigger')
 ecs.addSystem('coord-display')
 	.inPhase('render')
 	.addQuery('players', { with: ['player', 'worldTransform'] })
-	.setProcess((queries, _dt, ecs) => {
+	.withResources(['cameraState', 'inputState'])
+	.setProcess((queries, _dt, _ecs, { cameraState: state, inputState: input }) => {
 		const el = document.getElementById('coords');
 		if (!el) return;
-
-		const state = ecs.getResource('cameraState');
-		const input = ecs.getResource('inputState');
 
 		const first = queries.players[0];
 		if (!first) return;

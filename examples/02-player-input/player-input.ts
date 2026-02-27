@@ -35,8 +35,8 @@ const ecs = ECSpresso.create()
 ecs.addSystem('player-input')
 	.inPhase('preUpdate')
 	.addQuery('players', { with: ['velocity', 'speed'] })
-	.setProcess((queries, _dt, ecs) => {
-		const input = ecs.getResource('inputState');
+	.withResources(['inputState'])
+	.setProcess((queries, _dt, _ecs, { inputState: input }) => {
 		const [player] = queries.players;
 		if (!player) return;
 
