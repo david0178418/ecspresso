@@ -312,7 +312,7 @@ describe('CommandBuffer', () => {
 
 			ecs.addSystem('damage')
 				.addQuery('entities', { with: ['health'] })
-				.setProcess((_queries, _dt, world) => {
+				.setProcess(({ ecs: world }) => {
 					world.commands.mutateComponent(entity.id, 'health', (h) => {
 						h.value -= 10;
 					});
@@ -392,7 +392,7 @@ describe('CommandBuffer', () => {
 			const ecs = ECSpresso.create<TestConfig>().build();
 
 			ecs.addSystem('test')
-				.setProcess((_queries, _deltaTime, ecs) => {
+				.setProcess(({ ecs }) => {
 					ecs.commands.spawn({ position: { x: 1, y: 1 } });
 				});
 
@@ -416,7 +416,7 @@ describe('CommandBuffer', () => {
 
 			ecs.addSystem('test')
 				.addQuery('tagged', { with: ['tag'] })
-				.setProcess(({ tagged }, _deltaTime, ecs) => {
+				.setProcess(({ queries: { tagged }, ecs }) => {
 					queriesSeenDuringSystem = tagged.length;
 
 					// Remove entity via commands

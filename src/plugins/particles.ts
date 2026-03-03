@@ -612,7 +612,7 @@ export function createParticlePlugin<
 			})) as unknown as (triggerValue: ParticleEmitter) => ParticleComponentTypes[keyof ParticleComponentTypes]);
 
 			// Dispose: clean up side storage when particleEmitter removed
-			world.registerDispose('particleEmitter', (_emitter: ParticleEmitter, entityId: number) => {
+			world.registerDispose('particleEmitter', ({ entityId }: { value: ParticleEmitter; entityId: number }) => {
 				const data = emitterData.get(entityId);
 				if (data) {
 					// Remove PixiJS container from scene graph
@@ -634,7 +634,7 @@ export function createParticlePlugin<
 				.addQuery('emitters', {
 					with: ['particleEmitter'],
 				})
-				.setProcess((queries, deltaTime, ecs) => {
+				.setProcess(({ queries, dt, ecs }) => {
 					for (const entity of queries.emitters) {
 						const emitter = entity.components.particleEmitter;
 
@@ -655,7 +655,7 @@ export function createParticlePlugin<
 						const ey = worldTransform?.y ?? 0;
 						const erot = worldTransform?.rotation ?? 0;
 
-						updateParticles(emitter, data, deltaTime, ex, ey, erot);
+						updateParticles(emitter, data, dt, ex, ey, erot);
 
 						// Check completion
 						const config = emitter.config;
@@ -751,7 +751,7 @@ export function createParticlePlugin<
 						},
 					});
 				})
-				.setProcess((_queries, _dt, ecs) => {
+				.setProcess(({ ecs }) => {
 					// Sync ParticleState -> PixiJS Particle properties
 					const world = ecs as unknown as BaseWorld;
 					for (const [entityId, data] of emitterData) {

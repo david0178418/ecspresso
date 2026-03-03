@@ -114,12 +114,12 @@ ecs.addSystem('orbit')
 	.addQuery('orbitingBodies', {
 		with: ['orbit', 'localTransform'],
 	})
-	.setProcess((queries, deltaTime, ecs) => {
+	.setProcess(({ queries, dt, ecs }) => {
 		for (const entity of queries.orbitingBodies) {
 			const { orbit } = entity.components;
 
 			// Update orbital angle
-			orbit.angle += orbit.speed * deltaTime;
+			orbit.angle += orbit.speed * dt;
 
 			// Compute local position from orbit
 			ecs.mutateComponent(entity.id, 'localTransform', (lt) => {
@@ -134,14 +134,14 @@ ecs.addSystem('orbit')
 ecs.addSystem('camera')
 	.inPhase('preUpdate')
 	.withResources(['inputState', 'camera', 'rootContainer'])
-	.setProcess((_queries, deltaTime, _ecs, { inputState: input, camera, rootContainer }) => {
+	.setProcess(({ dt, resources: { inputState: input, camera, rootContainer } }) => {
 
 		const scrollSpeed = 400;
 
-		if (input.actions.isActive('panUp')) camera.y += scrollSpeed * deltaTime;
-		if (input.actions.isActive('panDown')) camera.y -= scrollSpeed * deltaTime;
-		if (input.actions.isActive('panLeft')) camera.x += scrollSpeed * deltaTime;
-		if (input.actions.isActive('panRight')) camera.x -= scrollSpeed * deltaTime;
+		if (input.actions.isActive('panUp')) camera.y += scrollSpeed * dt;
+		if (input.actions.isActive('panDown')) camera.y -= scrollSpeed * dt;
+		if (input.actions.isActive('panLeft')) camera.x += scrollSpeed * dt;
+		if (input.actions.isActive('panRight')) camera.x -= scrollSpeed * dt;
 
 		rootContainer.position.set(camera.x, camera.y);
 	});

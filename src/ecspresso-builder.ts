@@ -42,7 +42,7 @@ export class ECSpressoBuilder<
 	/** Pending resources to add during build */
 	private pendingResources: Array<{ key: string; value: unknown }> = [];
 	/** Pending dispose callbacks to register during build */
-	private pendingDisposeCallbacks: Array<{ key: string; callback: (value: unknown, entityId: number) => void }> = [];
+	private pendingDisposeCallbacks: Array<{ key: string; callback: (ctx: { value: unknown; entityId: number }) => void }> = [];
 	/** Pending required component registrations to apply during build */
 	private pendingRequiredComponents: Array<{ trigger: string; required: string; factory: (triggerValue: any) => unknown }> = [];
 	/** Pending plugins to install during build */
@@ -185,9 +185,9 @@ export class ECSpressoBuilder<
 	 */
 	withDispose<K extends keyof Cfg['components'] & string>(
 		componentName: K,
-		callback: (value: Cfg['components'][K], entityId: number) => void
+		callback: (ctx: { value: Cfg['components'][K]; entityId: number }) => void
 	): this {
-		this.pendingDisposeCallbacks.push({ key: componentName, callback: callback as (value: unknown, entityId: number) => void });
+		this.pendingDisposeCallbacks.push({ key: componentName, callback: callback as (ctx: { value: unknown; entityId: number }) => void });
 		return this;
 	}
 
@@ -342,7 +342,7 @@ export class ECSpressoBuilder<
 
 		// Apply pending dispose callbacks
 		for (const { key, callback } of this.pendingDisposeCallbacks) {
-			this.ecspresso.registerDispose(key as keyof Cfg['components'], callback as (value: Cfg['components'][keyof Cfg['components']], entityId: number) => void);
+			this.ecspresso.registerDispose(key as keyof Cfg['components'], callback as (ctx: { value: Cfg['components'][keyof Cfg['components']]; entityId: number }) => void);
 		}
 
 		// Apply pending required component registrations

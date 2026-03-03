@@ -359,7 +359,7 @@ export function createPhysics2DPlugin<L extends string = never, G extends string
 				.addQuery('bodies', {
 					with: ['localTransform', 'velocity', 'rigidBody', 'force'],
 				})
-				.setProcess((queries, deltaTime, ecs) => {
+				.setProcess(({ queries, dt, ecs }) => {
 					const config = ecs.getResource('physicsConfig');
 					const gx = config.gravity.x;
 					const gy = config.gravity.y;
@@ -373,26 +373,26 @@ export function createPhysics2DPlugin<L extends string = never, G extends string
 						// Dynamic bodies: apply gravity, forces, drag
 						if (rigidBody.type === 'dynamic') {
 							// 1. Gravity
-							velocity.x += gx * rigidBody.gravityScale * deltaTime;
-							velocity.y += gy * rigidBody.gravityScale * deltaTime;
+							velocity.x += gx * rigidBody.gravityScale * dt;
+							velocity.y += gy * rigidBody.gravityScale * dt;
 
 							// 2. Forces (F = ma → a = F/m)
 							if (rigidBody.mass > 0 && rigidBody.mass !== Infinity) {
-								velocity.x += (force.x / rigidBody.mass) * deltaTime;
-								velocity.y += (force.y / rigidBody.mass) * deltaTime;
+								velocity.x += (force.x / rigidBody.mass) * dt;
+								velocity.y += (force.y / rigidBody.mass) * dt;
 							}
 
 							// 3. Drag
 							if (rigidBody.drag > 0) {
-								const damping = Math.max(0, 1 - rigidBody.drag * deltaTime);
+								const damping = Math.max(0, 1 - rigidBody.drag * dt);
 								velocity.x *= damping;
 								velocity.y *= damping;
 							}
 						}
 
 						// Both dynamic and kinematic: integrate position
-						localTransform.x += velocity.x * deltaTime;
-						localTransform.y += velocity.y * deltaTime;
+						localTransform.x += velocity.x * dt;
+						localTransform.y += velocity.y * dt;
 
 						// Clear accumulated forces
 						force.x = 0;
@@ -418,7 +418,7 @@ export function createPhysics2DPlugin<L extends string = never, G extends string
 				.addQuery('collidables', {
 					with: ['localTransform', 'rigidBody', 'velocity', 'collisionLayer'],
 				})
-				.setProcess((queries, _deltaTime, ecs) => {
+				.setProcess(({ queries, ecs }) => {
 					const colliders: Physics2DColliderInfo<L>[] = [];
 
 					for (const entity of queries.collidables) {

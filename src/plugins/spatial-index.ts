@@ -137,7 +137,7 @@ export function createSpatialIndexPlugin<G extends string = 'spatialIndex'>(
 					.addQuery('transforms', {
 						with: [transformComponent],
 					})
-					.setProcess((queries, _deltaTime, ecs) => {
+					.setProcess(({ queries, ecs }) => {
 						clearGrid(grid);
 
 						for (const entity of queries.transforms) {

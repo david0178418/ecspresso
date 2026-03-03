@@ -29,7 +29,7 @@ describe('screen lifecycle hook typing via withScreens()', () => {
 			.withScreens(s => s
 				.add('menu', {
 					initialState: () => ({}),
-					onEnter: (_config, ecs) => {
+					onEnter: ({ ecs }) => {
 						const _score: { value: number } = ecs.getResource('score');
 						void _score;
 					},
@@ -67,7 +67,7 @@ describe('screen lifecycle hook typing via withScreens()', () => {
 			.withScreens(s => s
 				.add('menu', {
 					initialState: () => ({}),
-					onEnter: (_config, ecs) => {
+					onEnter: ({ ecs }) => {
 						ecs.eventBus.publish('hit', { damage: 5 });
 					},
 				})
@@ -86,7 +86,7 @@ describe('screen lifecycle hook typing via withScreens()', () => {
 			.withScreens(s => s
 				.add('menu', {
 					initialState: () => ({}),
-					onEnter: (_config, ecs) => {
+					onEnter: ({ ecs }) => {
 						const _loaded: boolean = ecs.isAssetLoaded('sprite');
 						void _loaded;
 					},
@@ -105,7 +105,7 @@ describe('screen lifecycle hook typing via withScreens()', () => {
 			.withScreens(s => s
 				.add('menu', {
 					initialState: () => ({}),
-					onEnter: (_config, ecs) => {
+					onEnter: ({ ecs }) => {
 						ecs.spawn({ position: { x: 0, y: 0 } });
 					},
 				})
@@ -123,7 +123,7 @@ describe('screen lifecycle hook typing via withScreens()', () => {
 			.withScreens(s => s
 				.add('menu', {
 					initialState: () => ({}),
-					onEnter: (_config, ecs) => {
+					onEnter: ({ ecs }) => {
 						// @ts-expect-error - 'nonexistent' is not a valid resource key
 						ecs.getResource('nonexistent');
 					},
@@ -140,7 +140,7 @@ describe('screen lifecycle hook typing via withScreens()', () => {
 			.withScreens(s => s
 				.add('menu', {
 					initialState: () => ({}),
-					onEnter: (_config, ecs) => {
+					onEnter: ({ ecs }) => {
 						// @ts-expect-error - 'nonexistent' is not a valid event name
 						ecs.eventBus.publish('nonexistent', {});
 					},
@@ -158,7 +158,7 @@ describe('screen lifecycle hook typing via withScreens()', () => {
 			.withScreens(s => s
 				.add('menu', {
 					initialState: () => ({}),
-					onEnter: (_config, ecs) => {
+					onEnter: ({ ecs }) => {
 						// @ts-expect-error - 'nonexistent' is not a valid asset key
 						ecs.isAssetLoaded('nonexistent');
 					},
@@ -175,7 +175,7 @@ describe('screen lifecycle hook typing via withScreens()', () => {
 			.withScreens(s => s
 				.add('menu', {
 					initialState: () => ({}),
-					onEnter: (_config, ecs) => {
+					onEnter: ({ ecs }) => {
 						// @ts-expect-error - 'nonexistent' is not a valid component
 						ecs.spawn({ nonexistent: true });
 					},
@@ -198,7 +198,7 @@ describe('screen lifecycle hook runtime behavior', () => {
 			.withScreens(s => s
 				.add('menu', {
 					initialState: () => ({}),
-					onEnter: (_config, ecs) => {
+					onEnter: ({ ecs }) => {
 						ecs.eventBus.publish('hit', { damage: 10 });
 					},
 				})
@@ -252,7 +252,7 @@ describe('screen lifecycle hook runtime behavior', () => {
 			.withScreens(s => s
 				.add('gameplay', {
 					initialState: (config: { level: number }) => ({ score: 0, level: config.level }),
-					onEnter: (config, _ecs) => {
+					onEnter: ({ config }) => {
 						receivedLevels.push(config.level);
 					},
 				})
@@ -277,7 +277,7 @@ describe('Screen hook typing via withScreens', () => {
 			.withScreens(s => s
 				.add('menu', {
 					initialState: () => ({}),
-					onEnter: (_config, world) => {
+					onEnter: ({ ecs: world }) => {
 						const _score: { value: number } = world.getResource('score');
 						void _score;
 					},

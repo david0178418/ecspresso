@@ -25,7 +25,7 @@ describe('SystemBuilder', () => {
 						with: ['position', 'velocity'],
 						without: ['health']
 					})
-					.setProcess((queries) => {
+					.setProcess(({ queries }) => {
 						for (const entity of queries.movingEntities) {
 							processedIds.push(entity.id);
 						}
@@ -70,7 +70,7 @@ describe('SystemBuilder', () => {
 					.addQuery('withHealth', {
 						with: ['health']
 					})
-					.setProcess((queries) => {
+					.setProcess(({ queries }) => {
 						for (const entity of queries.withMarker) {
 							queriesProcessed.withMarker.push(entity.id);
 						}
@@ -165,7 +165,7 @@ describe('SystemBuilder', () => {
 					.addQuery('entities', {
 						with: ['position', 'health']
 					})
-					.setProcess((queries) => {
+					.setProcess(({ queries }) => {
 						for (const entity of queries.entities) {
 							const pos = entity.components.position;
 							const health = entity.components.health;
@@ -215,7 +215,7 @@ describe('SystemBuilder', () => {
 		world.addSystem('resourceSystem')
 			.addQuery('entities', { with: ['position'] })
 			.withResources(['config', 'score'])
-			.setProcess((_queries, _dt, _ecs, { config, score }) => {
+			.setProcess(({ resources: { config, score } }) => {
 				received.push({ config, score });
 			});
 
@@ -240,7 +240,7 @@ describe('SystemBuilder', () => {
 		world.addSystem('cacheTest')
 			.withResources(['config'])
 			.runWhenEmpty()
-			.setProcess((_queries, _dt, _ecs, resources) => {
+			.setProcess(({ resources }) => {
 				resourceObjects.push(resources);
 			});
 
@@ -266,7 +266,7 @@ describe('SystemBuilder', () => {
 		world.addSystem('noQueryResources')
 			.withResources(['state'])
 			.runWhenEmpty()
-			.setProcess((_queries, _dt, _ecs, { state }) => {
+			.setProcess(({ resources: { state } }) => {
 				if (!state.paused) callCount++;
 			});
 
@@ -287,7 +287,7 @@ describe('SystemBuilder', () => {
 		world.addSystem('resourceFirst')
 			.withResources(['multiplier'])
 			.addQuery('entities', { with: ['position'] })
-			.setProcess((_queries, _dt, _ecs, { multiplier }) => {
+			.setProcess(({ resources: { multiplier } }) => {
 				results.push(multiplier.value);
 			});
 
@@ -295,7 +295,7 @@ describe('SystemBuilder', () => {
 		world.addSystem('queryFirst')
 			.addQuery('entities', { with: ['position'] })
 			.withResources(['multiplier'])
-			.setProcess((_queries, _dt, _ecs, { multiplier }) => {
+			.setProcess(({ resources: { multiplier } }) => {
 				results.push(multiplier.value * 10);
 			});
 
@@ -315,7 +315,7 @@ describe('SystemBuilder', () => {
 
 		world.addSystem('classic')
 			.addQuery('entities', { with: ['position'] })
-			.setProcess((queries, _dt, _ecs) => {
+			.setProcess(({ queries }) => {
 				if (queries.entities.length > 0) called = true;
 			});
 

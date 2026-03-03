@@ -36,7 +36,6 @@ const PHASE_ORDER: readonly SystemPhase[] = [
 	'preUpdate', 'fixedUpdate', 'update', 'postUpdate', 'render',
 ];
 
-const EmptyQueryResults = {};
 
 /**
 	* ECSpresso is the central ECS framework class that connects all features.
@@ -81,7 +80,7 @@ export default class ECSpresso<
 	/** Reactive query manager for enter/exit callbacks */
 	private _reactiveQueryManager: ReactiveQueryManager<Cfg['components']>;
 	/** Post-update hooks to be called after all systems in update() */
-	private _postUpdateHooks: Array<(ecs: ECSpresso<Cfg>, deltaTime: number) => void> = [];
+	private _postUpdateHooks: Array<(ctx: { ecs: ECSpresso<Cfg>; dt: number }) => void> = [];
 	/** Global tick counter, incremented at the end of each update() */
 	private _currentTick: number = 0;
 	/** Per-system last-seen change sequence for change detection */
@@ -114,6 +113,9 @@ export default class ECSpresso<
 	private _entityEnterTracking: Map<object, Map<string, Set<number>>> = new Map();
 	/** Shared reusable set for per-tick entity enter comparison (avoids allocation) */
 	private _entityEnterFrameSet: Set<number> = new Set();
+	/** Pre-allocated process context per system (avoids per-frame allocation) */
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	private _systemContexts: WeakMap<object, { queries: Record<string, any>; dt: number; ecs: ECSpresso<Cfg> }> = new WeakMap();
 	/** Pending system builder finalizers to run before next update/initialize */
 	private _pendingFinalizers: Array<() => void> = [];
 	private _batchingRegistrations = false;
@@ -289,7 +291,7 @@ export default class ECSpresso<
 
 		// 5. Post-update hooks (between postUpdate and render, preserving existing behavior)
 		for (const hook of this._postUpdateHooks) {
-			hook(this, deltaTime);
+			hook({ ecs: this, dt: deltaTime });
 		}
 
 		// 6. render phase
@@ -358,8 +360,16 @@ export default class ECSpresso<
 			const systemThreshold = this._systemLastSeqs.get(system) ?? 0;
 			this._changeThreshold = systemThreshold;
 
+			// Get or create pre-allocated context for this system
+			let ctx = this._systemContexts.get(system);
+			if (!ctx) {
+				ctx = { queries: {}, dt: 0, ecs: this };
+				this._systemContexts.set(system, ctx);
+			}
+			ctx.dt = deltaTime;
+
 			// Prepare query results for each defined query in the system
-			const queryResults: Record<string, any> = {};
+			const queryResults = ctx.queries;
 			let hasResults = false;
 			let hasQueries = false;
 
@@ -403,7 +413,7 @@ export default class ECSpresso<
 						frameSet.add(entity.id);
 						if (!seenEntities.has(entity.id)) {
 							seenEntities.add(entity.id);
-							callback(entity, this);
+							callback({ entity, ecs: this });
 						}
 					}
 
@@ -421,15 +431,15 @@ export default class ECSpresso<
 				if (this._diagnosticsEnabled) {
 					const t0 = performance.now();
 					if (hasResults || system.runWhenEmpty) {
-						system.process(queryResults, deltaTime, this);
+						system.process(ctx);
 					} else if (!hasQueries) {
-						system.process(EmptyQueryResults, deltaTime, this);
+						system.process(ctx);
 					}
 					this._systemTimings.set(system.label, performance.now() - t0);
 				} else if (hasResults || system.runWhenEmpty) {
-					system.process(queryResults, deltaTime, this);
+					system.process(ctx);
 				} else if (!hasQueries) {
-					system.process(EmptyQueryResults, deltaTime, this);
+					system.process(ctx);
 				}
 			}
 
@@ -688,7 +698,7 @@ export default class ECSpresso<
 			const handler = system.eventHandlers[eventName];
 			if (handler) {
 				this._eventBus.subscribe(eventName, (data) => {
-					handler(data, this);
+					handler({ data, ecs: this });
 				});
 			}
 		}
@@ -1275,7 +1285,7 @@ export default class ECSpresso<
 	 */
 	registerDispose<K extends keyof Cfg['components']>(
 		componentName: K,
-		callback: (value: Cfg['components'][K], entityId: number) => void
+		callback: (ctx: { value: Cfg['components'][K]; entityId: number }) => void
 	): void {
 		this._entityManager.registerDispose(componentName, callback);
 	}
@@ -1342,7 +1352,7 @@ export default class ECSpresso<
 	 */
 	onComponentAdded<K extends keyof Cfg['components']>(
 		componentName: K,
-		handler: (value: Cfg['components'][K], entity: Entity<Cfg['components']>) => void
+		handler: (ctx: { value: Cfg['components'][K]; entity: Entity<Cfg['components']> }) => void
 	): () => void {
 		return this._entityManager.onComponentAdded(componentName, handler);
 	}
@@ -1355,7 +1365,7 @@ export default class ECSpresso<
 	 */
 	onComponentRemoved<K extends keyof Cfg['components']>(
 		componentName: K,
-		handler: (oldValue: Cfg['components'][K], entity: Entity<Cfg['components']>) => void
+		handler: (ctx: { value: Cfg['components'][K]; entity: Entity<Cfg['components']> }) => void
 	): () => void {
 		return this._entityManager.onComponentRemoved(componentName, handler);
 	}
@@ -1421,7 +1431,7 @@ export default class ECSpresso<
 	 * @returns An unsubscribe function to remove the hook
 	 */
 	onPostUpdate(
-		callback: (ecs: ECSpresso<Cfg>, deltaTime: number) => void
+		callback: (ctx: { ecs: ECSpresso<Cfg>; dt: number }) => void
 	): () => void {
 		this._postUpdateHooks.push(callback);
 		return () => {

@@ -126,7 +126,7 @@ export function createDiagnosticsPlugin<G extends string = 'diagnostics'>(
 				.setOnDetach((ecs) => {
 					ecs.enableDiagnostics(false);
 				})
-				.setProcess((_queries, _deltaTime, ecs) => {
+				.setProcess(({ ecs }) => {
 					const now = performance.now();
 					ringBuffer.push(now);
 

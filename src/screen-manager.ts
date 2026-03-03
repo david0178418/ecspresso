@@ -96,7 +96,7 @@ export default class ScreenManager<Screens extends Record<string, ScreenDefiniti
 			state,
 		};
 
-		await entry.definition.onEnter?.(config, this.ecs!);
+		await entry.definition.onEnter?.({ config, ecs: this.ecs! });
 		this.eventBus?.publish('screenEnter', { screen: name as keyof Screens & string, config });
 	}
 
@@ -129,7 +129,7 @@ export default class ScreenManager<Screens extends Record<string, ScreenDefiniti
 			state,
 		};
 
-		await entry.definition.onEnter?.(config, this.ecs!);
+		await entry.definition.onEnter?.({ config, ecs: this.ecs! });
 		this.eventBus?.publish('screenPush', { screen: name as keyof Screens & string, config });
 	}
 

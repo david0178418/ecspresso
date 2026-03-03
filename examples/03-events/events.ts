@@ -27,7 +27,7 @@ const ecs = ECSpresso.create()
 // Movement (same as example 01)
 ecs.addSystem('movement')
 	.addQuery('moving', { with: ['localTransform', 'velocity'] })
-	.setProcess((queries, dt) => {
+	.setProcess(({ queries, dt }) => {
 		for (const entity of queries.moving) {
 			const { localTransform, velocity } = entity.components;
 			localTransform.x += velocity.x * dt;
@@ -40,7 +40,7 @@ ecs.addSystem('movement')
 ecs.addSystem('bounce')
 	.addQuery('bouncing', { with: ['localTransform', 'velocity', 'radius'] })
 	.withResources(['bounds'])
-	.setProcess((queries, _dt, ecs, { bounds }) => {
+	.setProcess(({ queries, ecs, resources: { bounds } }) => {
 		for (const entity of queries.bouncing) {
 			const { localTransform, velocity, radius } = entity.components;
 			if (localTransform.x > bounds.width - radius || localTransform.x < radius) {
@@ -58,7 +58,7 @@ ecs.addSystem('bounce')
 // This system has no query and no process — it only reacts to events.
 ecs.addSystem('trail-spawner')
 	.setEventHandlers({
-		wallHit({ x, y }, ecs) {
+		wallHit({ data: { x, y }, ecs }) {
 			ecs.spawn({
 				graphics: new Graphics().circle(0, 0, 4).fill(0xFFFF00),
 				...createLocalTransform(x, y),

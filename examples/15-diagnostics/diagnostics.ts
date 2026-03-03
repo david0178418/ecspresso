@@ -50,7 +50,7 @@ ecs
 	.addQuery('balls', {
 		with: ['worldTransform', 'velocity', 'radius'],
 	})
-	.setProcess((queries) => {
+	.setProcess(({ queries }) => {
 		for (const entity of queries.balls) {
 			const { worldTransform, velocity, radius } = entity.components;
 

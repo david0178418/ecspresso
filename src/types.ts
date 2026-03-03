@@ -149,7 +149,7 @@ export type QueryDefinition<
  *
  * world.addSystem('movement')
  *   .addQuery('entities', movingEntitiesQuery)
- *   .setProcess((queries) => {
+ *   .setProcess(({ queries }) => {
  *     for (const entity of queries.entities) {
  *       updatePosition(entity);
  *     }
@@ -216,18 +216,16 @@ interface System<
 		[queryName: string]: QueryConfig<Cfg['components'], WithComponents, WithoutComponents>;
 	};
 	/**
-	 * Process method that runs during each update cycle
-	 * @param queries The entity queries results based on system's entityQueries definition
-	 * @param deltaTime Time elapsed since the last update in seconds
-	 * @param ecs The ECSpresso instance providing access to all ECS functionality
+	 * Process method that runs during each update cycle.
+	 * Receives a single context object with queries, dt, and ecs.
 	 */
-	process?(
+	process?(ctx: {
 		queries: {
 			[queryName: string]: Array<FilteredEntity<Cfg['components'], WithComponents, WithoutComponents>>;
-		} | Array<FilteredEntity<Cfg['components'], WithComponents, WithoutComponents>>,
-		deltaTime: number,
-		ecs: ECSpresso<Cfg>
-	): void;
+		};
+		dt: number;
+		ecs: ECSpresso<Cfg>;
+	}): void;
 
 	/**
 	 * Lifecycle hook called when the system is initialized
@@ -253,16 +251,16 @@ interface System<
 	 * entity leaves query (component removed, entity destroyed) so re-entry
 	 * fires the callback again.
 	 */
-	onEntityEnter?: Record<string, (entity: FilteredEntity<Cfg['components'], WithComponents, WithoutComponents>, ecs: ECSpresso<Cfg>) => void>;
+	onEntityEnter?: Record<string, (ctx: { entity: FilteredEntity<Cfg['components'], WithComponents, WithoutComponents>; ecs: ECSpresso<Cfg> }) => void>;
 
 	/**
 	 * Event handlers for specific event types
 	 */
 	eventHandlers?: {
-		[EventName in keyof Cfg['events']]?: (
-			data: Cfg['events'][EventName],
-			ecs: ECSpresso<Cfg>
-		) => void;
+		[EventName in keyof Cfg['events']]?: (ctx: {
+			data: Cfg['events'][EventName];
+			ecs: ECSpresso<Cfg>;
+		}) => void;
 	};
 }
 

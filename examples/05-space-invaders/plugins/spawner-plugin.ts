@@ -15,11 +15,11 @@ export default function createSpawnerPlugin() {
 		install(world) {
 			world.addSystem('entity-spawner')
 				.setEventHandlers({
-					gameInit(_data, ecs) {
+					gameInit({ ecs }) {
 						spawnPlayer(ecs);
 					},
 
-					playerShoot(_data, ecs) {
+					playerShoot({ ecs }) {
 						const [player] = ecs.getEntitiesWithQuery(['player', 'worldTransform']);
 						if (!player) return;
 
@@ -38,7 +38,7 @@ export default function createSpawnerPlugin() {
 						});
 					},
 
-					enemyShoot(data, ecs) {
+					enemyShoot({ data, ecs }) {
 						const enemyEntity = ecs.entityManager.getEntity(data.enemyId);
 						if (!enemyEntity) return;
 
@@ -60,7 +60,7 @@ export default function createSpawnerPlugin() {
 						});
 					},
 
-					playerRespawn(_data, ecs) {
+					playerRespawn({ ecs }) {
 						const gameState = ecs.getResource('gameState');
 						if (gameState.status === 'playing') {
 							spawnPlayer(ecs);

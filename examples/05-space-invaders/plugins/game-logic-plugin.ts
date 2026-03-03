@@ -14,7 +14,7 @@ export default function createGameLogicPlugin() {
 		install(world) {
 			world.addSystem('game-state')
 				.setEventHandlers({
-					gameInit(_data, ecs) {
+					gameInit({ ecs }) {
 						const gameState = ecs.getResource('gameState');
 						const score = ecs.getResource('score');
 
@@ -27,7 +27,7 @@ export default function createGameLogicPlugin() {
 						ecs.eventBus.publish('updateLives', { lives: gameState.lives });
 					},
 
-					gameStart(_data, ecs) {
+					gameStart({ ecs }) {
 						const gameState = ecs.getResource('gameState');
 						gameState.status = 'playing';
 						ecs.enableSystemGroup('gameplay');
@@ -41,27 +41,27 @@ export default function createGameLogicPlugin() {
 						ecs.eventBus.publish('enemyMove', { direction: 'right' });
 					},
 
-					gamePause(_data, ecs) {
+					gamePause({ ecs }) {
 						ecs.getResource('gameState').status = 'paused';
 						ecs.disableSystemGroup('gameplay');
 					},
 
-					gameResume(_data, ecs) {
+					gameResume({ ecs }) {
 						ecs.getResource('gameState').status = 'playing';
 						ecs.enableSystemGroup('gameplay');
 					},
 
-					gameOver(_data, ecs) {
+					gameOver({ ecs }) {
 						ecs.getResource('gameState').status = 'gameOver';
 						ecs.disableSystemGroup('gameplay');
 					},
 
-					levelComplete(_data, ecs) {
+					levelComplete({ ecs }) {
 						ecs.getResource('gameState').level += 1;
 						ecs.spawn(createTimer(1.5, { onComplete: () => ecs.eventBus.publish('levelTransitionComplete') }));
 					},
 
-					levelTransitionComplete(_data, ecs) {
+					levelTransitionComplete({ ecs }) {
 						const gameState = ecs.getResource('gameState');
 						if (gameState.status !== 'playing') return;
 
@@ -74,7 +74,7 @@ export default function createGameLogicPlugin() {
 						ecs.eventBus.publish('enemyMove', { direction: 'right' });
 					},
 
-					descentComplete(_data, ecs) {
+					descentComplete({ ecs }) {
 						const movementState = ecs.getResource('enemyMovementState');
 						const enemies = ecs.getEntitiesWithQuery(['enemy', 'worldTransform']);
 
@@ -89,7 +89,7 @@ export default function createGameLogicPlugin() {
 						ecs.eventBus.publish('enemyMove', { direction: movementState.currentDirection });
 					},
 
-					enemyMove(data, ecs) {
+					enemyMove({ data, ecs }) {
 						const config = ecs.getResource('config');
 						const gameState = ecs.getResource('gameState');
 						const enemies = ecs.getEntitiesWithQuery(['enemy', 'velocity']);
@@ -111,7 +111,7 @@ export default function createGameLogicPlugin() {
 				.inGroup('gameplay')
 				.addQuery('enemies', { with: ['enemy', 'worldTransform'] })
 				.withResources(['gameState', 'enemyMovementState', 'bounds', 'score'])
-				.setProcess(({ enemies }, deltaTime, ecs, { gameState, enemyMovementState: movementState, bounds, score }) => {
+				.setProcess(({ queries: { enemies }, dt, ecs, resources: { gameState, enemyMovementState: movementState, bounds, score } }) => {
 					if (enemies.length === 0) return;
 
 					let minX = Number.MAX_VALUE;
@@ -147,7 +147,7 @@ export default function createGameLogicPlugin() {
 					}
 
 					// Random enemy shooting
-					if (Math.random() < 0.02 * deltaTime * gameState.level) {
+					if (Math.random() < 0.02 * dt * gameState.level) {
 						const randomIndex = Math.floor(Math.random() * enemies.length);
 						const randomEnemy = enemies[randomIndex];
 						if (randomEnemy) {
@@ -160,7 +160,7 @@ export default function createGameLogicPlugin() {
 				.inPhase('preUpdate')
 				.addQuery('players', { with: ['player', 'velocity'] })
 				.withResources(['inputState', 'config'])
-				.setProcess(({ players }, _deltaTime, _ecs, { inputState: input, config }) => {
+				.setProcess(({ queries: { players }, resources: { inputState: input, config } }) => {
 
 					for (const player of players) {
 						player.components.velocity.x = input.actions.isActive('moveLeft') ? -config.playerSpeed

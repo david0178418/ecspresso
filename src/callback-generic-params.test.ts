@@ -52,7 +52,7 @@ describe('onPostUpdate callback receives full generic params', () => {
 	test('ecs param exposes asset and screen APIs', () => {
 		const ecs = createFullWorld();
 
-		ecs.onPostUpdate((world, _dt) => {
+		ecs.onPostUpdate(({ ecs: world }) => {
 			// Type-level: asset access is typed
 			const _loaded: boolean = world.isAssetLoaded('sprite');
 			void _loaded;
@@ -74,7 +74,7 @@ describe('onPostUpdate callback receives full generic params', () => {
 	test('ecs param rejects invalid asset/screen keys', () => {
 		const ecs = createFullWorld();
 
-		ecs.onPostUpdate((world, _dt) => {
+		ecs.onPostUpdate(({ ecs: world }) => {
 			// @ts-expect-error - 'nonexistent' is not a valid asset key
 			world.isAssetLoaded('nonexistent');
 

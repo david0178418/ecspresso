@@ -215,7 +215,7 @@ export function createTimerPlugin<G extends string = 'timers'>(
 				.addQuery('timers', {
 					with: ['timer'],
 				})
-				.setProcess((queries, deltaTime, ecs) => {
+				.setProcess(({ queries, dt, ecs }) => {
 					for (const entity of queries.timers) {
 						const { timer } = entity.components;
 
@@ -226,7 +226,7 @@ export function createTimerPlugin<G extends string = 'timers'>(
 						if (!timer.active) continue;
 
 						// Accumulate time
-						timer.elapsed += deltaTime;
+						timer.elapsed += dt;
 
 						// Check if timer completed
 						if (timer.elapsed < timer.duration) continue;

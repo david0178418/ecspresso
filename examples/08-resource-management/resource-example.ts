@@ -113,7 +113,7 @@ async function main() {
 	console.log("\n10. System using resources:");
 	world.addSystem('gameLogic')
 		.withResources(['gameConfig', 'playerStats'])
-		.setProcess((_queries, _deltaTime, ecs, { gameConfig, playerStats }) => {
+		.setProcess(({ ecs, resources: { gameConfig, playerStats } }) => {
 
 			// Example game logic using resources
 			if (playerStats.highScore >= gameConfig.maxScore) {

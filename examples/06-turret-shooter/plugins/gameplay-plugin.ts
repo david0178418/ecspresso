@@ -10,9 +10,9 @@ export default function createGameplayPlugin() {
 				.addQuery('expirables', {
 					with: ['lifetime']
 				})
-				.setProcess(({ expirables }, deltaTime, ecs) => {
+				.setProcess(({ queries: { expirables }, dt, ecs }) => {
 					for (const entity of expirables) {
-						entity.components.lifetime.remaining -= deltaTime;
+						entity.components.lifetime.remaining -= dt;
 
 						// Destroy entity when lifetime expires
 						if (entity.components.lifetime.remaining <= 0) {
@@ -36,7 +36,7 @@ export default function createGameplayPlugin() {
 					with: ['projectile', 'position', 'collider']
 				})
 				.withResources(['waveManager'])
-				.setProcess(({ enemies, projectiles }, _deltaTime, ecs, { waveManager }) => {
+				.setProcess(({ queries: { enemies, projectiles }, ecs, resources: { waveManager } }) => {
 					// Check projectile collisions with enemies
 					for (const projectile of projectiles) {
 						const projectilePosition = projectile.components.position;

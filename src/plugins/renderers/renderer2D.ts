@@ -600,13 +600,13 @@ export function createRenderer2DPlugin<G extends string = 'renderer2d'>(
 			}
 
 			// Register dispose callbacks for display object components
-			world.registerDispose('sprite', (sprite) => {
+			world.registerDispose('sprite', ({ value: sprite }) => {
 				sprite.removeFromParent();
 			});
-			world.registerDispose('graphics', (graphics) => {
+			world.registerDispose('graphics', ({ value: graphics }) => {
 				graphics.removeFromParent();
 			});
-			world.registerDispose('container', (container) => {
+			world.registerDispose('container', ({ value: container }) => {
 				container.removeFromParent();
 			});
 
@@ -636,7 +636,7 @@ export function createRenderer2DPlugin<G extends string = 'renderer2d'>(
 					with: ['container', 'worldTransform'],
 					changed: ['worldTransform'],
 				})
-				.setProcess((queries, _deltaTime, ecs) => {
+				.setProcess(({ queries, ecs }) => {
 					for (const entity of queries.sprites) {
 						const { sprite, worldTransform } = entity.components;
 
@@ -768,11 +768,11 @@ export function createRenderer2DPlugin<G extends string = 'renderer2d'>(
 						updateSceneGraphParent(entityId, ecs);
 					});
 
-					ecs.onComponentAdded('renderLayer', (_layerName, entity) => {
+					ecs.onComponentAdded('renderLayer', ({ entity }) => {
 						updateSceneGraphParent(entity.id, ecs);
 					});
 
-					ecs.onComponentRemoved('renderLayer', (_oldLayerName, entity) => {
+					ecs.onComponentRemoved('renderLayer', ({ entity }) => {
 						updateSceneGraphParent(entity.id, ecs);
 					});
 
@@ -827,7 +827,7 @@ export function createRenderer2DPlugin<G extends string = 'renderer2d'>(
 					.setPriority(900)
 					.inPhase('render')
 					.inGroup(systemGroup)
-					.setProcess((_queries, _dt, ecs) => {
+					.setProcess(({ ecs }) => {
 						const state = ecs.tryGetResource<CameraState>('cameraState');
 						if (!state) throw new Error('renderer2D: cameraState resource not found');
 						const root = ecs.getResource('rootContainer');

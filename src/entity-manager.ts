@@ -9,11 +9,11 @@ class EntityManager<ComponentTypes> {
 	/**
 	 * Callbacks registered for component additions
 	 */
-	private addedCallbacks: Map<keyof ComponentTypes, Set<(value: any, entity: Entity<ComponentTypes>) => void>> = new Map();
+	private addedCallbacks: Map<keyof ComponentTypes, Set<(ctx: { value: any; entity: Entity<ComponentTypes> }) => void>> = new Map();
 	/**
 	 * Callbacks registered for component removals
 	 */
-	private removedCallbacks: Map<keyof ComponentTypes, Set<(oldValue: any, entity: Entity<ComponentTypes>) => void>> = new Map();
+	private removedCallbacks: Map<keyof ComponentTypes, Set<(ctx: { value: any; entity: Entity<ComponentTypes> }) => void>> = new Map();
 	/**
 	 * Hierarchy manager for parent-child relationships
 	 */
@@ -22,7 +22,7 @@ class EntityManager<ComponentTypes> {
 	 * Per-type component dispose callbacks.
 	 * Called when a component is removed (explicit removal, entity destruction, or replacement).
 	 */
-	private disposeCallbacks: Map<keyof ComponentTypes, (value: any, entityId: number) => void> = new Map();
+	private disposeCallbacks: Map<keyof ComponentTypes, (ctx: { value: any; entityId: number }) => void> = new Map();
 	/**
 	 * Per-entity per-component change sequence tracking.
 	 * Maps entityId -> (componentName -> sequence number when last changed)
@@ -68,7 +68,7 @@ class EntityManager<ComponentTypes> {
 	 */
 	registerDispose<ComponentName extends keyof ComponentTypes>(
 		componentName: ComponentName,
-		callback: (value: ComponentTypes[ComponentName], entityId: number) => void
+		callback: (ctx: { value: ComponentTypes[ComponentName]; entityId: number }) => void
 	): void {
 		this.disposeCallbacks.set(componentName, callback);
 	}
@@ -77,7 +77,7 @@ class EntityManager<ComponentTypes> {
 	 * Get all registered dispose callbacks.
 	 * @internal Used by ECSpresso for plugin installation
 	 */
-	getDisposeCallbacks(): Map<keyof ComponentTypes, (value: any, entityId: number) => void> {
+	getDisposeCallbacks(): Map<keyof ComponentTypes, (ctx: { value: any; entityId: number }) => void> {
 		return this.disposeCallbacks;
 	}
 
@@ -93,7 +93,7 @@ class EntityManager<ComponentTypes> {
 		const cb = this.disposeCallbacks.get(componentName);
 		if (!cb) return;
 		try {
-			cb(value, entityId);
+			cb({ value, entityId });
 		} catch (error) {
 			console.warn(`Component dispose callback for '${String(componentName)}' threw:`, error);
 		}
@@ -128,7 +128,7 @@ class EntityManager<ComponentTypes> {
 		const callbacks = this.addedCallbacks.get(componentName);
 		if (callbacks) {
 			for (const cb of [...callbacks]) {
-				cb(data, entity);
+				cb({ value: data, entity });
 			}
 		}
 
@@ -218,7 +218,7 @@ class EntityManager<ComponentTypes> {
 		const removeCbs = this.removedCallbacks.get(componentName);
 		if (removeCbs && oldValue !== undefined) {
 			for (const cb of [...removeCbs]) {
-				cb(oldValue, entity);
+				cb({ value: oldValue, entity });
 			}
 		}
 
@@ -394,7 +394,7 @@ class EntityManager<ComponentTypes> {
 				const removeCbs = this.removedCallbacks.get(componentName);
 				if (removeCbs) {
 					for (const cb of [...removeCbs]) {
-						cb(oldValue, entity);
+						cb({ value: oldValue, entity });
 					}
 				}
 			}
@@ -422,7 +422,7 @@ class EntityManager<ComponentTypes> {
 	 */
 	onComponentAdded<ComponentName extends keyof ComponentTypes>(
 		componentName: ComponentName,
-		handler: (value: ComponentTypes[ComponentName], entity: Entity<ComponentTypes>) => void
+		handler: (ctx: { value: ComponentTypes[ComponentName]; entity: Entity<ComponentTypes> }) => void
 	): () => void {
 		if (!this.addedCallbacks.has(componentName)) {
 			this.addedCallbacks.set(componentName, new Set());
@@ -441,7 +441,7 @@ class EntityManager<ComponentTypes> {
 	 */
 	onComponentRemoved<ComponentName extends keyof ComponentTypes>(
 		componentName: ComponentName,
-		handler: (oldValue: ComponentTypes[ComponentName], entity: Entity<ComponentTypes>) => void
+		handler: (ctx: { value: ComponentTypes[ComponentName]; entity: Entity<ComponentTypes> }) => void
 	): () => void {
 		if (!this.removedCallbacks.has(componentName)) {
 			this.removedCallbacks.set(componentName, new Set());

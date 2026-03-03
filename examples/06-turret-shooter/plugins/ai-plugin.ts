@@ -12,7 +12,7 @@ export default function createAIPlugin() {
 				.addQuery('enemies', {
 					with: ['enemy', 'position', 'velocity', 'rotation']
 				})
-				.setProcess(({ enemies }, _deltaTime, ecs) => {
+				.setProcess(({ queries: { enemies }, ecs }) => {
 					const playerEntities = ecs.entityManager.getEntitiesWithQuery(['player', 'position']);
 
 					// Skip if no player exists
@@ -93,7 +93,7 @@ export default function createAIPlugin() {
 				.addQuery('pendingDestroys', {
 					with: ['timer', 'pendingDestroy'],
 				})
-				.setProcess(({ pendingDestroys }, _deltaTime, ecs) => {
+				.setProcess(({ queries: { pendingDestroys }, ecs }) => {
 					for (const entity of pendingDestroys) {
 						if (entity.components.timer.justFinished) {
 							ecs.eventBus.publish('entityDestroyed', {
@@ -110,7 +110,7 @@ export default function createAIPlugin() {
 					with: ['timer', 'enemySpawner'],
 				})
 				.withResources(['waveManager', 'config', 'playerInitialRotation'])
-				.setProcess(({ spawners }, _deltaTime, ecs, { waveManager, config, playerInitialRotation }) => {
+				.setProcess(({ queries: { spawners }, ecs, resources: { waveManager, config, playerInitialRotation } }) => {
 
 					for (const spawner of spawners) {
 						if (!spawner.components.timer.justFinished) continue;

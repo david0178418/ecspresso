@@ -564,7 +564,7 @@ export function createAudioPlugin<Ch extends string, G extends string = 'audio'>
 			world.addResource('audioState', audioState);
 
 			// Dispose callback: stop sounds when audioSource component is removed
-			world.registerDispose('audioSource', (source: AudioSource<Ch>) => {
+			world.registerDispose('audioSource', ({ value: source }: { value: AudioSource<Ch>; entityId: number }) => {
 				if (source._soundId !== -1) {
 					stopSoundById(source._soundId);
 				}
@@ -631,7 +631,7 @@ export function createAudioPlugin<Ch extends string, G extends string = 'audio'>
 					});
 				})
 				.setEventHandlers({
-					playSound(data, ecs) {
+					playSound({ data, ecs }) {
 						const audio = ecs.getResource('audioState');
 						audio.play(data.sound, {
 							channel: data.channel,
@@ -639,7 +639,7 @@ export function createAudioPlugin<Ch extends string, G extends string = 'audio'>
 							loop: data.loop,
 						});
 					},
-					stopMusic(data, ecs) {
+					stopMusic({ data, ecs }) {
 						const audio = ecs.getResource('audioState');
 						audio.stopMusic(data.channel);
 					},

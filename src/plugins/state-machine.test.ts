@@ -118,7 +118,7 @@ describe('State Machine Plugin', () => {
 				initial: 'idle',
 				states: {
 					idle: {
-						onEnter: (_ecs, entityId) => { enterCalls.push(entityId); },
+						onEnter: ({ entityId }) => { enterCalls.push(entityId); },
 					},
 				},
 			});
@@ -163,7 +163,7 @@ describe('State Machine Plugin', () => {
 				initial: 'idle',
 				states: {
 					idle: {
-						onUpdate: (_ecs, _id, dt) => { updateDts.push(dt); },
+						onUpdate: ({ dt }) => { updateDts.push(dt); },
 					},
 				},
 			});
@@ -674,7 +674,7 @@ describe('State Machine Plugin', () => {
 				initial: 'idle',
 				states: {
 					idle: {
-						onEnter: (_ecs, entityId) => { enterCalls.push(entityId); },
+						onEnter: ({ entityId }) => { enterCalls.push(entityId); },
 					},
 				},
 			});
@@ -735,7 +735,7 @@ describe('State Machine Plugin', () => {
 					idle: {
 						transitions: [{
 							target: 'alert',
-							guard: (ecsWorld) => {
+							guard: ({ ecs: ecsWorld }) => {
 								// Verify typed access: ecsWorld.hasResource is available
 								ecsWorld.hasResource('playerNearby');
 								return shouldTransition;

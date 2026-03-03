@@ -14,7 +14,7 @@ export default function createRenderPlugin() {
 		install(world) {
 			// Automatically remove 3D models from the scene graph when the component
 			// is removed (entity destruction, explicit removal, or replacement).
-			world.registerDispose('model', (model) => {
+			world.registerDispose('model', ({ value: model }) => {
 				if (model.parent) {
 					model.parent.remove(model);
 				}
@@ -30,7 +30,7 @@ export default function createRenderPlugin() {
 						'model'
 					]
 				})
-				.setProcess(({ renderables }, _deltaTime, _ecs) => {
+				.setProcess(({ queries: { renderables } }) => {
 					for (const entity of renderables) {
 						const { position, rotation, model } = entity.components;
 
@@ -77,7 +77,7 @@ export default function createRenderPlugin() {
 				// 3D object factory system
 				world.addSystem('model-factory')
 				.setEventHandlers({
-					gameStart(_data, ecs) {
+					gameStart({ ecs }) {
 						const scene = ecs.getResource('scene');
 						// const camera = ecs.getResource('camera');
 
@@ -247,7 +247,7 @@ export default function createRenderPlugin() {
 							ecs.getResource('uiElements').radarElement = radarContainer;
 						}
 					},
-					playerShoot(data, ecs) {
+					playerShoot({ data, ecs }) {
 						const scene = ecs.getResource('scene');
 						const camera = ecs.getResource('camera');
 						// const config = ecs.getResource('config');
@@ -369,7 +369,7 @@ export default function createRenderPlugin() {
 						// Start animation
 						animate();
 					},
-					enemySpawn(data, ecs) {
+					enemySpawn({ data, ecs }) {
 						const scene = ecs.getResource('scene');
 
 						// Create enemy model based on type
@@ -498,7 +498,7 @@ export default function createRenderPlugin() {
 							radarContainer.appendChild(blip);
 						}
 					},
-					entityDestroyed(data, ecs) {
+					entityDestroyed({ data, ecs }) {
 						// Handle cleanup of radar blips in HTML radar
 						const radarContainer = document.getElementById('radar-overlay');
 						if (radarContainer) {

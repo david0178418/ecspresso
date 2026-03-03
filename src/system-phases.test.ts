@@ -210,7 +210,7 @@ describe('System Phases', () => {
 
 			ecs.addSystem('fixed')
 				.inPhase('fixedUpdate')
-				.setProcess((_q, dt) => { receivedDt = dt; });
+				.setProcess(({ dt }) => { receivedDt = dt; });
 
 			// dt large enough to trigger at least one step
 			ecs.update(fixedDt);
@@ -232,7 +232,7 @@ describe('System Phases', () => {
 
 			ecs.addSystem('normal')
 				.inPhase('update')
-				.setProcess((_q, dt) => { receivedDt = dt; });
+				.setProcess(({ dt }) => { receivedDt = dt; });
 
 			ecs.update(frameDt);
 
@@ -336,7 +336,7 @@ describe('System Phases', () => {
 
 			ecs.addSystem('spawner')
 				.inPhase('preUpdate')
-				.setProcess((_q, _dt, ecs) => {
+				.setProcess(({ ecs }) => {
 					if (!spawnedInPre) {
 						ecs.commands.spawn({ tag: true });
 						spawnedInPre = true;
@@ -346,7 +346,7 @@ describe('System Phases', () => {
 			ecs.addSystem('checker')
 				.inPhase('update')
 				.addQuery('tagged', { with: ['tag'] })
-				.setProcess((queries) => {
+				.setProcess(({ queries }) => {
 					if (queries.tagged.length > 0) {
 						foundInUpdate = true;
 					}
@@ -371,7 +371,7 @@ describe('System Phases', () => {
 
 			ecs.addSystem('spawner')
 				.inPhase('fixedUpdate')
-				.setProcess((_q, _dt, ecs) => {
+				.setProcess(({ ecs }) => {
 					if (!spawnedInFixed) {
 						ecs.commands.spawn({ tag: true });
 						spawnedInFixed = true;
@@ -381,7 +381,7 @@ describe('System Phases', () => {
 			ecs.addSystem('checker')
 				.inPhase('postUpdate')
 				.addQuery('tagged', { with: ['tag'] })
-				.setProcess((queries) => {
+				.setProcess(({ queries }) => {
 					if (queries.tagged.length > 0) {
 						foundInPostUpdate = true;
 					}
@@ -406,14 +406,14 @@ describe('System Phases', () => {
 
 			ecs.addSystem('marker')
 				.inPhase('preUpdate')
-				.setProcess((_q, _dt, ecs) => {
+				.setProcess(({ ecs }) => {
 					ecs.markChanged(e.id, 'position');
 				});
 
 			ecs.addSystem('reader')
 				.inPhase('update')
 				.addQuery('changed', { with: ['position'], changed: ['position'] })
-				.setProcess((queries) => {
+				.setProcess(({ queries }) => {
 					if (queries.changed.length > 0) {
 						changedSeenInUpdate = true;
 					}
@@ -441,14 +441,14 @@ describe('System Phases', () => {
 
 			ecs.addSystem('marker')
 				.inPhase('fixedUpdate')
-				.setProcess((_q, _dt, ecs) => {
+				.setProcess(({ ecs }) => {
 					ecs.markChanged(e.id, 'position');
 				});
 
 			ecs.addSystem('reader')
 				.inPhase('postUpdate')
 				.addQuery('changed', { with: ['position'], changed: ['position'] })
-				.setProcess((queries) => {
+				.setProcess(({ queries }) => {
 					if (queries.changed.length > 0) {
 						changedSeenInPost = true;
 					}
@@ -632,7 +632,7 @@ describe('System Phases', () => {
 			ecs.addSystem('increment')
 				.inPhase('fixedUpdate')
 				.addQuery('counters', { with: ['counter'] })
-				.setProcess((queries) => {
+				.setProcess(({ queries }) => {
 					for (const entity of queries.counters) {
 						entity.components.counter.value++;
 					}

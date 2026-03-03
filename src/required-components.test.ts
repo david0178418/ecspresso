@@ -345,7 +345,7 @@ describe('Required Components', () => {
 					with: ['velocity'],
 					changed: ['velocity'],
 				})
-				.setProcess((queries) => {
+				.setProcess(({ queries }) => {
 					for (const e of queries.changed) {
 						changedEntities.push(e.id);
 					}

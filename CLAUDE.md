@@ -62,6 +62,19 @@ src/
 - **WorldConfigFrom**: Constructs a `WorldConfig` from individual type dimensions: `WorldConfigFrom<Components, Events, Resources, Assets, Screens>`. All params default to `{}`. Used for direct constructor calls (`new ECSpresso<WorldConfigFrom<C, E, R>>()`) and plugin factories.
 - **EmptyConfig**: Alias for `WorldConfigFrom` with all defaults. Default type param for `ECSpresso`, `SystemBuilder`, `CommandBuffer`, `Plugin`.
 
+### Callback Parameter Convention
+All multi-param callbacks use a single destructured object parameter. Single-param callbacks remain positional. The convention: **1 param = positional, 2+ params = named object**.
+
+- **System process**: `setProcess(({ queries, dt, ecs, resources }) => { ... })` — context object is pre-allocated per system and reused every frame (zero per-frame allocation). `resources` field present only when `.withResources()` was called.
+- **System event handlers**: `setEventHandlers({ eventName: ({ data, ecs }) => { ... } })`
+- **System onEntityEnter**: `setOnEntityEnter('queryName', ({ entity, ecs }) => { ... })`
+- **onPostUpdate**: `ecs.onPostUpdate(({ ecs, dt }) => { ... })`
+- **State machine hooks**: `onEnter/onExit: ({ ecs, entityId }) => void`, `onUpdate: ({ ecs, entityId, dt }) => void`, `guard: ({ ecs, entityId }) => boolean`
+- **Component lifecycle**: `onComponentAdded/onComponentRemoved: ({ value, entity }) => void`
+- **Dispose callbacks**: `registerDispose: ({ value, entityId }) => void`
+- **Screen onEnter**: `({ config, ecs }) => void`
+- Single-param callbacks unchanged: EventBus `subscribe(cb)`, reactive query `onEnter(entity)` / `onExit(entityId)`, `onComplete(data)`, system `onInitialize(ecs)` / `onDetach(ecs)`, screen `onExit(ecs)`, plugin `install(world)`, `mutateComponent` mutator `(value) => void`
+
 ### Builder & Type Inference
 - **Builder Pattern**: `world.addSystem().addQuery().setProcess()` — systems are registered via deferred finalization (no explicit terminator needed)
 - **Builder Inference**: Prefer the builder chain (`.withPlugin()`, `.withComponentTypes<T>()`, `.withEventTypes<T>()`, `.withResource()`) over explicit type params to `create<>()`. The builder accumulates types into a `WorldConfig` via `MergeConfigs` and per-slot helpers (`WithComponents`, `WithEvents`, etc.).
@@ -133,5 +146,5 @@ Most library plugins are parameterized with a string union (e.g. `L extends stri
 
 - Provide great developer experience enabled by maximum type awareness with minimum manual type annotations from the developer.
 - A goal of this library is to keep as strongly typed as possible. Avoid casting in general, and with "any" in particular. Only resort to casting or "any" usage in general when absolutely necessary. Watch for redundant casts that TypeScript can already infer from generic constraints (e.g. `K extends string` is already assignable to `keyof T` when `T extends Record<string, ...>`).
-- Avoid excessive object creation and allocation in hot paths. Prefer explicit arguments over wrapping parameters in objects, and synchronous function calls over promises. More generally, minimize any unnecessary allocations in performance-critical code paths, such as system functions that are run every tick.
+- Avoid excessive object creation and allocation in hot paths. Pre-allocate and reuse objects where possible (e.g. the system process context object is allocated once per system and reused every frame). Prefer synchronous function calls over promises. More generally, minimize any unnecessary allocations in performance-critical code paths, such as system functions that are run every tick.
 - Avoid excessive use of "as const". Use it where it's important for the purposes of deepening type-awareness.

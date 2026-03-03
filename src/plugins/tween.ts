@@ -553,7 +553,7 @@ export function createTweenPlugin<G extends string = 'tweens'>(
 				.addQuery('tweens', {
 					with: ['tween'],
 				})
-				.setProcess((queries, deltaTime, ecs) => {
+				.setProcess(({ queries, dt, ecs }) => {
 					for (const entity of queries.tweens) {
 						const tween = entity.components.tween as Tween;
 						const entityComponents = entity.components as Record<string, unknown>;
@@ -578,7 +578,7 @@ export function createTweenPlugin<G extends string = 'tweens'>(
 						const currentStep = tween.steps[tween.currentStep];
 						if (!currentStep) continue;
 
-						tween.elapsed += deltaTime;
+						tween.elapsed += dt;
 
 						processTweenProgress(tween, entityComponents, entity.id, ecs as unknown as TweenEcs);
 					}

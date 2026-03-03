@@ -156,7 +156,7 @@ function spawnDot() {
 // Screen UI visibility — runs every frame regardless of current screen
 ecs.addSystem('screenUI')
 	.inPhase('render')
-	.setProcess((_queries, _dt, ecs) => {
+	.setProcess(({ ecs }) => {
 		menuContainer.visible = ecs.isCurrentScreen('menu');
 		hudContainer.visible = ecs.isScreenActive('playing');
 		pauseContainer.visible = ecs.isCurrentScreen('paused');
@@ -177,7 +177,7 @@ ecs.addSystem('screenUI')
 // Countdown — only runs during 'playing' screen
 ecs.addSystem('countdown')
 	.inScreens(['playing'])
-	.setProcess((_queries, dt, ecs) => {
+	.setProcess(({ dt, ecs }) => {
 		const state = ecs.getScreenState('playing');
 		if (state.timeLeft <= 0) return; // transition already pending
 		state.timeLeft -= dt;
@@ -190,7 +190,7 @@ ecs.addSystem('countdown')
 // Dot spawner — only runs during 'playing' screen
 ecs.addSystem('dotSpawner')
 	.inScreens(['playing'])
-	.setProcess((_queries, dt, ecs) => {
+	.setProcess(({ dt, ecs }) => {
 		const state = ecs.getScreenState('playing');
 		state.spawnTimer -= dt;
 		if (state.spawnTimer <= 0) {
@@ -203,7 +203,7 @@ ecs.addSystem('dotSpawner')
 ecs.addSystem('dotLifecycle')
 	.inScreens(['playing'])
 	.addQuery('dots', { with: ['dot', 'localTransform'] })
-	.setProcess((queries, dt, ecs) => {
+	.setProcess(({ queries, dt, ecs }) => {
 		for (const entity of queries.dots) {
 			const { dot } = entity.components;
 			dot.lifetime -= dt;

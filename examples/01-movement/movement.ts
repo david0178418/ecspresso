@@ -27,7 +27,7 @@ const ecs = ECSpresso.create()
 // Movement: applies velocity to position each frame
 ecs.addSystem('movement')
 	.addQuery('moving', { with: ['localTransform', 'velocity'] })
-	.setProcess((queries, dt) => {
+	.setProcess(({ queries, dt }) => {
 		for (const entity of queries.moving) {
 			const { localTransform, velocity } = entity.components;
 			localTransform.x += velocity.x * dt;
@@ -39,7 +39,7 @@ ecs.addSystem('movement')
 ecs.addSystem('bounce')
 	.addQuery('bouncing', { with: ['localTransform', 'velocity', 'radius'] })
 	.withResources(['bounds'])
-	.setProcess((queries, _dt, _ecs, { bounds }) => {
+	.setProcess(({ queries, resources: { bounds } }) => {
 		for (const entity of queries.bouncing) {
 			const { localTransform, velocity, radius } = entity.components;
 			if (localTransform.x > bounds.width - radius || localTransform.x < radius) {

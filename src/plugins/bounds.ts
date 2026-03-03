@@ -251,7 +251,7 @@ export function createBoundsPlugin<ResourceTypes extends BoundsResourceTypes = B
 				.addQuery('entities', {
 					with: ['worldTransform', 'destroyOutOfBounds'],
 				})
-				.setProcess((queries, _deltaTime, ecs) => {
+				.setProcess(({ queries, ecs }) => {
 					const bounds = ecs.getResource(boundsResourceKey as keyof ResourceTypes) as BoundsRect;
 					const minX = bounds.x ?? 0;
 					const minY = bounds.y ?? 0;
@@ -285,7 +285,7 @@ export function createBoundsPlugin<ResourceTypes extends BoundsResourceTypes = B
 				.addQuery('entities', {
 					with: ['localTransform', 'worldTransform', 'clampToBounds'],
 				})
-				.setProcess((queries, _deltaTime, ecs) => {
+				.setProcess(({ queries, ecs }) => {
 					const bounds = ecs.getResource(boundsResourceKey as keyof ResourceTypes) as BoundsRect;
 					const minX = bounds.x ?? 0;
 					const minY = bounds.y ?? 0;
@@ -328,7 +328,7 @@ export function createBoundsPlugin<ResourceTypes extends BoundsResourceTypes = B
 				.addQuery('entities', {
 					with: ['localTransform', 'worldTransform', 'wrapAtBounds'],
 				})
-				.setProcess((queries, _deltaTime, ecs) => {
+				.setProcess(({ queries, ecs }) => {
 					const bounds = ecs.getResource(boundsResourceKey as keyof ResourceTypes) as BoundsRect;
 					const minX = bounds.x ?? 0;
 					const minY = bounds.y ?? 0;

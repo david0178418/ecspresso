@@ -217,7 +217,7 @@ describe('ECSpresso', () => {
 					// @ts-expect-error // TypeScript should complain if we try to add a query with a non-existent component
 					without: ['other-non-existent-component'],
 				})
-				.setProcess((queries) => {
+				.setProcess(({ queries }) => {
 					queries.someQuery.length;
 
 					for(const entity of queries.someQuery) {
@@ -233,7 +233,7 @@ describe('ECSpresso', () => {
 				.setEventHandlers({
 					// @ts-expect-error // TypeScript should complain if we try to add an event handler for a non-existent event
 					nonExistentEvent: () => {},
-					playerDamaged(data) {
+					playerDamaged({ data }) {
 						data.amount.toFixed(); // TypeScript should know that data has an amount property
 
 						// @ts-expect-error // TypeScript should complain if we try to access a non-existent property
@@ -279,10 +279,10 @@ describe('ECSpresso', () => {
 							],
 						})
 						.setEventHandlers({
-							evtFromB1(data) {
+							evtFromB1({ data }) {
 								data.data.toFixed();
 							},
-							evtFromB2(data) {
+							evtFromB2({ data }) {
 								data.data.toUpperCase();
 							},
 							// @ts-expect-error // TypeScript should complain if we try to add an event handler for a non-existent event
@@ -307,10 +307,10 @@ describe('ECSpresso', () => {
 					],
 				})
 				.setEventHandlers({
-					evtFromB1(data) {
+					evtFromB1({ data }) {
 						data.data.toFixed();
 					},
-					evtFromB2(data) {
+					evtFromB2({ data }) {
 						data.data.toUpperCase();
 					},
 					// @ts-expect-error // TypeScript should complain if we try to add an event handler for a non-existent event
@@ -403,7 +403,7 @@ describe('ECSpresso', () => {
 							with: ['position', 'velocity'],
 							without: ['health'],
 						})
-						.setProcess((queries) => {
+						.setProcess(({ queries }) => {
 							for (const entity of queries.entities) {
 								processedEntities.push(entity.id);
 							}
@@ -521,7 +521,7 @@ describe('ECSpresso', () => {
 						.addQuery('entities', {
 							with: ['position'],
 						})
-						.setProcess((_queries, _deltaTime, _ecs) => {
+						.setProcess(() => {
 							processCalled = true;
 						});
 				},
@@ -612,7 +612,7 @@ describe('ECSpresso', () => {
 						.addQuery('statefulEntities', {
 							with: ['state'],
 						})
-						.setProcess((queries, _deltaTime, _ecs) => {
+						.setProcess(({ queries }) => {
 							for (const entity of queries.statefulEntities) {
 								const state = entity.components.state;
 								state.previous = state.current;
@@ -646,7 +646,7 @@ describe('ECSpresso', () => {
 						.addQuery('lifetimeEntities', {
 							with: ['lifetime'],
 						})
-						.setProcess(queries => {
+						.setProcess(({ queries }) => {
 							for (const entity of queries.lifetimeEntities) {
 								entity.components.lifetime.remaining -= 1;
 
@@ -709,7 +709,7 @@ describe('ECSpresso', () => {
 						.addQuery('entities', {
 							with: ['velocity'],
 						})
-						.setProcess((_queries, _deltaTime, ecs) => {
+						.setProcess(({ ecs }) => {
 							if (!ecs.entityManager.getComponent(entity.id, 'position')) {
 								ecs.entityManager.addComponent(entity.id, 'position', { x: 0, y: 0 });
 							} else {
@@ -765,7 +765,7 @@ describe('ECSpresso', () => {
 				.setOnInitialize((_ecs) => {
 					initialized = true;
 				})
-				.setProcess((queries, _deltaTime, _ecs) => {
+				.setProcess(({ queries }) => {
 					processCalled = true;
 
 					// Type-safe component access
@@ -775,7 +775,7 @@ describe('ECSpresso', () => {
 					}
 				})
 				.setEventHandlers({
-					playerDamaged: (data) => {
+					playerDamaged: ({ data }) => {
 						eventHandled = true;
 						expect(data.entityId).toBe(123);
 						expect(data.amount).toBe(10);
@@ -818,7 +818,7 @@ describe('ECSpresso', () => {
 						.addQuery('entities', {
 							with: ['position', 'velocity'],
 						})
-						.setProcess((queries) => {
+						.setProcess(({ queries }) => {
 							expect(queries.entities.length).toBe(1);
 							pluginProcessed = true;
 						});
@@ -839,7 +839,7 @@ describe('ECSpresso', () => {
 				.addQuery('entities', {
 					with: ['position', 'velocity'],
 				})
-				.setProcess((queries) => {
+				.setProcess(({ queries }) => {
 					expect(queries.entities.length).toBe(1);
 					directProcessed = true;
 				});
@@ -873,7 +873,7 @@ describe('ECSpresso', () => {
 				.addQuery('movingEntities', {
 					with: ['position', 'velocity'],
 				})
-				.setProcess((queries) => {
+				.setProcess(({ queries }) => {
 					system1Processed = true;
 					expect(queries.movingEntities.length).toBe(1);
 				});
@@ -881,7 +881,7 @@ describe('ECSpresso', () => {
 				.addQuery('healthyEntities', {
 					with: ['position', 'health'],
 				})
-				.setProcess((queries) => {
+				.setProcess(({ queries }) => {
 					system2Processed = true;
 					expect(queries.healthyEntities.length).toBe(1);
 				});
@@ -889,7 +889,7 @@ describe('ECSpresso', () => {
 				.addQuery('allPositioned', {
 					with: ['position'],
 				})
-				.setProcess((queries) => {
+				.setProcess(({ queries }) => {
 					system3Processed = true;
 					expect(queries.allPositioned.length).toBe(2);
 				});
@@ -1004,7 +1004,7 @@ describe('ECSpresso', () => {
 						.addQuery('entities', {
 							with: ['position'],
 						})
-						.setProcess((_queries, _deltaTime, _ecs) => {
+						.setProcess(() => {
 							executionOrder.push('pluginHigh');
 						});
 				},
@@ -1018,7 +1018,7 @@ describe('ECSpresso', () => {
 						.addQuery('entities', {
 							with: ['position'],
 						})
-						.setProcess((_queries, _deltaTime, _ecs) => {
+						.setProcess(() => {
 							executionOrder.push('pluginLow');
 						});
 				},
@@ -1250,9 +1250,9 @@ describe('ECSpresso', () => {
 			let receivedEcs: typeof world | undefined;
 			let receivedDeltaTime: number | undefined;
 
-			world.onPostUpdate((ecs, deltaTime) => {
+			world.onPostUpdate(({ ecs, dt }) => {
 				receivedEcs = ecs;
-				receivedDeltaTime = deltaTime;
+				receivedDeltaTime = dt;
 			});
 
 			world.update(0.016);
@@ -1337,7 +1337,7 @@ describe('ECSpresso', () => {
 			let callbackValue: TestComponents['health'] | undefined;
 			let callbackEntityId = -1;
 
-			world.onComponentAdded('health', (value, entity) => {
+			world.onComponentAdded('health', ({ value, entity }) => {
 				callbackValue = value;
 				callbackEntityId = entity.id;
 			});
@@ -1352,7 +1352,7 @@ describe('ECSpresso', () => {
 			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents>>();
 			const spawnedEntities: number[] = [];
 
-			world.onComponentAdded('position', (_value, entity) => {
+			world.onComponentAdded('position', ({ entity }) => {
 				spawnedEntities.push(entity.id);
 			});
 
@@ -1366,7 +1366,7 @@ describe('ECSpresso', () => {
 			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents>>();
 			let removedValue: TestComponents['velocity'] | undefined;
 
-			world.onComponentRemoved('velocity', (value) => {
+			world.onComponentRemoved('velocity', ({ value }) => {
 				removedValue = value;
 			});
 
@@ -1438,7 +1438,7 @@ describe('ECSpresso', () => {
 			let receivedValue: TestComponents['state'] | undefined;
 			let receivedEntityId: number | undefined;
 
-			world.onComponentAdded('state', (value, entity) => {
+			world.onComponentAdded('state', ({ value, entity }) => {
 				receivedValue = value;
 				receivedEntityId = entity.id;
 			});
@@ -1872,7 +1872,7 @@ describe('ECSpresso', () => {
 			const entity = world.spawn({ position: { x: 0, y: 0 } });
 			let addedValue: TestComponents['health'] | undefined;
 
-			world.onComponentAdded('health', (value) => {
+			world.onComponentAdded('health', ({ value }) => {
 				addedValue = value;
 			});
 
@@ -1948,7 +1948,7 @@ describe('ECSpresso', () => {
 			const entity = world.spawn({ position: { x: 0, y: 0 }, velocity: { x: 5, y: 10 } });
 			let removedValue: TestComponents['velocity'] | undefined;
 
-			world.onComponentRemoved('velocity', (value) => {
+			world.onComponentRemoved('velocity', ({ value }) => {
 				removedValue = value;
 			});
 
@@ -1971,7 +1971,7 @@ describe('ECSpresso', () => {
 
 			world.addSystem('test-system')
 				.addQuery('entities', { with: ['velocity'] })
-				.setProcess((_queries, _dt, ecs) => {
+				.setProcess(({ ecs }) => {
 					if (!ecs.getComponent(entity.id, 'position')) {
 						ecs.addComponent(entity.id, 'position', { x: 0, y: 0 });
 					}
@@ -2076,7 +2076,7 @@ describe('ECSpresso', () => {
 
 			world.addSystem('movement')
 				.addQuery('entities', { with: ['position', 'velocity'] })
-				.setProcess((queries, _dt, ecs) => {
+				.setProcess(({ queries, ecs }) => {
 					for (const e of queries.entities) {
 						ecs.mutateComponent(e.id, 'position', (pos) => {
 							pos.x += e.components.velocity.x;

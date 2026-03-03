@@ -9,7 +9,7 @@ export default function createGameStatePlugin() {
 			// Game state system
 			world.addSystem('game-state')
 				.setEventHandlers({
-					gameStart(_data, ecs) {
+					gameStart({ ecs }) {
 						// Update game state to playing
 						const gameState = ecs.getResource('gameState');
 						gameState.status = 'playing';
@@ -57,7 +57,7 @@ export default function createGameStatePlugin() {
 						// Update UI
 						ecs.eventBus.publish('updateWave', { wave: waveManager.currentWave });
 					},
-					gamePause(_data, ecs) {
+					gamePause({ ecs }) {
 						// Pause the game
 						const gameState = ecs.getResource('gameState');
 						gameState.status = 'paused';
@@ -80,7 +80,7 @@ export default function createGameStatePlugin() {
 							uiElements.messageElement.style.top = '25%';
 						}
 					},
-					gameResume(_data, ecs) {
+					gameResume({ ecs }) {
 						// Resume the game
 						const gameState = ecs.getResource('gameState');
 						gameState.status = 'playing';
@@ -101,7 +101,7 @@ export default function createGameStatePlugin() {
 							// Don't reset position as all messages should be at 25%
 						}
 					},
-					playerHit(data, ecs) {
+					playerHit({ data, ecs }) {
 						// Get player
 						const playerEntities = ecs.entityManager.getEntitiesWithQuery(['player']);
 						if (playerEntities.length === 0) return;
@@ -129,7 +129,7 @@ export default function createGameStatePlugin() {
 							});
 						}
 					},
-					updateScore(data, ecs) {
+					updateScore({ data, ecs }) {
 						// Update score
 						const gameState = ecs.getResource('gameState');
 						gameState.score += data.points;
@@ -137,15 +137,15 @@ export default function createGameStatePlugin() {
 						// Update UI
 						updateUI(ecs);
 					},
-					updateHealth(_data, ecs) {
+					updateHealth({ ecs }) {
 						// Update UI
 						updateUI(ecs);
 					},
-					updateWave(_data, ecs) {
+					updateWave({ ecs }) {
 						// Update UI
 						updateUI(ecs);
 					},
-					waveComplete(_data, ecs) {
+					waveComplete({ ecs }) {
 						const waveManager = ecs.getResource('waveManager');
 						const config = ecs.getResource('config');
 
@@ -179,7 +179,7 @@ export default function createGameStatePlugin() {
 						// Update UI
 						ecs.eventBus.publish('updateWave', { wave: waveManager.currentWave });
 					},
-					gameOver(data, ecs) {
+					gameOver({ data, ecs }) {
 						// Update game state
 						const gameState = ecs.getResource('gameState');
 						gameState.status = 'gameOver';
@@ -204,7 +204,7 @@ export default function createGameStatePlugin() {
 							uiElements.messageElement.style.whiteSpace = 'pre';
 						}
 					},
-					enemyDestroyed(data, ecs) {
+					enemyDestroyed({ data, ecs }) {
 						console.log('enemyDestroyed event received:', data);
 
 						// Make sure the entity exists
@@ -255,7 +255,7 @@ export default function createGameStatePlugin() {
 					with: ['timer', 'messageTimer'],
 				})
 				.withResources(['uiElements'])
-				.setProcess(({ messageTimers }, _deltaTime, ecs, { uiElements }) => {
+				.setProcess(({ queries: { messageTimers }, ecs, resources: { uiElements } }) => {
 
 					for (const entity of messageTimers) {
 						if (entity.components.timer.justFinished) {

@@ -254,8 +254,8 @@ export function createCameraPlugin<G extends string = 'camera'>(
 				.addQuery('cameras', {
 					with: ['camera', 'cameraFollow'],
 				})
-				.setProcess((queries, deltaTime, ecs) => {
-					const t = Math.min(1, deltaTime);
+				.setProcess(({ queries, dt, ecs }) => {
+					const t = Math.min(1, dt);
 					for (const entity of queries.cameras) {
 						const { camera, cameraFollow } = entity.components;
 						let targetWorld;
@@ -299,10 +299,10 @@ export function createCameraPlugin<G extends string = 'camera'>(
 				.addQuery('shakeCameras', {
 					with: ['camera', 'cameraShake'],
 				})
-				.setProcess((queries, deltaTime) => {
+				.setProcess(({ queries, dt }) => {
 					for (const entity of queries.shakeCameras) {
 						const { cameraShake } = entity.components;
-						cameraShake.trauma = Math.max(0, cameraShake.trauma - cameraShake.traumaDecay * deltaTime);
+						cameraShake.trauma = Math.max(0, cameraShake.trauma - cameraShake.traumaDecay * dt);
 					}
 				});
 
@@ -315,7 +315,7 @@ export function createCameraPlugin<G extends string = 'camera'>(
 				.addQuery('boundedCameras', {
 					with: ['camera', 'cameraBounds'],
 				})
-				.setProcess((queries, _deltaTime, ecs) => {
+				.setProcess(({ queries, ecs }) => {
 					const state = ecs.getResource('cameraState');
 					for (const entity of queries.boundedCameras) {
 						const { camera, cameraBounds } = entity.components;
@@ -347,7 +347,7 @@ export function createCameraPlugin<G extends string = 'camera'>(
 				.setPriority(370)
 				.inPhase(phase)
 				.inGroup(systemGroup)
-				.setProcess((_queries, _deltaTime, ecs) => {
+				.setProcess(({ ecs }) => {
 					const state = ecs.getResource('cameraState');
 					const cameras = ecs.getEntitiesWithQuery(['camera']);
 					const first = cameras[0];

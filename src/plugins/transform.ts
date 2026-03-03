@@ -239,7 +239,7 @@ export function createTransformPlugin<G extends string = 'transform'>(
 				.setPriority(priority)
 				.inPhase(phase)
 				.inGroup(systemGroup)
-				.setProcess((_queries, _deltaTime, ecs) => {
+				.setProcess(({ ecs }) => {
 					propagateTransforms(ecs);
 				});
 		},

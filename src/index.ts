@@ -1,5 +1,5 @@
 import ECSpresso from './ecspresso';
-import { SystemBuilder } from './system-builder';
+import { SystemBuilder, type ProcessContext } from './system-builder';
 import { type Plugin, type BasePluginOptions, definePlugin } from './plugin';
 
 export * from './types';
@@ -9,6 +9,6 @@ export * from './utils/math';
 export type { ReactiveQueryDefinition } from './reactive-query-manager';
 export { default as AssetManager, createAssetConfigurator } from './asset-manager';
 export { default as ScreenManager, createScreenConfigurator } from './screen-manager';
-export { SystemBuilder };
+export { SystemBuilder, type ProcessContext };
 export { type Plugin, type BasePluginOptions, definePlugin };
 export default ECSpresso;

@@ -51,10 +51,10 @@ function createGamePlugin() {
 					ecs.eventBus.publish('gameReady');
 				})
 				.setEventHandlers({
-					gameReady(_data, _ecs) {
+					gameReady() {
 						console.log("Game is ready to start!");
 					},
-					gameStart(_data, ecs) {
+					gameStart({ ecs }) {
 						console.log("Game started!");
 						const gameState = ecs.getResource('gameState');
 						gameState.status = 'playing';
@@ -91,7 +91,7 @@ function createPlayerPlugin() {
 					ecs.disableSystemGroup('gameplay');
 				})
 				.setEventHandlers({
-					playerMove(data, ecs) {
+					playerMove({ data, ecs }) {
 						const sensitivity = ecs.getResource('controlSettings').sensitivity;
 						const playerEntities = ecs.getEntitiesWithQuery(['position', 'velocity', 'sprite']);
 
@@ -107,11 +107,11 @@ function createPlayerPlugin() {
 					}
 				})
 				.addQuery('players', { with: ['position', 'velocity'] })
-				.setProcess((queries, deltaTime, _ecs) => {
+				.setProcess(({ queries, dt }) => {
 					// Update player positions based on velocity
 					for (const entity of queries.players) {
-						entity.components.position.x += entity.components.velocity.x * deltaTime;
-						entity.components.position.y += entity.components.velocity.y * deltaTime;
+						entity.components.position.x += entity.components.velocity.x * dt;
+						entity.components.position.y += entity.components.velocity.y * dt;
 
 						// Apply drag to slow down movement
 						entity.components.velocity.x *= 0.9;
@@ -132,7 +132,7 @@ function createRenderingPlugin() {
 					console.log("Initializing rendering system...");
 				})
 				.addQuery('renderables', { with: ['position', 'sprite'] })
-				.setProcess((queries, _deltaTime, _ecs) => {
+				.setProcess(({ queries }) => {
 					// Simple rendering to console
 					for (const entity of queries.renderables) {
 						const pos = entity.components.position;

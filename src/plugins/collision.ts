@@ -322,15 +322,15 @@ function parsePairKey(key: string): [string, string] {
  *   'player:enemy': (playerId, enemyId, ecs) => { ... },
  * });
  *
- * ecs.eventBus.subscribe('collision', (data) => handler(data, ecs));
+ * ecs.eventBus.subscribe('collision', (data) => handler({ data, ecs }));
  * ```
  */
 export function createCollisionPairHandler<W = unknown, L extends string = string>(
 	pairs: { [K in `${L}:${L}`]?: CollisionPairCallback<W> }
-): (event: CollisionEvent<L>, ecs: W) => void;
+): (ctx: { data: CollisionEvent<L>; ecs: W }) => void;
 export function createCollisionPairHandler<W = unknown>(
 	pairs: Record<string, CollisionPairCallback<W> | undefined>
-): (event: CollisionEvent<string>, ecs: W) => void {
+): (ctx: { data: CollisionEvent<string>; ecs: W }) => void {
 	const lookup = new Map<string, PairEntry<W>>();
 	const explicitKeys = new Set<string>();
 
@@ -357,7 +357,7 @@ export function createCollisionPairHandler<W = unknown>(
 		}
 	}
 
-	return function collisionPairDispatch(event: CollisionEvent<string>, ecs: W): void {
+	return function collisionPairDispatch({ data: event, ecs }: { data: CollisionEvent<string>; ecs: W }): void {
 		const entry = lookup.get(event.layerA + ':' + event.layerB);
 		if (!entry) return;
 
@@ -448,7 +448,7 @@ export function createCollisionPlugin<L extends string, G extends string = 'phys
 				.addQuery('collidables', {
 					with: ['worldTransform', 'collisionLayer'],
 				})
-				.setProcess((queries, _deltaTime, ecs) => {
+				.setProcess(({ queries, ecs }) => {
 					const colliders: BaseColliderInfo<L>[] = [];
 
 					for (const entity of queries.collidables) {

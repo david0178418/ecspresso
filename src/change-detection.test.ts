@@ -141,7 +141,7 @@ describe('Change Detection', () => {
 					with: ['position'] as const,
 					changed: ['position'] as const,
 				})
-				.setProcess((_queries) => {
+				.setProcess(() => {
 					processCallCount++;
 				});
 
@@ -167,7 +167,7 @@ describe('Change Detection', () => {
 			// Add marking system with higher priority (runs first)
 			ecs.addSystem('marker')
 				.setPriority(10)
-				.setProcess((_queries, _dt, ecs) => {
+				.setProcess(({ ecs }) => {
 					ecs.markChanged(e1.id, 'position');
 				});
 
@@ -178,7 +178,7 @@ describe('Change Detection', () => {
 					with: ['position'] as const,
 					changed: ['position'] as const,
 				})
-				.setProcess((queries) => {
+				.setProcess(({ queries }) => {
 					for (const entity of queries.entities) {
 						receivedIds.push(entity.id);
 					}
@@ -207,14 +207,14 @@ describe('Change Detection', () => {
 					with: ['position'] as const,
 					changed: ['position'] as const,
 				})
-				.setProcess((queries) => {
+				.setProcess(({ queries }) => {
 					changedCount = queries.changed.length;
 				});
 
 			// Low-priority producer runs second
 			ecs.addSystem('marker')
 				.setPriority(0)
-				.setProcess((_queries, _dt, ecs) => {
+				.setProcess(({ ecs }) => {
 					ecs.markChanged(entity.id, 'position');
 				});
 

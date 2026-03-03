@@ -404,7 +404,7 @@ describe('Sprite Animation Plugin', () => {
 				.inPhase('update')
 				.setPriority(-1)
 				.addQuery('anims', { with: ['spriteAnimation'] })
-				.setProcess((queries) => {
+				.setProcess(({ queries }) => {
 					for (const e of queries.anims) {
 						if ((e.components.spriteAnimation as SpriteAnimation).justFinished) {
 							sawJustFinished = true;
@@ -467,7 +467,7 @@ describe('Sprite Animation Plugin', () => {
 				.inPhase('update')
 				.setPriority(-1)
 				.addQuery('anims', { with: ['spriteAnimation'] })
-				.setProcess((queries) => {
+				.setProcess(({ queries }) => {
 					for (const e of queries.anims) {
 						if ((e.components.spriteAnimation as SpriteAnimation).justFinished) {
 							sawJustFinished = true;
@@ -574,7 +574,7 @@ describe('Sprite Animation Plugin', () => {
 				.inPhase('update')
 				.setPriority(-1)
 				.addQuery('anims', { with: ['spriteAnimation'] })
-				.setProcess((queries) => {
+				.setProcess(({ queries }) => {
 					for (const e of queries.anims) {
 						if ((e.components.spriteAnimation as SpriteAnimation).justFinished) {
 							sawJustFinished = true;
@@ -728,7 +728,7 @@ describe('Sprite Animation Plugin', () => {
 				.inPhase('update')
 				.setPriority(-1)
 				.addQuery('anims', { with: ['spriteAnimation'] })
-				.setProcess((queries) => {
+				.setProcess(({ queries }) => {
 					for (const e of queries.anims) {
 						if ((e.components.spriteAnimation as SpriteAnimation).justFinished) {
 							sawJustFinished = true;
@@ -1039,7 +1039,7 @@ describe('Sprite Animation Plugin', () => {
 					with: ['spriteAnimation'],
 					changed: ['spriteAnimation'],
 				})
-				.setProcess((queries) => {
+				.setProcess(({ queries }) => {
 					for (const e of queries.changed) {
 						changedIds.push(e.id);
 					}

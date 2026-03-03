@@ -22,18 +22,18 @@ import type { WorldConfigFrom } from '../type-utils';
  */
 export interface StateConfig<S extends string, W extends BaseWorld = BaseWorld> {
 	/** Called when entering this state */
-	onEnter?(ecs: W, entityId: number): void;
+	onEnter?(ctx: { ecs: W; entityId: number }): void;
 	/** Called when exiting this state */
-	onExit?(ecs: W, entityId: number): void;
+	onExit?(ctx: { ecs: W; entityId: number }): void;
 	/** Called each tick while in this state */
-	onUpdate?(ecs: W, entityId: number, deltaTime: number): void;
+	onUpdate?(ctx: { ecs: W; entityId: number; dt: number }): void;
 	/** Guard-based transitions evaluated each tick. First passing guard wins. */
 	transitions?: ReadonlyArray<{
 		target: S;
-		guard(ecs: W, entityId: number): boolean;
+		guard(ctx: { ecs: W; entityId: number }): boolean;
 	}>;
 	/** Event-based transition map: eventName → target state or guarded transition */
-	on?: Record<string, S | { target: S; guard(ecs: W, entityId: number): boolean }>;
+	on?: Record<string, S | { target: S; guard(ctx: { ecs: W; entityId: number }): boolean }>;
 }
 
 // ==================== State Machine Definition ====================
@@ -130,11 +130,11 @@ export interface StateMachinePluginOptions<G extends string = 'stateMachine'> ex
  *   initial: 'idle',
  *   states: {
  *     idle: {
- *       onEnter: (ecs, id) => { ... },
- *       transitions: [{ target: 'chase', guard: (ecs, id) => playerNearby(ecs, id) }],
+ *       onEnter: ({ ecs, entityId }) => { ... },
+ *       transitions: [{ target: 'chase', guard: ({ ecs, entityId }) => playerNearby(ecs, entityId) }],
  *     },
  *     chase: {
- *       onUpdate: (ecs, id, dt) => { ... },
+ *       onUpdate: ({ ecs, entityId, dt }) => { ... },
  *       on: { playerLost: 'idle' },
  *     },
  *   },
@@ -200,13 +200,13 @@ function performTransition(
 
 	if (!targetConfig) return false;
 
-	currentConfig?.onExit?.(ecs, entityId);
+	currentConfig?.onExit?.({ ecs, entityId });
 
 	sm.previous = sm.current;
 	sm.current = targetState;
 	sm.stateTime = 0;
 
-	targetConfig.onEnter?.(ecs, entityId);
+	targetConfig.onEnter?.({ ecs, entityId });
 
 	ecs.markChanged(entityId, 'stateMachine');
 	ecs.eventBus.publish('stateTransition', {
@@ -268,7 +268,7 @@ export function sendEvent(
 		return performTransition(ecs, entityId, sm, handler);
 	}
 
-	if (!handler.guard(ecs, entityId)) return false;
+	if (!handler.guard({ ecs, entityId })) return false;
 	return performTransition(ecs, entityId, sm, handler.target);
 }
 
@@ -329,10 +329,10 @@ export function createStateMachineHelpers<W extends BaseWorld = BaseWorld>(_worl
  *   initial: 'idle',
  *   states: {
  *     idle: {
- *       transitions: [{ target: 'chase', guard: (ecs, id) => playerNearby(ecs, id) }],
+ *       transitions: [{ target: 'chase', guard: ({ ecs, entityId }) => playerNearby(ecs, entityId) }],
  *     },
  *     chase: {
- *       onUpdate: (ecs, id, dt) => moveTowardPlayer(ecs, id, dt),
+ *       onUpdate: ({ ecs, entityId, dt }) => moveTowardPlayer(ecs, entityId, dt),
  *       on: { playerLost: 'idle' },
  *     },
  *   },
@@ -364,29 +364,34 @@ export function createStateMachinePlugin<S extends string = string, G extends st
 				.addQuery('machines', {
 					with: ['stateMachine'],
 				})
-				.setOnEntityEnter('machines', (entity, ecs) => {
+				.setOnEntityEnter('machines', ({ entity, ecs }) => {
 					const sm = entity.components.stateMachine;
 					const states = sm.definition.states as Record<string, StateConfig<string>>;
-					states[sm.current]?.onEnter?.(ecs as unknown as BaseWorld, entity.id);
+					states[sm.current]?.onEnter?.({ ecs: ecs as unknown as BaseWorld, entityId: entity.id });
 				})
-				.setProcess((queries, deltaTime, ecs) => {
+				.setProcess(({ queries, dt, ecs }) => {
+					// Pre-allocated context reused across entities to avoid per-entity-per-frame allocations
+					const hookCtx = { ecs: ecs as unknown as BaseWorld, entityId: 0, dt: 0 };
+
 					for (const entity of queries.machines) {
 						const sm = entity.components.stateMachine;
 						const states = sm.definition.states as Record<string, StateConfig<string>>;
-						const ecsWorld = ecs as unknown as BaseWorld;
+
+						hookCtx.entityId = entity.id;
+						hookCtx.dt = dt;
 
 						// Accumulate state time
-						sm.stateTime += deltaTime;
+						sm.stateTime += dt;
 
 						// onUpdate hook
-						states[sm.current]?.onUpdate?.(ecsWorld, entity.id, deltaTime);
+						states[sm.current]?.onUpdate?.(hookCtx);
 
 						// Evaluate guard transitions (first passing guard wins)
 						const currentConfig = states[sm.current];
 						if (currentConfig?.transitions) {
 							for (const transition of currentConfig.transitions) {
-								if (transition.guard(ecsWorld, entity.id)) {
-									performTransition(ecsWorld, entity.id, sm, transition.target);
+								if (transition.guard(hookCtx)) {
+									performTransition(hookCtx.ecs, entity.id, sm, transition.target);
 									break;
 								}
 							}

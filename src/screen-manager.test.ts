@@ -231,7 +231,7 @@ describe('ScreenManager', () => {
 
 			manager.register('gameplay', {
 				initialState: (_config) => ({ score: 0, lives: 3 }),
-				onEnter: (config) => {
+				onEnter: ({ config }) => {
 					enterCalled = true;
 					enterConfig = config;
 				},

@@ -48,7 +48,7 @@ export default function createCombatPlugin() {
 						},
 					}),
 
-					playerDeath(_data, ecs) {
+					playerDeath({ ecs }) {
 						const gameState = ecs.getResource('gameState');
 						gameState.lives -= 1;
 						ecs.eventBus.publish('updateLives', { lives: gameState.lives });

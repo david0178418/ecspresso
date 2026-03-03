@@ -120,7 +120,7 @@ describe('EventSystem', () => {
 			install(world) {
 				world.addSystem('health-system')
 					.setEventHandlers({
-						playerDamaged: (data: { entityId: number; amount: number }) => {
+						playerDamaged: ({ data }: { data: { entityId: number; amount: number } }) => {
 							eventHandlerCalled = true;
 							expect(data.amount).toBe(10);
 						}
@@ -157,7 +157,7 @@ describe('EventSystem', () => {
 			install(world) {
 				world.addSystem('ParameterTestSystem')
 					.setEventHandlers({
-						healthChanged: (data, ecs) => {
+						healthChanged: ({ data, ecs }) => {
 							receivedData = data;
 							receivedEntityManager = ecs.entityManager;
 						}
@@ -251,7 +251,7 @@ describe('EventSystem', () => {
 			install(world) {
 				world.addSystem('EventDrivenDamageSystem')
 					.setEventHandlers({
-						collision: (data, ecs) => {
+						collision: ({ data, ecs }) => {
 							const entity1 = ecs.entityManager.getEntity(data.entity1Id);
 							const entity2 = ecs.entityManager.getEntity(data.entity2Id);
 
@@ -289,7 +289,7 @@ describe('EventSystem', () => {
 								}
 							}
 						},
-						healthChanged(data) {
+						healthChanged({ data }) {
 							if (!damageLog[data.entityId]) {
 								damageLog[data.entityId] = [];
 							}

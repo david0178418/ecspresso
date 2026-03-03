@@ -7,7 +7,7 @@ export default function createUIPlugin() {
 			// Radar system
 			world.addSystem('radar-system')
 				.withResources(['gameState'])
-				.setProcess((_queries, _deltaTime, ecs, { gameState }) => {
+				.setProcess(({ ecs, resources: { gameState } }) => {
 					const radarContainer = document.getElementById('radar-overlay');
 
 					// Handle radar animation based on game state

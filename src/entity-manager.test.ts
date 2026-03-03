@@ -79,10 +79,10 @@ describe('Entity Manager', () => {
 			let callbackValue: TestComponents['health'] | undefined;
 			let callbackEntityId = -1;
 			const entity = manager.createEntity();
-			manager.onComponentAdded('health', (value, ent) => {
+			manager.onComponentAdded('health', ({ value, entity }) => {
 				callbackCount++;
 				callbackValue = value;
-				callbackEntityId = ent.id;
+				callbackEntityId = entity.id;
 			});
 			manager.addComponent(entity.id, 'health', { value: 75 });
 			expect(callbackCount).toBe(1);
@@ -97,10 +97,10 @@ describe('Entity Manager', () => {
 			let callbackEntityId = -1;
 			const entity = manager.createEntity();
 			manager.addComponent(entity.id, 'state', { current: 'start', previous: '' });
-			manager.onComponentRemoved('state', (oldValue, ent) => {
+			manager.onComponentRemoved('state', ({ value, entity }) => {
 				callbackCount++;
-				callbackOldValue = oldValue;
-				callbackEntityId = ent.id;
+				callbackOldValue = value;
+				callbackEntityId = entity.id;
 			});
 			manager.removeComponent(entity.id, 'state');
 			expect(callbackCount).toBe(1);
@@ -279,7 +279,7 @@ describe('Entity Manager', () => {
 			manager.setParent(child.id, parent.id);
 
 			const removedNames: string[] = [];
-			manager.onComponentRemoved('name', (value) => {
+			manager.onComponentRemoved('name', ({ value }) => {
 				removedNames.push(value.value);
 			});
 

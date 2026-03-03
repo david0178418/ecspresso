@@ -138,7 +138,7 @@ export default async function createInitPlugin() {
 				})
 				.setEventHandlers({
 					// Initialize the game when gameInit event is fired
-					gameInit(_, ecs) {
+					gameInit({ ecs }) {
 						// Start animation loop
 						const renderer = ecs.getResource('renderer');
 						const scene = ecs.getResource('scene');

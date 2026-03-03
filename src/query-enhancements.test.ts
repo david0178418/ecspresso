@@ -26,7 +26,7 @@ describe('Optional Components', () => {
 				with: ['position'],
 				optional: ['health'],
 			})
-			.setProcess((queries) => {
+			.setProcess(({ queries }) => {
 				for (const entity of queries.entities) {
 					results.push({
 						pos: entity.components.position,
@@ -52,7 +52,7 @@ describe('Optional Components', () => {
 				with: ['position'],
 				optional: ['health'],
 			})
-			.setProcess((queries) => {
+			.setProcess(({ queries }) => {
 				for (const entity of queries.entities) {
 					results.push({
 						pos: entity.components.position,
@@ -78,7 +78,7 @@ describe('Optional Components', () => {
 				with: ['position'],
 				optional: ['health'],
 			})
-			.setProcess((queries) => {
+			.setProcess(({ queries }) => {
 				for (const entity of queries.entities) {
 					matched.push(entity.id);
 				}
@@ -99,7 +99,7 @@ describe('Optional Components', () => {
 				with: ['position'],
 				optional: ['health'],
 			})
-			.setProcess((queries) => {
+			.setProcess(({ queries }) => {
 				for (const entity of queries.entities) {
 					// health should be { value: number } | undefined
 					// @ts-expect-error - cannot access .value directly without narrowing, it might be undefined
@@ -221,7 +221,7 @@ describe('parentHas Relationship Queries', () => {
 				with: ['childMarker'],
 				parentHas: ['parentMarker'],
 			})
-			.setProcess((queries) => {
+			.setProcess(({ queries }) => {
 				for (const entity of queries.entities) {
 					matched.push(entity.id);
 				}
@@ -243,7 +243,7 @@ describe('parentHas Relationship Queries', () => {
 				with: ['childMarker'],
 				parentHas: ['parentMarker'],
 			})
-			.setProcess((queries) => {
+			.setProcess(({ queries }) => {
 				for (const entity of queries.entities) {
 					matched.push(entity.id);
 				}
@@ -265,7 +265,7 @@ describe('parentHas Relationship Queries', () => {
 				with: ['childMarker'],
 				parentHas: ['parentMarker'],
 			})
-			.setProcess((queries) => {
+			.setProcess(({ queries }) => {
 				for (const entity of queries.entities) {
 					matched.push(entity.id);
 				}
@@ -288,7 +288,7 @@ describe('parentHas Relationship Queries', () => {
 				with: ['childMarker'],
 				parentHas: ['parentMarker', 'position'],
 			})
-			.setProcess((queries) => {
+			.setProcess(({ queries }) => {
 				for (const entity of queries.entities) {
 					matched.push(entity.id);
 				}
@@ -316,7 +316,7 @@ describe('parentHas Relationship Queries', () => {
 				without: ['dead'],
 				parentHas: ['parentMarker'],
 			})
-			.setProcess((queries) => {
+			.setProcess(({ queries }) => {
 				for (const entity of queries.entities) {
 					matched.push(entity.id);
 				}
@@ -343,7 +343,7 @@ describe('parentHas Relationship Queries', () => {
 				with: ['childMarker'],
 				parentHas: ['parentMarker'],
 			})
-			.setProcess((queries) => {
+			.setProcess(({ queries }) => {
 				for (const entity of queries.entities) {
 					matched.push(entity.id);
 				}
@@ -367,7 +367,7 @@ describe('parentHas Relationship Queries', () => {
 				with: ['position'],
 				parentHas: ['tag'],
 			})
-			.setProcess((queries) => {
+			.setProcess(({ queries }) => {
 				for (const entity of queries.children) {
 					matched.push(entity.id);
 				}

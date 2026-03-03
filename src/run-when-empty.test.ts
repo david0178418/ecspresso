@@ -58,7 +58,7 @@ describe('runWhenEmpty', () => {
 			world.addSystem('spawner')
 				.addQuery('movers', { with: ['position', 'velocity'] as const })
 				.runWhenEmpty()
-				.setProcess((queries) => {
+				.setProcess(({ queries }) => {
 					receivedQueries = queries as unknown as Record<string, unknown[]>;
 				});
 
@@ -75,7 +75,7 @@ describe('runWhenEmpty', () => {
 			world.addSystem('movement')
 				.addQuery('movers', { with: ['position', 'velocity'] as const })
 				.runWhenEmpty()
-				.setProcess((queries) => { count = queries.movers.length; });
+				.setProcess(({ queries }) => { count = queries.movers.length; });
 
 			world.spawn({ position: { x: 0, y: 0 }, velocity: { dx: 1, dy: 1 } });
 			world.spawn({ position: { x: 5, y: 5 }, velocity: { dx: 2, dy: 2 } });
@@ -107,7 +107,7 @@ describe('runWhenEmpty', () => {
 				.addQuery('movers', { with: ['position', 'velocity'] as const })
 				.addQuery('living', { with: ['health'] as const })
 				.runWhenEmpty()
-				.setProcess((queries) => {
+				.setProcess(({ queries }) => {
 					receivedQueries = queries as unknown as Record<string, unknown[]>;
 				});
 

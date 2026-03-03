@@ -23,7 +23,7 @@ describe('Component Dispose', () => {
 	test('dispose fires on removeComponent with correct value', () => {
 		const ecs = createWorld();
 		const disposed: Array<TestComponents['mesh']> = [];
-		ecs.registerDispose('mesh', (mesh) => { disposed.push(mesh); });
+		ecs.registerDispose('mesh', ({ value: mesh }) => { disposed.push(mesh); });
 
 		const meshValue = { vertices: [1, 2, 3], dispose: () => {} };
 		const entity = ecs.spawn({ mesh: meshValue });
@@ -36,7 +36,7 @@ describe('Component Dispose', () => {
 	test('dispose fires on entity destruction via removeEntity', () => {
 		const ecs = createWorld();
 		const disposed: Array<TestComponents['mesh']> = [];
-		ecs.registerDispose('mesh', (mesh) => { disposed.push(mesh); });
+		ecs.registerDispose('mesh', ({ value: mesh }) => { disposed.push(mesh); });
 
 		const meshValue = { vertices: [4, 5, 6], dispose: () => {} };
 		ecs.spawn({ mesh: meshValue });
@@ -50,7 +50,7 @@ describe('Component Dispose', () => {
 	test('dispose fires for descendants on cascade destruction', () => {
 		const ecs = createWorld();
 		const disposed: Array<TestComponents['mesh']> = [];
-		ecs.registerDispose('mesh', (mesh) => { disposed.push(mesh); });
+		ecs.registerDispose('mesh', ({ value: mesh }) => { disposed.push(mesh); });
 
 		const parentMesh = { vertices: [1], dispose: () => {} };
 		const childMesh = { vertices: [2], dispose: () => {} };
@@ -68,7 +68,7 @@ describe('Component Dispose', () => {
 	test('dispose fires on component replacement via addComponent', () => {
 		const ecs = createWorld();
 		const disposed: Array<TestComponents['mesh']> = [];
-		ecs.registerDispose('mesh', (mesh) => { disposed.push(mesh); });
+		ecs.registerDispose('mesh', ({ value: mesh }) => { disposed.push(mesh); });
 
 		const oldMesh = { vertices: [1], dispose: () => {} };
 		const newMesh = { vertices: [2], dispose: () => {} };
@@ -83,7 +83,7 @@ describe('Component Dispose', () => {
 	test('dispose fires on component replacement via addComponents', () => {
 		const ecs = createWorld();
 		const disposed: Array<TestComponents['mesh']> = [];
-		ecs.registerDispose('mesh', (mesh) => { disposed.push(mesh); });
+		ecs.registerDispose('mesh', ({ value: mesh }) => { disposed.push(mesh); });
 
 		const oldMesh = { vertices: [1], dispose: () => {} };
 		const newMesh = { vertices: [2], dispose: () => {} };
@@ -122,8 +122,8 @@ describe('Component Dispose', () => {
 		const disposedMeshes: Array<TestComponents['mesh']> = [];
 		const disposedTextures: Array<TestComponents['texture']> = [];
 
-		ecs.registerDispose('mesh', (mesh) => { disposedMeshes.push(mesh); });
-		ecs.registerDispose('texture', (texture) => { disposedTextures.push(texture); });
+		ecs.registerDispose('mesh', ({ value: mesh }) => { disposedMeshes.push(mesh); });
+		ecs.registerDispose('texture', ({ value: texture }) => { disposedTextures.push(texture); });
 
 		const meshValue = { vertices: [1], dispose: () => {} };
 		const textureValue = { data: new Uint8Array([1, 2]), dispose: () => {} };
@@ -166,7 +166,7 @@ describe('Component Dispose', () => {
 	test('command buffer removeComponent triggers dispose during playback', () => {
 		const ecs = createWorld();
 		const disposed: Array<TestComponents['mesh']> = [];
-		ecs.registerDispose('mesh', (mesh) => { disposed.push(mesh); });
+		ecs.registerDispose('mesh', ({ value: mesh }) => { disposed.push(mesh); });
 
 		const meshValue = { vertices: [1], dispose: () => {} };
 		const entity = ecs.spawn({ mesh: meshValue });
@@ -183,7 +183,7 @@ describe('Component Dispose', () => {
 	test('command buffer removeEntity triggers dispose during playback', () => {
 		const ecs = createWorld();
 		const disposed: Array<TestComponents['mesh']> = [];
-		ecs.registerDispose('mesh', (mesh) => { disposed.push(mesh); });
+		ecs.registerDispose('mesh', ({ value: mesh }) => { disposed.push(mesh); });
 
 		const meshValue = { vertices: [1], dispose: () => {} };
 		ecs.spawn({ mesh: meshValue });
@@ -203,7 +203,7 @@ describe('Component Dispose', () => {
 		const plugin = definePlugin<WorldConfigFrom<TestComponents, {}, {}>>({
 			id: 'test-dispose-plugin',
 			install(world) {
-				world.registerDispose('mesh', (mesh) => { disposed.push(mesh); });
+				world.registerDispose('mesh', ({ value: mesh }) => { disposed.push(mesh); });
 			},
 		});
 
@@ -224,7 +224,7 @@ describe('Component Dispose', () => {
 
 		const ecs = ECSpresso.create()
 			.withComponentTypes<TestComponents>()
-			.withDispose('mesh', (mesh) => { disposed.push(mesh); })
+			.withDispose('mesh', ({ value: mesh }) => { disposed.push(mesh); })
 			.build();
 
 		const meshValue = { vertices: [1], dispose: () => {} };
@@ -240,8 +240,8 @@ describe('Component Dispose', () => {
 		const firstDisposed: Array<TestComponents['mesh']> = [];
 		const secondDisposed: Array<TestComponents['mesh']> = [];
 
-		ecs.registerDispose('mesh', (mesh) => { firstDisposed.push(mesh); });
-		ecs.registerDispose('mesh', (mesh) => { secondDisposed.push(mesh); });
+		ecs.registerDispose('mesh', ({ value: mesh }) => { firstDisposed.push(mesh); });
+		ecs.registerDispose('mesh', ({ value: mesh }) => { secondDisposed.push(mesh); });
 
 		const meshValue = { vertices: [1], dispose: () => {} };
 		ecs.spawn({ mesh: meshValue });
@@ -271,14 +271,14 @@ describe('Component Dispose', () => {
 		const plugin1 = definePlugin<WorldConfigFrom<Pick<TestComponents, 'mesh'>, {}, {}>>({
 			id: 'plugin1',
 			install(world) {
-				world.registerDispose('mesh', (mesh) => { disposedMeshes.push(mesh); });
+				world.registerDispose('mesh', ({ value: mesh }) => { disposedMeshes.push(mesh); });
 			},
 		});
 
 		const plugin2 = definePlugin<WorldConfigFrom<Pick<TestComponents, 'texture'>, {}, {}>>({
 			id: 'plugin2',
 			install(world) {
-				world.registerDispose('texture', (texture) => { disposedTextures.push(texture); });
+				world.registerDispose('texture', ({ value: texture }) => { disposedTextures.push(texture); });
 			},
 		});
 
@@ -309,7 +309,7 @@ describe('Component Dispose', () => {
 	test('dispose passes entity ID on removeComponent', () => {
 		const ecs = createWorld();
 		const received: Array<{ value: TestComponents['mesh']; entityId: number }> = [];
-		ecs.registerDispose('mesh', (mesh, entityId) => { received.push({ value: mesh, entityId }); });
+		ecs.registerDispose('mesh', ({ value: mesh, entityId }) => { received.push({ value: mesh, entityId }); });
 
 		const meshValue = { vertices: [1, 2, 3], dispose: () => {} };
 		const entity = ecs.spawn({ mesh: meshValue });
@@ -323,7 +323,7 @@ describe('Component Dispose', () => {
 	test('dispose passes entity ID on removeEntity', () => {
 		const ecs = createWorld();
 		const received: Array<{ value: TestComponents['mesh']; entityId: number }> = [];
-		ecs.registerDispose('mesh', (mesh, entityId) => { received.push({ value: mesh, entityId }); });
+		ecs.registerDispose('mesh', ({ value: mesh, entityId }) => { received.push({ value: mesh, entityId }); });
 
 		const meshValue = { vertices: [1], dispose: () => {} };
 		const entity = ecs.spawn({ mesh: meshValue });
@@ -336,7 +336,7 @@ describe('Component Dispose', () => {
 	test('dispose passes entity ID on component replacement', () => {
 		const ecs = createWorld();
 		const received: Array<{ value: TestComponents['mesh']; entityId: number }> = [];
-		ecs.registerDispose('mesh', (mesh, entityId) => { received.push({ value: mesh, entityId }); });
+		ecs.registerDispose('mesh', ({ value: mesh, entityId }) => { received.push({ value: mesh, entityId }); });
 
 		const oldMesh = { vertices: [1], dispose: () => {} };
 		const newMesh = { vertices: [2], dispose: () => {} };
@@ -352,7 +352,7 @@ describe('Component Dispose', () => {
 	test('dispose passes correct entity IDs on cascade deletion', () => {
 		const ecs = createWorld();
 		const received: Array<{ entityId: number }> = [];
-		ecs.registerDispose('mesh', (_mesh, entityId) => { received.push({ entityId }); });
+		ecs.registerDispose('mesh', ({ entityId }) => { received.push({ entityId }); });
 
 		const parent = ecs.spawn({ mesh: { vertices: [1], dispose: () => {} } });
 		const child = ecs.spawnChild(parent.id, { mesh: { vertices: [2], dispose: () => {} } });
@@ -371,7 +371,7 @@ describe('Component Dispose', () => {
 		const plugin = definePlugin<WorldConfigFrom<TestComponents, {}, {}>>({
 			id: 'test-dispose-plugin',
 			install(world) {
-				world.registerDispose('mesh', (_mesh, entityId) => { received.push({ entityId }); });
+				world.registerDispose('mesh', ({ entityId }) => { received.push({ entityId }); });
 			},
 		});
 
@@ -392,7 +392,7 @@ describe('Component Dispose', () => {
 
 		const ecs = ECSpresso.create()
 			.withComponentTypes<TestComponents>()
-			.withDispose('mesh', (_mesh, entityId) => { received.push({ entityId }); })
+			.withDispose('mesh', ({ entityId }) => { received.push({ entityId }); })
 			.build();
 
 		const meshValue = { vertices: [1], dispose: () => {} };
@@ -407,14 +407,14 @@ describe('Component Dispose', () => {
 		const ecs = createWorld();
 
 		// This should compile — mesh is a valid component name
-		ecs.registerDispose('mesh', (mesh) => {
+		ecs.registerDispose('mesh', ({ value: mesh }) => {
 			// mesh should be typed as TestComponents['mesh']
 			const _vertices: number[] = mesh.vertices;
 			void _vertices;
 		});
 
 		// This should compile — health is a valid component name with number type
-		ecs.registerDispose('health', (health) => {
+		ecs.registerDispose('health', ({ value: health }) => {
 			const _val: number = health;
 			void _val;
 		});

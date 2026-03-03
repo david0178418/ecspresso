@@ -397,7 +397,7 @@ export function createSpriteAnimationPlugin<
 				.addQuery('animations', {
 					with: ['spriteAnimation'],
 				})
-				.setProcess((queries, deltaTime, ecs) => {
+				.setProcess(({ queries, dt, ecs }) => {
 					for (const entity of queries.animations) {
 						const anim = entity.components.spriteAnimation as SpriteAnimation;
 						const clip = anim.set.clips[anim.current];
@@ -416,7 +416,7 @@ export function createSpriteAnimationPlugin<
 						if (clip.frames.length <= 1) continue;
 
 						const previousFrame = anim.currentFrame;
-						anim.elapsed += deltaTime * anim.speed;
+						anim.elapsed += dt * anim.speed;
 
 						// Cast required: plugin declares EventTypes={} but publishes runtime-configured events
 						processFrameAdvancement(anim, clip, entity.id, ecs as unknown as BaseWorld);

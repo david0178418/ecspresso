@@ -111,7 +111,7 @@ describe('ResourceManager', () => {
 					.addQuery('entities', {
 						with: ['position']
 					})
-					.setProcess((_queries, _deltaTime, ecs) => {
+					.setProcess(({ ecs }) => {
 						const config = ecs.getResource('config');
 						if (config.debug) {
 							systemDebugRan = true;
@@ -167,7 +167,7 @@ describe('ResourceManager', () => {
 					.addQuery('entities', {
 						with: ['position']
 					})
-					.setProcess((_queries, _deltaTime, ecs) => {
+					.setProcess(({ ecs }) => {
 						const logger = ecs.getResource('logger');
 						const counter = ecs.getResource('counter');
 
@@ -217,7 +217,7 @@ describe('ResourceManager', () => {
 				world.addResource('logger', logger);
 				world.addSystem('EventSystem')
 					.setEventHandlers({
-						resourceUpdated: (data, ecs) => {
+						resourceUpdated: ({ data, ecs }) => {
 							const logger = ecs.getResource('logger');
 							const gameState = ecs.getResource('gameState');
 
@@ -349,16 +349,16 @@ describe('ResourceManager', () => {
 			let systemRan = false;
 			world.addSystem('input-test')
 				.addQuery('entities', { with: ['position', 'velocity', 'speed'] })
-				.setProcess((_queries, _deltaTime, ecs) => {
+				.setProcess(({ ecs }) => {
 					const controlMap = ecs.getResource('controlMap');
-					
+
 					// This should work - controlMap should be the object, not the function
 					expect(typeof controlMap).toBe('object');
 					expect(controlMap.up).toBe(false);
 					expect(controlMap.down).toBe(false);
 					expect(controlMap.left).toBe(false);
 					expect(controlMap.right).toBe(false);
-					
+
 					systemRan = true;
 				});
 

@@ -36,7 +36,7 @@ ecs.addSystem('player-input')
 	.inPhase('preUpdate')
 	.addQuery('players', { with: ['velocity', 'speed'] })
 	.withResources(['inputState'])
-	.setProcess((queries, _dt, _ecs, { inputState: input }) => {
+	.setProcess(({ queries, resources: { inputState: input } }) => {
 		const [player] = queries.players;
 		if (!player) return;
 
@@ -48,7 +48,7 @@ ecs.addSystem('player-input')
 // Movement: applies velocity to position (same pattern as example 01)
 ecs.addSystem('movement')
 	.addQuery('moving', { with: ['localTransform', 'velocity'] })
-	.setProcess((queries, dt) => {
+	.setProcess(({ queries, dt }) => {
 		for (const entity of queries.moving) {
 			const { localTransform, velocity } = entity.components;
 			localTransform.x += velocity.x * dt;

@@ -19,7 +19,7 @@ export interface ScreenDefinition<
 	/**
 	 * Lifecycle hook called when entering this screen
 	 */
-	readonly onEnter?: (config: Config, ecs: W) => void | Promise<void>;
+	readonly onEnter?: (ctx: { config: Config; ecs: W }) => void | Promise<void>;
 	/**
 	 * Lifecycle hook called when exiting this screen
 	 */

@@ -44,10 +44,10 @@ describe('Query Type Utilities', () => {
 
 		world.addSystem('movement')
 			.addQuery('entities', movingEntitiesQuery)
-			.setProcess((queries, deltaTime) => {
+			.setProcess(({ queries, dt }) => {
 				for (const entity of queries.entities) {
 					// This should work seamlessly with our helper function
-					updatePosition(entity, deltaTime);
+					updatePosition(entity, dt);
 				}
 			});
 
@@ -97,7 +97,7 @@ describe('Query Type Utilities', () => {
 
 		world.addSystem('playerRenderer')
 			.addQuery('players', playerQuery)
-			.setProcess((queries) => {
+			.setProcess(({ queries }) => {
 				for (const entity of queries.players) {
 					renderPlayer(entity);
 				}

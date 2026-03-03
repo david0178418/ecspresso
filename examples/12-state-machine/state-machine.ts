@@ -110,10 +110,10 @@ const enemyFSM = defineStateMachine('enemy', {
 	initial: 'patrol',
 	states: {
 		patrol: {
-			onEnter(ecsWorld, entityId) {
+			onEnter({ ecs: ecsWorld, entityId }) {
 				updateEnemyColor(ecsWorld, entityId, STATE_COLORS.patrol);
 			},
-			onUpdate(ecsWorld, entityId) {
+			onUpdate({ ecs: ecsWorld, entityId }) {
 				const wt = ecsWorld.getComponent(entityId, 'worldTransform');
 				const dir = ecsWorld.getComponent(entityId, 'patrolDirection');
 				if (!wt || dir === null) return;
@@ -129,15 +129,15 @@ const enemyFSM = defineStateMachine('enemy', {
 			transitions: [
 				{
 					target: 'chase',
-					guard: (ecsWorld, entityId) => distanceToPlayer(ecsWorld, entityId) < CHASE_RANGE,
+					guard: ({ ecs: ecsWorld, entityId }) => distanceToPlayer(ecsWorld, entityId) < CHASE_RANGE,
 				},
 			],
 		},
 		chase: {
-			onEnter(ecsWorld, entityId) {
+			onEnter({ ecs: ecsWorld, entityId }) {
 				updateEnemyColor(ecsWorld, entityId, STATE_COLORS.chase);
 			},
-			onUpdate(ecsWorld, entityId) {
+			onUpdate({ ecs: ecsWorld, entityId }) {
 				const playerPos = getPlayerPosition(ecsWorld);
 				if (!playerPos) return;
 
@@ -154,23 +154,23 @@ const enemyFSM = defineStateMachine('enemy', {
 			transitions: [
 				{
 					target: 'attack',
-					guard: (ecsWorld, entityId) => distanceToPlayer(ecsWorld, entityId) < ATTACK_RANGE,
+					guard: ({ ecs: ecsWorld, entityId }) => distanceToPlayer(ecsWorld, entityId) < ATTACK_RANGE,
 				},
 				{
 					target: 'patrol',
-					guard: (ecsWorld, entityId) => distanceToPlayer(ecsWorld, entityId) > CHASE_RANGE * 1.3,
+					guard: ({ ecs: ecsWorld, entityId }) => distanceToPlayer(ecsWorld, entityId) > CHASE_RANGE * 1.3,
 				},
 			],
 		},
 		attack: {
-			onEnter(ecsWorld, entityId) {
+			onEnter({ ecs: ecsWorld, entityId }) {
 				updateEnemyColor(ecsWorld, entityId, STATE_COLORS.attack);
 				setVelocity(ecsWorld, entityId, 0, 0);
 			},
 			transitions: [
 				{
 					target: 'chase',
-					guard: (ecsWorld, entityId) => {
+					guard: ({ ecs: ecsWorld, entityId }) => {
 						const sm = ecsWorld.getComponent(entityId, 'stateMachine');
 						return (sm?.stateTime ?? 0) > ATTACK_DURATION;
 					},
@@ -190,7 +190,7 @@ ecs
 		with: ['player', 'velocity', 'speed'],
 	})
 	.withResources(['inputState'])
-	.setProcess((queries, _dt, ecs, { inputState: input }) => {
+	.setProcess(({ queries, ecs, resources: { inputState: input } }) => {
 
 		for (const entity of queries.players) {
 			const { speed } = entity.components;
@@ -212,7 +212,7 @@ ecs
 	.addQuery('enemies', {
 		with: ['enemy', 'stateMachine', 'worldTransform', 'graphics'],
 	})
-	.setProcess((queries) => {
+	.setProcess(({ queries }) => {
 		for (const entity of queries.enemies) {
 			const state = getStateMachineState(ecs, entity.id);
 			const gfx = entity.components.graphics;

@@ -417,7 +417,7 @@ describe('justFinished Flag', () => {
 			.inPhase('update')
 			.setPriority(-1)
 			.addQuery('tweens', { with: ['tween'] })
-			.setProcess((queries) => {
+			.setProcess(({ queries }) => {
 				for (const entity of queries.tweens) {
 					if (entity.components.tween.justFinished) {
 						sawJustFinished = true;
@@ -450,7 +450,7 @@ describe('justFinished Flag', () => {
 			.inPhase('update')
 			.setPriority(-1)
 			.addQuery('tweens', { with: ['tween'] })
-			.setProcess((queries) => {
+			.setProcess(({ queries }) => {
 				for (const entity of queries.tweens) {
 					if (entity.components.tween.justFinished) {
 						sawJustFinished = true;
@@ -736,7 +736,7 @@ describe('Change Detection', () => {
 				with: ['position'],
 				changed: ['position'],
 			})
-			.setProcess((queries) => {
+			.setProcess(({ queries }) => {
 				for (const _entity of queries.changed) {
 					changedEntitySeen = true;
 				}

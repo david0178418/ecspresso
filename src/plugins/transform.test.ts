@@ -367,7 +367,7 @@ describe('Transform Plugin', () => {
 			ecs.addSystem('custom-movement')
 				.inPhase('update')
 				.addQuery('entities', { with: ['localTransform'] as const })
-				.setProcess((queries, _dt, ecs) => {
+				.setProcess(({ queries, ecs }) => {
 					for (const e of queries.entities) {
 						e.components.localTransform.x += 50;
 						ecs.markChanged(e.id, 'localTransform');

@@ -11,14 +11,14 @@ export default function createPhysicsPlugin() {
 				.addQuery('movables', {
 					with: ['position', 'velocity']
 				})
-				.setProcess(({ movables }, deltaTime, _ecs) => {
+				.setProcess(({ queries: { movables }, dt }) => {
 					for (const entity of movables) {
 						const { position, velocity } = entity.components;
 
 						// Apply velocity to position
-						position.x += velocity.x * deltaTime;
-						position.y += velocity.y * deltaTime;
-						position.z += velocity.z * deltaTime;
+						position.x += velocity.x * dt;
+						position.y += velocity.y * dt;
+						position.z += velocity.z * dt;
 					}
 				});
 		},

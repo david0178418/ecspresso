@@ -34,7 +34,7 @@ describe('setOnEntityEnter', () => {
 
 		ecs.addSystem('test')
 			.addQuery('movers', { with: ['position', 'velocity'] as const })
-			.setOnEntityEnter('movers', (entity) => {
+			.setOnEntityEnter('movers', ({ entity }) => {
 				entered.push(entity.id);
 			})
 			.setProcess(() => {});
@@ -98,7 +98,7 @@ describe('setOnEntityEnter', () => {
 
 		ecs.addSystem('test')
 			.addQuery('movers', { with: ['position'] as const })
-			.setOnEntityEnter('movers', (entity) => {
+			.setOnEntityEnter('movers', ({ entity }) => {
 				entered.push(entity.id);
 			})
 			.setProcess(() => {});
@@ -166,7 +166,7 @@ describe('setOnEntityEnter', () => {
 
 		ecs.addSystem('test')
 			.addQuery('movers', { with: ['position'] as const })
-			.setOnEntityEnter('movers', (entity) => {
+			.setOnEntityEnter('movers', ({ entity }) => {
 				entered.push(entity.id);
 			});
 
@@ -214,7 +214,7 @@ describe('setOnEntityEnter', () => {
 			.addQuery('movers', {
 				with: ['position', 'velocity'] as const,
 			})
-			.setOnEntityEnter('movers', (entity) => {
+			.setOnEntityEnter('movers', ({ entity }) => {
 				// These should be typed — compile-time check
 				const _x: number = entity.components.position.x;
 				const _dx: number = entity.components.velocity.dx;
@@ -257,10 +257,10 @@ describe('setOnEntityEnter', () => {
 
 		ecs.addSystem('test')
 			.addQuery('movers', { with: ['position'] as const })
-			.setOnEntityEnter('movers', (entity) => {
+			.setOnEntityEnter('movers', ({ entity }) => {
 				entered.push(entity.id);
 			})
-			.setProcess((_queries, _dt, ecsRef) => {
+			.setProcess(({ ecs: ecsRef }) => {
 				// Spawn another entity during process on first tick only
 				if (entered.length === 1) {
 					ecsRef.spawn({ position: { x: 99, y: 99 } });
@@ -284,7 +284,7 @@ describe('setOnEntityEnter', () => {
 
 		ecs.addSystem('test')
 			.addQuery('movers', { with: ['position'] as const })
-			.setOnEntityEnter('movers', (_entity, ecsRef) => {
+			.setOnEntityEnter('movers', ({ ecs: ecsRef }) => {
 				receivedEcs = ecsRef === ecs;
 			})
 			.setProcess(() => {});

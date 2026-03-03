@@ -66,19 +66,19 @@ export default function createUIPlugin() {
 				})
 				.setEventHandlers({
 					// Update score display
-					updateScore(data, ecs) {
+					updateScore({ data, ecs }) {
 						const uiElements = ecs.getResource('uiElements');
 						uiElements.scoreText.text = `Score: ${data.points}`;
 					},
 
 					// Update lives display
-					updateLives(data, ecs) {
+					updateLives({ data, ecs }) {
 						const uiElements = ecs.getResource('uiElements');
 						uiElements.livesText.text = `Lives: ${data.lives}`;
 					},
 
 					// Handle game state changes
-					gameInit(_data, ecs) {
+					gameInit({ ecs }) {
 						const uiElements = ecs.getResource('uiElements');
 						const bounds = ecs.getResource('bounds');
 
@@ -88,12 +88,12 @@ export default function createUIPlugin() {
 						uiElements.messageText.visible = true;
 					},
 
-					gameStart(_data, ecs) {
+					gameStart({ ecs }) {
 						const uiElements = ecs.getResource('uiElements');
 						uiElements.messageText.visible = false;
 					},
 
-					gamePause(_data, ecs) {
+					gamePause({ ecs }) {
 						const uiElements = ecs.getResource('uiElements');
 						const bounds = ecs.getResource('bounds');
 
@@ -103,12 +103,12 @@ export default function createUIPlugin() {
 						uiElements.messageText.visible = true;
 					},
 
-					gameResume(_data, ecs) {
+					gameResume({ ecs }) {
 						const uiElements = ecs.getResource('uiElements');
 						uiElements.messageText.visible = false;
 					},
 
-					gameOver(data, ecs) {
+					gameOver({ data, ecs }) {
 						const uiElements = ecs.getResource('uiElements');
 						const bounds = ecs.getResource('bounds');
 
@@ -121,7 +121,7 @@ export default function createUIPlugin() {
 						uiElements.messageText.visible = true;
 					},
 
-					levelComplete(data, ecs) {
+					levelComplete({ data, ecs }) {
 						const uiElements = ecs.getResource('uiElements');
 						const bounds = ecs.getResource('bounds');
 
@@ -136,7 +136,7 @@ export default function createUIPlugin() {
 						});
 					},
 
-					messageHide(_data, ecs) {
+					messageHide({ ecs }) {
 						const gameState = ecs.getResource('gameState');
 						if (gameState.status === 'playing') {
 							const uiElements = ecs.getResource('uiElements');

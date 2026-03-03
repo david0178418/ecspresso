@@ -289,7 +289,7 @@ export function createCoroutinePlugin<G extends string = 'coroutines'>(
 	return definePlugin<WorldConfigFrom<CoroutineComponentTypes>, 'coroutine-update', G>({
 		id: 'coroutines',
 		install(world) {
-			world.registerDispose('coroutine', (value, entityId) => {
+			world.registerDispose('coroutine', ({ value, entityId }) => {
 				value.generator.return();
 				finished.delete(entityId);
 			});
@@ -302,10 +302,10 @@ export function createCoroutinePlugin<G extends string = 'coroutines'>(
 				.addQuery('coroutines', {
 					with: ['coroutine'],
 				})
-				.setOnEntityEnter('coroutines', (entity) => {
+				.setOnEntityEnter('coroutines', ({ entity }) => {
 					entity.components.coroutine.generator.next(0);
 				})
-				.setProcess((queries, deltaTime, ecs) => {
+				.setProcess(({ queries, dt, ecs }) => {
 					for (const entity of queries.coroutines) {
 						// Already completed — skip until command buffer removes the component
 						if (finished.has(entity.id)) {
@@ -317,7 +317,7 @@ export function createCoroutinePlugin<G extends string = 'coroutines'>(
 
 						// Tick the generator
 						try {
-							const result = state.generator.next(deltaTime);
+							const result = state.generator.next(dt);
 							if (result.done) {
 								finished.add(entity.id);
 								state.onComplete?.({ entityId: entity.id });
