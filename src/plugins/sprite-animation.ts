@@ -421,8 +421,7 @@ export function createSpriteAnimationPlugin<
 						const previousFrame = anim.currentFrame;
 						anim.elapsed += dt * anim.speed;
 
-						// Cast required: plugin declares EventTypes={} but publishes runtime-configured events
-						processFrameAdvancement(anim, clip, entity.id, ecs as unknown as SpriteAnimationWorld);
+						processFrameAdvancement(anim, clip, entity.id, ecs);
 
 						// Sync sprite texture if frame changed
 						if (anim.currentFrame !== previousFrame || previousFrame === 0) {

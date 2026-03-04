@@ -655,7 +655,7 @@ export function createParticlePlugin<
 							emitterData.set(entity.id, data);
 						}
 
-						// Read world transform for emission origin (cross-plugin structural access)
+						// Cross-plugin: worldTransform is from the transform plugin, not in this plugin's config
 						const worldTransform = (ecs as unknown as ParticleInternalWorld).getComponent(entity.id, 'worldTransform');
 						const ex = worldTransform?.x ?? 0;
 						const ey = worldTransform?.y ?? 0;

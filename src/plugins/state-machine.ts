@@ -370,11 +370,13 @@ export function createStateMachinePlugin<S extends string = string, G extends st
 				.setOnEntityEnter('machines', ({ entity, ecs }) => {
 					const sm = entity.components.stateMachine;
 					const states = sm.definition.states as Record<string, StateConfig<string>>;
-					states[sm.current]?.onEnter?.({ ecs: ecs as unknown as StateMachineWorld, entityId: entity.id });
+					const world: StateMachineWorld = ecs;
+					states[sm.current]?.onEnter?.({ ecs: world, entityId: entity.id });
 				})
 				.setProcess(({ queries, dt, ecs }) => {
 					// Pre-allocated context reused across entities to avoid per-entity-per-frame allocations
-					const hookCtx = { ecs: ecs as unknown as StateMachineWorld, entityId: 0, dt: 0 };
+					const world: StateMachineWorld = ecs;
+					const hookCtx = { ecs: world, entityId: 0, dt: 0 };
 
 					for (const entity of queries.machines) {
 						const sm = entity.components.stateMachine;
