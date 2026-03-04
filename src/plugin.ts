@@ -25,10 +25,6 @@ export interface Plugin<
 	ReactiveQueryNames extends string = never,
 > {
 	readonly id: string;
-	/** Component names this plugin requires from other plugins (validated at build time) */
-	readonly requiresComponents?: ReadonlyArray<keyof Requires['components'] & string>;
-	/** Component names this plugin provides (used to satisfy other plugins' requirements) */
-	readonly providesComponents?: ReadonlyArray<keyof Cfg['components'] & string>;
 	readonly install: (world: ECSpresso<MergeConfigs<Cfg, Requires>>) => void;
 	// Phantom type for structural extraction (never set at runtime)
 	readonly _cfg?: Cfg;
@@ -85,8 +81,6 @@ export function definePlugin<
 >(
 	config: {
 		id: string;
-		requiresComponents?: ReadonlyArray<keyof Requires['components'] & string>;
-		providesComponents?: ReadonlyArray<keyof ConfigOf<W>['components'] & string>;
 		install: (world: W) => void;
 	}
 ): Plugin<ConfigOf<W>, Requires, Labels, Groups, AssetGroupNames, ReactiveQueryNames>;
@@ -102,8 +96,6 @@ export function definePlugin<
 >(
 	config: {
 		id: string;
-		requiresComponents?: ReadonlyArray<keyof Requires['components'] & string>;
-		providesComponents?: ReadonlyArray<keyof Cfg['components'] & string>;
 		install: (world: ECSpresso<MergeConfigs<Cfg, Requires>>) => void;
 	}
 ): Plugin<Cfg, Requires, Labels, Groups, AssetGroupNames, ReactiveQueryNames>;
@@ -112,8 +104,6 @@ export function definePlugin<
 export function definePlugin(
 	config: {
 		id: string;
-		requiresComponents?: readonly string[];
-		providesComponents?: readonly string[];
 		install: (world: any) => void;
 	}
 ): Plugin {

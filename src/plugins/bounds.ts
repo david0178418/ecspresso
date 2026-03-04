@@ -239,8 +239,6 @@ export function createBoundsPlugin<ResourceTypes extends BoundsResourceTypes = B
 
 	return definePlugin<WorldConfigFrom<BoundsComponentTypes, BoundsEventTypes, ResourceTypes>, TransformWorldConfig, 'bounds-destroy' | 'bounds-clamp' | 'bounds-wrap', G>({
 		id: 'bounds',
-		requiresComponents: ['localTransform', 'worldTransform'],
-		providesComponents: ['destroyOutOfBounds', 'clampToBounds', 'wrapAtBounds'],
 		install(world) {
 			// Destroy out of bounds system
 			world

@@ -231,8 +231,6 @@ export function createCameraPlugin<G extends string = 'camera'>(
 
 	return definePlugin<WorldConfigFrom<CameraComponentTypes, {}, CameraResourceTypes>, TransformWorldConfig, 'camera-follow' | 'camera-shake-update' | 'camera-bounds' | 'camera-state-sync', G>({
 		id: 'camera',
-		requiresComponents: ['localTransform', 'worldTransform'],
-		providesComponents: ['camera', 'cameraFollow', 'cameraShake', 'cameraBounds'],
 		install(world) {
 			world.addResource('cameraState', {
 				x: 0,

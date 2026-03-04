@@ -234,7 +234,6 @@ export function createTransformPlugin<G extends string = 'transform'>(
 
 	return definePlugin<WorldConfigFrom<TransformComponentTypes>, EmptyConfig, 'transform-propagation', G>({
 		id: 'transform',
-		providesComponents: ['localTransform', 'worldTransform'],
 		install(world) {
 			// localTransform requires worldTransform — initialize from localTransform values
 			world.registerRequired('localTransform', 'worldTransform', (lt) => ({

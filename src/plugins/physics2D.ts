@@ -352,8 +352,6 @@ export function createPhysics2DPlugin<L extends string = never, G extends string
 
 	return definePlugin<WorldConfigFrom<Physics2DProvides<L>, Physics2DEventTypes, Physics2DResourceTypes>, TransformWorldConfig, 'physics2D-integration' | 'physics2D-collision', G | CG>({
 		id: 'physics2D',
-		requiresComponents: ['localTransform', 'worldTransform'],
-		providesComponents: ['rigidBody', 'velocity', 'force', 'aabbCollider', 'circleCollider', 'collisionLayer'],
 		install(world) {
 			// rigidBody requires velocity and force — auto-add with zero defaults
 			world.registerRequired('rigidBody', 'velocity', () => ({ x: 0, y: 0 }));

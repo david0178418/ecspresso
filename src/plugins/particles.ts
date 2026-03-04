@@ -610,8 +610,6 @@ export function createParticlePlugin<
 
 	return definePlugin<WorldConfigFrom<ParticleComponentTypes>, ParticleRequires, ParticleLabels, G, never, 'particle-emitters'>({
 		id: 'particles',
-		requiresComponents: ['localTransform', 'worldTransform', 'renderLayer'],
-		providesComponents: ['particleEmitter'],
 		install(world) {
 			// Required component: particleEmitter needs localTransform
 			world.registerRequired('particleEmitter', 'localTransform', (): LocalTransform => ({

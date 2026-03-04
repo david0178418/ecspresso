@@ -437,8 +437,6 @@ export function createCollisionPlugin<L extends string, G extends string = 'phys
 
 	return definePlugin<WorldConfigFrom<CollisionComponentTypes<L>, CollisionEventTypes<L>>, TransformWorldConfig, 'collision-detection', G>({
 		id: 'collision',
-		requiresComponents: ['localTransform', 'worldTransform'],
-		providesComponents: ['aabbCollider', 'circleCollider', 'collisionLayer'],
 		install(world) {
 			world
 				.addSystem('collision-detection')

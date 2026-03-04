@@ -337,22 +337,6 @@ export class ECSpressoBuilder<
 		[AssetGroupNames] extends [never] ? string : AssetGroupNames,
 		[ReactiveQueryNames] extends [never] ? string : ReactiveQueryNames
 	> {
-		// Validate component-level dependencies before installing (fail fast)
-		const providedComponents = new Set(
-			this.pendingPlugins.flatMap(p => p.providesComponents ?? [])
-		);
-		this.pendingPlugins.forEach(plugin => {
-			const required = plugin.requiresComponents;
-			if (!required) return;
-			const missing = required.filter(c => !providedComponents.has(c));
-			if (missing.length > 0) {
-				throw new Error(
-					`Plugin "${plugin.id}" requires components [${missing.map(c => `"${c}"`).join(', ')}] ` +
-					`but no installed plugin provides them.`
-				);
-			}
-		});
-
 		// Install all pending plugins
 		for (const plugin of this.pendingPlugins) {
 			this.ecspresso.installPlugin(plugin);

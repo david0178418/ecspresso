@@ -391,7 +391,6 @@ export function createSpriteAnimationPlugin<
 
 	return definePlugin<WorldConfigFrom<SpriteAnimationComponentTypes>, EmptyConfig, 'sprite-animation-update', G>({
 		id: 'spriteAnimation',
-		providesComponents: ['spriteAnimation'],
 		install(world) {
 			world
 				.addSystem('sprite-animation-update')

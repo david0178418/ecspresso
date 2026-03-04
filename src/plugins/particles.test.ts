@@ -36,12 +36,10 @@ interface TestEvents {
 
 const stubTransform = definePlugin({
 	id: 'transform',
-	providesComponents: ['localTransform', 'worldTransform'],
 	install() {},
 });
 const stubRenderer = definePlugin({
 	id: 'renderer2d',
-	providesComponents: ['renderLayer'],
 	install() {},
 });
 
