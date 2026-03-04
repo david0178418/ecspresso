@@ -7,6 +7,34 @@ export interface ResourceFactoryWithDeps<T, Context = unknown, D extends string 
 	onDispose?: (resource: T, context: Context) => void | Promise<void>;
 }
 
+/** @internal */
+export const RESOURCE_DIRECT: unique symbol = Symbol('resource-direct');
+
+/**
+ * Branded wrapper for storing a value as-is, bypassing factory detection.
+ * The value is carried on the symbol key to avoid structural conflicts
+ * with user resource types that have a `value` property.
+ * Create via the `directValue()` helper.
+ */
+export interface ResourceDirectValue<T> {
+	[RESOURCE_DIRECT]: T;
+}
+
+/**
+ * Wrap a value to store it as-is, bypassing factory detection.
+ * Use when the resource itself is a function or class that should not be invoked.
+ *
+ * @example
+ * ```ts
+ * import { directValue } from 'ecspresso';
+ * world.addResource('handler', directValue(myFunction));
+ * world.addResource('MyClass', directValue(MyClass));
+ * ```
+ */
+export function directValue<T>(value: T): ResourceDirectValue<T> {
+	return { [RESOURCE_DIRECT]: value };
+}
+
 /**
  * Type guard for detecting { factory } pattern (with optional dependsOn and onDispose)
  */
@@ -16,6 +44,17 @@ function isFactoryWithDeps<T>(resource: unknown): resource is ResourceFactoryWit
 		resource !== null &&
 		'factory' in resource &&
 		typeof (resource as ResourceFactoryWithDeps<T>).factory === 'function'
+	);
+}
+
+/**
+ * Type guard for detecting { value } wrapper pattern (branded with symbol)
+ */
+function isDirectValue<T>(resource: unknown): resource is ResourceDirectValue<T> {
+	return (
+		typeof resource === 'object' &&
+		resource !== null &&
+		RESOURCE_DIRECT in resource
 	);
 }
 
@@ -72,7 +111,14 @@ class ResourceManager<
 	private initializedResourceKeys: Set<keyof ResourceTypes> = new Set();
 
 	/**
-	 * Add a resource to the manager
+	 * Add a resource to the manager.
+	 *
+	 * Resolution order:
+	 * 1. `{ factory, dependsOn?, onDispose? }` → factory with optional deps/disposal
+	 * 2. `{ value }` → direct value wrapper (use to store functions/classes as-is)
+	 * 3. `typeof === 'function'` → bare factory (no deps)
+	 * 4. Anything else → direct value
+	 *
 	 * @param label The resource key
 	 * @param resource The resource value, a factory function, or a factory with dependencies
 	 * @returns The resource manager instance for chaining
@@ -82,8 +128,15 @@ class ResourceManager<
 		resource:
 			| ResourceTypes[K]
 			| ((context: Context) => ResourceTypes[K] | Promise<ResourceTypes[K]>)
-			| ResourceFactoryWithDeps<ResourceTypes[K], Context, keyof ResourceTypes & string>,
+			| ResourceFactoryWithDeps<ResourceTypes[K], Context, keyof ResourceTypes & string>
+			| ResourceDirectValue<ResourceTypes[K]>,
 	) {
+		const storeValue = (value: unknown) => {
+			this.resources.set(label, value);
+			this.initializedResourceKeys.add(label);
+			this.resourceDependencies.set(label, []);
+		};
+
 		if (isFactoryWithDeps<ResourceTypes[K]>(resource)) {
 			// Factory with optional dependencies and/or onDispose
 			this.resourceFactories.set(label, resource.factory as (context: Context) => any | Promise<any>);
@@ -92,65 +145,16 @@ class ResourceManager<
 			if (resource.onDispose) {
 				this.resourceDisposers.set(label, resource.onDispose as (resource: any, context: Context) => void | Promise<void>);
 			}
-		} else if (this._isFactoryFunction(resource)) {
-			// Factory function (no dependencies)
+		} else if (isDirectValue<ResourceTypes[K]>(resource)) {
+			storeValue(resource[RESOURCE_DIRECT]);
+		} else if (typeof resource === 'function') {
+			// Bare function → treat as factory (no dependencies)
 			this.resourceFactories.set(label, resource as (context: Context) => any | Promise<any>);
 			this.resourceDependencies.set(label, []);
 		} else {
-			// Direct resource value
-			this.resources.set(label, resource);
-			this.initializedResourceKeys.add(label);
-			this.resourceDependencies.set(label, []);
+			storeValue(resource);
 		}
 		return this;
-	}
-
-	/**
-	 * Improved detection of factory functions vs direct values/classes
-	 * @private
-	 */
-	private _isFactoryFunction(value: unknown): boolean {
-		if (typeof value !== 'function') {
-			return false;
-		}
-
-		// Get the function as string for analysis
-		const funcStr = value.toString();
-
-		// Check for explicit class syntax
-		if (funcStr.startsWith('class ')) {
-			return false;
-		}
-
-		// Check for native functions/constructors
-		if (funcStr.includes('[native code]')) {
-			return false;
-		}
-
-		// Check if it's a constructor function (has prototype properties beyond constructor)
-		// This is a more nuanced check than just checking for prototype existence
-		if (value.prototype) {
-			const prototypeKeys = Object.getOwnPropertyNames(value.prototype);
-			// Constructor functions typically have additional prototype properties
-			// Regular functions only have 'constructor'
-			if (prototypeKeys.length > 1 || (prototypeKeys.length === 1 && prototypeKeys[0] !== 'constructor')) {
-				return false;
-			}
-		}
-
-		// Additional heuristics for constructor functions
-		// Constructor functions typically start with capital letter
-		const firstChar = value.name.charAt(0);
-		if (firstChar && firstChar === firstChar.toUpperCase() && value.name.length > 1) {
-			// But this alone isn't enough - many factory functions also start with capitals
-			// Only treat as constructor if it also has other constructor-like characteristics
-			if (funcStr.includes('this.') || funcStr.includes('new ')) {
-				return false;
-			}
-		}
-
-		// If it passes all checks, treat as factory function
-		return true;
 	}
 
 	/**

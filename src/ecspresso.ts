@@ -1,6 +1,6 @@
 import EntityManager from "./entity-manager";
 import EventBus from "./event-bus";
-import ResourceManager, { type ResourceFactoryWithDeps } from "./resource-manager";
+import ResourceManager, { type ResourceFactoryWithDeps, type ResourceDirectValue } from "./resource-manager";
 import AssetManager from "./asset-manager";
 import ScreenManager from "./screen-manager";
 import ReactiveQueryManager, { type ReactiveQueryDefinition } from "./reactive-query-manager";
@@ -752,7 +752,12 @@ export default class ECSpresso<
 	}
 
 	/**
-		* Add a resource to the ECS instance
+		* Add a resource to the ECS instance.
+		*
+		* - Plain value → stored directly
+		* - Function → treated as a factory, called with this ECSpresso instance on first access
+		* - `{ factory, dependsOn?, onDispose? }` → factory with dependencies/disposal
+		* - `directValue(val)` → stores the value as-is (use to store functions/classes without invoking them)
 	*/
 	addResource<K extends keyof Cfg['resources']>(
 		key: K,
@@ -760,6 +765,7 @@ export default class ECSpresso<
 			| Cfg['resources'][K]
 			| ((ecs: ECSpresso<Cfg>) => Cfg['resources'][K] | Promise<Cfg['resources'][K]>)
 			| ResourceFactoryWithDeps<Cfg['resources'][K], ECSpresso<Cfg>, keyof Cfg['resources'] & string>
+			| ResourceDirectValue<Cfg['resources'][K]>
 	): this {
 		this._resourceManager.add(key, resource);
 		return this;

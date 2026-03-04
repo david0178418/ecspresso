@@ -1,7 +1,7 @@
 import type ECSpresso from "./ecspresso";
 import AssetManager, { AssetConfiguratorImpl, createAssetConfigurator } from "./asset-manager";
 import ScreenManager, { ScreenConfiguratorImpl, createScreenConfigurator } from "./screen-manager";
-import type { ResourceFactoryWithDeps } from "./resource-manager";
+import type { ResourceFactoryWithDeps, ResourceDirectValue } from "./resource-manager";
 import { definePlugin, type Plugin } from "./plugin";
 import type { WorldConfig, EmptyConfig, ConfigsAreCompatible, MergeConfigs, TypesAreCompatible, WithComponents, WithEvents, WithResources } from "./type-utils";
 import type { AssetConfigurator, AssetsResource } from "./asset-types";
@@ -165,11 +165,11 @@ export class ECSpressoBuilder<
 	 */
 	withResource<K extends keyof Cfg['resources'] & string>(
 		key: K,
-		resource: Cfg['resources'][K] | ((context: ECSpresso<Cfg>) => Cfg['resources'][K] | Promise<Cfg['resources'][K]>) | ResourceFactoryWithDeps<Cfg['resources'][K], ECSpresso<Cfg>, keyof Cfg['resources'] & string>
+		resource: Cfg['resources'][K] | ((context: ECSpresso<Cfg>) => Cfg['resources'][K] | Promise<Cfg['resources'][K]>) | ResourceFactoryWithDeps<Cfg['resources'][K], ECSpresso<Cfg>, keyof Cfg['resources'] & string> | ResourceDirectValue<Cfg['resources'][K]>
 	): ECSpressoBuilder<Cfg, Labels, Groups, AssetGroupNames, ReactiveQueryNames>;
 	withResource<K extends string, V>(
 		key: K & ([K] extends [keyof Cfg['resources']] ? [V] extends [Cfg['resources'][K & keyof Cfg['resources']]] ? string : never : string),
-		resource: V | ((context: ECSpresso<WithResources<Cfg, Record<K, V>>>) => V | Promise<V>) | ResourceFactoryWithDeps<V, ECSpresso<WithResources<Cfg, Record<K, V>>>, keyof (Cfg['resources'] & Record<K, V>) & string>
+		resource: V | ((context: ECSpresso<WithResources<Cfg, Record<K, V>>>) => V | Promise<V>) | ResourceFactoryWithDeps<V, ECSpresso<WithResources<Cfg, Record<K, V>>>, keyof (Cfg['resources'] & Record<K, V>) & string> | ResourceDirectValue<V>
 	): ECSpressoBuilder<WithResources<Cfg, Record<K, V>>, Labels, Groups, AssetGroupNames, ReactiveQueryNames>;
 	withResource(key: string, resource: unknown): ECSpressoBuilder<any, Labels, Groups, AssetGroupNames, ReactiveQueryNames> {
 		this.pendingResources.push({ key, value: resource });
