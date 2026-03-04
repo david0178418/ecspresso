@@ -267,16 +267,21 @@ interface System<
 // ==================== Base World ====================
 
 /**
- * Widened ECSpresso type for use in plugin hooks, helpers, and structural typing.
- * Derived from ECSpresso, EventBus, and CommandBuffer with all generic parameters
- * widened, then Pick'd to the members plugins use. Method signatures stay in sync
- * with the source classes automatically; the member name lists are the only manual part.
+ * Typed world interface for plugin helpers and structural typing.
+ *
+ * Generic over component types `C`:
+ * - `BaseWorld` (no param): defaults to `{}`, meaning component-accessing methods
+ *   cannot be called (keys resolve to `never`). Use for functions that only need
+ *   `removeEntity`, `getResource`, etc.
+ * - `BaseWorld<MyComponents>`: narrows `getComponent`, `hasComponent`, `markChanged`,
+ *   `spawn`, and command buffer methods to the declared component map.
+ *
+ * Structural typing ensures any `ECSpresso<Cfg>` where `Cfg['components']` is a
+ * superset of `C` satisfies `BaseWorld<C>`.
  */
-type _WidenedCfg = WorldConfigFrom<Record<string, any>, Record<string, any>, Record<string, any>, Record<string, unknown>, Record<string, any>>;
-type _Ecs = ECSpresso<_WidenedCfg>;
+type _BaseWorldCfg<C extends Record<string, any>> = WorldConfigFrom<C, Record<string, any>, Record<string, any>, Record<string, unknown>, Record<string, any>>;
 type _EventBus = import("./event-bus").default<Record<string, any>>;
-type _CommandBuffer = import("./command-buffer").default<_WidenedCfg>;
-export type BaseWorld = Pick<_Ecs,
+export type BaseWorld<C extends Record<string, any> = {}> = Pick<ECSpresso<_BaseWorldCfg<C>>,
 	| 'getComponent'
 	| 'hasComponent'
 	| 'removeEntity'
@@ -286,7 +291,7 @@ export type BaseWorld = Pick<_Ecs,
 	| 'hasResource'
 > & {
 	eventBus: Pick<_EventBus, 'publish'>;
-	commands: Pick<_CommandBuffer, 'spawn' | 'removeEntity' | 'addComponent' | 'removeComponent'>;
+	commands: Pick<import("./command-buffer").default<_BaseWorldCfg<C>>, 'spawn' | 'removeEntity' | 'addComponent' | 'removeComponent'>;
 };
 
 // Re-export utility types from type-utils

@@ -1,6 +1,5 @@
 import { describe, test, expect } from 'bun:test';
 import ECSpresso from '../ecspresso';
-import type { BaseWorld } from '../types';
 import type { WorldConfigFrom, ComponentsOf } from '../type-utils';
 import {
 	defineStateMachine,
@@ -846,7 +845,6 @@ describe('State Machine Plugin', () => {
 
 	describe('typed helpers runtime', () => {
 		function createTypedHelpersEcs() {
-			const helpers = createStateMachineHelpers<BaseWorld>();
 			const ecs = ECSpresso
 				.create()
 				.withPlugin(createStateMachinePlugin())
@@ -854,6 +852,7 @@ describe('State Machine Plugin', () => {
 				.withEventTypes<{ damaged: { entityId: number } }>()
 				.withResource('playerNearby', false)
 				.build();
+			const helpers = createStateMachineHelpers<typeof ecs>(ecs);
 			return { ecs, helpers };
 		}
 

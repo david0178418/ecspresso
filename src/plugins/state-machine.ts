@@ -12,6 +12,9 @@ import { definePlugin, type Plugin, type BasePluginOptions } from 'ecspresso';
 import type { BaseWorld } from 'ecspresso';
 import type { WorldConfigFrom } from '../type-utils';
 
+/** BaseWorld narrowed to state-machine components for typed access in helpers. */
+type StateMachineWorld = BaseWorld<StateMachineComponentTypes>;
+
 // ==================== State Config ====================
 
 /**
@@ -20,7 +23,7 @@ import type { WorldConfigFrom } from '../type-utils';
  * @template S - Union of state name strings
  * @template W - World interface type for hooks/guards (default: StateMachineWorld)
  */
-export interface StateConfig<S extends string, W extends BaseWorld = BaseWorld> {
+export interface StateConfig<S extends string, W extends BaseWorld<StateMachineComponentTypes> = StateMachineWorld> {
 	/** Called when entering this state */
 	onEnter?(ctx: { ecs: W; entityId: number }): void;
 	/** Called when exiting this state */
@@ -189,7 +192,7 @@ export function createStateMachine<S extends string>(
  * Returns true if the target state exists, false otherwise.
  */
 function performTransition(
-	ecs: BaseWorld,
+	ecs: StateMachineWorld,
 	entityId: number,
 	sm: StateMachine,
 	targetState: string,
@@ -231,11 +234,11 @@ function performTransition(
  * @returns true if transition succeeded, false if entity has no stateMachine or target state doesn't exist
  */
 export function transitionTo(
-	ecs: BaseWorld,
+	ecs: StateMachineWorld,
 	entityId: number,
 	targetState: string,
 ): boolean {
-	const sm = ecs.getComponent(entityId, 'stateMachine') as StateMachine | undefined;
+	const sm = ecs.getComponent(entityId, 'stateMachine');
 	if (!sm) return false;
 	return performTransition(ecs, entityId, sm, targetState);
 }
@@ -250,11 +253,11 @@ export function transitionTo(
  * @returns true if a transition occurred, false otherwise
  */
 export function sendEvent(
-	ecs: BaseWorld,
+	ecs: StateMachineWorld,
 	entityId: number,
 	eventName: string,
 ): boolean {
-	const sm = ecs.getComponent(entityId, 'stateMachine') as StateMachine | undefined;
+	const sm = ecs.getComponent(entityId, 'stateMachine');
 	if (!sm) return false;
 
 	const states = sm.definition.states as Record<string, StateConfig<string>>;
@@ -280,10 +283,10 @@ export function sendEvent(
  * @returns The current state string, or undefined if entity has no stateMachine
  */
 export function getStateMachineState(
-	ecs: BaseWorld,
+	ecs: StateMachineWorld,
 	entityId: number,
 ): string | undefined {
-	const sm = ecs.getComponent(entityId, 'stateMachine') as StateMachine | undefined;
+	const sm = ecs.getComponent(entityId, 'stateMachine');
 	return sm?.current;
 }
 
@@ -294,14 +297,14 @@ export function getStateMachineState(
  * Creates helpers that validate hook parameters against the world type W.
  * Call after .build() using typeof ecs.
  */
-export interface StateMachineHelpers<W extends BaseWorld> {
+export interface StateMachineHelpers<W extends BaseWorld<StateMachineComponentTypes>> {
 	defineStateMachine: <S extends string>(
 		id: string,
 		config: { initial: NoInfer<S>; states: Record<S, StateConfig<NoInfer<S>, W>> },
 	) => StateMachineDefinition<S>;
 }
 
-export function createStateMachineHelpers<W extends BaseWorld = BaseWorld>(_world?: W): StateMachineHelpers<W> {
+export function createStateMachineHelpers<W extends BaseWorld<StateMachineComponentTypes> = StateMachineWorld>(_world?: W): StateMachineHelpers<W> {
 	return {
 		defineStateMachine: defineStateMachine as StateMachineHelpers<W>['defineStateMachine'],
 	};
@@ -367,11 +370,11 @@ export function createStateMachinePlugin<S extends string = string, G extends st
 				.setOnEntityEnter('machines', ({ entity, ecs }) => {
 					const sm = entity.components.stateMachine;
 					const states = sm.definition.states as Record<string, StateConfig<string>>;
-					states[sm.current]?.onEnter?.({ ecs: ecs as unknown as BaseWorld, entityId: entity.id });
+					states[sm.current]?.onEnter?.({ ecs: ecs as unknown as StateMachineWorld, entityId: entity.id });
 				})
 				.setProcess(({ queries, dt, ecs }) => {
 					// Pre-allocated context reused across entities to avoid per-entity-per-frame allocations
-					const hookCtx = { ecs: ecs as unknown as BaseWorld, entityId: 0, dt: 0 };
+					const hookCtx = { ecs: ecs as unknown as StateMachineWorld, entityId: 0, dt: 0 };
 
 					for (const entity of queries.machines) {
 						const sm = entity.components.stateMachine;

@@ -15,6 +15,12 @@ import type { BaseWorld } from 'ecspresso';
 import type { WorldConfigFrom } from '../type-utils';
 import type { WorldTransform } from 'ecspresso/plugins/transform';
 
+/** BaseWorld narrowed to particle components for typed access in helpers. */
+type ParticleWorld = BaseWorld<ParticleComponentTypes>;
+
+/** BaseWorld with cross-plugin components used inside the particle systems. */
+type ParticleInternalWorld = BaseWorld<ParticleComponentTypes & { worldTransform: WorldTransform; renderLayer: string }>;
+
 // ==================== Value Types ====================
 
 /** Fixed value or random range [min, max] */
@@ -261,11 +267,11 @@ export function createParticleEmitter(
  * Returns false if entity has no particleEmitter component.
  */
 export function burstParticles(
-	ecs: BaseWorld,
+	ecs: ParticleWorld,
 	entityId: number,
 	count?: number,
 ): boolean {
-	const emitter = ecs.getComponent(entityId, 'particleEmitter') as ParticleEmitter | undefined;
+	const emitter = ecs.getComponent(entityId, 'particleEmitter');
 	if (!emitter) return false;
 	emitter.pendingBurst += count ?? emitter.config.burstCount;
 	ecs.markChanged(entityId, 'particleEmitter');
@@ -277,10 +283,10 @@ export function burstParticles(
  * Existing particles continue their lifecycle.
  */
 export function stopEmitter(
-	ecs: BaseWorld,
+	ecs: ParticleWorld,
 	entityId: number,
 ): boolean {
-	const emitter = ecs.getComponent(entityId, 'particleEmitter') as ParticleEmitter | undefined;
+	const emitter = ecs.getComponent(entityId, 'particleEmitter');
 	if (!emitter) return false;
 	emitter.playing = false;
 	return true;
@@ -290,10 +296,10 @@ export function stopEmitter(
  * Resume a stopped emitter.
  */
 export function resumeEmitter(
-	ecs: BaseWorld,
+	ecs: ParticleWorld,
 	entityId: number,
 ): boolean {
-	const emitter = ecs.getComponent(entityId, 'particleEmitter') as ParticleEmitter | undefined;
+	const emitter = ecs.getComponent(entityId, 'particleEmitter');
 	if (!emitter) return false;
 	emitter.playing = true;
 	return true;
@@ -650,7 +656,7 @@ export function createParticlePlugin<
 						}
 
 						// Read world transform for emission origin (cross-plugin structural access)
-						const worldTransform = (ecs as unknown as BaseWorld).getComponent(entity.id, 'worldTransform') as WorldTransform | undefined;
+						const worldTransform = (ecs as unknown as ParticleInternalWorld).getComponent(entity.id, 'worldTransform');
 						const ex = worldTransform?.x ?? 0;
 						const ey = worldTransform?.y ?? 0;
 						const erot = worldTransform?.rotation ?? 0;
@@ -723,7 +729,7 @@ export function createParticlePlugin<
 
 							// Add to scene (cross-plugin structural access for renderLayer)
 							if (rootContainer) {
-								const layerName = (ecs as unknown as BaseWorld).getComponent(entity.id, 'renderLayer') as string | undefined;
+								const layerName = (ecs as unknown as ParticleInternalWorld).getComponent(entity.id, 'renderLayer');
 								if (layerName) {
 									(rootContainer as { addChild(child: unknown): void }).addChild(pixiContainer);
 								} else {
@@ -753,16 +759,16 @@ export function createParticlePlugin<
 				})
 				.setProcess(({ ecs }) => {
 					// Sync ParticleState -> PixiJS Particle properties
-					const world = ecs as unknown as BaseWorld;
+					const world = ecs as unknown as ParticleInternalWorld;
 					for (const [entityId, data] of emitterData) {
-						const emitter = world.getComponent(entityId, 'particleEmitter') as ParticleEmitter | undefined;
+						const emitter = world.getComponent(entityId, 'particleEmitter');
 						if (!emitter) continue;
 
 						const config = emitter.config;
 
 						// Local-space: sync container position to emitter's worldTransform
 						if (!config.worldSpace) {
-							const wt = world.getComponent(entityId, 'worldTransform') as WorldTransform | undefined;
+							const wt = world.getComponent(entityId, 'worldTransform');
 							if (wt) {
 								const container = data.pixiContainer as {
 									position: { set(x: number, y: number): void };

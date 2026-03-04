@@ -13,6 +13,9 @@ import { definePlugin, type Plugin, type BasePluginOptions } from 'ecspresso';
 import type { BaseWorld } from 'ecspresso';
 import type { WorldConfigFrom } from '../type-utils';
 
+/** BaseWorld narrowed to sprite-animation components for typed access in helpers. */
+type SpriteAnimationWorld = BaseWorld<SpriteAnimationComponentTypes>;
+
 // ==================== Loop Mode ====================
 
 export type AnimationLoopMode = 'once' | 'loop' | 'pingPong';
@@ -202,12 +205,12 @@ export function createSpriteAnimation<A extends string>(
  * @returns false if entity has no spriteAnimation or animation name doesn't exist
  */
 export function playAnimation(
-	ecs: BaseWorld,
+	ecs: SpriteAnimationWorld,
 	entityId: number,
 	animation: string,
 	options?: { restart?: boolean; speed?: number },
 ): boolean {
-	const anim = ecs.getComponent(entityId, 'spriteAnimation') as SpriteAnimation | undefined;
+	const anim = ecs.getComponent(entityId, 'spriteAnimation');
 	if (!anim) return false;
 	if (!(animation in anim.set.clips)) return false;
 
@@ -238,10 +241,10 @@ export function playAnimation(
  * @returns false if entity has no spriteAnimation
  */
 export function stopAnimation(
-	ecs: BaseWorld,
+	ecs: SpriteAnimationWorld,
 	entityId: number,
 ): boolean {
-	const anim = ecs.getComponent(entityId, 'spriteAnimation') as SpriteAnimation | undefined;
+	const anim = ecs.getComponent(entityId, 'spriteAnimation');
 	if (!anim) return false;
 
 	anim.playing = false;
@@ -254,10 +257,10 @@ export function stopAnimation(
  * @returns false if entity has no spriteAnimation
  */
 export function resumeAnimation(
-	ecs: BaseWorld,
+	ecs: SpriteAnimationWorld,
 	entityId: number,
 ): boolean {
-	const anim = ecs.getComponent(entityId, 'spriteAnimation') as SpriteAnimation | undefined;
+	const anim = ecs.getComponent(entityId, 'spriteAnimation');
 	if (!anim) return false;
 
 	anim.playing = true;
@@ -269,7 +272,7 @@ export function resumeAnimation(
 function completeAnimation(
 	anim: SpriteAnimation,
 	entityId: number,
-	ecs: BaseWorld,
+	ecs: SpriteAnimationWorld,
 ): void {
 	anim.playing = false;
 	anim.justFinished = true;
@@ -283,7 +286,7 @@ function handleBoundary(
 	anim: SpriteAnimation,
 	clip: SpriteAnimationClip,
 	entityId: number,
-	ecs: BaseWorld,
+	ecs: SpriteAnimationWorld,
 ): boolean {
 	anim.completedLoops++;
 
@@ -318,7 +321,7 @@ function advanceFrame(
 	anim: SpriteAnimation,
 	clip: SpriteAnimationClip,
 	entityId: number,
-	ecs: BaseWorld,
+	ecs: SpriteAnimationWorld,
 ): boolean {
 	const nextFrame = anim.currentFrame + anim.direction;
 
@@ -335,7 +338,7 @@ function processFrameAdvancement(
 	anim: SpriteAnimation,
 	clip: SpriteAnimationClip,
 	entityId: number,
-	ecs: BaseWorld,
+	ecs: SpriteAnimationWorld,
 ): void {
 	// Process frame overflow
 	// eslint-disable-next-line no-constant-condition
@@ -419,7 +422,7 @@ export function createSpriteAnimationPlugin<
 						anim.elapsed += dt * anim.speed;
 
 						// Cast required: plugin declares EventTypes={} but publishes runtime-configured events
-						processFrameAdvancement(anim, clip, entity.id, ecs as unknown as BaseWorld);
+						processFrameAdvancement(anim, clip, entity.id, ecs as unknown as SpriteAnimationWorld);
 
 						// Sync sprite texture if frame changed
 						if (anim.currentFrame !== previousFrame || previousFrame === 0) {
