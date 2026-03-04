@@ -13,13 +13,10 @@
 import { definePlugin, type Plugin, type BasePluginOptions } from 'ecspresso';
 import type { BaseWorld } from 'ecspresso';
 import type { WorldConfigFrom } from '../type-utils';
-import type { WorldTransform } from 'ecspresso/plugins/transform';
+import type { TransformComponentTypes, LocalTransform } from 'ecspresso/plugins/transform';
 
 /** BaseWorld narrowed to particle components for typed access in helpers. */
 type ParticleWorld = BaseWorld<ParticleComponentTypes>;
-
-/** BaseWorld with cross-plugin components used inside the particle systems. */
-type ParticleInternalWorld = BaseWorld<ParticleComponentTypes & { worldTransform: WorldTransform; renderLayer: string }>;
 
 // ==================== Value Types ====================
 
@@ -582,6 +579,8 @@ export const particlePresets = {
 
 type ParticleLabels = 'particle-update' | 'particle-render-sync';
 
+type ParticleRequires = WorldConfigFrom<TransformComponentTypes & { renderLayer: string }>;
+
 /**
  * Create a particle system plugin for ECSpresso.
  *
@@ -599,7 +598,7 @@ export function createParticlePlugin<
 	G extends string = 'particles',
 >(
 	options?: ParticlePluginOptions<G>,
-): Plugin<WorldConfigFrom<ParticleComponentTypes>, ParticleLabels, G, never, 'particle-emitters'> {
+): Plugin<WorldConfigFrom<ParticleComponentTypes>, ParticleRequires, ParticleLabels, G, never, 'particle-emitters'> {
 	const {
 		systemGroup = 'particles',
 		priority = 0,
@@ -609,13 +608,15 @@ export function createParticlePlugin<
 	// Side storage for runtime particle data
 	const emitterData = new Map<number, EmitterRuntimeData>();
 
-	return definePlugin<WorldConfigFrom<ParticleComponentTypes>, ParticleLabels, G, never, 'particle-emitters'>({
+	return definePlugin<WorldConfigFrom<ParticleComponentTypes>, ParticleRequires, ParticleLabels, G, never, 'particle-emitters'>({
 		id: 'particles',
+		requiresComponents: ['localTransform', 'worldTransform', 'renderLayer'],
+		providesComponents: ['particleEmitter'],
 		install(world) {
 			// Required component: particleEmitter needs localTransform
-			world.registerRequired('particleEmitter', 'localTransform' as keyof ParticleComponentTypes, (() => ({
+			world.registerRequired('particleEmitter', 'localTransform', (): LocalTransform => ({
 				x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1,
-			})) as unknown as (triggerValue: ParticleEmitter) => ParticleComponentTypes[keyof ParticleComponentTypes]);
+			}));
 
 			// Dispose: clean up side storage when particleEmitter removed
 			world.registerDispose('particleEmitter', ({ entityId }: { value: ParticleEmitter; entityId: number }) => {
@@ -655,8 +656,7 @@ export function createParticlePlugin<
 							emitterData.set(entity.id, data);
 						}
 
-						// Cross-plugin: worldTransform is from the transform plugin, not in this plugin's config
-						const worldTransform = (ecs as unknown as ParticleInternalWorld).getComponent(entity.id, 'worldTransform');
+						const worldTransform = ecs.getComponent(entity.id, 'worldTransform');
 						const ex = worldTransform?.x ?? 0;
 						const ey = worldTransform?.y ?? 0;
 						const erot = worldTransform?.rotation ?? 0;
@@ -673,7 +673,7 @@ export function createParticlePlugin<
 								emitter.onComplete({ entityId: entity.id });
 							}
 
-							ecs.commands.removeComponent(entity.id, 'particleEmitter' as keyof ParticleComponentTypes & string);
+							ecs.commands.removeComponent(entity.id, 'particleEmitter');
 						}
 					}
 				});
@@ -729,7 +729,7 @@ export function createParticlePlugin<
 
 							// Add to scene (cross-plugin structural access for renderLayer)
 							if (rootContainer) {
-								const layerName = (ecs as unknown as ParticleInternalWorld).getComponent(entity.id, 'renderLayer');
+								const layerName = ecs.getComponent(entity.id, 'renderLayer');
 								if (layerName) {
 									(rootContainer as { addChild(child: unknown): void }).addChild(pixiContainer);
 								} else {
@@ -759,16 +759,15 @@ export function createParticlePlugin<
 				})
 				.setProcess(({ ecs }) => {
 					// Sync ParticleState -> PixiJS Particle properties
-					const world = ecs as unknown as ParticleInternalWorld;
 					for (const [entityId, data] of emitterData) {
-						const emitter = world.getComponent(entityId, 'particleEmitter');
+						const emitter = ecs.getComponent(entityId, 'particleEmitter');
 						if (!emitter) continue;
 
 						const config = emitter.config;
 
 						// Local-space: sync container position to emitter's worldTransform
 						if (!config.worldSpace) {
-							const wt = world.getComponent(entityId, 'worldTransform');
+							const wt = ecs.getComponent(entityId, 'worldTransform');
 							if (wt) {
 								const container = data.pixiContainer as {
 									position: { set(x: number, y: number): void };

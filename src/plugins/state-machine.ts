@@ -10,7 +10,7 @@
 
 import { definePlugin, type Plugin, type BasePluginOptions } from 'ecspresso';
 import type { BaseWorld } from 'ecspresso';
-import type { WorldConfigFrom } from '../type-utils';
+import type { WorldConfigFrom, EmptyConfig } from '../type-utils';
 
 /** BaseWorld narrowed to state-machine components for typed access in helpers. */
 type StateMachineWorld = BaseWorld<StateMachineComponentTypes>;
@@ -349,14 +349,14 @@ export function createStateMachineHelpers<W extends BaseWorld<StateMachineCompon
  */
 export function createStateMachinePlugin<S extends string = string, G extends string = 'stateMachine'>(
 	options?: StateMachinePluginOptions<G>,
-): Plugin<WorldConfigFrom<StateMachineComponentTypes<S>, StateMachineEventTypes<S>>, 'state-machine-update', G> {
+): Plugin<WorldConfigFrom<StateMachineComponentTypes<S>, StateMachineEventTypes<S>>, EmptyConfig, 'state-machine-update', G> {
 	const {
 		systemGroup = 'stateMachine',
 		priority = 0,
 		phase = 'update',
 	} = options ?? {};
 
-	return definePlugin<WorldConfigFrom<StateMachineComponentTypes<S>, StateMachineEventTypes<S>>, 'state-machine-update', G>({
+	return definePlugin<WorldConfigFrom<StateMachineComponentTypes<S>, StateMachineEventTypes<S>>, EmptyConfig, 'state-machine-update', G>({
 		id: 'stateMachine',
 		install(world) {
 			world

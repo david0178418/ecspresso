@@ -8,7 +8,7 @@
 
 import { definePlugin, type Plugin, type BasePluginOptions } from 'ecspresso';
 import type { WorldConfigFrom } from '../type-utils';
-import type { TransformComponentTypes } from './transform';
+import type { TransformWorldConfig } from './transform';
 import { buildBaseColliderInfo, detectCollisions, tryGetSpatialIndex, type Contact, type BaseColliderInfo } from '../utils/narrowphase';
 
 // ==================== Component Types ====================
@@ -369,9 +369,7 @@ export function createCollisionPairHandler<W = unknown>(
 	};
 }
 
-// ==================== Internal Types ====================
-
-type CombinedComponentTypes<L extends string> = CollisionComponentTypes<L> & TransformComponentTypes;
+// ==================== Dependency Types ====================
 
 // ==================== Module-level Collision Callback ====================
 
@@ -430,15 +428,17 @@ function onCollisionDetected<L extends string>(
  */
 export function createCollisionPlugin<L extends string, G extends string = 'physics'>(
 	options: CollisionPluginOptions<G> & { layers: LayerFactories<Record<L, readonly string[]>> }
-): Plugin<WorldConfigFrom<CombinedComponentTypes<L>, CollisionEventTypes<L>>, 'collision-detection', G> {
+): Plugin<WorldConfigFrom<CollisionComponentTypes<L>, CollisionEventTypes<L>>, TransformWorldConfig, 'collision-detection', G> {
 	const {
 		systemGroup = 'physics',
 		priority = 0,
 		phase = 'postUpdate',
 	} = options;
 
-	return definePlugin<WorldConfigFrom<CombinedComponentTypes<L>, CollisionEventTypes<L>>, 'collision-detection', G>({
+	return definePlugin<WorldConfigFrom<CollisionComponentTypes<L>, CollisionEventTypes<L>>, TransformWorldConfig, 'collision-detection', G>({
 		id: 'collision',
+		requiresComponents: ['localTransform', 'worldTransform'],
+		providesComponents: ['aabbCollider', 'circleCollider', 'collisionLayer'],
 		install(world) {
 			world
 				.addSystem('collision-detection')

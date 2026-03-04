@@ -132,6 +132,28 @@ export type ConfigsAreCompatible<A extends WorldConfig, B extends WorldConfig> =
 		: false;
 
 /**
+ * Check if a Requires config is satisfied by an Accumulated config.
+ * Checks all five WorldConfig slots (components, events, resources, assets, screens).
+ * When Required is EmptyConfig, all slots have `keyof {} = never`,
+ * and `never extends X = true`, so empty requirements are always satisfied.
+ */
+export type RequirementsSatisfied<
+	Accumulated extends WorldConfig,
+	Required extends WorldConfig,
+> =
+	keyof Required['components'] extends keyof Accumulated['components']
+		? keyof Required['events'] extends keyof Accumulated['events']
+			? keyof Required['resources'] extends keyof Accumulated['resources']
+				? keyof Required['assets'] extends keyof Accumulated['assets']
+					? keyof Required['screens'] extends keyof Accumulated['screens']
+						? true
+						: false
+					: false
+				: false
+			: false
+		: false;
+
+/**
  * Utility type for merging two types
  */
 export type Merge<T1, T2> = T1 & T2;
@@ -157,10 +179,11 @@ export type AnyECSpresso = {
 
 /**
  * Wildcard Plugin type that any concrete plugin is assignable to.
- * Matches the phantom _cfg property declared on the Plugin interface.
+ * Matches the phantom _cfg and _requires properties declared on the Plugin interface.
  */
 export type AnyPlugin = {
 	readonly _cfg?: WorldConfig;
+	readonly _requires?: WorldConfig;
 };
 
 // ==================== Structural Type Extraction ====================

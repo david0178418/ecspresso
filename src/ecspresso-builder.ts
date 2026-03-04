@@ -3,7 +3,7 @@ import AssetManager, { AssetConfiguratorImpl, createAssetConfigurator } from "./
 import ScreenManager, { ScreenConfiguratorImpl, createScreenConfigurator } from "./screen-manager";
 import type { ResourceFactoryWithDeps, ResourceDirectValue } from "./resource-manager";
 import { definePlugin, type Plugin } from "./plugin";
-import type { WorldConfig, EmptyConfig, ConfigsAreCompatible, MergeConfigs, TypesAreCompatible, WithComponents, WithEvents, WithResources } from "./type-utils";
+import type { WorldConfig, EmptyConfig, ConfigsAreCompatible, MergeConfigs, TypesAreCompatible, RequirementsSatisfied, WithComponents, WithEvents, WithResources } from "./type-utils";
 import type { AssetConfigurator, AssetsResource } from "./asset-types";
 import type { ScreenDefinition, ScreenConfigurator, ScreenResource } from "./screen-types";
 
@@ -46,7 +46,7 @@ export class ECSpressoBuilder<
 	/** Pending required component registrations to apply during build */
 	private pendingRequiredComponents: Array<{ trigger: string; required: string; factory: (triggerValue: any) => unknown }> = [];
 	/** Pending plugins to install during build */
-	private pendingPlugins: Plugin<any, any, any, any, any>[] = [];
+	private pendingPlugins: Plugin<any, any, any, any, any, any>[] = [];
 	/** Fixed timestep interval (null means use default 1/60) */
 	private _fixedDt: number | null = null;
 
@@ -61,16 +61,18 @@ export class ECSpressoBuilder<
 	/**
 		* Add the first plugin when starting with empty types.
 		* This overload allows any plugin to be added to an empty ECSpresso instance.
+		* Only merges the plugin's Provides (PCfg) into accumulated config, not its Requires (PReq).
 	*/
 	withPlugin<
 		PCfg extends WorldConfig,
+		PReq extends WorldConfig = EmptyConfig,
 		BL extends string = never,
 		BG extends string = never,
 		BAG extends string = never,
 		BRQ extends string = never,
 	>(
 		this: ECSpressoBuilder<{ readonly components: {}; readonly events: {}; readonly resources: {}; readonly assets: Cfg['assets']; readonly screens: Cfg['screens'] }, Labels, Groups, AssetGroupNames, ReactiveQueryNames>,
-		plugin: Plugin<PCfg, BL, BG, BAG, BRQ>
+		plugin: Plugin<PCfg, PReq, BL, BG, BAG, BRQ>
 	): ECSpressoBuilder<{
 		readonly components: PCfg['components'];
 		readonly events: PCfg['events'];
@@ -81,17 +83,21 @@ export class ECSpressoBuilder<
 
 	/**
 		* Add a subsequent plugin with type checking.
-		* This overload enforces plugin type compatibility.
+		* This overload enforces plugin type compatibility and requirement satisfaction.
+		* Only merges the plugin's Provides (PCfg) into accumulated config, not its Requires (PReq).
 	*/
 	withPlugin<
 		PCfg extends WorldConfig,
+		PReq extends WorldConfig = EmptyConfig,
 		BL extends string = never,
 		BG extends string = never,
 		BAG extends string = never,
 		BRQ extends string = never,
 	>(
 		plugin: ConfigsAreCompatible<Cfg, PCfg> extends true
-			? Plugin<PCfg, BL, BG, BAG, BRQ>
+			? RequirementsSatisfied<Cfg, PReq> extends true
+				? Plugin<PCfg, PReq, BL, BG, BAG, BRQ>
+				: never
 			: never
 	): ECSpressoBuilder<MergeConfigs<Cfg, PCfg>, Labels | BL, Groups | BG, AssetGroupNames | BAG, ReactiveQueryNames | BRQ>;
 
@@ -102,12 +108,13 @@ export class ECSpressoBuilder<
 	*/
 	withPlugin<
 		PCfg extends WorldConfig,
+		PReq extends WorldConfig = EmptyConfig,
 		BL extends string = never,
 		BG extends string = never,
 		BAG extends string = never,
 		BRQ extends string = never,
 	>(
-		plugin: Plugin<PCfg, BL, BG, BAG, BRQ>
+		plugin: Plugin<PCfg, PReq, BL, BG, BAG, BRQ>
 	): ECSpressoBuilder<MergeConfigs<Cfg, PCfg>, Labels | BL, Groups | BG, AssetGroupNames | BAG, ReactiveQueryNames | BRQ> {
 		// Defer plugin installation to build time
 		this.pendingPlugins.push(plugin);
@@ -316,8 +323,8 @@ export class ECSpressoBuilder<
 	>(config: {
 		id: string;
 		install: (world: ECSpresso<Cfg>) => void;
-	}) => Plugin<Cfg, PL, PG, PAG, PRQ> {
-		return definePlugin as ReturnType<ECSpressoBuilder<Cfg>['pluginFactory']>;
+	}) => Plugin<Cfg, EmptyConfig, PL, PG, PAG, PRQ> {
+		return definePlugin as unknown as ReturnType<ECSpressoBuilder<Cfg>['pluginFactory']>;
 	}
 
 	/**
@@ -330,6 +337,22 @@ export class ECSpressoBuilder<
 		[AssetGroupNames] extends [never] ? string : AssetGroupNames,
 		[ReactiveQueryNames] extends [never] ? string : ReactiveQueryNames
 	> {
+		// Validate component-level dependencies before installing (fail fast)
+		const providedComponents = new Set(
+			this.pendingPlugins.flatMap(p => p.providesComponents ?? [])
+		);
+		this.pendingPlugins.forEach(plugin => {
+			const required = plugin.requiresComponents;
+			if (!required) return;
+			const missing = required.filter(c => !providedComponents.has(c));
+			if (missing.length > 0) {
+				throw new Error(
+					`Plugin "${plugin.id}" requires components [${missing.map(c => `"${c}"`).join(', ')}] ` +
+					`but no installed plugin provides them.`
+				);
+			}
+		});
+
 		// Install all pending plugins
 		for (const plugin of this.pendingPlugins) {
 			this.ecspresso.installPlugin(plugin);

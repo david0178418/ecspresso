@@ -16,7 +16,7 @@ import { definePlugin, type Plugin } from 'ecspresso';
 import type { SystemPhase } from 'ecspresso';
 import type ECSpresso from 'ecspresso';
 import type { WorldConfigFrom } from '../type-utils';
-import type { TransformComponentTypes } from './transform';
+import type { TransformWorldConfig } from './transform';
 
 // ==================== Component Types ====================
 
@@ -58,7 +58,6 @@ export interface CameraComponentTypes {
 	cameraBounds: CameraBounds;
 }
 
-type CombinedComponentTypes = CameraComponentTypes & TransformComponentTypes;
 
 // ==================== Resource Types ====================
 
@@ -164,7 +163,7 @@ export function createCameraBounds(
 }
 
 export function addTrauma<
-	Cfg extends WorldConfigFrom<CombinedComponentTypes, {}, CameraResourceTypes>,
+	Cfg extends WorldConfigFrom<CameraComponentTypes, {}, CameraResourceTypes>,
 >(
 	ecs: ECSpresso<Cfg>,
 	entityId: number,
@@ -221,7 +220,7 @@ export function screenToWorld(
 
 export function createCameraPlugin<G extends string = 'camera'>(
 	options?: CameraPluginOptions<G>,
-): Plugin<WorldConfigFrom<CombinedComponentTypes, {}, CameraResourceTypes>, 'camera-follow' | 'camera-shake-update' | 'camera-bounds' | 'camera-state-sync', G> {
+): Plugin<WorldConfigFrom<CameraComponentTypes, {}, CameraResourceTypes>, TransformWorldConfig, 'camera-follow' | 'camera-shake-update' | 'camera-bounds' | 'camera-state-sync', G> {
 	const {
 		viewportWidth = 800,
 		viewportHeight = 600,
@@ -230,8 +229,10 @@ export function createCameraPlugin<G extends string = 'camera'>(
 		randomFn = Math.random,
 	} = options ?? {};
 
-	return definePlugin<WorldConfigFrom<CombinedComponentTypes, {}, CameraResourceTypes>, 'camera-follow' | 'camera-shake-update' | 'camera-bounds' | 'camera-state-sync', G>({
+	return definePlugin<WorldConfigFrom<CameraComponentTypes, {}, CameraResourceTypes>, TransformWorldConfig, 'camera-follow' | 'camera-shake-update' | 'camera-bounds' | 'camera-state-sync', G>({
 		id: 'camera',
+		requiresComponents: ['localTransform', 'worldTransform'],
+		providesComponents: ['camera', 'cameraFollow', 'cameraShake', 'cameraBounds'],
 		install(world) {
 			world.addResource('cameraState', {
 				x: 0,

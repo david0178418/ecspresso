@@ -1725,7 +1725,7 @@ export default class ECSpresso<
 	 * Install a plugin into this ECSpresso instance.
 	 * Deduplicates by plugin ID. Composite plugins call this in their install function.
 	 */
-	installPlugin(plugin: Plugin<any, any, any, any, any>): this {
+	installPlugin(plugin: Plugin<any, any, any, any, any, any>): this {
 		// Prevent duplicate installation of the same plugin
 		if (this._installedPlugins.has(plugin.id)) {
 			return this;
@@ -1752,8 +1752,8 @@ export default class ECSpresso<
 	>(config: {
 		id: string;
 		install: (world: ECSpresso<Cfg>) => void;
-	}) => Plugin<Cfg, PL, PG, PAG, PRQ> {
-		return definePlugin as ReturnType<
+	}) => Plugin<Cfg, EmptyConfig, PL, PG, PAG, PRQ> {
+		return definePlugin as unknown as ReturnType<
 			ECSpresso<Cfg>['pluginFactory']
 		>;
 	}

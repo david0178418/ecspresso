@@ -1,5 +1,6 @@
 import { describe, test, expect } from 'bun:test';
 import ECSpresso from '../ecspresso';
+import { definePlugin } from '../plugin';
 import {
 	defineParticleEffect,
 	createParticleEmitter,
@@ -33,11 +34,24 @@ interface TestEvents {
 	otherEvent: { value: number };
 }
 
+const stubTransform = definePlugin({
+	id: 'transform',
+	providesComponents: ['localTransform', 'worldTransform'],
+	install() {},
+});
+const stubRenderer = definePlugin({
+	id: 'renderer2d',
+	providesComponents: ['renderLayer'],
+	install() {},
+});
+
 function createTestEcs() {
 	return ECSpresso
 		.create()
 		.withComponentTypes<TestComponents>()
 		.withEventTypes<TestEvents>()
+		.withPlugin(stubTransform)
+		.withPlugin(stubRenderer)
 		.withPlugin(createParticlePlugin())
 		.build();
 }

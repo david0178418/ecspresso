@@ -9,7 +9,7 @@
 
 import { definePlugin, type Plugin, type BasePluginOptions } from 'ecspresso';
 import type ECSpresso from 'ecspresso';
-import type { WorldConfigFrom } from '../type-utils';
+import type { WorldConfigFrom, EmptyConfig } from '../type-utils';
 
 // ==================== Component Types ====================
 
@@ -53,6 +53,12 @@ export interface TransformComponentTypes {
 	localTransform: LocalTransform;
 	worldTransform: WorldTransform;
 }
+
+/**
+ * WorldConfig representing the transform plugin's provided components.
+ * Used as the `Requires` type parameter by plugins that depend on transform.
+ */
+export type TransformWorldConfig = WorldConfigFrom<TransformComponentTypes>;
 
 // ==================== Plugin Options ====================
 
@@ -219,15 +225,16 @@ export function createTransform(
  */
 export function createTransformPlugin<G extends string = 'transform'>(
 	options?: TransformPluginOptions<G>
-): Plugin<WorldConfigFrom<TransformComponentTypes>, 'transform-propagation', G> {
+): Plugin<WorldConfigFrom<TransformComponentTypes>, EmptyConfig, 'transform-propagation', G> {
 	const {
 		systemGroup = 'transform',
 		priority = 500,
 		phase = 'postUpdate',
 	} = options ?? {};
 
-	return definePlugin<WorldConfigFrom<TransformComponentTypes>, 'transform-propagation', G>({
+	return definePlugin<WorldConfigFrom<TransformComponentTypes>, EmptyConfig, 'transform-propagation', G>({
 		id: 'transform',
+		providesComponents: ['localTransform', 'worldTransform'],
 		install(world) {
 			// localTransform requires worldTransform — initialize from localTransform values
 			world.registerRequired('localTransform', 'worldTransform', (lt) => ({

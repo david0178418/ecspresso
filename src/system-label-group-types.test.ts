@@ -1,7 +1,7 @@
 import { test, expect } from 'bun:test';
 import ECSpresso from './ecspresso';
 import { definePlugin } from './plugin';
-import type { LabelsOf, GroupsOf, ComponentsOf, EventsOf, ResourcesOf, AssetGroupNamesOf, ReactiveQueryNamesOf, AssetTypesOf, ScreenStatesOf, WorldConfigFrom } from './type-utils';
+import type { LabelsOf, GroupsOf, ComponentsOf, EventsOf, ResourcesOf, AssetGroupNamesOf, ReactiveQueryNamesOf, AssetTypesOf, ScreenStatesOf, WorldConfigFrom, EmptyConfig } from './type-utils';
 import { createTransformPlugin } from './plugins/transform';
 
 // ==================== Type-level assertion helpers ====================
@@ -18,7 +18,7 @@ type IsEqual<T, U> = [T] extends [U] ? [U] extends [T] ? true : false : false;
 
 // 1. Plugin accumulates labels
 test('type-level: Plugin accumulates labels', () => {
-	const plugin = definePlugin<WorldConfigFrom<{ pos: { x: number } }>, 'move' | 'render', never>({
+	const plugin = definePlugin<WorldConfigFrom<{ pos: { x: number } }>, EmptyConfig, 'move' | 'render', never>({
 		id: 'test',
 		install(world) {
 			world.addSystem('move')
@@ -35,7 +35,7 @@ test('type-level: Plugin accumulates labels', () => {
 
 // 2. Plugin accumulates groups
 test('type-level: Plugin accumulates groups', () => {
-	const plugin = definePlugin<WorldConfigFrom<{ pos: { x: number } }>, 'sys1' | 'sys2', 'rendering' | 'physics'>({
+	const plugin = definePlugin<WorldConfigFrom<{ pos: { x: number } }>, EmptyConfig, 'sys1' | 'sys2', 'rendering' | 'physics'>({
 		id: 'test',
 		install(world) {
 			world.addSystem('sys1')
@@ -54,7 +54,7 @@ test('type-level: Plugin accumulates groups', () => {
 
 // 3. Builder accumulates from multiple plugins
 test('type-level: Builder accumulates labels/groups from multiple plugins', () => {
-	const pluginA = definePlugin<WorldConfigFrom<{ a: number }>, 'sysA', 'groupA'>({
+	const pluginA = definePlugin<WorldConfigFrom<{ a: number }>, EmptyConfig, 'sysA', 'groupA'>({
 		id: 'a',
 		install(world) {
 			world.addSystem('sysA')
@@ -63,7 +63,7 @@ test('type-level: Builder accumulates labels/groups from multiple plugins', () =
 		},
 	});
 
-	const pluginB = definePlugin<WorldConfigFrom<{ b: number }>, 'sysB', 'groupB'>({
+	const pluginB = definePlugin<WorldConfigFrom<{ b: number }>, EmptyConfig, 'sysB', 'groupB'>({
 		id: 'b',
 		install(world) {
 			world.addSystem('sysB')
@@ -90,7 +90,7 @@ test('type-level: Builder accumulates labels/groups from multiple plugins', () =
 
 // 4. @ts-expect-error on invalid labels
 test('type-level: invalid label produces compile error', () => {
-	const plugin = definePlugin<WorldConfigFrom<{ a: number }>, 'validLabel'>({
+	const plugin = definePlugin<WorldConfigFrom<{ a: number }>, EmptyConfig, 'validLabel'>({
 		id: 'test',
 		install(world) {
 			world.addSystem('validLabel')
@@ -114,7 +114,7 @@ test('type-level: invalid label produces compile error', () => {
 
 // 5. @ts-expect-error on invalid groups
 test('type-level: invalid group produces compile error', () => {
-	const plugin = definePlugin<WorldConfigFrom<{ a: number }>, 'sys', 'validGroup'>({
+	const plugin = definePlugin<WorldConfigFrom<{ a: number }>, EmptyConfig, 'sys', 'validGroup'>({
 		id: 'test',
 		install(world) {
 			world.addSystem('sys')
@@ -166,7 +166,7 @@ test('type-level: direct construction defaults to string', () => {
 
 // 8. withComponentTypes preserves labels/groups
 test('type-level: withComponentTypes preserves labels/groups', () => {
-	const plugin = definePlugin<WorldConfigFrom<{ a: number }>, 'mySystem', 'myGroup'>({
+	const plugin = definePlugin<WorldConfigFrom<{ a: number }>, EmptyConfig, 'mySystem', 'myGroup'>({
 		id: 'test',
 		install(world) {
 			world.addSystem('mySystem')
@@ -195,7 +195,7 @@ test('type-level: withComponentTypes preserves labels/groups', () => {
 
 // 9. Multiple groups per system
 test('type-level: multiple groups per system tracked', () => {
-	const plugin = definePlugin<WorldConfigFrom<{ a: number }>, 'sys', 'groupA' | 'groupB'>({
+	const plugin = definePlugin<WorldConfigFrom<{ a: number }>, EmptyConfig, 'sys', 'groupA' | 'groupB'>({
 		id: 'test',
 		install(world) {
 			world.addSystem('sys')
@@ -212,7 +212,7 @@ test('type-level: multiple groups per system tracked', () => {
 
 // 10. Composite plugin unions labels/groups
 test('type-level: composite plugin unions labels/groups', () => {
-	const pluginA = definePlugin<WorldConfigFrom<{ a: number }>, 'sysA', 'groupA'>({
+	const pluginA = definePlugin<WorldConfigFrom<{ a: number }>, EmptyConfig, 'sysA', 'groupA'>({
 		id: 'a',
 		install(world) {
 			world.addSystem('sysA')
@@ -221,7 +221,7 @@ test('type-level: composite plugin unions labels/groups', () => {
 		},
 	});
 
-	const pluginB = definePlugin<WorldConfigFrom<{ b: number }>, 'sysB', 'groupB'>({
+	const pluginB = definePlugin<WorldConfigFrom<{ b: number }>, EmptyConfig, 'sysB', 'groupB'>({
 		id: 'b',
 		install(world) {
 			world.addSystem('sysB')
@@ -232,6 +232,7 @@ test('type-level: composite plugin unions labels/groups', () => {
 
 	const composite = definePlugin<
 		WorldConfigFrom<{ a: number } & { b: number }>,
+		EmptyConfig,
 		'sysA' | 'sysB',
 		'groupA' | 'groupB'
 	>({
@@ -250,7 +251,7 @@ test('type-level: composite plugin unions labels/groups', () => {
 
 // 11. LabelsOf/GroupsOf extraction utilities
 test('type-level: LabelsOf and GroupsOf extraction', () => {
-	const plugin = definePlugin<WorldConfigFrom<{ x: number }, { click: true }, { db: object }>, 'alpha' | 'beta', 'grp1' | 'grp2'>({
+	const plugin = definePlugin<WorldConfigFrom<{ x: number }, { click: true }, { db: object }>, EmptyConfig, 'alpha' | 'beta', 'grp1' | 'grp2'>({
 		id: 'test',
 		install(world) {
 			world.addSystem('alpha')
@@ -297,7 +298,7 @@ test('type-level: built-in plugin labels/groups flow through', () => {
 
 // 13. removeSystem works correctly
 test('runtime: removeSystem returns true/false', () => {
-	const plugin = definePlugin<WorldConfigFrom<{ pos: { x: number } }>, 'mySys'>({
+	const plugin = definePlugin<WorldConfigFrom<{ pos: { x: number } }>, EmptyConfig, 'mySys'>({
 		id: 'test',
 		install(world) {
 			world.addSystem('mySys')
@@ -315,7 +316,7 @@ test('runtime: removeSystem returns true/false', () => {
 
 // 14. disableSystemGroup/enableSystemGroup work correctly
 test('runtime: disableSystemGroup/enableSystemGroup', () => {
-	const plugin = definePlugin<WorldConfigFrom<{ pos: { x: number } }>, 'grouped', 'myGroup'>({
+	const plugin = definePlugin<WorldConfigFrom<{ pos: { x: number } }>, EmptyConfig, 'grouped', 'myGroup'>({
 		id: 'test',
 		install(world) {
 			world.addSystem('grouped')
@@ -337,7 +338,7 @@ test('runtime: disableSystemGroup/enableSystemGroup', () => {
 
 // 15. getSystemsInGroup returns correct labels
 test('runtime: getSystemsInGroup returns correct labels', () => {
-	const plugin = definePlugin<WorldConfigFrom<{ pos: { x: number } }>, 'a' | 'b' | 'c', 'grp'>({
+	const plugin = definePlugin<WorldConfigFrom<{ pos: { x: number } }>, EmptyConfig, 'a' | 'b' | 'c', 'grp'>({
 		id: 'test',
 		install(world) {
 			world.addSystem('a')
@@ -364,7 +365,7 @@ test('runtime: getSystemsInGroup returns correct labels', () => {
 
 // 16. updateSystemPhase/updateSystemPriority work correctly
 test('runtime: updateSystemPhase and updateSystemPriority', () => {
-	const plugin = definePlugin<WorldConfigFrom<{ pos: { x: number } }>, 'mover'>({
+	const plugin = definePlugin<WorldConfigFrom<{ pos: { x: number } }>, EmptyConfig, 'mover'>({
 		id: 'test',
 		install(world) {
 			world.addSystem('mover')
@@ -385,7 +386,7 @@ test('runtime: updateSystemPhase and updateSystemPriority', () => {
 
 // Additional: withEventTypes preserves labels/groups
 test('type-level: withEventTypes preserves labels/groups', () => {
-	const plugin = definePlugin<WorldConfigFrom<{ a: number }>, 'sys1', 'grp1'>({
+	const plugin = definePlugin<WorldConfigFrom<{ a: number }>, EmptyConfig, 'sys1', 'grp1'>({
 		id: 'test',
 		install(world) {
 			world.addSystem('sys1')
@@ -412,7 +413,7 @@ test('type-level: withEventTypes preserves labels/groups', () => {
 
 // Additional: withResource preserves labels/groups
 test('type-level: withResource preserves labels/groups', () => {
-	const plugin = definePlugin<WorldConfigFrom<{ a: number }>, 'sys1', 'grp1'>({
+	const plugin = definePlugin<WorldConfigFrom<{ a: number }>, EmptyConfig, 'sys1', 'grp1'>({
 		id: 'test',
 		install(world) {
 			world.addSystem('sys1')
@@ -439,7 +440,7 @@ test('type-level: withResource preserves labels/groups', () => {
 
 // Additional: isSystemGroupEnabled and getSystemsInGroup have typed params
 test('type-level: isSystemGroupEnabled and getSystemsInGroup accept typed groups', () => {
-	const plugin = definePlugin<WorldConfigFrom<{ a: number }>, 'sys', 'myGroup'>({
+	const plugin = definePlugin<WorldConfigFrom<{ a: number }>, EmptyConfig, 'sys', 'myGroup'>({
 		id: 'test',
 		install(world) {
 			world.addSystem('sys')

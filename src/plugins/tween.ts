@@ -7,7 +7,7 @@
 
 import { definePlugin, type Plugin, type BasePluginOptions } from 'ecspresso';
 import type { ComponentsOfWorld, AnyECSpresso } from 'ecspresso';
-import type { WorldConfigFrom } from '../type-utils';
+import type { WorldConfigFrom, EmptyConfig } from '../type-utils';
 import { linear, type EasingFn } from '../utils/easing';
 
 // ==================== Event Types ====================
@@ -535,14 +535,14 @@ function processTweenProgress(
  */
 export function createTweenPlugin<G extends string = 'tweens'>(
 	options?: TweenPluginOptions<G>
-): Plugin<WorldConfigFrom<TweenComponentTypes>, 'tween-update', G> {
+): Plugin<WorldConfigFrom<TweenComponentTypes>, EmptyConfig, 'tween-update', G> {
 	const {
 		systemGroup = 'tweens',
 		priority = 0,
 		phase = 'update',
 	} = options ?? {};
 
-	return definePlugin<WorldConfigFrom<TweenComponentTypes>, 'tween-update', G>({
+	return definePlugin<WorldConfigFrom<TweenComponentTypes>, EmptyConfig, 'tween-update', G>({
 		id: 'tweens',
 		install(world) {
 			world
@@ -580,7 +580,7 @@ export function createTweenPlugin<G extends string = 'tweens'>(
 
 						tween.elapsed += dt;
 
-						processTweenProgress(tween, entityComponents, entity.id, ecs as unknown as TweenEcs);
+						processTweenProgress(tween, entityComponents, entity.id, ecs);
 					}
 				});
 		},

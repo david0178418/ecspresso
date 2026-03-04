@@ -10,7 +10,7 @@
  */
 
 import { definePlugin, type Plugin, type BasePluginOptions } from 'ecspresso';
-import type { WorldConfigFrom } from '../type-utils';
+import type { WorldConfigFrom, EmptyConfig } from '../type-utils';
 
 // ==================== Public Types ====================
 
@@ -362,7 +362,7 @@ function snapshotRaw(raw: RawInputState, prevActionsActive: ReadonlySet<string>,
  */
 export function createInputPlugin<A extends string = string, G extends string = 'input'>(
 	options?: InputPluginOptions<A, G>
-): Plugin<WorldConfigFrom<{}, {}, InputResourceTypes<A>>, 'input-state', G> {
+): Plugin<WorldConfigFrom<{}, {}, InputResourceTypes<A>>, EmptyConfig, 'input-state', G> {
 	const {
 		systemGroup = 'input',
 		priority = 100,
@@ -432,20 +432,20 @@ export function createInputPlugin<A extends string = string, G extends string = 
 	}
 
 	function onPointerDown(e: Event) {
-		const pe = e as unknown as PointerEvent;
+		const pe = e as PointerEvent;
 		raw.buttonsDown.add(pe.button);
 		raw.buttonsPressed.push(pe.button);
 	}
 
 	function onPointerMove(e: Event) {
-		const pe = e as unknown as PointerEvent;
+		const pe = e as PointerEvent;
 		raw.pointerX = pe.clientX;
 		raw.pointerY = pe.clientY;
 		raw.pointerMoved = true;
 	}
 
 	function onPointerUp(e: Event) {
-		const pe = e as unknown as PointerEvent;
+		const pe = e as PointerEvent;
 		raw.buttonsDown.delete(pe.button);
 		raw.buttonsReleased.push(pe.button);
 	}
@@ -455,7 +455,7 @@ export function createInputPlugin<A extends string = string, G extends string = 
 		cleanupFns.push(() => { target.removeEventListener(type, handler); });
 	}
 
-	return definePlugin<WorldConfigFrom<{}, {}, InputResourceTypes<A>>, 'input-state', G>({
+	return definePlugin<WorldConfigFrom<{}, {}, InputResourceTypes<A>>, EmptyConfig, 'input-state', G>({
 		id: 'input',
 		install(world) {
 			world.addResource('inputState', inputState);

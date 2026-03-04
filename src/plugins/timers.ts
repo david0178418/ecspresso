@@ -6,7 +6,7 @@
  */
 
 import { definePlugin, type Plugin, type BasePluginOptions } from 'ecspresso';
-import type { WorldConfigFrom } from '../type-utils';
+import type { WorldConfigFrom, EmptyConfig } from '../type-utils';
 
 // ==================== Event Types ====================
 
@@ -197,14 +197,14 @@ export function createRepeatingTimer(
  */
 export function createTimerPlugin<G extends string = 'timers'>(
 	options?: TimerPluginOptions<G>
-): Plugin<WorldConfigFrom<TimerComponentTypes>, 'timer-update', G> {
+): Plugin<WorldConfigFrom<TimerComponentTypes>, EmptyConfig, 'timer-update', G> {
 	const {
 		systemGroup = 'timers',
 		priority = 0,
 		phase = 'preUpdate',
 	} = options ?? {};
 
-	return definePlugin<WorldConfigFrom<TimerComponentTypes>, 'timer-update', G>({
+	return definePlugin<WorldConfigFrom<TimerComponentTypes>, EmptyConfig, 'timer-update', G>({
 		id: 'timers',
 		install(world) {
 			world

@@ -1,5 +1,6 @@
 import { describe, test, expect } from 'bun:test';
 import ECSpresso from '../ecspresso';
+import { definePlugin } from '../plugin';
 import {
 	defineSpriteAnimation,
 	defineSpriteAnimations,
@@ -26,10 +27,13 @@ interface TestComponents extends SpriteAnimationComponentTypes {
 	sprite: { texture: unknown };
 }
 
+const stubRenderer = definePlugin({ id: 'renderer2d', install() {} });
+
 function createTestEcs() {
 	return ECSpresso
 		.create()
 		.withComponentTypes<TestComponents>()
+		.withPlugin(stubRenderer)
 		.withPlugin(createSpriteAnimationPlugin())
 		.build();
 }
