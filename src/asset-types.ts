@@ -29,7 +29,7 @@ export interface AssetHandle<T> {
 	/**
 	 * Get the asset value if loaded, undefined otherwise.
 	 */
-	getOrUndefined(): T | undefined;
+	tryGet(): T | undefined;
 }
 
 /**
@@ -60,7 +60,7 @@ export interface AssetsResource<A extends Record<string, unknown>, G extends str
 	/**
 	 * Get a loaded asset or undefined if not loaded
 	 */
-	getOrUndefined<K extends keyof A>(key: K): A[K] | undefined;
+	tryGet<K extends keyof A>(key: K): A[K] | undefined;
 	/**
 	 * Get a handle to an asset with status information
 	 */

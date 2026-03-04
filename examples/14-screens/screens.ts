@@ -162,13 +162,13 @@ ecs.addSystem('screenUI')
 		pauseContainer.visible = ecs.isCurrentScreen('paused');
 		gameOverContainer.visible = ecs.isCurrentScreen('gameOver');
 
-		const playingState = ecs.getScreenStateOrNull('playing');
+		const playingState = ecs.tryGetScreenState('playing');
 		if (playingState) {
 			scoreText.text = `Score: ${playingState.score}`;
 			timerText.text = `${Math.ceil(playingState.timeLeft)}`;
 		}
 
-		const gameOverState = ecs.getScreenStateOrNull('gameOver');
+		const gameOverState = ecs.tryGetScreenState('gameOver');
 		if (gameOverState) {
 			finalScoreText.text = `Final Score: ${gameOverState.finalScore}`;
 		}

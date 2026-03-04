@@ -1467,8 +1467,8 @@ export default class ECSpresso<
 	/**
 	 * Get a loaded asset or undefined if not loaded
 	 */
-	getAssetOrUndefined<K extends keyof Cfg['assets']>(key: K): Cfg['assets'][K] | undefined {
-		return this._assetManager?.getOrUndefined(key);
+	tryGetAsset<K extends keyof Cfg['assets']>(key: K): Cfg['assets'][K] | undefined {
+		return this._assetManager?.tryGet(key);
 	}
 
 	/**
@@ -1571,16 +1571,16 @@ export default class ECSpresso<
 	}
 
 	/**
-	 * Get the current screen config narrowed to a specific screen, or null if not on that screen.
+	 * Get the current screen config narrowed to a specific screen, or undefined if not on that screen.
 	 */
-	getScreenConfigOrNull<K extends keyof Cfg['screens'] & string>(screen: K): (Cfg['screens'][K] extends ScreenDefinition<infer C, any> ? Readonly<C> : never) | null;
+	tryGetScreenConfig<K extends keyof Cfg['screens'] & string>(screen: K): (Cfg['screens'][K] extends ScreenDefinition<infer C, any> ? Readonly<C> : never) | undefined;
 	/**
-	 * Get the current screen config or null.
-	 * Returns a union of all possible config types, or null.
+	 * Get the current screen config or undefined.
+	 * Returns a union of all possible config types, or undefined.
 	 */
-	getScreenConfigOrNull(): { [K in keyof Cfg['screens']]: Cfg['screens'][K] extends ScreenDefinition<infer C, any> ? Readonly<C> : never }[keyof Cfg['screens']] | null;
-	getScreenConfigOrNull(screen?: keyof Cfg['screens'] & string) {
-		return this._screenManager?.getConfigOrNull(screen) ?? null;
+	tryGetScreenConfig(): { [K in keyof Cfg['screens']]: Cfg['screens'][K] extends ScreenDefinition<infer C, any> ? Readonly<C> : never }[keyof Cfg['screens']] | undefined;
+	tryGetScreenConfig(screen?: keyof Cfg['screens'] & string) {
+		return this._screenManager?.tryGetConfig(screen) ?? undefined;
 	}
 
 	/**
@@ -1598,16 +1598,16 @@ export default class ECSpresso<
 	}
 
 	/**
-	 * Get the current screen state narrowed to a specific screen, or null if not on that screen.
+	 * Get the current screen state narrowed to a specific screen, or undefined if not on that screen.
 	 */
-	getScreenStateOrNull<K extends keyof Cfg['screens'] & string>(screen: K): (Cfg['screens'][K] extends ScreenDefinition<any, infer S> ? S : never) | null;
+	tryGetScreenState<K extends keyof Cfg['screens'] & string>(screen: K): (Cfg['screens'][K] extends ScreenDefinition<any, infer S> ? S : never) | undefined;
 	/**
-	 * Get the current screen state or null.
-	 * Returns a union of all possible state types, or null.
+	 * Get the current screen state or undefined.
+	 * Returns a union of all possible state types, or undefined.
 	 */
-	getScreenStateOrNull(): { [K in keyof Cfg['screens']]: Cfg['screens'][K] extends ScreenDefinition<any, infer S> ? S : never }[keyof Cfg['screens']] | null;
-	getScreenStateOrNull(screen?: keyof Cfg['screens'] & string) {
-		return this._screenManager?.getStateOrNull(screen) ?? null;
+	tryGetScreenState(): { [K in keyof Cfg['screens']]: Cfg['screens'][K] extends ScreenDefinition<any, infer S> ? S : never }[keyof Cfg['screens']] | undefined;
+	tryGetScreenState(screen?: keyof Cfg['screens'] & string) {
+		return this._screenManager?.tryGetState(screen) ?? undefined;
 	}
 
 	/**

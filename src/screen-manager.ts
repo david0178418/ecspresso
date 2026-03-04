@@ -209,12 +209,12 @@ export default class ScreenManager<Screens extends Record<string, ScreenDefiniti
 	}
 
 	/**
-	 * Get the current screen config or null.
-	 * If `screen` is provided, returns null when the current screen doesn't match.
+	 * Get the current screen config or undefined.
+	 * If `screen` is provided, returns undefined when the current screen doesn't match.
 	 */
-	getConfigOrNull(screen?: keyof Screens): any {
-		if (!this.currentScreen) return null;
-		if (screen !== undefined && this.currentScreen.name !== screen) return null;
+	tryGetConfig(screen?: keyof Screens): any {
+		if (!this.currentScreen) return undefined;
+		if (screen !== undefined && this.currentScreen.name !== screen) return undefined;
 		return this.currentScreen.config;
 	}
 
@@ -233,12 +233,12 @@ export default class ScreenManager<Screens extends Record<string, ScreenDefiniti
 	}
 
 	/**
-	 * Get the current screen state or null.
-	 * If `screen` is provided, returns null when the current screen doesn't match.
+	 * Get the current screen state or undefined.
+	 * If `screen` is provided, returns undefined when the current screen doesn't match.
 	 */
-	getStateOrNull(screen?: keyof Screens): any {
-		if (!this.currentScreen) return null;
-		if (screen !== undefined && this.currentScreen.name !== screen) return null;
+	tryGetState(screen?: keyof Screens): any {
+		if (!this.currentScreen) return undefined;
+		if (screen !== undefined && this.currentScreen.name !== screen) return undefined;
 		return this.currentScreen.state;
 	}
 
@@ -305,10 +305,10 @@ export default class ScreenManager<Screens extends Record<string, ScreenDefiniti
 				return manager.getCurrentScreen();
 			},
 			get config(): any {
-				return manager.getConfigOrNull();
+				return manager.tryGetConfig();
 			},
 			get state(): any {
-				return manager.getStateOrNull();
+				return manager.tryGetState();
 			},
 			set state(value: any) {
 				if (manager.currentScreen) {

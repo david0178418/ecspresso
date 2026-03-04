@@ -47,7 +47,7 @@ describe('BaseColliderInfo generic layer type', () => {
 		const layers: Layer[] = [];
 		detectCollisions(
 			colliders,
-			null,
+			undefined,
 			(a, b, _contact, ctx) => {
 				// a.layer and b.layer should be Layer, not string
 				const _aLayer: Layer = a.layer;
@@ -292,7 +292,7 @@ describe('detectCollisions', () => {
 		const contacts: Array<{ a: number; b: number; contact: Contact }> = [];
 		detectCollisions(
 			colliders,
-			null,
+			undefined,
 			(a, b, contact, ctx) => { ctx.push({ a: a.entityId, b: b.entityId, contact }); },
 			contacts,
 		);
@@ -311,7 +311,7 @@ describe('detectCollisions', () => {
 		const contacts: Array<{ a: number; b: number }> = [];
 		detectCollisions(
 			colliders,
-			null,
+			undefined,
 			(a, b, _contact, ctx) => { ctx.push({ a: a.entityId, b: b.entityId }); },
 			contacts,
 		);
@@ -328,7 +328,7 @@ describe('detectCollisions', () => {
 		const contacts: Array<{ a: number; b: number }> = [];
 		detectCollisions(
 			colliders,
-			null,
+			undefined,
 			(a, b, _contact, ctx) => { ctx.push({ a: a.entityId, b: b.entityId }); },
 			contacts,
 		);
@@ -346,7 +346,7 @@ describe('detectCollisions', () => {
 		const contacts: Array<{ a: number; b: number }> = [];
 		detectCollisions(
 			colliders,
-			null,
+			undefined,
 			(a, b, _contact, ctx) => { ctx.push({ a: a.entityId, b: b.entityId }); },
 			contacts,
 		);
@@ -366,7 +366,7 @@ describe('detectCollisions', () => {
 		const context = { called: false };
 		detectCollisions(
 			colliders,
-			null,
+			undefined,
 			(_a, _b, _contact, ctx) => { ctx.called = true; },
 			context,
 		);
@@ -378,7 +378,7 @@ describe('detectCollisions', () => {
 		let called = false;
 		detectCollisions(
 			[],
-			null,
+			undefined,
 			() => { called = true; },
 			null,
 		);
@@ -389,7 +389,7 @@ describe('detectCollisions', () => {
 		let called = false;
 		detectCollisions(
 			[{ entityId: 1, x: 0, y: 0, layer: 'a', collidesWith: ['b'], aabb: { halfWidth: 10, halfHeight: 10 } }],
-			null,
+			undefined,
 			() => { called = true; },
 			null,
 		);

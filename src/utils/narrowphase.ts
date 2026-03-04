@@ -69,14 +69,14 @@ export function buildBaseColliderInfo<L extends string>(
 // ==================== Spatial Index Lookup ====================
 
 /**
- * Retrieve the optional spatialIndex resource, returning null when absent.
+ * Retrieve the optional spatialIndex resource, returning undefined when absent.
  * Centralizes the cross-plugin typed lookup so individual plugins don't each
  * need to import SpatialIndex or repeat the tryGetResource pattern.
  */
 export function tryGetSpatialIndex(
 	tryGetResource: <T>(key: string) => T | undefined,
-): SpatialIndex | null {
-	return tryGetResource<SpatialIndex>('spatialIndex') ?? null;
+): SpatialIndex | undefined {
+	return tryGetResource<SpatialIndex>('spatialIndex');
 }
 
 // ==================== Narrowphase Tests ====================
@@ -217,7 +217,7 @@ const _broadphaseCandidates = new Set<number>();
  */
 export function detectCollisions<I extends BaseColliderInfo, C>(
 	colliders: I[],
-	spatialIndex: SpatialIndex | null,
+	spatialIndex: SpatialIndex | undefined,
 	onContact: (a: I, b: I, contact: Contact, context: C) => void,
 	context: C,
 ): void {

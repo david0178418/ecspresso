@@ -155,7 +155,7 @@ export default class AssetManager<AssetTypes extends Record<string, unknown> = R
 	/**
 	 * Get a loaded asset or undefined
 	 */
-	getOrUndefined<K extends keyof AssetTypes>(key: K): AssetTypes[K] | undefined {
+	tryGet<K extends keyof AssetTypes>(key: K): AssetTypes[K] | undefined {
 		const entry = this.assets.get(key);
 
 		if (!entry || entry.status !== 'loaded') {
@@ -186,8 +186,8 @@ export default class AssetManager<AssetTypes extends Record<string, unknown> = R
 			get() {
 				return manager.get(key);
 			},
-			getOrUndefined() {
-				return manager.getOrUndefined(key);
+			tryGet() {
+				return manager.tryGet(key);
 			},
 		};
 	}
@@ -302,8 +302,8 @@ export default class AssetManager<AssetTypes extends Record<string, unknown> = R
 			get<K extends keyof AssetTypes>(key: K): AssetTypes[K] {
 				return manager.get(key);
 			},
-			getOrUndefined<K extends keyof AssetTypes>(key: K): AssetTypes[K] | undefined {
-				return manager.getOrUndefined(key);
+			tryGet<K extends keyof AssetTypes>(key: K): AssetTypes[K] | undefined {
+				return manager.tryGet(key);
 			},
 			getHandle<K extends keyof AssetTypes>(key: K): AssetHandle<AssetTypes[K]> {
 				return manager.getHandle(key);

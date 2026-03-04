@@ -166,12 +166,12 @@ describe('AssetManager', () => {
 			expect(() => manager.get('texture')).toThrow(/not loaded/);
 		});
 
-		test('should return undefined for getOrUndefined on unloaded asset', () => {
+		test('should return undefined for tryGet on unloaded asset', () => {
 			manager.register('texture', {
 				loader: async () => ({ width: 100, height: 100, data: new Uint8Array(4) }),
 			});
 
-			expect(manager.getOrUndefined('texture')).toBeUndefined();
+			expect(manager.tryGet('texture')).toBeUndefined();
 		});
 
 		test('should return asset handle with status', async () => {
@@ -182,7 +182,7 @@ describe('AssetManager', () => {
 			const handle = manager.getHandle('texture');
 			expect(handle.status).toBe('pending');
 			expect(handle.isLoaded).toBe(false);
-			expect(handle.getOrUndefined()).toBeUndefined();
+			expect(handle.tryGet()).toBeUndefined();
 
 			await manager.loadAsset('texture');
 

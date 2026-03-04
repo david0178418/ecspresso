@@ -175,18 +175,18 @@ describe('ScreenManager', () => {
 			expect(() => manager.getState('loading')).toThrow(/Expected current screen 'loading', but current is 'gameplay'/);
 		});
 
-		test('getStateOrNull with matching screen name returns state', async () => {
+		test('tryGetState with matching screen name returns state', async () => {
 			await manager.setScreen('gameplay', { level: 1 });
-			expect(manager.getStateOrNull('gameplay')).toEqual({ score: 0, lives: 3 });
+			expect(manager.tryGetState('gameplay')).toEqual({ score: 0, lives: 3 });
 		});
 
-		test('getStateOrNull with non-matching screen name returns null', async () => {
+		test('tryGetState with non-matching screen name returns null', async () => {
 			await manager.setScreen('gameplay', { level: 1 });
-			expect(manager.getStateOrNull('loading')).toBeNull();
+			expect(manager.tryGetState('loading')).toBeUndefined();
 		});
 
-		test('getStateOrNull with no current screen returns null', () => {
-			expect(manager.getStateOrNull('gameplay')).toBeNull();
+		test('tryGetState with no current screen returns null', () => {
+			expect(manager.tryGetState('gameplay')).toBeUndefined();
 		});
 
 		test('getConfig with matching screen name returns config', async () => {
@@ -199,9 +199,9 @@ describe('ScreenManager', () => {
 			expect(() => manager.getConfig('loading')).toThrow(/Expected current screen 'loading', but current is 'gameplay'/);
 		});
 
-		test('getConfigOrNull with non-matching screen name returns null', async () => {
+		test('tryGetConfig with non-matching screen name returns null', async () => {
 			await manager.setScreen('gameplay', { level: 1 });
-			expect(manager.getConfigOrNull('loading')).toBeNull();
+			expect(manager.tryGetConfig('loading')).toBeUndefined();
 		});
 
 		test('updateState with matching screen name succeeds', async () => {
@@ -215,12 +215,12 @@ describe('ScreenManager', () => {
 			expect(() => manager.updateState({ score: 50 }, 'loading')).toThrow(/Expected current screen 'loading', but current is 'gameplay'/);
 		});
 
-		test('getStateOrNull returns null for stacked (non-current) screen', async () => {
+		test('tryGetState returns null for stacked (non-current) screen', async () => {
 			await manager.setScreen('gameplay', { level: 1 });
 			await manager.pushScreen('pause', {});
 			// gameplay is in the stack but pause is current
-			expect(manager.getStateOrNull('gameplay')).toBeNull();
-			expect(manager.getStateOrNull('pause')).toEqual({ pauseTime: 0 });
+			expect(manager.tryGetState('gameplay')).toBeUndefined();
+			expect(manager.tryGetState('pause')).toEqual({ pauseTime: 0 });
 		});
 	});
 
@@ -380,8 +380,8 @@ describe('ScreenManager', () => {
 			const resource = manager.createResource();
 
 			expect(resource.current).toBeNull();
-			expect(resource.config).toBeNull();
-			expect(resource.state).toBeNull();
+			expect(resource.config).toBeUndefined();
+			expect(resource.state).toBeUndefined();
 			expect(resource.stackDepth).toBe(0);
 
 			await manager.setScreen('gameplay', { level: 5 });
