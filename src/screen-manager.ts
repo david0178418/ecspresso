@@ -51,6 +51,11 @@ export default class ScreenManager<Screens extends Record<string, ScreenDefiniti
 		this.ecs = ecs;
 	}
 
+	private requireEcs(): ECSpresso<any, any, any, any, any> {
+		if (!this.ecs) throw new Error('ScreenManager: dependencies not set. Call setDependencies() first.');
+		return this.ecs;
+	}
+
 	/**
 	 * Register a screen definition
 	 */
@@ -98,7 +103,7 @@ export default class ScreenManager<Screens extends Record<string, ScreenDefiniti
 			state,
 		};
 
-		await entry.definition.onEnter?.({ config, ecs: this.ecs! });
+		await entry.definition.onEnter?.({ config, ecs: this.requireEcs() });
 		this.eventBus?.publish('screenEnter', { screen: name as keyof Screens & string, config });
 	}
 
@@ -131,7 +136,7 @@ export default class ScreenManager<Screens extends Record<string, ScreenDefiniti
 			state,
 		};
 
-		await entry.definition.onEnter?.({ config, ecs: this.ecs! });
+		await entry.definition.onEnter?.({ config, ecs: this.requireEcs() });
 		this.eventBus?.publish('screenPush', { screen: name as keyof Screens & string, config });
 	}
 
@@ -159,7 +164,7 @@ export default class ScreenManager<Screens extends Record<string, ScreenDefiniti
 	private async exitScreen(name: keyof Screens): Promise<void> {
 		const entry = this.screens.get(name);
 		if (entry?.definition.onExit) {
-			await entry.definition.onExit(this.ecs!);
+			await entry.definition.onExit(this.requireEcs());
 		}
 		this.eventBus?.publish('screenExit', { screen: name as keyof Screens & string });
 	}

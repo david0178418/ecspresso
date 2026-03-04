@@ -53,8 +53,10 @@ class EventBus<EventTypes> {
 		callback: (data: EventTypes[E]) => void,
 		once: boolean
 	): () => void {
-		if (!this.handlers.has(eventType)) {
-			this.handlers.set(eventType, []);
+		let handlers = this.handlers.get(eventType);
+		if (!handlers) {
+			handlers = [];
+			this.handlers.set(eventType, handlers);
 		}
 
 		const handler: EventHandler<any> = {
@@ -62,7 +64,7 @@ class EventBus<EventTypes> {
 			once
 		};
 
-		this.handlers.get(eventType)!.push(handler);
+		handlers.push(handler);
 
 		// Return unsubscribe function
 		return () => {

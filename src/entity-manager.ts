@@ -285,11 +285,13 @@ class EntityManager<ComponentTypes> {
 		}
 
 		// Find the component with the smallest entity set to start with
+		const firstRequired = required[0];
+		if (firstRequired === undefined) return [];
 		const smallestComponent = required.reduce((smallest, comp) => {
 			const currentSize = this.componentIndices.get(comp)?.size ?? 0;
-			const smallestSize = this.componentIndices.get(smallest!)?.size ?? Infinity;
+			const smallestSize = this.componentIndices.get(smallest)?.size ?? Infinity;
 			return currentSize < smallestSize ? comp : smallest;
-		}, required[0])!;
+		}, firstRequired);
 
 		// Start with the entities from the smallest component set
 		const candidateSet = this.componentIndices.get(smallestComponent);
@@ -354,8 +356,10 @@ class EntityManager<ComponentTypes> {
 			const descendants = this.hierarchyManager.getDescendants(entity.id);
 			// Fire beforeEntityRemoved for descendants (reverse: children before parents)
 			for (let i = descendants.length - 1; i >= 0; i--) {
+				const descendantId = descendants[i];
+				if (descendantId === undefined) continue;
 				for (const hook of this._beforeEntityRemovedHooks) {
-					hook(descendants[i]!);
+					hook(descendantId);
 				}
 			}
 			// Fire beforeEntityRemoved for the entity itself
@@ -364,7 +368,9 @@ class EntityManager<ComponentTypes> {
 			}
 			// Now do actual removal (descendants in reverse order)
 			for (let i = descendants.length - 1; i >= 0; i--) {
-				this.removeEntityInternal(descendants[i]!);
+				const descendantId = descendants[i];
+				if (descendantId === undefined) continue;
+				this.removeEntityInternal(descendantId);
 			}
 		} else {
 			// Fire beforeEntityRemoved for just this entity
@@ -428,12 +434,15 @@ class EntityManager<ComponentTypes> {
 		componentName: ComponentName,
 		handler: (ctx: { value: ComponentTypes[ComponentName]; entity: Entity<ComponentTypes> }) => void
 	): () => void {
-		if (!this.addedCallbacks.has(componentName)) {
-			this.addedCallbacks.set(componentName, new Set());
+		const widened = handler as (ctx: { value: unknown; entity: Entity<ComponentTypes> }) => void;
+		let callbacks = this.addedCallbacks.get(componentName);
+		if (!callbacks) {
+			callbacks = new Set();
+			this.addedCallbacks.set(componentName, callbacks);
 		}
-		this.addedCallbacks.get(componentName)!.add(handler as (ctx: { value: unknown; entity: Entity<ComponentTypes> }) => void);
+		callbacks.add(widened);
 		return () => {
-			this.addedCallbacks.get(componentName)?.delete(handler as (ctx: { value: unknown; entity: Entity<ComponentTypes> }) => void);
+			this.addedCallbacks.get(componentName)?.delete(widened);
 		};
 	}
 
@@ -447,12 +456,15 @@ class EntityManager<ComponentTypes> {
 		componentName: ComponentName,
 		handler: (ctx: { value: ComponentTypes[ComponentName]; entity: Entity<ComponentTypes> }) => void
 	): () => void {
-		if (!this.removedCallbacks.has(componentName)) {
-			this.removedCallbacks.set(componentName, new Set());
+		const widened = handler as (ctx: { value: unknown; entity: Entity<ComponentTypes> }) => void;
+		let callbacks = this.removedCallbacks.get(componentName);
+		if (!callbacks) {
+			callbacks = new Set();
+			this.removedCallbacks.set(componentName, callbacks);
 		}
-		this.removedCallbacks.get(componentName)!.add(handler as (ctx: { value: unknown; entity: Entity<ComponentTypes> }) => void);
+		callbacks.add(widened);
 		return () => {
-			this.removedCallbacks.get(componentName)?.delete(handler as (ctx: { value: unknown; entity: Entity<ComponentTypes> }) => void);
+			this.removedCallbacks.get(componentName)?.delete(widened);
 		};
 	}
 

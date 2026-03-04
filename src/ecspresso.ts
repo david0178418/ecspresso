@@ -403,7 +403,8 @@ export default class ECSpresso<
 					const seenEntities = enterTracking.get(queryName);
 					if (!results || !seenEntities) continue;
 
-					const callback = system.onEntityEnter[queryName]!;
+					const callback = system.onEntityEnter[queryName];
+					if (!callback) continue;
 
 					// Build set of current entity IDs for pruning
 					const frameSet = this._entityEnterFrameSet;
@@ -951,7 +952,9 @@ export default class ECSpresso<
 		if (results.length > 1) {
 			throw new Error(`getSingleton: expected 1 entity but found ${results.length} matching query with=[${String(withComponents)}] without=[${String(withoutComponents)}]`);
 		}
-		return results[0]!;
+		const result = results[0];
+		if (!result) throw new Error('getSingleton: unexpected empty result');
+		return result;
 	}
 
 	/**
@@ -974,7 +977,7 @@ export default class ECSpresso<
 		if (results.length > 1) {
 			throw new Error(`tryGetSingleton: expected 0 or 1 entity but found ${results.length} matching query with=[${String(withComponents)}] without=[${String(withoutComponents)}]`);
 		}
-		return results[0]!;
+		return results[0];
 	}
 
 	/**

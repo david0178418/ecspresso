@@ -107,7 +107,8 @@ export function gridQueryRect(
 			const bucket = grid.cells.get(hashCell(cx, cy));
 			if (!bucket) continue;
 			for (let i = 0; i < bucket.length; i++) {
-				result.add(bucket[i]!);
+				const entry = bucket[i];
+				if (entry !== undefined) result.add(entry);
 			}
 		}
 	}

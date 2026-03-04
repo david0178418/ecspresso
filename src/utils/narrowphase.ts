@@ -234,10 +234,12 @@ function bruteForceDetect<I extends BaseColliderInfo, C>(
 	context: C,
 ): void {
 	for (let i = 0; i < colliders.length; i++) {
-		const a = colliders[i]!;
+		const a = colliders[i];
+		if (!a) continue;
 
 		for (let j = i + 1; j < colliders.length; j++) {
-			const b = colliders[j]!;
+			const b = colliders[j];
+			if (!b) continue;
 
 			if (!a.collidesWith.includes(b.layer) && !b.collidesWith.includes(a.layer)) continue;
 
@@ -257,12 +259,14 @@ function broadphaseDetect<I extends BaseColliderInfo, C>(
 ): void {
 	const colliderMap = new Map<number, I>();
 	for (let i = 0; i < colliders.length; i++) {
-		const c = colliders[i]!;
+		const c = colliders[i];
+		if (!c) continue;
 		colliderMap.set(c.entityId, c);
 	}
 
 	for (let i = 0; i < colliders.length; i++) {
-		const a = colliders[i]!;
+		const a = colliders[i];
+		if (!a) continue;
 
 		const aHalfW = a.aabb ? a.aabb.halfWidth : (a.circle ? a.circle.radius : 0);
 		const aHalfH = a.aabb ? a.aabb.halfHeight : (a.circle ? a.circle.radius : 0);

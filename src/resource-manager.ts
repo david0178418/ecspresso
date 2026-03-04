@@ -279,7 +279,8 @@ class ResourceManager<
 			return;
 		}
 
-		const factory = this.resourceFactories.get(label)!;
+		const factory = this.resourceFactories.get(label);
+		if (!factory) return;
 		const context = args[0] as Context;
 		const initializedResource = await factory(context);
 		this.resources.set(label, initializedResource);

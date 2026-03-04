@@ -16,7 +16,8 @@ export function checkRequiredCycle<K>(
 	const stack: K[] = [newRequired];
 
 	while (stack.length > 0) {
-		const current = stack.pop()!;
+		const current = stack.pop();
+		if (current === undefined) break;
 		if (current === trigger) {
 			throw new Error(
 				`Circular required component dependency: '${String(trigger)}' -> '${String(newRequired)}' -> ... -> '${String(trigger)}'`

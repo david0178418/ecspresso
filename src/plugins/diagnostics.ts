@@ -64,8 +64,8 @@ function createRingBuffer(capacity: number) {
 		/** Compute FPS from stored timestamps */
 		computeFps(): number {
 			if (count < 2) return 0;
-			const newest = buffer[(writeIndex - 1 + capacity) % capacity]!;
-			const oldest = buffer[(writeIndex - count + capacity) % capacity]!;
+			const newest = buffer[(writeIndex - 1 + capacity) % capacity] ?? 0;
+			const oldest = buffer[(writeIndex - count + capacity) % capacity] ?? 0;
 			const elapsed = newest - oldest;
 			if (elapsed <= 0) return 0;
 			return ((count - 1) / elapsed) * 1000;
@@ -74,8 +74,8 @@ function createRingBuffer(capacity: number) {
 		/** Compute average frame time in ms */
 		computeAverageFrameTime(): number {
 			if (count < 2) return 0;
-			const newest = buffer[(writeIndex - 1 + capacity) % capacity]!;
-			const oldest = buffer[(writeIndex - count + capacity) % capacity]!;
+			const newest = buffer[(writeIndex - 1 + capacity) % capacity] ?? 0;
+			const oldest = buffer[(writeIndex - count + capacity) % capacity] ?? 0;
 			const elapsed = newest - oldest;
 			if (elapsed <= 0) return 0;
 			return elapsed / (count - 1);
