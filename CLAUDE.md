@@ -73,6 +73,7 @@ Prefer the builder chain (`.withPlugin()`, `.withComponentTypes<T>()`, `.withEve
 
 ## Design Principles
 
+- Enable a developer to express game logic and structure with as little boilerplate and framework drag as possible.
 - Provide great developer experience enabled by maximum type awareness with minimum manual type annotations from the developer.
 - Keep as strongly typed as possible. Never use "!". Avoid casting in general, and with "any" in particular. Only resort to casting or "any" when absolutely necessary. Watch for redundant casts that TypeScript can already infer from generic constraints.
 - Avoid excessive object creation and allocation in hot paths. Pre-allocate and reuse objects where possible. Prefer synchronous function calls over promises.
