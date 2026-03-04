@@ -300,10 +300,7 @@ export default class HierarchyManager {
 			queue.push({ entityId: id, parentId: null, depth: 0 });
 		}
 
-		while (queue.length > 0) {
-			const current = queue.shift();
-			if (!current) break;
-
+		for (const current of queue) {
 			callback(current.entityId, current.parentId, current.depth);
 
 			const children = this.childrenMap.get(current.entityId);
@@ -334,10 +331,7 @@ export default class HierarchyManager {
 			queue.push({ entityId: id, parentId: null, depth: 0 });
 		}
 
-		while (queue.length > 0) {
-			const current = queue.shift();
-			if (!current) break;
-
+		for (const current of queue) {
 			yield current;
 
 			const children = this.childrenMap.get(current.entityId);
