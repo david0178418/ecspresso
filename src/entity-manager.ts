@@ -9,11 +9,11 @@ class EntityManager<ComponentTypes> {
 	/**
 	 * Callbacks registered for component additions
 	 */
-	private addedCallbacks: Map<keyof ComponentTypes, Set<(ctx: { value: any; entity: Entity<ComponentTypes> }) => void>> = new Map();
+	private addedCallbacks: Map<keyof ComponentTypes, Set<(ctx: { value: unknown; entity: Entity<ComponentTypes> }) => void>> = new Map();
 	/**
 	 * Callbacks registered for component removals
 	 */
-	private removedCallbacks: Map<keyof ComponentTypes, Set<(ctx: { value: any; entity: Entity<ComponentTypes> }) => void>> = new Map();
+	private removedCallbacks: Map<keyof ComponentTypes, Set<(ctx: { value: unknown; entity: Entity<ComponentTypes> }) => void>> = new Map();
 	/**
 	 * Hierarchy manager for parent-child relationships
 	 */
@@ -22,7 +22,7 @@ class EntityManager<ComponentTypes> {
 	 * Per-type component dispose callbacks.
 	 * Called when a component is removed (explicit removal, entity destruction, or replacement).
 	 */
-	private disposeCallbacks: Map<keyof ComponentTypes, (ctx: { value: any; entityId: number }) => void> = new Map();
+	private disposeCallbacks: Map<keyof ComponentTypes, (ctx: { value: unknown; entityId: number }) => void> = new Map();
 	/**
 	 * Per-entity per-component change sequence tracking.
 	 * Maps entityId -> (componentName -> sequence number when last changed)
@@ -70,14 +70,14 @@ class EntityManager<ComponentTypes> {
 		componentName: ComponentName,
 		callback: (ctx: { value: ComponentTypes[ComponentName]; entityId: number }) => void
 	): void {
-		this.disposeCallbacks.set(componentName, callback);
+		this.disposeCallbacks.set(componentName, callback as (ctx: { value: unknown; entityId: number }) => void);
 	}
 
 	/**
 	 * Get all registered dispose callbacks.
 	 * @internal Used by ECSpresso for plugin installation
 	 */
-	getDisposeCallbacks(): Map<keyof ComponentTypes, (ctx: { value: any; entityId: number }) => void> {
+	getDisposeCallbacks(): Map<keyof ComponentTypes, (ctx: { value: unknown; entityId: number }) => void> {
 		return this.disposeCallbacks;
 	}
 
@@ -257,9 +257,13 @@ class EntityManager<ComponentTypes> {
 		const hasParentHasFilter = parentHas !== undefined && parentHas.length > 0;
 
 		// Use the smallest component set as base for better performance
+		// Runtime query filtering guarantees WithComponents/WithoutComponents constraints,
+		// but TypeScript can't narrow Entity<CT> to FilteredEntity from imperative logic.
+		type Result = Array<FilteredEntity<ComponentTypes, WithComponents extends never ? never : WithComponents, WithoutComponents extends never ? never : WithoutComponents>>;
+
 		if (required.length === 0) {
 			if (excluded.length === 0 && !hasChangedFilter && !hasParentHasFilter) {
-				return Array.from(this.entities.values()) as any;
+				return Array.from(this.entities.values()) as unknown as Result;
 			}
 
 			return Array
@@ -277,7 +281,7 @@ class EntityManager<ComponentTypes> {
 						return false;
 					}
 					return true;
-				}) as any;
+				}) as unknown as Result;
 		}
 
 		// Find the component with the smallest entity set to start with
@@ -290,11 +294,11 @@ class EntityManager<ComponentTypes> {
 		// Start with the entities from the smallest component set
 		const candidateSet = this.componentIndices.get(smallestComponent);
 		if (!candidateSet || candidateSet.size === 0) {
-			return [] as any;
+			return [];
 		}
 
 		// Return full entity objects, not just IDs
-		const result: Array<FilteredEntity<ComponentTypes, WithComponents extends never ? never : WithComponents, WithoutComponents extends never ? never : WithoutComponents>> = [];
+		const result: Result = [];
 		const hasExclusions = excluded.length > 0;
 
 		for (const id of candidateSet) {
@@ -313,7 +317,7 @@ class EntityManager<ComponentTypes> {
 				if (hasParentHasFilter && !this.parentHasComponents(id, parentHas)) {
 					continue;
 				}
-				result.push(entity as any);
+				result.push(entity as unknown as Result[number]);
 			}
 		}
 
@@ -427,9 +431,9 @@ class EntityManager<ComponentTypes> {
 		if (!this.addedCallbacks.has(componentName)) {
 			this.addedCallbacks.set(componentName, new Set());
 		}
-		this.addedCallbacks.get(componentName)!.add(handler as any);
+		this.addedCallbacks.get(componentName)!.add(handler as (ctx: { value: unknown; entity: Entity<ComponentTypes> }) => void);
 		return () => {
-			this.addedCallbacks.get(componentName)?.delete(handler as any);
+			this.addedCallbacks.get(componentName)?.delete(handler as (ctx: { value: unknown; entity: Entity<ComponentTypes> }) => void);
 		};
 	}
 
@@ -446,9 +450,9 @@ class EntityManager<ComponentTypes> {
 		if (!this.removedCallbacks.has(componentName)) {
 			this.removedCallbacks.set(componentName, new Set());
 		}
-		this.removedCallbacks.get(componentName)!.add(handler as any);
+		this.removedCallbacks.get(componentName)!.add(handler as (ctx: { value: unknown; entity: Entity<ComponentTypes> }) => void);
 		return () => {
-			this.removedCallbacks.get(componentName)?.delete(handler as any);
+			this.removedCallbacks.get(componentName)?.delete(handler as (ctx: { value: unknown; entity: Entity<ComponentTypes> }) => void);
 		};
 	}
 

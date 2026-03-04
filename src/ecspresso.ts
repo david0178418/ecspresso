@@ -96,7 +96,7 @@ export default class ECSpresso<
 	/** Maximum fixed update steps per frame (spiral-of-death protection) */
 	private _maxFixedSteps: number = 8;
 	/** Registry of required component relationships: trigger -> [{component, factory}] */
-	private _requiredComponents: Map<keyof Cfg['components'], Array<{ component: keyof Cfg['components']; factory: (triggerValue: any) => any }>> = new Map();
+	private _requiredComponents: Map<keyof Cfg['components'], Array<{ component: keyof Cfg['components']; factory: (triggerValue: unknown) => unknown }>> = new Map();
 	/** Pending plugin assets awaiting manager creation at build time */
 	private _pendingPluginAssets: Array<[string, AssetDefinition<unknown>]> = [];
 	/** Pending plugin screens awaiting manager creation at build time */
@@ -114,7 +114,7 @@ export default class ECSpresso<
 	/** Shared reusable set for per-tick entity enter comparison (avoids allocation) */
 	private _entityEnterFrameSet: Set<number> = new Set();
 	/** Pre-allocated process context per system (avoids per-frame allocation) */
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any -- cascades from System<Cfg, any, any>; can't remove without existential types
 	private _systemContexts: WeakMap<object, { queries: Record<string, any>; dt: number; ecs: ECSpresso<Cfg> }> = new WeakMap();
 	/** Pending system builder finalizers to run before next update/initialize */
 	private _pendingFinalizers: Array<() => void> = [];
@@ -153,7 +153,7 @@ export default class ECSpresso<
 					for (const { component, factory } of reqs) {
 						if (this._entityManager._pendingBatchKeys?.has(component)) continue;
 						if (!(component in entity.components)) {
-							this._entityManager.addComponent(entityId, component, factory(triggerValue));
+							this._entityManager.addComponent(entityId, component, factory(triggerValue) as Cfg['components'][keyof Cfg['components']]);
 						}
 					}
 				}
@@ -1329,7 +1329,7 @@ export default class ECSpresso<
 
 		this._checkRequiredCycle(trigger, required);
 
-		existing.push({ component: required, factory });
+		existing.push({ component: required, factory: factory as (triggerValue: unknown) => unknown });
 		this._requiredComponents.set(trigger, existing);
 	}
 

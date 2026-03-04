@@ -11,6 +11,8 @@ import type {
 	ScreenEvents,
 	ScreenConfigurator,
 	ScreenStackEntry,
+	ScreenConfig,
+	ScreenState,
 } from './screen-types';
 
 interface ScreenEntry<Config extends Record<string, unknown>, State extends Record<string, unknown>> {
@@ -198,48 +200,48 @@ export default class ScreenManager<Screens extends Record<string, ScreenDefiniti
 	 * Get the current screen config (immutable).
 	 * If `screen` is provided, asserts that the current screen matches.
 	 */
-	getConfig(screen?: keyof Screens): any {
+	getConfig(screen?: keyof Screens): Readonly<ScreenConfig<Screens[keyof Screens]>> {
 		if (!this.currentScreen) {
 			throw new Error('No current screen');
 		}
 		if (screen !== undefined && this.currentScreen.name !== screen) {
 			throw new Error(`Expected current screen '${String(screen)}', but current is '${String(this.currentScreen.name)}'`);
 		}
-		return this.currentScreen.config;
+		return this.currentScreen.config as Readonly<ScreenConfig<Screens[keyof Screens]>>;
 	}
 
 	/**
 	 * Get the current screen config or undefined.
 	 * If `screen` is provided, returns undefined when the current screen doesn't match.
 	 */
-	tryGetConfig(screen?: keyof Screens): any {
+	tryGetConfig(screen?: keyof Screens): Readonly<ScreenConfig<Screens[keyof Screens]>> | undefined {
 		if (!this.currentScreen) return undefined;
 		if (screen !== undefined && this.currentScreen.name !== screen) return undefined;
-		return this.currentScreen.config;
+		return this.currentScreen.config as Readonly<ScreenConfig<Screens[keyof Screens]>>;
 	}
 
 	/**
 	 * Get the current screen state (mutable).
 	 * If `screen` is provided, asserts that the current screen matches.
 	 */
-	getState(screen?: keyof Screens): any {
+	getState(screen?: keyof Screens): ScreenState<Screens[keyof Screens]> {
 		if (!this.currentScreen) {
 			throw new Error('No current screen');
 		}
 		if (screen !== undefined && this.currentScreen.name !== screen) {
 			throw new Error(`Expected current screen '${String(screen)}', but current is '${String(this.currentScreen.name)}'`);
 		}
-		return this.currentScreen.state;
+		return this.currentScreen.state as ScreenState<Screens[keyof Screens]>;
 	}
 
 	/**
 	 * Get the current screen state or undefined.
 	 * If `screen` is provided, returns undefined when the current screen doesn't match.
 	 */
-	tryGetState(screen?: keyof Screens): any {
+	tryGetState(screen?: keyof Screens): ScreenState<Screens[keyof Screens]> | undefined {
 		if (!this.currentScreen) return undefined;
 		if (screen !== undefined && this.currentScreen.name !== screen) return undefined;
-		return this.currentScreen.state;
+		return this.currentScreen.state as ScreenState<Screens[keyof Screens]>;
 	}
 
 	/**
@@ -255,7 +257,7 @@ export default class ScreenManager<Screens extends Record<string, ScreenDefiniti
 		}
 
 		const partial = typeof update === 'function'
-			? (update as (current: any) => any)(this.currentScreen.state)
+			? (update as (current: Record<string, unknown>) => Record<string, unknown>)(this.currentScreen.state)
 			: update;
 
 		this.currentScreen.state = {
@@ -304,15 +306,15 @@ export default class ScreenManager<Screens extends Record<string, ScreenDefiniti
 			get current(): keyof Screens | null {
 				return manager.getCurrentScreen();
 			},
-			get config(): any {
-				return manager.tryGetConfig();
+			get config(): Readonly<ScreenConfig<Screens[keyof Screens]>> | null {
+				return manager.tryGetConfig() ?? null;
 			},
-			get state(): any {
-				return manager.tryGetState();
+			get state(): ScreenState<Screens[keyof Screens]> | null {
+				return manager.tryGetState() ?? null;
 			},
-			set state(value: any) {
-				if (manager.currentScreen) {
-					manager.currentScreen.state = value;
+			set state(value: ScreenState<Screens[keyof Screens]> | null) {
+				if (manager.currentScreen && value !== null) {
+					manager.currentScreen.state = value as Record<string, unknown>;
 				}
 			},
 			get stack(): ReadonlyArray<ScreenStackEntry<Screens>> {

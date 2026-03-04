@@ -380,8 +380,8 @@ describe('ScreenManager', () => {
 			const resource = manager.createResource();
 
 			expect(resource.current).toBeNull();
-			expect(resource.config).toBeUndefined();
-			expect(resource.state).toBeUndefined();
+			expect(resource.config).toBeNull();
+			expect(resource.state).toBeNull();
 			expect(resource.stackDepth).toBe(0);
 
 			await manager.setScreen('gameplay', { level: 5 });
