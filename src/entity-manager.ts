@@ -1,6 +1,49 @@
 import type { Entity, FilteredEntity, RemoveEntityOptions, HierarchyEntry, HierarchyIteratorOptions } from "./types";
 import HierarchyManager from "./hierarchy-manager";
 
+type ComponentCallback<ComponentTypes> = (ctx: { value: unknown; entity: Entity<ComponentTypes> }) => void;
+
+/**
+ * Manages zero-allocation callback iteration with safe mid-iteration unsubscribe.
+ * During iteration, unsubscribes are deferred. Snapshot length guarantees all
+ * callbacks registered at call time execute. Compaction runs when iteration ends.
+ */
+class CallbackList<ComponentTypes> {
+	private readonly callbacks: ComponentCallback<ComponentTypes>[] = [];
+	private _iterDepth = 0;
+	private _pendingRemovals: ComponentCallback<ComponentTypes>[] = [];
+
+	add(cb: ComponentCallback<ComponentTypes>): void {
+		this.callbacks.push(cb);
+	}
+
+	remove(cb: ComponentCallback<ComponentTypes>): void {
+		if (this._iterDepth > 0) {
+			this._pendingRemovals.push(cb);
+			return;
+		}
+		const idx = this.callbacks.indexOf(cb);
+		if (idx !== -1) this.callbacks.splice(idx, 1);
+	}
+
+	invoke(ctx: { value: unknown; entity: Entity<ComponentTypes> }): void {
+		this._iterDepth++;
+		const len = this.callbacks.length;
+		for (let i = 0; i < len; i++) {
+			const cb = this.callbacks[i];
+			if (cb) cb(ctx);
+		}
+		this._iterDepth--;
+		if (this._iterDepth === 0 && this._pendingRemovals.length > 0) {
+			for (const cb of this._pendingRemovals) {
+				const idx = this.callbacks.indexOf(cb);
+				if (idx !== -1) this.callbacks.splice(idx, 1);
+			}
+			this._pendingRemovals.length = 0;
+		}
+	}
+}
+
 export default
 class EntityManager<ComponentTypes> {
 	private nextId: number = 1;
@@ -9,11 +52,11 @@ class EntityManager<ComponentTypes> {
 	/**
 	 * Callbacks registered for component additions
 	 */
-	private addedCallbacks: Map<keyof ComponentTypes, Set<(ctx: { value: unknown; entity: Entity<ComponentTypes> }) => void>> = new Map();
+	private addedCallbacks: Map<keyof ComponentTypes, CallbackList<ComponentTypes>> = new Map();
 	/**
 	 * Callbacks registered for component removals
 	 */
-	private removedCallbacks: Map<keyof ComponentTypes, Set<(ctx: { value: unknown; entity: Entity<ComponentTypes> }) => void>> = new Map();
+	private removedCallbacks: Map<keyof ComponentTypes, CallbackList<ComponentTypes>> = new Map();
 	/**
 	 * Hierarchy manager for parent-child relationships
 	 */
@@ -124,12 +167,10 @@ class EntityManager<ComponentTypes> {
 			this.componentIndices.set(componentName, new Set());
 		}
 		this.componentIndices.get(componentName)?.add(entity.id);
-		// Trigger added callbacks (iterate over copy to allow mid-iteration unsubscribe)
+		// Trigger added callbacks (index-based iteration; unsubscribe nulls slots, compacted after)
 		const callbacks = this.addedCallbacks.get(componentName);
 		if (callbacks) {
-			for (const cb of [...callbacks]) {
-				cb({ value: data, entity });
-			}
+			callbacks.invoke({ value: data, entity });
 		}
 
 		// Fire afterComponentAdded hooks (may trigger recursive addComponent)
@@ -214,12 +255,10 @@ class EntityManager<ComponentTypes> {
 
 		delete entity.components[componentName];
 
-		// Trigger removed callbacks (iterate over copy to allow mid-iteration unsubscribe)
+		// Trigger removed callbacks (index-based iteration; unsubscribe nulls slots, compacted after)
 		const removeCbs = this.removedCallbacks.get(componentName);
 		if (removeCbs && oldValue !== undefined) {
-			for (const cb of [...removeCbs]) {
-				cb({ value: oldValue, entity });
-			}
+			removeCbs.invoke({ value: oldValue, entity });
 		}
 
 		// Update component index
@@ -400,12 +439,10 @@ class EntityManager<ComponentTypes> {
 				// Invoke dispose before removal callbacks
 				this.invokeDispose(componentName, oldValue as ComponentTypes[keyof ComponentTypes], entity.id);
 
-				// Trigger removed callbacks (iterate over copy to allow mid-iteration unsubscribe)
+				// Trigger removed callbacks (index-based iteration; unsubscribe nulls slots, compacted after)
 				const removeCbs = this.removedCallbacks.get(componentName);
 				if (removeCbs) {
-					for (const cb of [...removeCbs]) {
-						cb({ value: oldValue, entity });
-					}
+					removeCbs.invoke({ value: oldValue, entity });
 				}
 			}
 
@@ -434,15 +471,15 @@ class EntityManager<ComponentTypes> {
 		componentName: ComponentName,
 		handler: (ctx: { value: ComponentTypes[ComponentName]; entity: Entity<ComponentTypes> }) => void
 	): () => void {
-		const widened = handler as (ctx: { value: unknown; entity: Entity<ComponentTypes> }) => void;
-		let callbacks = this.addedCallbacks.get(componentName);
-		if (!callbacks) {
-			callbacks = new Set();
-			this.addedCallbacks.set(componentName, callbacks);
+		const widened = handler as ComponentCallback<ComponentTypes>;
+		let list = this.addedCallbacks.get(componentName);
+		if (!list) {
+			list = new CallbackList();
+			this.addedCallbacks.set(componentName, list);
 		}
-		callbacks.add(widened);
+		list.add(widened);
 		return () => {
-			this.addedCallbacks.get(componentName)?.delete(widened);
+			this.addedCallbacks.get(componentName)?.remove(widened);
 		};
 	}
 
@@ -456,15 +493,15 @@ class EntityManager<ComponentTypes> {
 		componentName: ComponentName,
 		handler: (ctx: { value: ComponentTypes[ComponentName]; entity: Entity<ComponentTypes> }) => void
 	): () => void {
-		const widened = handler as (ctx: { value: unknown; entity: Entity<ComponentTypes> }) => void;
-		let callbacks = this.removedCallbacks.get(componentName);
-		if (!callbacks) {
-			callbacks = new Set();
-			this.removedCallbacks.set(componentName, callbacks);
+		const widened = handler as ComponentCallback<ComponentTypes>;
+		let list = this.removedCallbacks.get(componentName);
+		if (!list) {
+			list = new CallbackList();
+			this.removedCallbacks.set(componentName, list);
 		}
-		callbacks.add(widened);
+		list.add(widened);
 		return () => {
-			this.removedCallbacks.get(componentName)?.delete(widened);
+			this.removedCallbacks.get(componentName)?.remove(widened);
 		};
 	}
 

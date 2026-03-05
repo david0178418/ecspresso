@@ -175,14 +175,14 @@ export default class CommandBuffer<
 		}
 
 		// Clear the queue
-		this.commands = [];
+		this.commands.length = 0;
 	}
 
 	/**
 	 * Clear all queued commands without executing them
 	 */
 	clear(): void {
-		this.commands = [];
+		this.commands.length = 0;
 	}
 
 	/**
