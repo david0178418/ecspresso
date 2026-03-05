@@ -95,7 +95,8 @@
 		"@types/three": "^0.183.1",
 		"howler": "^2.2.4",
 		"pixi.js": "^8.16.0",
-		"three": "^0.183.2"
+		"three": "^0.183.2",
+		"typedoc": "^0.28.17"
 	},
 	"peerDependencies": {
 		"typescript": "^5.9.3",
@@ -121,6 +122,8 @@
 		"check:types": "bun tsc --noEmit --skipLibCheck",
 		"check": "bun run check:types && bun test",
 		"examples": "bun ./examples/serve-examples.ts",
+		"docs": "typedoc",
+		"docs:serve": "typedoc && bunx serve docs/api",
 		"prepublishOnly": "bun run check && bun run build"
 	},
 	"type": "module"

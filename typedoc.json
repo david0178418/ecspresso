@@ -1,0 +1,27 @@
+{
+	"$schema": "https://typedoc.org/schema.json",
+	"entryPoints": [
+		"src/index.ts",
+		"src/plugins/audio.ts",
+		"src/plugins/bounds.ts",
+		"src/plugins/camera.ts",
+		"src/plugins/collision.ts",
+		"src/plugins/coroutine.ts",
+		"src/plugins/diagnostics.ts",
+		"src/plugins/input.ts",
+		"src/plugins/particles.ts",
+		"src/plugins/physics2D.ts",
+		"src/plugins/spatial-index.ts",
+		"src/plugins/sprite-animation.ts",
+		"src/plugins/state-machine.ts",
+		"src/plugins/timers.ts",
+		"src/plugins/transform.ts",
+		"src/plugins/tween.ts",
+		"src/plugins/renderers/renderer2D.ts"
+	],
+	"out": "docs/api",
+	"tsconfig": "tsconfig.json",
+	"excludePrivate": true,
+	"excludeInternal": true,
+	"excludeNotDocumented": false
+}
