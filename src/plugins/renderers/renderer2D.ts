@@ -486,9 +486,12 @@ export function createRenderer2DPlugin<G extends string = 'renderer2d'>(
 	// Scene graph stays flat (rootContainer or render layer) because the render
 	// sync positions objects using absolute worldTransform.  Nesting under a
 	// parent's display object would double-apply the parent's transform.
+	type PluginResourceTypes = Renderer2DResourceTypes & ViewportScaleResourceTypes;
+	type PluginECS = ECSpresso<WorldConfigFrom<Renderer2DComponentTypes, Renderer2DEventTypes, PluginResourceTypes>>;
+
 	function resolveTargetContainer(
 		entityId: number,
-		ecs: ECSpresso<WorldConfigFrom<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes>>
+		ecs: PluginECS
 	): Container {
 		const rootCont = ecs.getResource('rootContainer');
 
@@ -504,7 +507,7 @@ export function createRenderer2DPlugin<G extends string = 'renderer2d'>(
 	function addToSceneGraph(
 		entityId: number,
 		pixiObject: Container,
-		ecs: ECSpresso<WorldConfigFrom<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes>>
+		ecs: PluginECS
 	): void {
 		const targetContainer = resolveTargetContainer(entityId, ecs);
 
@@ -517,7 +520,7 @@ export function createRenderer2DPlugin<G extends string = 'renderer2d'>(
 	// Helper to update parent in scene graph
 	function updateSceneGraphParent(
 		entityId: number,
-		ecs: ECSpresso<WorldConfigFrom<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes>>
+		ecs: PluginECS
 	): void {
 		const pixiObject = entityToPixiObject.get(entityId);
 		if (!pixiObject) return;
@@ -533,7 +536,7 @@ export function createRenderer2DPlugin<G extends string = 'renderer2d'>(
 	// Determine mode and set up resource registration closures
 	const isManaged = 'init' in options && options.init !== undefined;
 
-	return definePlugin<WorldConfigFrom<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes>, EmptyConfig, Renderer2DLabels, G, never, Renderer2DReactiveQueryNames>({
+	return definePlugin<WorldConfigFrom<Renderer2DComponentTypes, Renderer2DEventTypes, PluginResourceTypes>, EmptyConfig, Renderer2DLabels, G, never, Renderer2DReactiveQueryNames>({
 		id: 'renderer2d',
 		install(world) {
 			// Install transform plugin (deduplicates if already installed)
@@ -577,13 +580,13 @@ export function createRenderer2DPlugin<G extends string = 'renderer2d'>(
 				});
 
 				if (hasScreenScale) {
-					world.addResource('viewportScale' as keyof Renderer2DResourceTypes, {
+					world.addResource('viewportScale', {
 						dependsOn: ['pixiApp'],
-						factory: (ecs: ECSpresso<WorldConfigFrom<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes>>) => {
+						factory: (ecs) => {
 							const pixiApp = ecs.getResource('pixiApp');
 							return computeViewportScale(pixiApp.screen.width, pixiApp.screen.height, designWidth, designHeight, screenScaleMode);
 						},
-					} as any);
+					});
 				}
 			} else {
 				const app = (options as Renderer2DPluginAppOptions<G>).app;
@@ -594,8 +597,8 @@ export function createRenderer2DPlugin<G extends string = 'renderer2d'>(
 					: createBounds(app.screen.width, app.screen.height));
 
 				if (hasScreenScale) {
-					world.addResource('viewportScale' as keyof Renderer2DResourceTypes,
-						computeViewportScale(app.screen.width, app.screen.height, designWidth, designHeight, screenScaleMode) as any);
+					world.addResource('viewportScale',
+						computeViewportScale(app.screen.width, app.screen.height, designWidth, designHeight, screenScaleMode));
 				}
 			}
 
@@ -707,7 +710,7 @@ export function createRenderer2DPlugin<G extends string = 'renderer2d'>(
 						viewportContainer = new ContainerClass();
 						viewportContainer.label = 'viewportContainer';
 
-						const vs = ecs.tryGetResource<ViewportScale>('viewportScale');
+						const vs = ecs.tryGetResource('viewportScale');
 						if (!vs) throw new Error('renderer2D: viewportScale resource not found');
 						viewportContainer.position.set(vs.offsetX, vs.offsetY);
 						viewportContainer.scale.set(vs.scaleX, vs.scaleY);
@@ -786,7 +789,7 @@ export function createRenderer2DPlugin<G extends string = 'renderer2d'>(
 					pixiApp.renderer.on('resize', (width: number, height: number) => {
 						if (hasScreenScale) {
 							const vs = computeViewportScale(width, height, designWidth, designHeight, screenScaleMode);
-							const vpResource = ecs.tryGetResource<ViewportScale>('viewportScale');
+							const vpResource = ecs.tryGetResource('viewportScale');
 							if (!vpResource) throw new Error('renderer2D: viewportScale resource not found');
 							vpResource.scaleX = vs.scaleX;
 							vpResource.scaleY = vs.scaleY;
