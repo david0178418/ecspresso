@@ -5,6 +5,8 @@ node_modules
 out
 dist
 docs/api
+docs/examples
+docs/index.html
 *.tgz
 
 # code coverage

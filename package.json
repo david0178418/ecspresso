@@ -126,8 +126,8 @@
 		"check:types": "bun tsc --noEmit --skipLibCheck",
 		"check": "bun run check:types && bun test",
 		"examples": "bun ./examples/serve-examples.ts",
-		"docs": "typedoc",
-		"docs:serve": "typedoc && bunx serve docs/api",
+		"docs": "typedoc && bun scripts/build-examples.ts && bun scripts/build-docs-index.ts",
+		"docs:serve": "bun run docs && bunx serve docs",
 		"prepublishOnly": "bun run check && bun run build"
 	},
 	"type": "module"

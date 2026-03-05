@@ -1,0 +1,173 @@
+import { Glob } from 'bun';
+import { join, dirname } from 'path';
+import { mkdir, rm } from 'fs/promises';
+
+const EXAMPLES_DIR = join(import.meta.dir, '..', 'examples');
+const OUT_DIR = join(import.meta.dir, '..', 'docs', 'examples');
+
+// Map of route name -> { htmlPath, entryDir }
+// Derived from serve-examples.ts route structure
+const examples = [
+	{ route: 'movement', dir: '01-movement', html: 'movement.html', entry: 'movement.ts' },
+	{ route: 'player-input', dir: '02-player-input', html: 'player-input.html', entry: 'player-input.ts' },
+	{ route: 'events', dir: '03-events', html: 'events.html', entry: 'events.ts' },
+	{ route: 'plugins', dir: '04-plugins', html: 'plugins.html', entry: 'plugins.ts' },
+	{ route: 'space-invaders', dir: '05-space-invaders', html: 'space-invaders.html', entry: 'index.ts' },
+	{ route: 'turret-shooter', dir: '06-turret-shooter', html: 'turret-shooter.html', entry: 'index.ts' },
+	{ route: 'hierarchy', dir: '09-hierarchy', html: 'hierarchy.html', entry: 'hierarchy.ts' },
+	{ route: 'camera', dir: '11-camera', html: 'camera.html', entry: 'camera.ts' },
+	{ route: 'state-machine', dir: '12-state-machine', html: 'state-machine.html', entry: 'state-machine.ts' },
+	{ route: 'tweens', dir: '13-tweens', html: 'tweens.html', entry: 'tweens.ts' },
+	{ route: 'screens', dir: '14-screens', html: 'screens.html', entry: 'screens.ts' },
+	{ route: 'diagnostics', dir: '15-diagnostics', html: 'diagnostics.html', entry: 'diagnostics.ts' },
+	{ route: 'audio', dir: '16-audio', html: 'audio.html', entry: 'audio.ts' },
+	{ route: 'coroutines', dir: '17-coroutines', html: 'coroutines.html', entry: 'coroutines.ts' },
+	{ route: 'sprite-animation', dir: '18-sprite-animation', html: 'sprite-animation.html', entry: 'sprite-animation.ts' },
+	{ route: 'particles', dir: '19-particles', html: 'particles.html', entry: 'particles.ts' },
+] as const;
+
+// Clean output
+await rm(OUT_DIR, { recursive: true, force: true });
+await mkdir(OUT_DIR, { recursive: true });
+
+// Copy shared styles
+await Bun.write(
+	join(OUT_DIR, 'styles.css'),
+	Bun.file(join(EXAMPLES_DIR, 'styles.css')),
+);
+
+// Build each example
+const results = await Promise.all(
+	examples.map(async (example) => {
+		const exampleSrcDir = join(EXAMPLES_DIR, example.dir);
+		const exampleOutDir = join(OUT_DIR, example.route);
+		await mkdir(exampleOutDir, { recursive: true });
+
+		// Bundle TS entry point
+		const entryPath = join(exampleSrcDir, example.entry);
+		const bundleName = example.entry.replace(/\.ts$/, '.js');
+
+		const result = await Bun.build({
+			entrypoints: [entryPath],
+			outdir: exampleOutDir,
+			target: 'browser',
+			sourcemap: 'none',
+			minify: true,
+			naming: bundleName,
+		});
+
+		if (!result.success) {
+			console.error(`Failed to build ${example.route}:`);
+			result.logs.forEach((log) => console.error(log));
+			return { route: example.route, success: false, size: 0 };
+		}
+
+		// Read HTML source, rewrite .ts references to .js, and fix paths for flat file serving
+		const htmlSrc = await Bun.file(join(exampleSrcDir, example.html)).text();
+		const rewrittenHtml = htmlSrc
+			// Rewrite script src from .ts to .js
+			.replace(
+				/src="\.\/([^"]+)\.ts"/g,
+				(_match, name) => `src="./${name}.js"`,
+			)
+			// Rewrite stylesheet href from ../styles.css to ../styles.css (same relative path works)
+			.replace(
+				'href="../styles.css"',
+				'href="../styles.css"',
+			)
+			// Rewrite back link to point to examples index
+			.replace(
+				'href="/"',
+				'href="../"',
+			);
+
+		await Bun.write(join(exampleOutDir, 'index.html'), rewrittenHtml);
+
+		// Copy static assets (non-ts, non-html files) preserving directory structure
+		const staticFiles = Array.from(
+			new Glob('**/*.{wav,mp3,ogg,png,jpg,jpeg,webp,json,svg}').scanSync(exampleSrcDir),
+		);
+
+		for (const file of staticFiles) {
+			const destPath = join(exampleOutDir, file);
+			await mkdir(dirname(destPath), { recursive: true });
+			await Bun.write(destPath, Bun.file(join(exampleSrcDir, file)));
+		}
+
+		const totalSize = result.outputs.reduce((sum, o) => sum + o.size, 0);
+		return { route: example.route, success: true, size: totalSize };
+	}),
+);
+
+// Generate examples index page
+const exampleLinks = examples
+	.map((e) => `\t\t<li><a href="./${e.route}/">${e.route.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}</a></li>`)
+	.join('\n');
+
+await Bun.write(
+	join(OUT_DIR, 'index.html'),
+	`<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>ECSpresso Examples</title>
+	<link rel="stylesheet" href="./styles.css">
+	<style>
+		body {
+			overflow: auto;
+			background: #1e1e2e;
+			color: #cdd6f4;
+			font-family: 'Segoe UI', system-ui, sans-serif;
+			padding: 40px;
+		}
+		h1 { color: #cba6f7; margin-bottom: 8px; }
+		.subtitle { color: #6c7086; margin-bottom: 24px; }
+		.subtitle a { color: #89b4fa; }
+		ul { list-style: none; padding: 0; max-width: 600px; }
+		li { margin: 0; }
+		li a {
+			display: block;
+			padding: 12px 16px;
+			color: #89b4fa;
+			text-decoration: none;
+			border-radius: 6px;
+			transition: background 0.15s;
+		}
+		li a:hover { background: #313244; }
+	</style>
+</head>
+<body>
+	<h1>ECSpresso Examples</h1>
+	<p class="subtitle">Interactive demos &mdash; <a href="../api/">API Documentation</a></p>
+	<ul>
+${exampleLinks}
+	</ul>
+</body>
+</html>
+`,
+);
+
+// Print summary
+function formatSize(bytes: number): string {
+	return bytes >= 1024 * 1024
+		? `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+		: bytes >= 1024
+			? `${(bytes / 1024).toFixed(1)} KB`
+			: `${bytes} B`;
+}
+
+const maxRoute = Math.max(...results.map((r) => r.route.length));
+const succeeded = results.filter((r) => r.success);
+const failed = results.filter((r) => !r.success);
+
+console.log(`\nBuilt ${succeeded.length}/${results.length} examples → docs/examples/\n`);
+succeeded.forEach((r) => {
+	console.log(`  ${r.route.padEnd(maxRoute + 2)} ${formatSize(r.size).padStart(10)}`);
+});
+
+if (failed.length > 0) {
+	console.error(`\nFailed (${failed.length}):`);
+	failed.forEach((r) => console.error(`  ${r.route}`));
+	process.exit(1);
+}

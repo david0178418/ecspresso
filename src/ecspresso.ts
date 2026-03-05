@@ -480,7 +480,6 @@ export default class ECSpresso<
 	 * This is useful for game startup to ensure all resources are ready
 	 * and systems are properly initialized before the game loop begins.
 	 *
-	 * @param resourceKeys Optional array of specific resource keys to initialize
 	 * @returns Promise that resolves when everything is initialized
 	 */
 	async initialize(): Promise<void> {

@@ -23,5 +23,10 @@
 	"tsconfig": "tsconfig.json",
 	"excludePrivate": true,
 	"excludeInternal": true,
-	"excludeNotDocumented": false
+	"excludeNotDocumented": false,
+	"validation": {
+		"notExported": false,
+		"invalidLink": true,
+		"notDocumented": false
+	}
 }
