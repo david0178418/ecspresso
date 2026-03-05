@@ -3,8 +3,6 @@
  */
 
 import type EventBus from './event-bus';
-import type AssetManager from './asset-manager';
-import type ECSpresso from './ecspresso';
 import type {
 	ScreenDefinition,
 	ScreenResource,
@@ -15,8 +13,19 @@ import type {
 	ScreenState,
 } from './screen-types';
 
-interface ScreenEntry<Config extends Record<string, unknown>, State extends Record<string, unknown>> {
-	definition: ScreenDefinition<Config, State>;
+/** Structural interface covering only the AssetManager methods ScreenManager uses. */
+interface ScreenManagerAssetDeps {
+	isLoaded(key: string): boolean;
+	loadAsset(key: string): Promise<unknown>;
+	isGroupLoaded(group: string): boolean;
+	loadAssetGroup(group: string): Promise<void>;
+}
+
+/** Store definitions with W erased to `unknown` so callbacks accept unknown ecs. */
+type ErasedDefinition = ScreenDefinition<any, any, unknown>;
+
+interface ScreenEntry {
+	definition: ErasedDefinition;
 }
 
 interface ActiveScreen<Screens extends Record<string, ScreenDefinition<any, any>>> {
@@ -29,13 +38,13 @@ interface ActiveScreen<Screens extends Record<string, ScreenDefinition<any, any>
  * Manages screen/state transitions for ECSpresso
  */
 export default class ScreenManager<Screens extends Record<string, ScreenDefinition<any, any>> = Record<string, never>> {
-	private readonly screens: Map<keyof Screens, ScreenEntry<any, any>> = new Map();
+	private readonly screens: Map<keyof Screens, ScreenEntry> = new Map();
 	private currentScreen: ActiveScreen<Screens> | null = null;
 	private screenStack: Array<ActiveScreen<Screens>> = [];
 
 	private eventBus: EventBus<ScreenEvents<keyof Screens & string>> | null = null;
-	private assetManager: AssetManager<any> | null = null;
-	private ecs: ECSpresso<any, any, any, any, any> | null = null;
+	private assetManager: ScreenManagerAssetDeps | null = null;
+	private ecs: unknown = null;
 
 	/**
 	 * Set dependencies for screen transitions
@@ -43,15 +52,15 @@ export default class ScreenManager<Screens extends Record<string, ScreenDefiniti
 	 */
 	setDependencies(
 		eventBus: EventBus<ScreenEvents<keyof Screens & string>>,
-		assetManager: AssetManager<any> | null,
-		ecs: ECSpresso<any, any, any, any, any>
+		assetManager: ScreenManagerAssetDeps | null,
+		ecs: unknown
 	): void {
 		this.eventBus = eventBus;
 		this.assetManager = assetManager;
 		this.ecs = ecs;
 	}
 
-	private requireEcs(): ECSpresso<any, any, any, any, any> {
+	private requireEcs(): unknown {
 		if (!this.ecs) throw new Error('ScreenManager: dependencies not set. Call setDependencies() first.');
 		return this.ecs;
 	}
@@ -63,7 +72,7 @@ export default class ScreenManager<Screens extends Record<string, ScreenDefiniti
 		name: K,
 		definition: ScreenDefinition<Config, State>
 	): void {
-		this.screens.set(name, { definition });
+		this.screens.set(name, { definition: definition as ErasedDefinition });
 	}
 
 	/**
@@ -80,7 +89,7 @@ export default class ScreenManager<Screens extends Record<string, ScreenDefiniti
 		}
 
 		// Verify required assets
-		await this.verifyRequiredAssets(entry.definition);
+		await this.verifyRequiredAssets(entry.definition.requiredAssets, entry.definition.requiredAssetGroups);
 
 		// Exit all screens in stack (bottom to top order)
 		while (this.screenStack.length > 0) {
@@ -121,7 +130,7 @@ export default class ScreenManager<Screens extends Record<string, ScreenDefiniti
 		}
 
 		// Verify required assets
-		await this.verifyRequiredAssets(entry.definition);
+		await this.verifyRequiredAssets(entry.definition.requiredAssets, entry.definition.requiredAssetGroups);
 
 		// Push current screen to stack
 		if (this.currentScreen) {
@@ -172,21 +181,22 @@ export default class ScreenManager<Screens extends Record<string, ScreenDefiniti
 	/**
 	 * Verify required assets are loaded before screen transition
 	 */
-	private async verifyRequiredAssets(definition: ScreenDefinition<any, any>): Promise<void> {
+	private async verifyRequiredAssets(
+		assets?: ReadonlyArray<string>,
+		groups?: ReadonlyArray<string>,
+	): Promise<void> {
 		if (!this.assetManager) return;
 
-		// Check individual required assets
-		if (definition.requiredAssets) {
-			for (const assetKey of definition.requiredAssets) {
+		if (assets) {
+			for (const assetKey of assets) {
 				if (!this.assetManager.isLoaded(assetKey)) {
 					await this.assetManager.loadAsset(assetKey);
 				}
 			}
 		}
 
-		// Check required asset groups
-		if (definition.requiredAssetGroups) {
-			for (const groupName of definition.requiredAssetGroups) {
+		if (groups) {
+			for (const groupName of groups) {
 				if (!this.assetManager.isGroupLoaded(groupName)) {
 					await this.assetManager.loadAssetGroup(groupName);
 				}

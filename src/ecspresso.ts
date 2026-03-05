@@ -501,7 +501,7 @@ export default class ECSpresso<
 			this._screenManager.setDependencies(
 				this._eventBus as unknown as EventBus<ScreenEvents<keyof Cfg['screens'] & string>>,
 				this._assetManager,
-				this as unknown as ECSpresso<any>
+				this
 			);
 			this._resourceManager.add('$screen' as keyof Cfg['resources'], this._screenManager.createResource() as unknown as Cfg['resources'][keyof Cfg['resources']]);
 		}
