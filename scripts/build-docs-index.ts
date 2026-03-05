@@ -1,6 +1,9 @@
 import { join } from 'path';
 
-const docsDir = join(import.meta.dir, '..', 'docs');
+const rootDir = join(import.meta.dir, '..');
+const docsDir = join(rootDir, 'docs');
+const pkg = await Bun.file(join(rootDir, 'package.json')).json();
+const version = `v${pkg.version}`;
 
 await Bun.write(
 	join(docsDir, 'index.html'),
@@ -24,7 +27,8 @@ await Bun.write(
 			margin-bottom: 48px;
 		}
 		h1 { font-size: 48px; color: #cba6f7; margin-bottom: 4px; }
-		.pronunciation { color: #6c7086; font-style: italic; margin-bottom: 8px; font-size: 14px; }
+		.pronunciation { color: #6c7086; font-style: italic; margin-bottom: 4px; font-size: 14px; }
+		.version { color: #6c7086; font-size: 13px; margin-bottom: 8px; font-family: 'JetBrains Mono', 'Fira Code', monospace; }
 		.tagline { color: #a6adc8; margin-bottom: 32px; font-size: 16px; }
 		.links { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
 		.links a {
@@ -104,6 +108,7 @@ await Bun.write(
 	<div class="hero">
 		<h1>ECSpresso</h1>
 		<p class="pronunciation">(pronounced "ex-presso")</p>
+		<p class="version">${version}</p>
 		<p class="tagline">A type-safe, modular ECS framework for TypeScript</p>
 		<div class="links">
 			<a href="./api/">API Reference<span>TypeDoc generated</span></a>
@@ -167,3 +172,16 @@ await Bun.write(
 );
 
 console.log('Built docs/index.html');
+
+// Inject version into TypeDoc API landing page
+const apiIndexPath = join(docsDir, 'api', 'index.html');
+const apiIndex = await Bun.file(apiIndexPath).text();
+await Bun.write(
+	apiIndexPath,
+	apiIndex.replace(
+		'<div class="tsd-page-title"><h1>ecspresso</h1></div>',
+		`<div class="tsd-page-title"><h1>ecspresso <small style="font-size:0.5em;color:#888;font-weight:normal;">${version}</small></h1></div>`,
+	),
+);
+
+console.log('Injected version into docs/api/index.html');
