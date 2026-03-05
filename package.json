@@ -70,6 +70,10 @@
 		"./plugins/particles": {
 			"import": "./dist/plugins/particles.js",
 			"types": "./dist/plugins/particles.d.ts"
+		},
+		"./plugins/coroutine": {
+			"import": "./dist/plugins/coroutine.js",
+			"types": "./dist/plugins/coroutine.d.ts"
 		}
 	},
 	"publishConfig": {
