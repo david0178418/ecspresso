@@ -7,6 +7,7 @@ const pluginEntryPoints = Array.from(
 const result = await Bun.build({
 	entrypoints: ['src/index.ts', ...pluginEntryPoints],
 	outdir: 'dist',
+	root: 'src',
 	target: 'browser',
 	sourcemap: 'linked',
 	minify: true,
