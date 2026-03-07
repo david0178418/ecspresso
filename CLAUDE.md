@@ -12,7 +12,7 @@ src/
 ├── system-builder.ts  # Fluent builder for systems
 ├── plugin.ts          # Grouping systems/resources for modularity
 ├── event-bus.ts       # Pub/sub event system
-├── resource-manager.ts # Global state, factory detection, lazy init
+├── resource-manager.ts # Global state, factory detection, lazy init, change subscriptions
 ├── command-buffer.ts  # Deferred structural changes (spawn, remove, etc.)
 ├── asset-manager.ts   # Asset loading, groups, progress tracking
 ├── asset-types.ts     # Asset type definitions

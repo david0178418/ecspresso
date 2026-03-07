@@ -11,15 +11,18 @@ const entity = world.spawn({
   health: { value: 100 }
 });
 
+// Look up an entity by ID
+const found = world.getEntity(entity.id); // Entity | undefined
+
 // Add components later
-world.entityManager.addComponent(entity.id, 'velocity', { x: 5, y: 0 });
+world.addComponent(entity.id, 'velocity', { x: 5, y: 0 });
 
 // Get component data (returns undefined if not found)
-const position = world.entityManager.getComponent(entity.id, 'position');
+const position = world.getComponent(entity.id, 'position');
 
 // Remove components or entities
-world.entityManager.removeComponent(entity.id, 'velocity');
-world.entityManager.removeEntity(entity.id);
+world.removeComponent(entity.id, 'velocity');
+world.removeEntity(entity.id);
 ```
 
 ### Component Callbacks
@@ -101,6 +104,35 @@ world.addSystem('scoring')
     const score = ecs.getResource('score');
     score.value += 10;
   });
+```
+
+### Reading & Writing Resources
+
+```typescript
+// Get a resource (throws if not found)
+const score = world.getResource('score');
+
+// Get a resource (returns undefined if not found)
+const score = world.tryGetResource('score');
+
+// Set a resource to a plain value
+world.setResource('score', { value: 42 });
+
+// Update a resource using a function (when new value depends on old)
+world.updateResource('score', (prev) => ({ value: prev.value + 1 }));
+```
+
+### Change Subscriptions
+
+Subscribe to resource changes for reactive integrations (e.g., React's `useSyncExternalStore`). Returns an unsubscribe function. Notifications only fire when the value actually changes (`Object.is` comparison).
+
+```typescript
+const unsubscribe = world.onResourceChange('score', (newValue, oldValue) => {
+  console.log(`Score changed from ${oldValue.value} to ${newValue.value}`);
+});
+
+// Stop listening
+unsubscribe();
 ```
 
 Resources also chain naturally with plugins in the builder:

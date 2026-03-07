@@ -809,10 +809,43 @@ export default class ECSpresso<
 		key: K,
 		updater: (current: Cfg['resources'][K]) => Cfg['resources'][K]
 	): this {
-		const currentResource = this.getResource(key);
-		const updatedResource = updater(currentResource);
-		this._resourceManager.add(key, updatedResource);
+		const oldValue = this.getResource(key);
+		const newValue = updater(oldValue);
+		this._resourceManager.add(key, newValue);
+		this._resourceManager.notifyChange(key, newValue, oldValue);
 		return this;
+	}
+
+	/**
+		* Set a resource to a plain value.
+		* Unlike updateResource, does not require an updater function.
+		* @param key The resource key to set
+		* @param value The new resource value
+		* @returns This ECSpresso instance for chaining
+	*/
+	setResource<K extends keyof Cfg['resources']>(
+		key: K,
+		value: Cfg['resources'][K]
+	): this {
+		const oldValue = this.tryGetResource(key);
+		this._resourceManager.add(key, value);
+		if (oldValue !== undefined) {
+			this._resourceManager.notifyChange(key, value, oldValue);
+		}
+		return this;
+	}
+
+	/**
+		* Subscribe to changes for a specific resource key.
+		* @param key The resource key to watch
+		* @param callback Function called with (newValue, oldValue) when the resource changes
+		* @returns Unsubscribe function
+	*/
+	onResourceChange<K extends keyof Cfg['resources']>(
+		key: K,
+		callback: (newValue: Cfg['resources'][K], oldValue: Cfg['resources'][K]) => void
+	): () => void {
+		return this._resourceManager.onResourceChange(key, callback);
 	}
 
 	/**
@@ -830,6 +863,15 @@ export default class ECSpresso<
 	*/
 	resourceNeedsInitialization<K extends keyof Cfg['resources']>(key: K): boolean {
 		return this._resourceManager.needsInitialization(key);
+	}
+
+	/**
+		* Get an entity by ID.
+		* @param entityId The entity ID
+		* @returns The entity, or undefined if it doesn't exist
+	*/
+	getEntity(entityId: number): Entity<Cfg['components']> | undefined {
+		return this._entityManager.getEntity(entityId);
 	}
 
 	/**

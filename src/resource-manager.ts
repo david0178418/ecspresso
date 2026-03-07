@@ -109,6 +109,7 @@ class ResourceManager<
 	private resourceDependencies: Map<keyof ResourceTypes, readonly (keyof ResourceTypes & string)[]> = new Map();
 	private resourceDisposers: Map<keyof ResourceTypes, (resource: any, context: Context) => void | Promise<void>> = new Map();
 	private initializedResourceKeys: Set<keyof ResourceTypes> = new Set();
+	private _changeSubscribers: Map<keyof ResourceTypes, Set<(newValue: any, oldValue: any) => void>> = new Map();
 
 	/**
 	 * Add a resource to the manager.
@@ -360,8 +361,56 @@ class ResourceManager<
 		this.resourceDependencies.delete(label);
 		this.resourceDisposers.delete(label);
 		this.initializedResourceKeys.delete(label);
+		this._changeSubscribers.delete(label);
 
 		return true;
+	}
+
+	/**
+	 * Subscribe to changes for a specific resource key.
+	 * @param key The resource key to watch
+	 * @param callback Function called with (newValue, oldValue) when the resource changes
+	 * @returns Unsubscribe function
+	 */
+	onResourceChange<K extends keyof ResourceTypes>(
+		key: K,
+		callback: (newValue: ResourceTypes[K], oldValue: ResourceTypes[K]) => void
+	): () => void {
+		const existing = this._changeSubscribers.get(key);
+		const subscribers = existing ?? new Set<(newValue: any, oldValue: any) => void>();
+		if (!existing) {
+			this._changeSubscribers.set(key, subscribers);
+		}
+		const wrapped = callback as (newValue: any, oldValue: any) => void;
+		subscribers.add(wrapped);
+
+		return () => {
+			subscribers.delete(wrapped);
+			if (subscribers.size === 0) {
+				this._changeSubscribers.delete(key);
+			}
+		};
+	}
+
+	/**
+	 * Notify subscribers of a resource value change.
+	 * Skips notification if the value is unchanged (via Object.is).
+	 * @param key The resource key that changed
+	 * @param newValue The new resource value
+	 * @param oldValue The previous resource value
+	 */
+	notifyChange<K extends keyof ResourceTypes>(
+		key: K,
+		newValue: ResourceTypes[K],
+		oldValue: ResourceTypes[K]
+	): void {
+		if (Object.is(newValue, oldValue)) return;
+		const subscribers = this._changeSubscribers.get(key);
+		if (!subscribers || subscribers.size === 0) return;
+		const snapshot = [...subscribers];
+		for (const cb of snapshot) {
+			cb(newValue, oldValue);
+		}
 	}
 
 	/**

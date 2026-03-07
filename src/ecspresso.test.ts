@@ -2182,4 +2182,195 @@ describe('ECSpresso', () => {
 			expect(disposed).toBe(true);
 		});
 	});
+
+	describe('getEntity', () => {
+		test('returns entity with correct id and components', () => {
+			const world = ECSpresso
+				.create<WorldConfigFrom<{ position: { x: number; y: number } }>>()
+				.build();
+
+			const spawned = world.spawn({ position: { x: 1, y: 2 } });
+			const entity = world.getEntity(spawned.id);
+
+			expect(entity).toBeDefined();
+			expect(entity?.id).toBe(spawned.id);
+			expect(entity?.components.position).toEqual({ x: 1, y: 2 });
+		});
+
+		test('returns undefined for nonexistent entity', () => {
+			const world = ECSpresso.create().build();
+			expect(world.getEntity(999)).toBeUndefined();
+		});
+
+		test('returns undefined after entity is removed', () => {
+			const world = ECSpresso
+				.create<WorldConfigFrom<{ position: { x: number; y: number } }>>()
+				.build();
+
+			const entity = world.spawn({ position: { x: 0, y: 0 } });
+			world.removeEntity(entity.id);
+			expect(world.getEntity(entity.id)).toBeUndefined();
+		});
+
+		test('reflects component additions', () => {
+			const world = ECSpresso
+				.create<WorldConfigFrom<{ position: { x: number; y: number }; velocity: { dx: number; dy: number } }>>()
+				.build();
+
+			const spawned = world.spawn({ position: { x: 0, y: 0 } });
+			world.addComponent(spawned.id, 'velocity', { dx: 1, dy: 1 });
+
+			const entity = world.getEntity(spawned.id);
+			expect(entity?.components.velocity).toEqual({ dx: 1, dy: 1 });
+		});
+	});
+
+	describe('setResource', () => {
+		test('sets a plain value', () => {
+			const world = ECSpresso
+				.create<WorldConfigFrom<{}, {}, { score: number }>>()
+				.withResource('score', 0)
+				.build();
+
+			world.setResource('score', 42);
+			expect(world.getResource('score')).toBe(42);
+		});
+
+		test('returns this for chaining', () => {
+			const world = ECSpresso
+				.create<WorldConfigFrom<{}, {}, { score: number }>>()
+				.withResource('score', 0)
+				.build();
+
+			const result = world.setResource('score', 10);
+			expect(result).toBe(world);
+		});
+
+		test('overwrites previous value', () => {
+			const world = ECSpresso
+				.create<WorldConfigFrom<{}, {}, { score: number }>>()
+				.withResource('score', 0)
+				.build();
+
+			world.setResource('score', 10);
+			world.setResource('score', 20);
+			expect(world.getResource('score')).toBe(20);
+		});
+
+		test('works with object values', () => {
+			const world = ECSpresso
+				.create<WorldConfigFrom<{}, {}, { config: { debug: boolean; volume: number } }>>()
+				.withResource('config', { debug: false, volume: 0.5 })
+				.build();
+
+			world.setResource('config', { debug: true, volume: 1.0 });
+			expect(world.getResource('config')).toEqual({ debug: true, volume: 1.0 });
+		});
+	});
+
+	describe('onResourceChange', () => {
+		test('fires callback when updateResource changes value', () => {
+			const world = ECSpresso
+				.create<WorldConfigFrom<{}, {}, { score: number }>>()
+				.withResource('score', 0)
+				.build();
+
+			const calls: Array<{ newValue: number; oldValue: number }> = [];
+			world.onResourceChange('score', (newValue, oldValue) => {
+				calls.push({ newValue, oldValue });
+			});
+
+			world.updateResource('score', (n) => n + 10);
+			expect(calls).toEqual([{ newValue: 10, oldValue: 0 }]);
+		});
+
+		test('fires callback when setResource changes value', () => {
+			const world = ECSpresso
+				.create<WorldConfigFrom<{}, {}, { score: number }>>()
+				.withResource('score', 0)
+				.build();
+
+			const calls: Array<{ newValue: number; oldValue: number }> = [];
+			world.onResourceChange('score', (newValue, oldValue) => {
+				calls.push({ newValue, oldValue });
+			});
+
+			world.setResource('score', 42);
+			expect(calls).toEqual([{ newValue: 42, oldValue: 0 }]);
+		});
+
+		test('does not fire when value is unchanged (Object.is)', () => {
+			const world = ECSpresso
+				.create<WorldConfigFrom<{}, {}, { score: number }>>()
+				.withResource('score', 5)
+				.build();
+
+			let callCount = 0;
+			world.onResourceChange('score', () => { callCount++; });
+
+			world.setResource('score', 5);
+			world.updateResource('score', () => 5);
+			expect(callCount).toBe(0);
+		});
+
+		test('returns working unsubscribe function', () => {
+			const world = ECSpresso
+				.create<WorldConfigFrom<{}, {}, { score: number }>>()
+				.withResource('score', 0)
+				.build();
+
+			let callCount = 0;
+			const unsubscribe = world.onResourceChange('score', () => { callCount++; });
+
+			world.setResource('score', 1);
+			expect(callCount).toBe(1);
+
+			unsubscribe();
+			world.setResource('score', 2);
+			expect(callCount).toBe(1);
+		});
+
+		test('supports multiple subscribers for same key', () => {
+			const world = ECSpresso
+				.create<WorldConfigFrom<{}, {}, { score: number }>>()
+				.withResource('score', 0)
+				.build();
+
+			let callCountA = 0;
+			let callCountB = 0;
+			world.onResourceChange('score', () => { callCountA++; });
+			world.onResourceChange('score', () => { callCountB++; });
+
+			world.setResource('score', 10);
+			expect(callCountA).toBe(1);
+			expect(callCountB).toBe(1);
+		});
+
+		test('callback receives correct old and new values', () => {
+			const world = ECSpresso
+				.create<WorldConfigFrom<{}, {}, { config: { debug: boolean } }>>()
+				.withResource('config', { debug: false })
+				.build();
+
+			const calls: Array<{ newValue: { debug: boolean }; oldValue: { debug: boolean } }> = [];
+			world.onResourceChange('config', (newValue, oldValue) => {
+				calls.push({ newValue, oldValue });
+			});
+
+			const newConfig = { debug: true };
+			world.setResource('config', newConfig);
+			expect(calls).toEqual([{ newValue: { debug: true }, oldValue: { debug: false } }]);
+		});
+
+		test('does not fire for addResource', () => {
+			const world = new ECSpresso<WorldConfigFrom<{}, {}, { score: number }>>();
+			world.addResource('score', 0);
+
+			let callCount = 0;
+			world.onResourceChange('score', () => { callCount++; });
+
+			world.addResource('score', 10);
+			expect(callCount).toBe(0);
+		});
+	});
 });
