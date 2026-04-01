@@ -240,13 +240,15 @@ export function createTransformPlugin<G extends string = 'transform'>(
 				x: lt.x, y: lt.y, rotation: lt.rotation, scaleX: lt.scaleX, scaleY: lt.scaleY,
 			}));
 
+			const orphanBuffer: Array<import('../types').FilteredEntity<TransformComponentTypes, 'localTransform' | 'worldTransform'>> = [];
+
 			world
 				.addSystem('transform-propagation')
 				.setPriority(priority)
 				.inPhase(phase)
 				.inGroup(systemGroup)
 				.setProcess(({ ecs }) => {
-					propagateTransforms(ecs);
+					propagateTransforms(ecs, orphanBuffer);
 				});
 		},
 	});
@@ -261,7 +263,10 @@ export function createTransformPlugin<G extends string = 'transform'>(
  * Marks worldTransform as changed so downstream systems (e.g. renderer
  * sync) pick up the updated values.
  */
-function propagateTransforms(ecs: ECSpresso<WorldConfigFrom<TransformComponentTypes>>): void {
+function propagateTransforms(
+	ecs: ECSpresso<WorldConfigFrom<TransformComponentTypes>>,
+	orphanBuffer: Array<import('../types').FilteredEntity<TransformComponentTypes, 'localTransform' | 'worldTransform'>>,
+): void {
 	const em = ecs.entityManager;
 
 	// Use parent-first traversal for entities in hierarchy
@@ -289,8 +294,8 @@ function propagateTransforms(ecs: ECSpresso<WorldConfigFrom<TransformComponentTy
 	});
 
 	// Process orphaned entities (not in hierarchy but have transforms)
-	const orphanedEntities = ecs.getEntitiesWithQuery(['localTransform', 'worldTransform']);
-	for (const entity of orphanedEntities) {
+	em.getEntitiesWithQueryInto(orphanBuffer, ['localTransform', 'worldTransform']);
+	for (const entity of orphanBuffer) {
 		const parentId = ecs.getParent(entity.id);
 		// Only process if truly orphaned (no parent and not a root with children)
 		if (parentId === null && ecs.getChildren(entity.id).length === 0) {

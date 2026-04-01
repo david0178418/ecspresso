@@ -2373,4 +2373,98 @@ describe('ECSpresso', () => {
 			expect(callCount).toBe(0);
 		});
 	});
+
+	describe('System query array pre-allocation', () => {
+		test('should reuse the same query result array across frames', () => {
+			const world = ECSpresso
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
+				.build();
+
+			world.spawn({ position: { x: 0, y: 0 }, velocity: { x: 1, y: 1 } });
+
+			let firstFrameArray: unknown[] | undefined;
+			let secondFrameArray: unknown[] | undefined;
+
+			world
+				.addSystem('tracker')
+				.addQuery('moving', { with: ['position', 'velocity'] as const })
+				.setProcess(({ queries }) => {
+					if (!firstFrameArray) {
+						firstFrameArray = queries.moving;
+					} else {
+						secondFrameArray = queries.moving;
+					}
+				});
+
+			world.update(0.016);
+			world.update(0.016);
+
+			expect(firstFrameArray).toBeDefined();
+			expect(secondFrameArray).toBeDefined();
+			expect(firstFrameArray).toBe(secondFrameArray); // same object reference
+		});
+
+		test('should update pre-allocated arrays with correct results each frame', () => {
+			const world = ECSpresso
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
+				.build();
+
+			const e1 = world.spawn({ position: { x: 0, y: 0 } });
+
+			const counts: number[] = [];
+
+			world
+				.addSystem('counter')
+				.addQuery('positioned', { with: ['position'] as const })
+				.setProcess(({ queries }) => {
+					counts.push(queries.positioned.length);
+				});
+
+			world.update(0.016);
+
+			// Spawn a second entity between frames
+			world.spawn({ position: { x: 1, y: 1 } });
+			world.update(0.016);
+
+			// Remove first entity between frames
+			world.removeEntity(e1.id);
+			world.update(0.016);
+
+			expect(counts).toEqual([1, 2, 1]);
+		});
+
+		test('should reuse arrays for multiple queries on the same system', () => {
+			const world = ECSpresso
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
+				.build();
+
+			world.spawn({ position: { x: 0, y: 0 } });
+			world.spawn({ velocity: { x: 1, y: 1 } });
+
+			let posArr1: unknown[] | undefined;
+			let posArr2: unknown[] | undefined;
+			let velArr1: unknown[] | undefined;
+			let velArr2: unknown[] | undefined;
+
+			world
+				.addSystem('multi-query')
+				.addQuery('positioned', { with: ['position'] as const })
+				.addQuery('moving', { with: ['velocity'] as const })
+				.setProcess(({ queries }) => {
+					if (!posArr1) {
+						posArr1 = queries.positioned;
+						velArr1 = queries.moving;
+					} else {
+						posArr2 = queries.positioned;
+						velArr2 = queries.moving;
+					}
+				});
+
+			world.update(0.016);
+			world.update(0.016);
+
+			expect(posArr1).toBe(posArr2);
+			expect(velArr1).toBe(velArr2);
+		});
+	});
 });

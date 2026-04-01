@@ -380,7 +380,11 @@ export default class ECSpresso<
 					const query = system.entityQueries[queryName];
 
 					if (query) {
-						queryResults[queryName] = this._entityManager.getEntitiesWithQuery(
+						const existing = queryResults[queryName];
+						const output = existing ?? (queryResults[queryName] = []);
+
+						this._entityManager.getEntitiesWithQueryInto(
+							output,
 							query.with,
 							query.without || [],
 							query.changed,
@@ -388,8 +392,8 @@ export default class ECSpresso<
 							query.parentHas,
 						);
 
-						if(queryResults[queryName].length) {
-							hasResults = true; // At least one query has results
+						if (output.length) {
+							hasResults = true;
 						}
 					}
 				}

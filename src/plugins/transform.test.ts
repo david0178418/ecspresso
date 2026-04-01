@@ -400,5 +400,70 @@ describe('Transform Plugin', () => {
 			expect(world?.x).toBe(50);
 			expect(world?.y).toBe(75);
 		});
+
+		test('should handle entity transitioning from orphan to hierarchical', () => {
+			const ecs = ECSpresso
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
+				.withPlugin(createTransformPlugin())
+				.build();
+
+			const parent = ecs.spawn({ ...createTransform(100, 0) });
+			const child = ecs.spawn({ ...createTransform(50, 0) });
+
+			// First frame: both are orphans
+			ecs.update(0.016);
+			expect(ecs.entityManager.getComponent(child.id, 'worldTransform')?.x).toBe(50);
+
+			// Make child a child of parent
+			ecs.setParent(child.id, parent.id);
+			ecs.update(0.016);
+
+			// Now child should combine with parent
+			expect(ecs.entityManager.getComponent(child.id, 'worldTransform')?.x).toBe(150);
+		});
+
+		test('should handle entity transitioning from hierarchical to orphan', () => {
+			const ecs = ECSpresso
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
+				.withPlugin(createTransformPlugin())
+				.build();
+
+			const parent = ecs.spawn({ ...createTransform(100, 0) });
+			const child = ecs.spawnChild(parent.id, { ...createTransform(50, 0) });
+
+			ecs.update(0.016);
+			expect(ecs.entityManager.getComponent(child.id, 'worldTransform')?.x).toBe(150);
+
+			// Orphan the child
+			ecs.removeParent(child.id);
+
+			// Mutate child's local transform
+			const local = ecs.entityManager.getComponent(child.id, 'localTransform');
+			if (!local) throw new Error('missing localTransform');
+			local.x = 75;
+
+			ecs.update(0.016);
+
+			// As orphan, world = local
+			expect(ecs.entityManager.getComponent(child.id, 'worldTransform')?.x).toBe(75);
+		});
+
+		test('should handle mix of orphans and hierarchical entities', () => {
+			const ecs = ECSpresso
+				.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
+				.withPlugin(createTransformPlugin())
+				.build();
+
+			const orphan1 = ecs.spawn({ ...createTransform(10, 0) });
+			const parent = ecs.spawn({ ...createTransform(100, 0) });
+			const child = ecs.spawnChild(parent.id, { ...createTransform(50, 0) });
+			const orphan2 = ecs.spawn({ ...createTransform(20, 0) });
+
+			ecs.update(0.016);
+
+			expect(ecs.entityManager.getComponent(orphan1.id, 'worldTransform')?.x).toBe(10);
+			expect(ecs.entityManager.getComponent(child.id, 'worldTransform')?.x).toBe(150);
+			expect(ecs.entityManager.getComponent(orphan2.id, 'worldTransform')?.x).toBe(20);
+		});
 	});
 });

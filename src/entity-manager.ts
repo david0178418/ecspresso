@@ -292,40 +292,61 @@ class EntityManager<ComponentTypes> {
 		changeThreshold?: number,
 		parentHas?: ReadonlyArray<keyof ComponentTypes>,
 	): Array<FilteredEntity<ComponentTypes, WithComponents extends never ? never : WithComponents, WithoutComponents extends never ? never : WithoutComponents>> {
+		return this.getEntitiesWithQueryInto([], required, excluded, changed, changeThreshold, parentHas);
+	}
+
+	/**
+	 * Fill an existing array with entities matching the query, clearing it first.
+	 * Returns the same array reference for convenience.
+	 */
+	getEntitiesWithQueryInto<
+		WithComponents extends keyof ComponentTypes = never,
+		WithoutComponents extends keyof ComponentTypes = never
+	>(
+		output: Array<FilteredEntity<ComponentTypes, WithComponents extends never ? never : WithComponents, WithoutComponents extends never ? never : WithoutComponents>>,
+		required: ReadonlyArray<WithComponents> = [],
+		excluded: ReadonlyArray<WithoutComponents> = [],
+		changed?: ReadonlyArray<keyof ComponentTypes>,
+		changeThreshold?: number,
+		parentHas?: ReadonlyArray<keyof ComponentTypes>,
+	): Array<FilteredEntity<ComponentTypes, WithComponents extends never ? never : WithComponents, WithoutComponents extends never ? never : WithoutComponents>> {
+		output.length = 0;
+
 		const hasChangedFilter = changed !== undefined && changed.length > 0 && changeThreshold !== undefined;
 		const hasParentHasFilter = parentHas !== undefined && parentHas.length > 0;
 
-		// Use the smallest component set as base for better performance
 		// Runtime query filtering guarantees WithComponents/WithoutComponents constraints,
 		// but TypeScript can't narrow Entity<CT> to FilteredEntity from imperative logic.
-		type Result = Array<FilteredEntity<ComponentTypes, WithComponents extends never ? never : WithComponents, WithoutComponents extends never ? never : WithoutComponents>>;
+		type ResultEntry = FilteredEntity<ComponentTypes, WithComponents extends never ? never : WithComponents, WithoutComponents extends never ? never : WithoutComponents>;
 
 		if (required.length === 0) {
 			if (excluded.length === 0 && !hasChangedFilter && !hasParentHasFilter) {
-				return Array.from(this.entities.values()) as unknown as Result;
+				for (const entity of this.entities.values()) {
+					output.push(entity as unknown as ResultEntry);
+				}
+				return output;
 			}
 
-			return Array
-				.from(this.entities.values())
-				.filter((entity) => {
-					if (excluded.length > 0 && !excluded.every(comp => !(comp in entity.components))) {
-						return false;
-					}
-					if (hasChangedFilter) {
-						const entitySeqs = this.changeSeqs.get(entity.id);
-						if (!entitySeqs) return false;
-						if (!changed.some(comp => (entitySeqs.get(comp) ?? -1) > changeThreshold)) return false;
-					}
-					if (hasParentHasFilter && !this.parentHasComponents(entity.id, parentHas)) {
-						return false;
-					}
-					return true;
-				}) as unknown as Result;
+			for (const entity of this.entities.values()) {
+				if (excluded.length > 0 && !excluded.every(comp => !(comp in entity.components))) {
+					continue;
+				}
+				if (hasChangedFilter) {
+					const entitySeqs = this.changeSeqs.get(entity.id);
+					if (!entitySeqs) continue;
+					if (!changed.some(comp => (entitySeqs.get(comp) ?? -1) > changeThreshold)) continue;
+				}
+				if (hasParentHasFilter && !this.parentHasComponents(entity.id, parentHas)) {
+					continue;
+				}
+				output.push(entity as unknown as ResultEntry);
+			}
+			return output;
 		}
 
 		// Find the component with the smallest entity set to start with
 		const firstRequired = required[0];
-		if (firstRequired === undefined) return [];
+		if (firstRequired === undefined) return output;
 		const smallestComponent = required.reduce((smallest, comp) => {
 			const currentSize = this.componentIndices.get(comp)?.size ?? 0;
 			const smallestSize = this.componentIndices.get(smallest)?.size ?? Infinity;
@@ -335,11 +356,9 @@ class EntityManager<ComponentTypes> {
 		// Start with the entities from the smallest component set
 		const candidateSet = this.componentIndices.get(smallestComponent);
 		if (!candidateSet || candidateSet.size === 0) {
-			return [];
+			return output;
 		}
 
-		// Return full entity objects, not just IDs
-		const result: Result = [];
 		const hasExclusions = excluded.length > 0;
 
 		for (const id of candidateSet) {
@@ -358,11 +377,11 @@ class EntityManager<ComponentTypes> {
 				if (hasParentHasFilter && !this.parentHasComponents(id, parentHas)) {
 					continue;
 				}
-				result.push(entity as unknown as Result[number]);
+				output.push(entity as unknown as ResultEntry);
 			}
 		}
 
-		return result;
+		return output;
 	}
 
 	/**

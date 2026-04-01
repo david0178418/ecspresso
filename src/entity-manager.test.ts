@@ -311,6 +311,124 @@ describe('Entity Manager', () => {
 		});
 	});
 
+	describe('getEntitiesWithQueryInto', () => {
+		test('should fill an existing array with matching entities', () => {
+			const manager = new EntityManager<TestComponents>();
+			const e1 = manager.createEntity();
+			const e2 = manager.createEntity();
+			manager.addComponent(e1.id, 'position', { x: 1, y: 2 });
+			manager.addComponent(e2.id, 'position', { x: 3, y: 4 });
+			manager.addComponent(e2.id, 'velocity', { x: 5, y: 6 });
+
+			const output: any[] = [];
+			const result = manager.getEntitiesWithQueryInto(output, ['position']);
+
+			expect(result).toBe(output); // same reference
+			expect(output.length).toBe(2);
+			expect(output.map(e => e.id).sort()).toEqual([e1.id, e2.id].sort());
+		});
+
+		test('should clear the output array before filling', () => {
+			const manager = new EntityManager<TestComponents>();
+			const e1 = manager.createEntity();
+			manager.addComponent(e1.id, 'position', { x: 1, y: 2 });
+
+			const output: any[] = [{ id: 999 }, { id: 888 }]; // stale data
+			manager.getEntitiesWithQueryInto(output, ['position']);
+
+			expect(output.length).toBe(1);
+			expect(output[0].id).toBe(e1.id);
+		});
+
+		test('should reuse the same array across multiple calls', () => {
+			const manager = new EntityManager<TestComponents>();
+			const e1 = manager.createEntity();
+			manager.addComponent(e1.id, 'position', { x: 0, y: 0 });
+
+			const output: any[] = [];
+			manager.getEntitiesWithQueryInto(output, ['position']);
+			expect(output.length).toBe(1);
+
+			// Add another entity and refill
+			const e2 = manager.createEntity();
+			manager.addComponent(e2.id, 'position', { x: 1, y: 1 });
+
+			const result2 = manager.getEntitiesWithQueryInto(output, ['position']);
+			expect(result2).toBe(output); // still the same array object
+			expect(output.length).toBe(2);
+		});
+
+		test('should respect exclusion filters', () => {
+			const manager = new EntityManager<TestComponents>();
+			const e1 = manager.createEntity();
+			const e2 = manager.createEntity();
+			manager.addComponent(e1.id, 'position', { x: 0, y: 0 });
+			manager.addComponent(e2.id, 'position', { x: 1, y: 1 });
+			manager.addComponent(e2.id, 'velocity', { x: 2, y: 2 });
+
+			const output: any[] = [];
+			manager.getEntitiesWithQueryInto(output, ['position'], ['velocity']);
+
+			expect(output.length).toBe(1);
+			expect(output[0].id).toBe(e1.id);
+		});
+
+		test('should handle empty required with exclusions', () => {
+			const manager = new EntityManager<TestComponents>();
+			const e1 = manager.createEntity();
+			const e2 = manager.createEntity();
+			manager.addComponent(e1.id, 'position', { x: 0, y: 0 });
+			manager.addComponent(e2.id, 'velocity', { x: 1, y: 1 });
+
+			const output: any[] = [];
+			manager.getEntitiesWithQueryInto(output, [], ['position']);
+
+			expect(output.length).toBe(1);
+			expect(output[0].id).toBe(e2.id);
+		});
+
+		test('should handle empty required with no filters (all entities)', () => {
+			const manager = new EntityManager<TestComponents>();
+			const e1 = manager.createEntity();
+			manager.createEntity(); // second entity, no components
+			manager.addComponent(e1.id, 'position', { x: 0, y: 0 });
+
+			const output: any[] = [];
+			manager.getEntitiesWithQueryInto(output, []);
+
+			expect(output.length).toBe(2);
+		});
+
+		test('should return empty when no entities match', () => {
+			const manager = new EntityManager<TestComponents>();
+			const e1 = manager.createEntity();
+			manager.addComponent(e1.id, 'position', { x: 0, y: 0 });
+
+			const output: any[] = [];
+			manager.getEntitiesWithQueryInto(output, ['velocity']);
+
+			expect(output.length).toBe(0);
+		});
+
+		test('should produce identical results to getEntitiesWithQuery', () => {
+			const manager = new EntityManager<TestComponents>();
+			const e1 = manager.createEntity();
+			const e2 = manager.createEntity();
+			const e3 = manager.createEntity();
+			manager.addComponent(e1.id, 'position', { x: 0, y: 0 });
+			manager.addComponent(e1.id, 'velocity', { x: 1, y: 1 });
+			manager.addComponent(e2.id, 'position', { x: 2, y: 2 });
+			manager.addComponent(e2.id, 'health', { value: 100 });
+			manager.addComponent(e3.id, 'velocity', { x: 3, y: 3 });
+
+			const allocated = manager.getEntitiesWithQuery(['position'], ['health']);
+			const output: any[] = [];
+			manager.getEntitiesWithQueryInto(output, ['position'], ['health']);
+
+			expect(output.map(e => e.id).sort()).toEqual(allocated.map(e => e.id).sort());
+		});
+	});
+
 	describe('lifecycle hooks', () => {
 		test('afterComponentAdded fires with correct entityId and componentName', () => {
 			const manager = new EntityManager<TestComponents>();
