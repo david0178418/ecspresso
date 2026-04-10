@@ -1,0 +1,235 @@
+# ECSpresso API Reference
+
+## Entities and Components
+
+```typescript
+// Spawn with components
+const entity = ecs.spawn({ position: { x: 0, y: 0 }, health: 100 });
+
+// Spawn as child
+const child = ecs.spawnChild(parentId, { position: { x: 10, y: 0 } });
+
+// Modify components
+ecs.addComponent(entityId, 'velocity', { x: 5, y: 0 });
+ecs.addComponents(entityId, { velocity: { x: 5, y: 0 }, health: 100 });
+ecs.removeComponent(entityId, 'velocity');
+ecs.removeEntity(entityId);                    // cascades to children by default
+ecs.removeEntity(entityId, { cascade: false }); // orphan children instead
+
+// Read
+const pos = ecs.getComponent(entityId, 'position');      // T | undefined
+const entity = ecs.getEntity(entityId);                   // Entity | undefined
+```
+
+### Component Callbacks
+
+```typescript
+// React to additions/removals — returns unsubscribe function
+const unsub = ecs.onComponentAdded('health', ({ value, entity }) => { ... });
+const unsub = ecs.onComponentRemoved('health', ({ value, entity }) => { ... });
+```
+
+### Change Detection
+
+Components are auto-marked changed on `spawn`, `addComponent`, `addComponents`. For in-place mutations, mark explicitly:
+
+```typescript
+position.x += 10;
+ecs.markChanged(entityId, 'position');
+```
+
+Use `changed` in query definitions to only process entities whose specified components changed since the system last ran. When multiple components are listed, entities matching **any** are included (OR semantics).
+
+Each mark is processed exactly once per system, then expires. Marks from earlier phases are visible to later phases within the same frame.
+
+For details, see `docs/change-detection.md`.
+
+## Command Buffer
+
+Use inside `setProcess` to defer structural changes (safe during iteration):
+
+```typescript
+ecs.commands.spawn({ position: { x: 0, y: 0 } });
+ecs.commands.spawnChild(parentId, { ... });
+ecs.commands.removeEntity(entityId);
+ecs.commands.removeEntity(entityId, { cascade: false });
+ecs.commands.addComponent(entityId, 'tag', true);
+ecs.commands.addComponents(entityId, { ... });
+ecs.commands.removeComponent(entityId, 'tag');
+ecs.commands.mutateComponent(entityId, 'position', (pos) => { pos.x += 10; });
+ecs.commands.markChanged(entityId, 'position');
+ecs.commands.setParent(childId, parentId);
+ecs.commands.removeParent(childId);
+ecs.commands.length;   // number of queued commands
+ecs.commands.clear();  // discard all queued commands
+```
+
+Commands execute in FIFO order between phases. Failed commands log a warning and continue.
+
+## Resources
+
+```typescript
+// Get (throws if not found, message lists available resources)
+const score = ecs.getResource('score');
+
+// Get (returns undefined if not found)
+const score = ecs.tryGetResource('score');
+
+// Set / update
+ecs.setResource('score', { value: 42 });
+ecs.updateResource('score', (prev) => ({ value: prev.value + 1 }));
+
+// Subscribe to changes (fires only when value actually changes via Object.is)
+const unsub = ecs.onResourceChange('score', (newVal, oldVal) => { ... });
+```
+
+### Resource Factories with Dependencies
+
+```typescript
+ecs.addResource('cache', {
+  dependsOn: ['database'],
+  factory: (ecs) => createCache(ecs.getResource('database')),
+  onDispose: (resource) => resource.close(),
+});
+
+// Initialize all resources (respects dependency order, detects circular deps)
+await ecs.initializeResources();
+
+// Disposal
+await ecs.disposeResource('cache');   // single resource
+await ecs.disposeResources();          // all, in reverse dependency order
+```
+
+## Events
+
+```typescript
+// Subscribe — returns unsubscribe function
+const unsub = ecs.on('playerDied', (data) => { ... });
+unsub();
+
+// Or unsubscribe by reference
+const handler = (data) => { ... };
+ecs.on('levelComplete', handler);
+ecs.off('levelComplete', handler);
+
+// Publish
+ecs.eventBus.publish('playerDied', { playerId: 1 });
+
+// In-system handlers (auto-subscribed, use context object)
+.setEventHandlers({
+  playerDied: ({ data, ecs }) => { ... },
+})
+```
+
+### Built-in Events
+
+- `hierarchyChanged` — entity parent changes
+- `assetLoaded` / `assetFailed` / `assetGroupProgress` / `assetGroupLoaded` — asset loading
+
+## Entity Hierarchy
+
+```typescript
+// Create relationships
+const weapon = ecs.spawnChild(player.id, { position: { x: 10, y: 0 } });
+ecs.setParent(shield.id, player.id);
+ecs.removeParent(shield.id);
+
+// Traversal
+ecs.getParent(id);              // number | null
+ecs.getChildren(id);            // number[]
+ecs.getAncestors(id);           // number[] (up to root)
+ecs.getDescendants(id);         // number[] (depth-first)
+ecs.getRoot(id);                // number
+ecs.getSiblings(id);            // number[]
+ecs.getRootEntities();          // number[]
+ecs.isDescendantOf(id, ancestorId);  // boolean
+ecs.isAncestorOf(id, descendantId);  // boolean
+
+// Parent-first iteration (guaranteed parent before children)
+ecs.forEachInHierarchy((entityId, parentId, depth) => { ... });
+ecs.forEachInHierarchy(callback, { roots: [root.id] });
+
+// Generator-based (supports early termination)
+for (const { entityId, parentId, depth } of ecs.hierarchyIterator()) { ... }
+```
+
+Cascade deletion is the default. Use `{ cascade: false }` to orphan children instead.
+
+## Reactive Queries
+
+Push-based notifications when entities enter/exit a query match:
+
+```typescript
+ecs.addReactiveQuery('enemies', {
+  with: ['position', 'enemy'],
+  without: ['dead'],
+  onEnter: (entity) => { ... },
+  onExit: (entityId) => { ... },  // receives ID since entity may be removed
+});
+
+ecs.removeReactiveQuery('enemies');
+```
+
+## System Groups
+
+```typescript
+ecs.disableSystemGroup('rendering');
+ecs.enableSystemGroup('rendering');
+ecs.isSystemGroupEnabled('rendering');
+ecs.getSystemsInGroup('rendering');
+```
+
+If a system belongs to multiple groups, disabling **any** group skips the system.
+
+## Assets
+
+```typescript
+const ecs = ECSpresso.create()
+  .withAssets(assets => assets
+    .add('playerTexture', async () => ({ data: await loadImage('player.png') }))
+    .addGroup('level1', {
+      music: async () => ({ buffer: await loadAudio('level1.mp3') }),
+    })
+  )
+  .build();
+
+await ecs.initialize();                          // loads eager assets
+const tex = ecs.getAsset('playerTexture');
+await ecs.loadAssetGroup('level1');              // load group on demand
+ecs.getAssetGroupProgress('level1');             // 0-1
+ecs.isAssetGroupLoaded('level1');
+```
+
+Systems can declare `.requiresAssets(['playerTexture'])` to skip until loaded.
+
+## Screens
+
+```typescript
+const ecs = ECSpresso.create()
+  .withScreens(screens => screens
+    .add('menu', {
+      initialState: () => ({ selectedOption: 0 }),
+      onEnter: () => { ... },
+      onExit: () => { ... },
+    })
+    .add('gameplay', {
+      initialState: () => ({ score: 0 }),
+      requiredAssetGroups: ['level1'],
+    })
+  )
+  .build();
+
+await ecs.setScreen('menu', {});
+await ecs.setScreen('gameplay', { difficulty: 'hard' });
+await ecs.pushScreen('pause', {});        // overlay
+await ecs.popScreen();
+
+ecs.getCurrentScreen();
+ecs.getScreenConfig();
+ecs.getScreenState();
+ecs.updateScreenState({ score: 100 });
+```
+
+Screen-scoped systems: `.inScreens(['gameplay'])` or `.excludeScreens(['pause'])`.
+
+Access via `$screen` resource: `ecs.getResource('$screen')` with `.current`, `.config`, `.state`, `.isOverlay`, `.stackDepth`, `.isCurrent(name)`, `.isActive(name)`.

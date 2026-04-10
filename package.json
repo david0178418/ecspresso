@@ -129,6 +129,7 @@
 		"examples": "bun ./examples/serve-examples.ts",
 		"docs": "typedoc && bun scripts/build-examples.ts && bun scripts/build-docs-index.ts",
 		"docs:serve": "bun run docs && bunx serve docs",
+		"postversion": "bun scripts/sync-plugin-version.ts && git add .claude-plugin/plugin.json",
 		"prepublishOnly": "bun run check && bun run build"
 	},
 	"type": "module"
