@@ -1,4 +1,4 @@
-import type ECSpresso from "./ecspresso";
+import ECSpresso from "./ecspresso";
 import AssetManager, { AssetConfiguratorImpl, createAssetConfigurator } from "./asset-manager";
 import ScreenManager, { ScreenConfiguratorImpl, createScreenConfigurator } from "./screen-manager";
 import type { ResourceFactoryWithDeps, ResourceDirectValue } from "./resource-manager";
@@ -33,8 +33,6 @@ export class ECSpressoBuilder<
 	AssetGroupNames extends string = never,
 	ReactiveQueryNames extends string = never,
 > {
-	/** The ECSpresso instance being built*/
-	private ecspresso: ECSpresso<Cfg>;
 	/** Asset configurator for collecting asset definitions */
 	private assetConfigurator: AssetConfiguratorImpl<Cfg['assets']> | null = null;
 	/** Screen configurator for collecting screen definitions */
@@ -50,13 +48,7 @@ export class ECSpressoBuilder<
 	/** Fixed timestep interval (null means use default 1/60) */
 	private _fixedDt: number | null = null;
 
-	constructor() {
-		// Dynamic import to avoid circular dependency at module level.
-		// ECSpresso imports ECSpressoBuilder (for create()), and ECSpressoBuilder
-		// needs to instantiate ECSpresso. Using require() defers the resolution.
-		const { default: ECSpressoClass } = require("./ecspresso");
-		this.ecspresso = new ECSpressoClass() as ECSpresso<Cfg>;
-	}
+	constructor() {}
 
 	/**
 		* Add the first plugin when starting with empty types.
@@ -337,24 +329,26 @@ export class ECSpressoBuilder<
 		[AssetGroupNames] extends [never] ? string : AssetGroupNames,
 		[ReactiveQueryNames] extends [never] ? string : ReactiveQueryNames
 	> {
+		const ecspresso = new ECSpresso() as ECSpresso<Cfg>;
+
 		// Install all pending plugins
 		for (const plugin of this.pendingPlugins) {
-			this.ecspresso.installPlugin(plugin);
+			ecspresso.installPlugin(plugin);
 		}
 
 		// Apply pending resources
 		for (const { key, value } of this.pendingResources) {
-			this.ecspresso.addResource(key as keyof Cfg['resources'], value as any);
+			ecspresso.addResource(key as keyof Cfg['resources'], value as any);
 		}
 
 		// Apply pending dispose callbacks
 		for (const { key, callback } of this.pendingDisposeCallbacks) {
-			this.ecspresso.registerDispose(key as keyof Cfg['components'], callback as (ctx: { value: Cfg['components'][keyof Cfg['components']]; entityId: number }) => void);
+			ecspresso.registerDispose(key as keyof Cfg['components'], callback as (ctx: { value: Cfg['components'][keyof Cfg['components']]; entityId: number }) => void);
 		}
 
 		// Apply pending required component registrations
 		for (const { trigger, required, factory } of this.pendingRequiredComponents) {
-			this.ecspresso.registerRequired(
+			ecspresso.registerRequired(
 				trigger as keyof Cfg['components'],
 				required as keyof Cfg['components'],
 				factory as () => Cfg['components'][keyof Cfg['components']]
@@ -363,24 +357,24 @@ export class ECSpressoBuilder<
 
 		// Set up asset manager if configured via withAssets(), or auto-create if plugins contributed assets
 		if (this.assetConfigurator) {
-			this.ecspresso._setAssetManager(this.assetConfigurator.getManager() as unknown as AssetManager<Cfg['assets']>);
-		} else if (this.ecspresso._hasPendingPluginAssets()) {
-			this.ecspresso._setAssetManager(new AssetManager() as unknown as AssetManager<Cfg['assets']>);
+			ecspresso._setAssetManager(this.assetConfigurator.getManager() as unknown as AssetManager<Cfg['assets']>);
+		} else if (ecspresso._hasPendingPluginAssets()) {
+			ecspresso._setAssetManager(new AssetManager() as unknown as AssetManager<Cfg['assets']>);
 		}
 
 		// Set up screen manager if configured via withScreens(), or auto-create if plugins contributed screens
 		if (this.screenConfigurator) {
-			this.ecspresso._setScreenManager(this.screenConfigurator.getManager() as unknown as ScreenManager<Cfg['screens']>);
-		} else if (this.ecspresso._hasPendingPluginScreens()) {
-			this.ecspresso._setScreenManager(new ScreenManager() as unknown as ScreenManager<Cfg['screens']>);
+			ecspresso._setScreenManager(this.screenConfigurator.getManager() as unknown as ScreenManager<Cfg['screens']>);
+		} else if (ecspresso._hasPendingPluginScreens()) {
+			ecspresso._setScreenManager(new ScreenManager() as unknown as ScreenManager<Cfg['screens']>);
 		}
 
 		// Set fixed timestep if configured
 		if (this._fixedDt !== null) {
-			this.ecspresso._setFixedDt(this._fixedDt);
+			ecspresso._setFixedDt(this._fixedDt);
 		}
 
-		return this.ecspresso as unknown as ECSpresso<
+		return ecspresso as unknown as ECSpresso<
 			FinalizeBuiltinResources<Cfg, [AssetGroupNames] extends [never] ? string : AssetGroupNames>,
 			[Labels] extends [never] ? string : Labels,
 			[Groups] extends [never] ? string : Groups,

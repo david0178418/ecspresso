@@ -4,13 +4,13 @@
 	"exclude": ["src/**/*.test.ts"],
 	"compilerOptions": {
 		"outDir": "./dist",
-		"module": "ESNext",
+		"module": "preserve",
 		"emitDeclarationOnly": true,
 		"allowImportingTsExtensions": false,
 		"noEmit": false,
 		"declaration": true,
 		"declarationDir": "./dist",
-		"moduleResolution": "node",
+		"moduleResolution": "bundler",
 		"resolveJsonModule": true,
 		"rootDir": "src"
 	}
