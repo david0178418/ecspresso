@@ -1,0 +1,13 @@
+{
+	"name": "ecspresso",
+	"owner": {
+		"name": "David Granado"
+	},
+	"plugins": [
+		{
+			"name": "ecspresso",
+			"source": ".",
+			"description": "ECSpresso ECS library skill for AI-assisted development"
+		}
+	]
+}

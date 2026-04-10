@@ -81,6 +81,17 @@ world.update(1/60);
 - [Type Safety](./docs/type-safety.md) — type threading, error handling
 - [Performance](./docs/performance.md) — optimization tips
 
+## Claude Code Skill
+
+ECSpresso ships with a [Claude Code](https://claude.com/claude-code) plugin that installs a skill teaching the assistant the library's patterns, APIs, and built-in plugins. Install it to get ECSpresso-aware assistance when working on projects that use the library:
+
+```
+/plugin marketplace add DeeGeeGames/ecspresso
+/plugin install ecspresso@ecspresso
+```
+
+The skill sources live under [`skills/ecspresso/`](./skills/ecspresso/); plugin and marketplace metadata are in [`.claude-plugin/`](./.claude-plugin/).
+
 ## License
 
 MIT
