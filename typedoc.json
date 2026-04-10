@@ -19,6 +19,22 @@
 		"src/plugins/tween.ts",
 		"src/plugins/renderers/renderer2D.ts"
 	],
+	"projectDocuments": [
+		"docs/getting-started.md",
+		"docs/core-concepts.md",
+		"docs/systems.md",
+		"docs/queries.md",
+		"docs/events.md",
+		"docs/hierarchy.md",
+		"docs/change-detection.md",
+		"docs/command-buffer.md",
+		"docs/plugins.md",
+		"docs/assets.md",
+		"docs/screens.md",
+		"docs/built-in-plugins.md",
+		"docs/type-safety.md",
+		"docs/performance.md"
+	],
 	"out": "docs/api",
 	"tsconfig": "tsconfig.json",
 	"excludePrivate": true,
