@@ -99,12 +99,12 @@
 		"@types/howler": "^2.2.12",
 		"@types/three": "^0.183.1",
 		"howler": "^2.2.4",
-		"pixi.js": "^8.16.0",
+		"pixi.js": "^8.17.1",
 		"three": "^0.183.2",
-		"typedoc": "^0.28.17"
+		"typedoc": "^0.28.18"
 	},
 	"peerDependencies": {
-		"typescript": "^5.9.3",
+		"typescript": "^6.0.2",
 		"pixi.js": "^8.0.0",
 		"howler": "^2.2.0"
 	},
