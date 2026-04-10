@@ -19,19 +19,19 @@ const physicsPlugin = definePlugin<WorldConfigFrom<PhysicsComponents, {}, Physic
   install(world) {
     world.addSystem('applyVelocity')
       .addQuery('moving', { with: ['position', 'velocity'] })
-      .setProcess((queries, deltaTime) => {
+      .setProcess(({ queries, dt }) => {
         for (const entity of queries.moving) {
-          entity.components.position.x += entity.components.velocity.x * deltaTime;
-          entity.components.position.y += entity.components.velocity.y * deltaTime;
+          entity.components.position.x += entity.components.velocity.x * dt;
+          entity.components.position.y += entity.components.velocity.y * dt;
         }
       });
 
     world.addSystem('applyGravity')
       .addQuery('falling', { with: ['velocity'] })
-      .setProcess((queries, deltaTime, ecs) => {
+      .setProcess(({ queries, dt, ecs }) => {
         const gravity = ecs.getResource('gravity');
         for (const entity of queries.falling) {
-          entity.components.velocity.y += gravity.value * deltaTime;
+          entity.components.velocity.y += gravity.value * dt;
         }
       });
 
@@ -67,7 +67,7 @@ export const movementPlugin = definePlugin({
   install(world) {
     world.addSystem('movement')
       .addQuery('moving', { with: ['position', 'velocity'] })
-      .setProcess((queries, dt) => { /* ... */ });
+      .setProcess(({ queries, dt }) => { /* ... */ });
   },
 });
 ```

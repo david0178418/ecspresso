@@ -24,9 +24,9 @@ function updatePosition(entity: MovingEntity, deltaTime: number) {
 // Use in systems
 world.addSystem('movement')
   .addQuery('entities', movingQuery)
-  .setProcess((queries, deltaTime) => {
+  .setProcess(({ queries, dt }) => {
     for (const entity of queries.entities) {
-      updatePosition(entity, deltaTime);
+      updatePosition(entity, dt);
     }
   });
 ```

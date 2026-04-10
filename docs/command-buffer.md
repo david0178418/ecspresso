@@ -5,7 +5,7 @@ Queue structural changes during system execution that execute between phases. Th
 ```typescript
 world.addSystem('combat')
   .addQuery('enemies', { with: ['enemy', 'health'] })
-  .setProcess((queries, dt, ecs) => {
+  .setProcess(({ queries, dt, ecs }) => {
     for (const entity of queries.enemies) {
       if (entity.components.health.value <= 0) {
         ecs.commands.removeEntity(entity.id);

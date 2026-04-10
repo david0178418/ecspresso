@@ -7,13 +7,13 @@ Systems use a fluent builder API: `world.addSystem().addQuery().setProcess()` â€
 ```typescript
 world.addSystem('physics')
   .addQuery('moving', { with: ['position', 'velocity'] })
-  .setProcess((queries, deltaTime) => {
+  .setProcess(({ queries, dt }) => {
     // Physics logic
   });
 
 world.addSystem('rendering')
   .addQuery('visible', { with: ['position', 'sprite'] })
-  .setProcess((queries) => {
+  .setProcess(({ queries }) => {
     // Rendering logic
   });
 ```
@@ -31,26 +31,26 @@ Each phase's command buffer is played back before the next phase begins, so enti
 ```typescript
 world.addSystem('input')
   .inPhase('preUpdate')
-  .setProcess((queries, dt, ecs) => { /* Read input, update timers */ });
+  .setProcess(({ queries, dt, ecs }) => { /* Read input, update timers */ });
 
 world.addSystem('physics')
   .inPhase('fixedUpdate')
-  .setProcess((queries, dt, ecs) => {
+  .setProcess(({ queries, dt, ecs }) => {
     // dt is always fixedDt here (e.g. 1/60)
     // Runs 0..N times per frame based on accumulated time
   });
 
 world.addSystem('gameplay')
   .inPhase('update')  // default phase
-  .setProcess((queries, dt, ecs) => { /* Game logic, AI */ });
+  .setProcess(({ queries, dt, ecs }) => { /* Game logic, AI */ });
 
 world.addSystem('transform-sync')
   .inPhase('postUpdate')
-  .setProcess((queries, dt, ecs) => { /* Transform propagation */ });
+  .setProcess(({ queries, dt, ecs }) => { /* Transform propagation */ });
 
 world.addSystem('renderer')
   .inPhase('render')
-  .setProcess((queries, dt, ecs) => { /* Visual output */ });
+  .setProcess(({ queries, dt, ecs }) => { /* Visual output */ });
 ```
 
 ### Fixed Timestep
@@ -98,7 +98,7 @@ Organize systems into groups that can be enabled/disabled at runtime:
 world.addSystem('renderSprites')
   .inGroup('rendering')
   .addQuery('sprites', { with: ['position', 'sprite'] })
-  .setProcess((queries) => { /* ... */ });
+  .setProcess(({ queries }) => { /* ... */ });
 
 world.addSystem('renderParticles')
   .inGroup('rendering')
@@ -139,7 +139,7 @@ world.addSystem('onSpawn')
   .setOnEntityEnter('enemies', ({ entity, ecs }) => {
     console.log(`Enemy ${entity.id} entered query`);
   })
-  .setProcess((queries) => { /* ... */ });
+  .setProcess(({ queries }) => { /* ... */ });
 ```
 
 ### Post-Update Hooks

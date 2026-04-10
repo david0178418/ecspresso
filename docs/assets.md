@@ -43,7 +43,7 @@ Systems can declare required assets and will only run when those assets are load
 ```typescript
 game.addSystem('gameplay')
   .requiresAssets(['playerTexture'])
-  .setProcess((queries, dt, ecs) => {
+  .setProcess(({ ecs }) => {
     const player = ecs.getAsset('playerTexture');
   });
 ```

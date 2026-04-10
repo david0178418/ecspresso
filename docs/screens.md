@@ -56,7 +56,7 @@ game.updateScreenState({ score: 100 });
 ```typescript
 game.addSystem('menuUI')
   .inScreens(['menu'])                         // Only runs in 'menu'
-  .setProcess((queries, dt, ecs) => {
+  .setProcess(({ ecs }) => {
     renderMenu(ecs.getScreenState().selectedOption);
   });
 
@@ -71,7 +71,7 @@ Access screen state through the `$screen` resource:
 
 ```typescript
 game.addSystem('ui')
-  .setProcess((queries, dt, ecs) => {
+  .setProcess(({ ecs }) => {
     const screen = ecs.getResource('$screen');
     screen.current;        // Current screen name
     screen.config;         // Current screen config

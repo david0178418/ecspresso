@@ -58,7 +58,7 @@ world.addSystem('combat')
   .addQuery('projectiles', {
     with: ['position', 'damage']
   })
-  .setProcess((queries, deltaTime) => {
+  .setProcess(({ queries }) => {
     for (const fighter of queries.fighters) {
       for (const projectile of queries.projectiles) {
         // Combat logic here
@@ -100,7 +100,7 @@ await world.initializeResources();
 
 // Use in systems
 world.addSystem('scoring')
-  .setProcess((queries, deltaTime, ecs) => {
+  .setProcess(({ ecs }) => {
     const score = ecs.getResource('score');
     score.value += 10;
   });

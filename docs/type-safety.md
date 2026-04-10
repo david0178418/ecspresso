@@ -15,7 +15,7 @@ world.entityManager.addComponent(entity.id, 'position', { x: 0 }); // missing y
 // Query type safety - TypeScript knows which components exist
 world.addSystem('example')
   .addQuery('moving', { with: ['position', 'velocity'] })
-  .setProcess((queries) => {
+  .setProcess(({ queries }) => {
     for (const entity of queries.moving) {
       entity.components.position.x;   // ✅ guaranteed
       entity.components.health.value; // ❌ not in query

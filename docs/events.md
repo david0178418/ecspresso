@@ -33,7 +33,7 @@ world.off('levelComplete', handler);
 // Handle events in systems
 world.addSystem('gameLogic')
   .setEventHandlers({
-    playerDied: (data, ecs) => {
+    playerDied: ({ data, ecs }) => {
       // Respawn logic
     }
   });

@@ -24,7 +24,7 @@ world.addSystem('render-sync')
     with: ['position', 'sprite'],
     changed: ['position'],  // Only entities whose position changed this tick
   })
-  .setProcess((queries) => {
+  .setProcess(({ queries }) => {
     for (const entity of queries.moved) {
       syncSpritePosition(entity);
     }
