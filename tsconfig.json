@@ -26,7 +26,6 @@
 		"noUnusedParameters": true,
 		"noPropertyAccessFromIndexSignature": true,
 
-		"baseUrl": ".",
 		"paths": {
 			"ecspresso": ["./src/index.ts"],
 			"ecspresso/*": ["./src/*"]
