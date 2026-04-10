@@ -88,8 +88,9 @@ class EntityManager<ComponentTypes> {
 	private _batchingDepth: number = 0;
 	private _batchedEntityIds: Set<number> = new Set();
 	/** Component keys being added in the current addComponents batch, if any.
-	 *  Used by required component resolution to skip auto-adding explicitly provided components. */
-	_pendingBatchKeys: ReadonlySet<keyof ComponentTypes> | null = null;
+	 *  Used by required component resolution to skip auto-adding explicitly provided components.
+	 *  Stores the components object directly to avoid Set allocation; checked via `in` operator. */
+	_pendingBatchKeys: object | null = null;
 
 	get entityCount(): number {
 		return this.entities.size;
@@ -163,10 +164,12 @@ class EntityManager<ComponentTypes> {
 		entity.components[componentName] = data;
 
 		// Update component index
-		if (!this.componentIndices.has(componentName)) {
-			this.componentIndices.set(componentName, new Set());
+		let indexSet = this.componentIndices.get(componentName);
+		if (!indexSet) {
+			indexSet = new Set();
+			this.componentIndices.set(componentName, indexSet);
 		}
-		this.componentIndices.get(componentName)?.add(entity.id);
+		indexSet.add(entity.id);
 		// Trigger added callbacks (index-based iteration; unsubscribe nulls slots, compacted after)
 		const callbacks = this.addedCallbacks.get(componentName);
 		if (callbacks) {
@@ -212,7 +215,7 @@ class EntityManager<ComponentTypes> {
 		}
 
 		const outerPending = this._pendingBatchKeys;
-		this._pendingBatchKeys = new Set(Object.keys(components) as (keyof ComponentTypes)[]);
+		this._pendingBatchKeys = components;
 		this._batchingDepth++;
 		for (const componentName in components) {
 			this.addComponent(
@@ -328,13 +331,27 @@ class EntityManager<ComponentTypes> {
 			}
 
 			for (const entity of this.entities.values()) {
-				if (excluded.length > 0 && !excluded.every(comp => !(comp in entity.components))) {
-					continue;
+				if (excluded.length > 0) {
+					let hasExcluded = false;
+					for (let i = 0; i < excluded.length; i++) {
+						if (excluded[i]! in entity.components) {
+							hasExcluded = true;
+							break;
+						}
+					}
+					if (hasExcluded) continue;
 				}
 				if (hasChangedFilter) {
 					const entitySeqs = this.changeSeqs.get(entity.id);
 					if (!entitySeqs) continue;
-					if (!changed.some(comp => (entitySeqs.get(comp) ?? -1) > changeThreshold)) continue;
+					let anyChanged = false;
+					for (let i = 0; i < changed.length; i++) {
+						if ((entitySeqs.get(changed[i]!) ?? -1) > changeThreshold) {
+							anyChanged = true;
+							break;
+						}
+					}
+					if (!anyChanged) continue;
 				}
 				if (hasParentHasFilter && !this.parentHasComponents(entity.id, parentHas)) {
 					continue;
@@ -345,13 +362,17 @@ class EntityManager<ComponentTypes> {
 		}
 
 		// Find the component with the smallest entity set to start with
-		const firstRequired = required[0];
-		if (firstRequired === undefined) return output;
-		const smallestComponent = required.reduce((smallest, comp) => {
-			const currentSize = this.componentIndices.get(comp)?.size ?? 0;
-			const smallestSize = this.componentIndices.get(smallest)?.size ?? Infinity;
-			return currentSize < smallestSize ? comp : smallest;
-		}, firstRequired);
+		let smallestComponent = required[0];
+		if (smallestComponent === undefined) return output;
+		let smallestSize = this.componentIndices.get(smallestComponent)?.size ?? 0;
+		for (let i = 1; i < required.length; i++) {
+			const comp = required[i]!;
+			const size = this.componentIndices.get(comp)?.size ?? 0;
+			if (size < smallestSize) {
+				smallestSize = size;
+				smallestComponent = comp;
+			}
+		}
 
 		// Start with the entities from the smallest component set
 		const candidateSet = this.componentIndices.get(smallestComponent);
@@ -363,22 +384,48 @@ class EntityManager<ComponentTypes> {
 
 		for (const id of candidateSet) {
 			const entity = this.entities.get(id);
-			if (
-				entity &&
-				required.every(comp => comp in entity.components) &&
-				(!hasExclusions || excluded.every(comp => !(comp in entity.components)))
-			) {
-				if (hasChangedFilter) {
-					const entitySeqs = this.changeSeqs.get(id);
-					if (!entitySeqs || !changed.some(comp => (entitySeqs.get(comp) ?? -1) > changeThreshold)) {
-						continue;
+			if (!entity) continue;
+
+			// Check required components
+			let missingRequired = false;
+			for (let i = 0; i < required.length; i++) {
+				if (!(required[i]! in entity.components)) {
+					missingRequired = true;
+					break;
+				}
+			}
+			if (missingRequired) continue;
+
+			// Check excluded components
+			if (hasExclusions) {
+				let hasExcluded = false;
+				for (let i = 0; i < excluded.length; i++) {
+					if (excluded[i]! in entity.components) {
+						hasExcluded = true;
+						break;
 					}
 				}
-				if (hasParentHasFilter && !this.parentHasComponents(id, parentHas)) {
-					continue;
-				}
-				output.push(entity as unknown as ResultEntry);
+				if (hasExcluded) continue;
 			}
+
+			// Check changed filter
+			if (hasChangedFilter) {
+				const entitySeqs = this.changeSeqs.get(id);
+				if (!entitySeqs) continue;
+				let anyChanged = false;
+				for (let i = 0; i < changed.length; i++) {
+					if ((entitySeqs.get(changed[i]!) ?? -1) > changeThreshold) {
+						anyChanged = true;
+						break;
+					}
+				}
+				if (!anyChanged) continue;
+			}
+
+			if (hasParentHasFilter && !this.parentHasComponents(id, parentHas)) {
+				continue;
+			}
+			output.push(entity as unknown as ResultEntry);
 		}
 
 		return output;

@@ -101,13 +101,16 @@ class EventBus<EventTypes> {
 			if (handler.once) hasOnce = true;
 		}
 
-		// Reverse splice to remove once-handlers without shifting earlier indices
+		// Compact once-handlers with a write pointer (O(n) vs O(n²) reverse splice)
 		if (hasOnce) {
-			for (let i = handlers.length - 1; i >= 0; i--) {
-				if (handlers[i]?.once) {
-					handlers.splice(i, 1);
+			let w = 0;
+			for (let r = 0; r < handlers.length; r++) {
+				if (!handlers[r]!.once) {
+					if (w !== r) handlers[w] = handlers[r]!;
+					w++;
 				}
 			}
+			handlers.length = w;
 		}
 	}
 

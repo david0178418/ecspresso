@@ -1,5 +1,8 @@
 import type { HierarchyEntry, HierarchyIteratorOptions } from "./types";
 
+/** Shared frozen empty array to avoid per-call allocation for childless entities */
+const EMPTY_CHILDREN: readonly number[] = Object.freeze([]);
+
 /**
  * Manages parent-child relationships between entities.
  * Handles hierarchy storage, validation, and traversal operations.
@@ -92,7 +95,7 @@ export default class HierarchyManager {
 	 */
 	getChildren(parentId: number): readonly number[] {
 		const children = this.childrenMap.get(parentId);
-		return children ? [...children] : [];
+		return children ? [...children] : EMPTY_CHILDREN;
 	}
 
 	/**
@@ -218,10 +221,10 @@ export default class HierarchyManager {
 	 */
 	getSiblings(entityId: number): readonly number[] {
 		const parentId = this.parentMap.get(entityId);
-		if (parentId === undefined) return [];
+		if (parentId === undefined) return EMPTY_CHILDREN;
 
 		const children = this.childrenMap.get(parentId);
-		if (!children) return [];
+		if (!children) return EMPTY_CHILDREN;
 
 		return children.filter(id => id !== entityId);
 	}

@@ -36,6 +36,9 @@ const PHASE_ORDER: readonly SystemPhase[] = [
 	'preUpdate', 'fixedUpdate', 'update', 'postUpdate', 'render',
 ];
 
+/** Shared empty readonly array to avoid per-frame allocation for queries without exclusions */
+const EMPTY_ARRAY: readonly never[] = [];
+
 
 /**
 	* ECSpresso is the central ECS framework class that connects all features.
@@ -151,7 +154,7 @@ export default class ECSpresso<
 				if (entity) {
 					const triggerValue = entity.components[componentName];
 					for (const { component, factory } of reqs) {
-						if (this._entityManager._pendingBatchKeys?.has(component)) continue;
+						if (this._entityManager._pendingBatchKeys !== null && (component as string) in this._entityManager._pendingBatchKeys) continue;
 						if (!(component in entity.components)) {
 							this._entityManager.addComponent(entityId, component, factory(triggerValue) as Cfg['components'][keyof Cfg['components']]);
 						}
@@ -386,7 +389,7 @@ export default class ECSpresso<
 						this._entityManager.getEntitiesWithQueryInto(
 							output,
 							query.with,
-							query.without || [],
+							query.without ?? EMPTY_ARRAY,
 							query.changed,
 							query.changed ? this._changeThreshold : undefined,
 							query.parentHas,
