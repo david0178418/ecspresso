@@ -12,6 +12,7 @@ import {
 	defineCollisionLayers,
 	createCircleCollider,
 } from "../../src/plugins/collision";
+import { createSpatialIndexPlugin } from "../../src/plugins/spatial-index";
 import {
 	createDiagnosticsPlugin,
 	createDiagnosticsOverlay,
@@ -38,6 +39,9 @@ const ecs = ECSpresso.create()
 		init: { background: '#1a1a2e', width: SCREEN_W, height: SCREEN_H },
 		container: document.body,
 	}))
+	// Broadphase acceleration. Physics2D collision runs in fixedUpdate only,
+	// so only register the rebuild there (default would also rebuild in postUpdate).
+	.withPlugin(createSpatialIndexPlugin({ cellSize: 64, phases: ['fixedUpdate'] }))
 	.withPlugin(createPhysics2DPlugin({ gravity: { x: 0, y: 400 }, collisionSystemGroup: 'collision', layers }))
 	.withPlugin(createDiagnosticsPlugin())
 	.withComponentTypes<{ radius: number; color: number }>()
@@ -157,10 +161,12 @@ toggleBtn.addEventListener('click', () => {
 	const enabled = ecs.isSystemGroupEnabled('collision');
 	if (enabled) {
 		ecs.disableSystemGroup('collision');
+		ecs.disableSystemGroup('spatialIndex');
 		toggleBtn.textContent = 'Collision: OFF';
 		toggleBtn.style.color = '#f55';
 	} else {
 		ecs.enableSystemGroup('collision');
+		ecs.enableSystemGroup('spatialIndex');
 		toggleBtn.textContent = 'Collision: ON';
 		toggleBtn.style.color = '#0f0';
 	}

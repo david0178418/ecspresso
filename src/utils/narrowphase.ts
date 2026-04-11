@@ -208,6 +208,9 @@ export function computeContact(a: BaseColliderInfo, b: BaseColliderInfo): Contac
 /** Module-level reusable set for broadphase candidates. */
 const _broadphaseCandidates = new Set<number>();
 
+let _bruteForceWarned = false;
+const BRUTE_FORCE_WARN_THRESHOLD = 50;
+
 /**
  * Generic collision detection pipeline: brute-force or broadphase,
  * with layer filtering and contact computation.
@@ -233,6 +236,14 @@ function bruteForceDetect<I extends BaseColliderInfo, C>(
 	onContact: (a: I, b: I, contact: Contact, context: C) => void,
 	context: C,
 ): void {
+	if (!_bruteForceWarned && colliders.length >= BRUTE_FORCE_WARN_THRESHOLD) {
+		_bruteForceWarned = true;
+		console.warn(
+			`[ecspresso] Collision detection is using O(n²) brute force with ${colliders.length} colliders. ` +
+			`For better performance, install createSpatialIndexPlugin() alongside your collision or physics2D plugin.`,
+		);
+	}
+
 	for (let i = 0; i < colliders.length; i++) {
 		const a = colliders[i];
 		if (!a) continue;
