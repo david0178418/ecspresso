@@ -24,6 +24,7 @@ const examples = [
 	{ route: 'coroutines', dir: '17-coroutines', html: 'coroutines.html', entry: 'coroutines.ts' },
 	{ route: 'sprite-animation', dir: '18-sprite-animation', html: 'sprite-animation.html', entry: 'sprite-animation.ts' },
 	{ route: 'particles', dir: '19-particles', html: 'particles.html', entry: 'particles.ts' },
+	{ route: 'viewport-scaling', dir: '20-viewport-scaling', html: 'viewport-scaling.html', entry: 'viewport-scaling.ts' },
 ] as const;
 
 // Clean output

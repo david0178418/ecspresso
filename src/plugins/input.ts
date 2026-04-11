@@ -191,6 +191,12 @@ export interface InputPluginOptions<A extends string = string, G extends string 
 	actions?: ActionMap<A>;
 	/** EventTarget to attach listeners to (default: globalThis). Pass a custom target for testability. */
 	target?: EventTarget;
+	/**
+	 * Optional conversion from raw DOM client coordinates to the space `inputState.pointer.position` should report.
+	 * Renderer-agnostic: wire to `clientToLogical(...)` from renderer2D when using `screenScale`, or to a renderer-specific helper.
+	 * When omitted, pointer coords remain raw `clientX`/`clientY` (not canvas-relative).
+	 */
+	coordinateTransform?: (clientX: number, clientY: number) => { x: number; y: number };
 }
 
 // ==================== Helper Functions ====================
@@ -369,6 +375,7 @@ export function createInputPlugin<A extends string = string, G extends string = 
 		phase = 'preUpdate',
 		actions: initialActions = {},
 		target = globalThis,
+		coordinateTransform,
 	} = options ?? {};
 
 	// Closure state
@@ -439,8 +446,14 @@ export function createInputPlugin<A extends string = string, G extends string = 
 
 	function onPointerMove(e: Event) {
 		const pe = e as PointerEvent;
-		raw.pointerX = pe.clientX;
-		raw.pointerY = pe.clientY;
+		if (coordinateTransform) {
+			const { x, y } = coordinateTransform(pe.clientX, pe.clientY);
+			raw.pointerX = x;
+			raw.pointerY = y;
+		} else {
+			raw.pointerX = pe.clientX;
+			raw.pointerY = pe.clientY;
+		}
 		raw.pointerMoved = true;
 	}
 

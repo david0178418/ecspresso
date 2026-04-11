@@ -61,6 +61,86 @@ Action names are type-safe — `isActive`, `justActivated`, `justDeactivated`, `
 
 Key values use the `KeyCode` type — a union of all standard `KeyboardEvent.key` values — providing autocomplete and compile-time validation. Note that the space bar key is `' '` (a space character), not `'Space'`.
 
+### Pointer coordinate conversion
+
+By default `inputState.pointer.position` reports raw `clientX` / `clientY` from the DOM event — viewport-relative, not canvas-relative, and not aware of any renderer scaling. Pass `coordinateTransform` to convert pointer coordinates into whatever space your systems expect. The option is renderer-agnostic: wire it to `clientToLogical(...)` from renderer2D when using `screenScale`, or to an equivalent helper from another renderer.
+
+```typescript
+import { createInputPlugin } from 'ecspresso/plugins/input';
+import {
+  createRenderer2DPlugin, clientToLogical, type ViewportScale,
+} from 'ecspresso/plugins/renderers/renderer2D';
+
+// The renderer's canvas and viewportScale resource only exist after initialize().
+// The closure captures these lazily — pointer events don't fire until after init.
+let canvas: HTMLCanvasElement | null = null;
+let viewport: ViewportScale | null = null;
+
+const ecs = ECSpresso.create()
+  .withPlugin(createRenderer2DPlugin({
+    init: { background: '#1a1a2e', resizeTo: window },
+    container: document.body,
+    screenScale: { width: 1920, height: 1080, mode: 'fit' },
+  }))
+  .withPlugin(createInputPlugin({
+    coordinateTransform: (clientX, clientY) => {
+      if (!canvas || !viewport) return { x: clientX, y: clientY };
+      return clientToLogical(clientX, clientY, canvas, viewport);
+    },
+  }))
+  .build();
+
+await ecs.initialize();
+canvas = ecs.getResource('pixiApp').canvas;
+viewport = ecs.getResource('viewportScale');
+```
+
+After this wiring, `inputState.pointer.position` reports logical design-space coordinates, so gameplay code can ignore window size and viewport layout entirely.
+
+## 2D Renderer Plugin
+
+The 2D renderer plugin wires a PixiJS `Application` to the ECS scene graph: transforms propagate from ECS components to PixiJS display objects, entity hierarchy mirrors into the scene graph, and a render sync system updates visuals each frame. Full option surface lives in `src/plugins/renderers/renderer2D.ts`; this section covers screen scaling, which is what most examples need to opt into a fixed design resolution.
+
+### Screen scaling
+
+Set `screenScale` to pin a logical design resolution. The renderer wraps its root container in a scaled `viewportContainer` so all gameplay systems work in design coordinates while the visible canvas adapts to the window. Three modes:
+
+- `fit` — letterbox: preserves aspect ratio, fits entirely inside the window, leaves gaps on the short axis
+- `cover` — preserves aspect ratio, fills the window completely, crops on the long axis
+- `stretch` — non-uniform scale, always fills, distorts aspect ratio
+
+```typescript
+import { createRenderer2DPlugin } from 'ecspresso/plugins/renderers/renderer2D';
+
+const ecs = ECSpresso.create()
+  .withPlugin(createRenderer2DPlugin({
+    init: { background: '#1a1a2e', resizeTo: window },
+    container: document.body,
+    screenScale: { width: 1920, height: 1080, mode: 'fit' },
+  }))
+  .build();
+```
+
+When `screenScale` is set, the plugin also installs a `viewportScale` resource carrying the current `scaleX` / `scaleY`, `offsetX` / `offsetY`, `physicalWidth` / `physicalHeight`, `mode`, and the original `designWidth` / `designHeight`. Systems that need to place screen-space overlays or convert coordinates can read from this resource.
+
+### Pointer coordinate conversion
+
+`clientToLogical(clientX, clientY, canvas, viewport)` converts a DOM `PointerEvent`'s client coordinates into design-resolution coordinates, accounting for the canvas's position in the viewport, CSS-pixel → physical-pixel scaling, and the letterbox / crop offsets introduced by the scale mode. Wire it into the input plugin's `coordinateTransform` option (see the Input Plugin section above) to make `inputState.pointer.position` report logical coordinates directly. See the `20-viewport-scaling` example for a complete demonstration.
+
+### Runtime mode changes
+
+The `mode` field on `viewportScale` is mutable. To switch modes at runtime, assign a new mode and call `reapplyViewportScale(pixiApp)` to recompute and apply immediately without waiting for a window resize:
+
+```typescript
+import { reapplyViewportScale } from 'ecspresso/plugins/renderers/renderer2D';
+
+const viewport = ecs.getResource('viewportScale');
+const pixiApp = ecs.getResource('pixiApp');
+
+viewport.mode = 'cover';
+reapplyViewportScale(pixiApp);
+```
+
 ## Timer Plugin
 
 The timer plugin provides ECS-native timers that follow the "data, not callbacks" philosophy. Timers are components processed each frame, with optional event-based completion notifications.

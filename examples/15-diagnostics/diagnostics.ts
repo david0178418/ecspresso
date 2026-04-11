@@ -3,6 +3,8 @@ import ECSpresso from "../../src";
 import {
 	createRenderer2DPlugin,
 	createSpriteComponents,
+	clientToLogical,
+	type ViewportScale,
 } from "../../src/plugins/renderers/renderer2D";
 import {
 	createPhysics2DPlugin,
@@ -36,8 +38,13 @@ const layers = defineCollisionLayers({
 
 const ecs = ECSpresso.create()
 	.withPlugin(createRenderer2DPlugin({
-		init: { background: '#1a1a2e', width: SCREEN_W, height: SCREEN_H },
+		init: { background: '#1a1a2e', resizeTo: window },
 		container: document.body,
+		screenScale: {
+			width: SCREEN_W,
+			height: SCREEN_H,
+			mode: 'fit',
+		}
 	}))
 	// Broadphase acceleration. Physics2D collision runs in fixedUpdate only,
 	// so only register the rebuild there (default would also rebuild in postUpdate).
@@ -96,6 +103,7 @@ ecs
 await ecs.initialize();
 
 const pixiApp = ecs.getResource('pixiApp');
+const viewport: ViewportScale = ecs.getResource('viewportScale');
 
 // -- Ball spawning --
 
@@ -134,9 +142,9 @@ for (let i = 0; i < 50; i++) {
 const canvas = pixiApp.canvas;
 
 function updatePointerPosition(e: PointerEvent) {
-	const rect = canvas.getBoundingClientRect();
-	pointerState.x = e.clientX - rect.left;
-	pointerState.y = e.clientY - rect.top;
+	const { x, y } = clientToLogical(e.clientX, e.clientY, canvas, viewport);
+	pointerState.x = x;
+	pointerState.y = y;
 }
 
 canvas.addEventListener('pointerdown', (e: PointerEvent) => {

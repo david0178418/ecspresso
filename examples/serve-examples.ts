@@ -17,6 +17,7 @@ import audio from './16-audio/audio.html';
 import coroutines from './17-coroutines/coroutines.html';
 import spriteAnimation from './18-sprite-animation/sprite-animation.html';
 import particles from './19-particles/particles.html';
+import viewportScaling from './20-viewport-scaling/viewport-scaling.html';
 
 const examplesDir = import.meta.dir;
 
@@ -43,6 +44,7 @@ const server = serve({
 		'/coroutines/': coroutines,
 		'/sprite-animation/': spriteAnimation,
 		'/particles/': particles,
+		'/viewport-scaling/': viewportScaling,
 	},
 	async fetch(request) {
 		// Serve static assets (e.g. .wav, .mp3) from example directories

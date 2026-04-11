@@ -114,6 +114,7 @@ describe('physicalToLogical', () => {
 			scaleX: 1, scaleY: 1,
 			offsetX: 0, offsetY: 0,
 			physicalWidth: 800, physicalHeight: 600,
+			mode: 'fit',
 			designWidth: 800, designHeight: 600,
 		};
 		const result = physicalToLogical(400, 300, viewport);
@@ -126,6 +127,7 @@ describe('physicalToLogical', () => {
 			scaleX: 1, scaleY: 1,
 			offsetX: 200, offsetY: 0,
 			physicalWidth: 1200, physicalHeight: 600,
+			mode: 'fit',
 			designWidth: 800, designHeight: 600,
 		};
 		// Physical (200, 300) → logical (0, 300) since offset subtracts
@@ -139,6 +141,7 @@ describe('physicalToLogical', () => {
 			scaleX: 2, scaleY: 2,
 			offsetX: 0, offsetY: 0,
 			physicalWidth: 1600, physicalHeight: 1200,
+			mode: 'cover',
 			designWidth: 800, designHeight: 600,
 		};
 		// Physical (400, 300) → logical (200, 150)

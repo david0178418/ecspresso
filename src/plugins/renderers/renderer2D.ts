@@ -108,6 +108,8 @@ export interface ViewportScale {
 	offsetY: number;
 	physicalWidth: number;
 	physicalHeight: number;
+	/** Current scale mode. Mutable — call `reapplyViewportScale(pixiApp)` after changing to re-apply immediately. */
+	mode: ScaleMode;
 	readonly designWidth: number;
 	readonly designHeight: number;
 }
@@ -367,6 +369,7 @@ export function computeViewportScale(
 		offsetY: (physicalH - designH * scaleY) / 2,
 		physicalWidth: physicalW,
 		physicalHeight: physicalH,
+		mode,
 		designWidth: designW,
 		designHeight: designH,
 	};
@@ -385,6 +388,31 @@ export function physicalToLogical(
 		x: (physicalX - viewport.offsetX) / viewport.scaleX,
 		y: (physicalY - viewport.offsetY) / viewport.scaleY,
 	};
+}
+
+/**
+ * Convert a DOM pointer event's client coordinates to design-resolution (logical) coordinates.
+ * Handles canvas offset, CSS-pixel to physical-pixel scaling, and viewport letterbox/crop offsets.
+ * Suitable for wiring into the input plugin's `coordinateTransform` option.
+ */
+export function clientToLogical(
+	clientX: number,
+	clientY: number,
+	canvas: HTMLCanvasElement,
+	viewport: ViewportScale,
+): { x: number; y: number } {
+	const rect = canvas.getBoundingClientRect();
+	const physicalX = (clientX - rect.left) * (viewport.physicalWidth / rect.width);
+	const physicalY = (clientY - rect.top) * (viewport.physicalHeight / rect.height);
+	return physicalToLogical(physicalX, physicalY, viewport);
+}
+
+/**
+ * Re-apply the current viewport scale using the latest `mode` from the `viewportScale` resource.
+ * Call after mutating `viewportScale.mode` to take effect immediately without waiting for a window resize.
+ */
+export function reapplyViewportScale(pixiApp: Application): void {
+	pixiApp.renderer.emit('resize', pixiApp.screen.width, pixiApp.screen.height, pixiApp.renderer.resolution);
 }
 
 // ==================== Plugin Factory ====================
@@ -788,9 +816,9 @@ export function createRenderer2DPlugin<G extends string = 'renderer2d'>(
 
 					pixiApp.renderer.on('resize', (width: number, height: number) => {
 						if (hasScreenScale) {
-							const vs = computeViewportScale(width, height, designWidth, designHeight, screenScaleMode);
 							const vpResource = ecs.tryGetResource('viewportScale');
 							if (!vpResource) throw new Error('renderer2D: viewportScale resource not found');
+							const vs = computeViewportScale(width, height, designWidth, designHeight, vpResource.mode);
 							vpResource.scaleX = vs.scaleX;
 							vpResource.scaleY = vs.scaleY;
 							vpResource.offsetX = vs.offsetX;
