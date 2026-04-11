@@ -11,8 +11,7 @@ import {
 // withComponentTypes adds app-specific component types (type-level only, no runtime cost).
 const ecs = ECSpresso.create()
 	.withPlugin(createRenderer2DPlugin({
-		init: { background: '#1099bb', resizeTo: window },
-		container: document.body,
+		background: '#1099bb',
 	}))
 	.withComponentTypes<{
 		velocity: { x: number; y: number };

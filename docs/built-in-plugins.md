@@ -78,8 +78,7 @@ let viewport: ViewportScale | null = null;
 
 const ecs = ECSpresso.create()
   .withPlugin(createRenderer2DPlugin({
-    init: { background: '#1a1a2e', resizeTo: window },
-    container: document.body,
+    background: '#1a1a2e',
     screenScale: { width: 1920, height: 1080, mode: 'fit' },
   }))
   .withPlugin(createInputPlugin({
@@ -114,12 +113,13 @@ import { createRenderer2DPlugin } from 'ecspresso/plugins/renderers/renderer2D';
 
 const ecs = ECSpresso.create()
   .withPlugin(createRenderer2DPlugin({
-    init: { background: '#1a1a2e', resizeTo: window },
-    container: document.body,
+    background: '#1a1a2e',
     screenScale: { width: 1920, height: 1080, mode: 'fit' },
   }))
   .build();
 ```
+
+Managed-mode canvas sizing: the canvas is appended to `container` (defaults to `document.body`) and auto-resizes to match it. Pass top-level `width`/`height` for a fixed-size canvas — the resizeTo default is suppressed automatically. If you need the canvas to size to something other than its DOM parent, set `pixiInit.resizeTo` directly.
 
 When `screenScale` is set, the plugin also installs a `viewportScale` resource carrying the current `scaleX` / `scaleY`, `offsetX` / `offsetY`, `physicalWidth` / `physicalHeight`, `mode`, and the original `designWidth` / `designHeight`. Systems that need to place screen-space overlays or convert coordinates can read from this resource.
 

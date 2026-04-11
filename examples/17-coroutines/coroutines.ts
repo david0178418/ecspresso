@@ -34,8 +34,9 @@ const CIRCLE_COLOR = 0xe53935;
 const ecs = ECSpresso
 	.create()
 	.withPlugin(createRenderer2DPlugin({
-		init: { background: '#1a1a2e', width: SCREEN_W, height: SCREEN_H },
-		container: document.body,
+		background: '#1a1a2e',
+		width: SCREEN_W,
+		height: SCREEN_H,
 	}))
 	.withPlugin(createCoroutinePlugin())
 	.build();

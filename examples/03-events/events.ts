@@ -10,8 +10,7 @@ import {
 // withEventTypes declares typed events that systems can publish and subscribe to.
 const ecs = ECSpresso.create()
 	.withPlugin(createRenderer2DPlugin({
-		init: { background: '#1099bb', resizeTo: window },
-		container: document.body,
+		background: '#1099bb',
 	}))
 	.withComponentTypes<{
 		velocity: { x: number; y: number };

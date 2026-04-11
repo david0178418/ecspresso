@@ -64,8 +64,7 @@ function createBouncingPlugin() {
 // The bouncing plugin's velocity, radius, and wallHit types are now available.
 const ecs = ECSpresso.create()
 	.withPlugin(createRenderer2DPlugin({
-		init: { background: '#1099bb', resizeTo: window },
-		container: document.body,
+		background: '#1099bb',
 	}))
 	.withPlugin(createBouncingPlugin())
 	.build();

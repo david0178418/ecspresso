@@ -44,8 +44,7 @@ const VIEWPORT_HEIGHT = 600;
 
 const ecs = ECSpresso.create()
 	.withPlugin(createRenderer2DPlugin({
-		init: { background: 0x1a1a2e, resizeTo: window },
-		container: document.body,
+		background: 0x1a1a2e,
 		startLoop: true,
 		camera: true,
 	}))

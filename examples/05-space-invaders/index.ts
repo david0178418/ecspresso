@@ -29,7 +29,7 @@ const game = builder
 	})
 	.withPlugin(createTimerPlugin())
 	.withPlugin(createRenderer2DPlugin({
-		init: { background: '#000000', resizeTo: window },
+		background: '#000000',
 		container: '#game-container',
 		renderLayers: ['game'],
 		screenScale: { width: 800, height: 600 },

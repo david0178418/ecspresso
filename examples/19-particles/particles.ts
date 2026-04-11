@@ -86,8 +86,9 @@ interface AppEvents {
 const ecs = ECSpresso
 	.create()
 	.withPlugin(createRenderer2DPlugin({
-		init: { background: '#0a0a1a', width: SCREEN_W, height: SCREEN_H },
-		container: document.body,
+		background: '#0a0a1a',
+		width: SCREEN_W,
+		height: SCREEN_H,
 	}))
 	.withPlugin(createParticlePlugin())
 	.withComponentTypes<ParticleComponentTypes>()

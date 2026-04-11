@@ -83,8 +83,7 @@ const SOLAR_SYSTEM = {
 
 const ecs = ECSpresso.create()
 	.withPlugin(createRenderer2DPlugin({
-		init: { background: 0x000011, resizeTo: window },
-		container: document.body,
+		background: 0x000011,
 		startLoop: true,
 	}))
 	.withPlugin(createInputPlugin({

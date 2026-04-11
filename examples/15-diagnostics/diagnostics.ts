@@ -38,8 +38,7 @@ const layers = defineCollisionLayers({
 
 const ecs = ECSpresso.create()
 	.withPlugin(createRenderer2DPlugin({
-		init: { background: '#1a1a2e', resizeTo: window },
-		container: document.body,
+		background: '#1a1a2e',
 		screenScale: {
 			width: SCREEN_W,
 			height: SCREEN_H,

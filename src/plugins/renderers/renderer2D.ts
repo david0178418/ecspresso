@@ -27,7 +27,7 @@ export type { BoundsRect };
 export { createTransform, createLocalTransform, createWorldTransform, DEFAULT_LOCAL_TRANSFORM, DEFAULT_WORLD_TRANSFORM } from 'ecspresso/plugins/transform';
 
 // Dynamic import for Application to avoid requiring pixi.js at plugin creation time
-// when using managed mode (init options instead of pre-initialized app)
+// when using managed mode (pixiInit options instead of pre-initialized app)
 async function createPixiApplication(options: Partial<ApplicationOptions>): Promise<Application> {
 	const { Application } = await import('pixi.js');
 	const app = new Application();
@@ -150,8 +150,11 @@ interface Renderer2DPluginCommonOptions<G extends string = 'renderer2d'> {
 export interface Renderer2DPluginAppOptions<G extends string = 'renderer2d'> extends Renderer2DPluginCommonOptions<G> {
 	/** The PixiJS Application instance (already initialized) */
 	app: Application;
-	init?: never;
+	pixiInit?: never;
 	container?: never;
+	background?: never;
+	width?: never;
+	height?: never;
 }
 
 /**
@@ -159,10 +162,18 @@ export interface Renderer2DPluginAppOptions<G extends string = 'renderer2d'> ext
  */
 export interface Renderer2DPluginManagedOptions<G extends string = 'renderer2d'> extends Renderer2DPluginCommonOptions<G> {
 	app?: never;
-	/** PixiJS ApplicationOptions - plugin will create and initialize the Application */
-	init: Partial<ApplicationOptions>;
-	/** Container element to append the canvas to, or CSS selector string */
+	/** Container element to append the canvas to (or CSS selector string). Defaults to `document.body`.
+	 *  The canvas also auto-resizes to this element unless `width`/`height` are set or `pixiInit.resizeTo` is set explicitly. */
 	container?: HTMLElement | string;
+	/** Canvas background color. */
+	background?: ApplicationOptions['background'];
+	/** Fixed canvas width. When set (with `height`), the canvas is fixed-size and the auto-resize default is suppressed. */
+	width?: ApplicationOptions['width'];
+	/** Fixed canvas height. When set (with `width`), the canvas is fixed-size and the auto-resize default is suppressed. */
+	height?: ApplicationOptions['height'];
+	/** Escape hatch for raw PixiJS ApplicationOptions not otherwise exposed at the top level.
+	 *  Top-level fields (`background`, `width`, `height`) take precedence when both are set. */
+	pixiInit?: Partial<ApplicationOptions>;
 }
 
 /**
@@ -170,7 +181,9 @@ export interface Renderer2DPluginManagedOptions<G extends string = 'renderer2d'>
  *
  * Supports two modes:
  * 1. **Pre-initialized**: Pass an already-initialized Application via `app`
- * 2. **Managed**: Pass `init` options and the plugin creates the Application during `ecs.initialize()`
+ * 2. **Managed**: Omit `app` and the plugin creates the Application during `ecs.initialize()`.
+ *    The canvas is appended to `container` (defaults to `document.body`) and auto-resizes to
+ *    match it. Pass `pixiInit: { width, height }` for a fixed-size canvas instead.
  *
  * This plugin includes transform propagation automatically - no need to add createTransformPlugin() separately.
  *
@@ -188,8 +201,7 @@ export interface Renderer2DPluginManagedOptions<G extends string = 'renderer2d'>
  * ```typescript
  * const ecs = ECSpresso.create()
  *   .withPlugin(createRenderer2DPlugin({
- *     init: { background: '#1099bb', resizeTo: window },
- *     container: document.body,
+ *     background: '#1099bb',
  *   }))
  *   .withComponentTypes<{ player: true }>()
  *   .build();
@@ -439,8 +451,7 @@ export function reapplyViewportScale(pixiApp: Application): void {
  * ```typescript
  * const ecs = ECSpresso.create<GameComponents, {}, {}>()
  *   .withPlugin(createRenderer2DPlugin({
- *     init: { background: '#1099bb', resizeTo: window },
- *     container: document.body,
+ *     background: '#1099bb',
  *   }))
  *   .build();
  * await ecs.initialize();
@@ -561,8 +572,8 @@ export function createRenderer2DPlugin<G extends string = 'renderer2d'>(
 		}
 	}
 
-	// Determine mode and set up resource registration closures
-	const isManaged = 'init' in options && options.init !== undefined;
+	// Determine mode: pre-initialized if an Application instance was provided, otherwise managed
+	const isManaged = !('app' in options && options.app !== undefined);
 
 	return definePlugin<WorldConfigFrom<Renderer2DComponentTypes, Renderer2DEventTypes, PluginResourceTypes>, EmptyConfig, Renderer2DLabels, G, never, Renderer2DReactiveQueryNames>({
 		id: 'renderer2d',
@@ -572,22 +583,41 @@ export function createRenderer2DPlugin<G extends string = 'renderer2d'>(
 
 			// Register resources based on mode
 			if (isManaged) {
-				const initOptions = (options as Renderer2DPluginManagedOptions<G>).init;
-				const containerOption = (options as Renderer2DPluginManagedOptions<G>).container;
+				const managedOptions = options as Renderer2DPluginManagedOptions<G>;
+				const { pixiInit, background, width, height } = managedOptions;
+				const containerOption = managedOptions.container ?? document.body;
+
+				const containerEl: HTMLElement | null = typeof containerOption === 'string'
+					? document.querySelector<HTMLElement>(containerOption)
+					: containerOption;
+
+				// Top-level background/width/height override pixiInit equivalents.
+				const mergedPixiInit: Partial<ApplicationOptions> = {
+					...pixiInit,
+					...(background !== undefined && { background }),
+					...(width !== undefined && { width }),
+					...(height !== undefined && { height }),
+				};
+
+				// Default resizeTo to the resolved container unless the caller opted into a
+				// fixed-size canvas via width/height, or set pixiInit.resizeTo directly.
+				const shouldDefaultResizeTo = containerEl !== null
+					&& mergedPixiInit.resizeTo === undefined
+					&& mergedPixiInit.width === undefined
+					&& mergedPixiInit.height === undefined;
+
+				const finalInitOptions: Partial<ApplicationOptions> = {
+					...mergedPixiInit,
+					...(shouldDefaultResizeTo && { resizeTo: containerEl }),
+				};
 
 				world.addResource('pixiApp', async () => {
-					const app = await createPixiApplication(initOptions);
+					const app = await createPixiApplication(finalInitOptions);
 
-					if (containerOption) {
-						const containerEl = typeof containerOption === 'string'
-							? document.querySelector(containerOption)
-							: containerOption;
-
-						if (containerEl) {
-							containerEl.appendChild(app.canvas);
-						} else if (typeof containerOption === 'string') {
-							console.warn(`Renderer2D plugin: container selector "${containerOption}" not found`);
-						}
+					if (containerEl) {
+						containerEl.appendChild(app.canvas);
+					} else if (typeof containerOption === 'string') {
+						console.warn(`Renderer2D plugin: container selector "${containerOption}" not found`);
 					}
 
 					return app;

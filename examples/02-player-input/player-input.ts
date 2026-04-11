@@ -11,8 +11,7 @@ import {
 // Actions map named intents to physical keys — systems read actions, not raw keys.
 const ecs = ECSpresso.create()
 	.withPlugin(createRenderer2DPlugin({
-		init: { background: '#1099bb', resizeTo: window },
-		container: document.body,
+		background: '#1099bb',
 	}))
 	.withPlugin(createInputPlugin({
 		actions: {

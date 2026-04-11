@@ -21,8 +21,7 @@ let viewport: ViewportScale | null = null;
 
 const ecs = ECSpresso.create()
 	.withPlugin(createRenderer2DPlugin({
-		init: { background: '#1a1a2e', resizeTo: window },
-		container: document.body,
+		background: '#1a1a2e',
 		screenScale: { width: DESIGN_W, height: DESIGN_H, mode: 'fit' },
 	}))
 	.withPlugin(createInputPlugin({

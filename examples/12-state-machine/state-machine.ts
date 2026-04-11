@@ -57,8 +57,7 @@ const STATE_COLORS = {
 const ecs = ECSpresso
 	.create()
 	.withPlugin(createRenderer2DPlugin({
-		init: { background: '#111122', resizeTo: window },
-		container: document.body,
+		background: '#111122',
 	}))
 	.withPlugin(createPhysics2DPlugin({ gravity: { x: 0, y: 0 } }))
 	.withPlugin(createInputPlugin({
