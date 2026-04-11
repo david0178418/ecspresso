@@ -20,9 +20,9 @@ import {
 
 // -- Constants --
 
-const SCREEN_W = 800;
-const SCREEN_H = 600;
-const BALL_RADIUS = 10;
+const SCREEN_W = 1920;
+const SCREEN_H = 1080;
+const BALL_RADIUS = 5;
 const SPAWN_RATE = 5; // balls per frame while held
 const COLORS = [0xff6b6b, 0x4ecdc4, 0x45b7d1, 0xf9ca24, 0xa29bfe, 0xfd79a8, 0x00cec9, 0xe17055];
 
@@ -42,7 +42,7 @@ const ecs = ECSpresso.create()
 	// Broadphase acceleration. Physics2D collision runs in fixedUpdate only,
 	// so only register the rebuild there (default would also rebuild in postUpdate).
 	.withPlugin(createSpatialIndexPlugin({ cellSize: 64, phases: ['fixedUpdate'] }))
-	.withPlugin(createPhysics2DPlugin({ gravity: { x: 0, y: 400 }, collisionSystemGroup: 'collision', layers }))
+	.withPlugin(createPhysics2DPlugin({ collisionSystemGroup: 'collision', layers }))
 	.withPlugin(createDiagnosticsPlugin())
 	.withComponentTypes<{ radius: number; color: number }>()
 	.build();
@@ -60,18 +60,18 @@ ecs
 
 			if (worldTransform.x < radius) {
 				worldTransform.x = radius;
-				velocity.x = Math.abs(velocity.x) * 0.9;
+				velocity.x = Math.abs(velocity.x);
 			} else if (worldTransform.x > SCREEN_W - radius) {
 				worldTransform.x = SCREEN_W - radius;
-				velocity.x = -Math.abs(velocity.x) * 0.9;
+				velocity.x = -Math.abs(velocity.x);
 			}
 
 			if (worldTransform.y < radius) {
 				worldTransform.y = radius;
-				velocity.y = Math.abs(velocity.y) * 0.9;
+				velocity.y = Math.abs(velocity.y);
 			} else if (worldTransform.y > SCREEN_H - radius) {
 				worldTransform.y = SCREEN_H - radius;
-				velocity.y = -Math.abs(velocity.y) * 0.9;
+				velocity.y = -Math.abs(velocity.y);
 			}
 		}
 	});
@@ -109,7 +109,7 @@ function spawnBall(x: number, y: number) {
 
 	ecs.spawn({
 		...createSpriteComponents(sprite, { x, y }, { anchor: { x: 0.5, y: 0.5 } }),
-		...createRigidBody('dynamic', { mass: 1, restitution: 0.7, drag: 0.01 }),
+		...createRigidBody('dynamic', { mass: 1, restitution: 1.01, drag: 0.01 }),
 		...createCircleCollider(BALL_RADIUS),
 		...layers.ball(),
 		velocity: {
