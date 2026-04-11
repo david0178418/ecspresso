@@ -8,3 +8,4 @@
 - Use resource factories for expensive initialization (textures, audio, etc.)
 - Consider component callbacks for immediate reactions to state changes
 - Minimize the number of components in queries when possible to leverage indexing
+- Install `createSpatialIndexPlugin()` alongside `createCollisionPlugin()` or `createPhysics2DPlugin()` whenever you have more than a handful of colliders — without it, collision detection falls back to O(N²) brute-force pair testing (the library will log a warn-once above ~50 colliders)

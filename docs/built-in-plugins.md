@@ -93,3 +93,145 @@ world.spawn({ ...createRepeatingTimer(5.0, { onComplete: 'spawnWave' }) });
 ```
 
 Timer components expose `elapsed`, `duration`, `repeat`, `active`, `justFinished`, and optional `onComplete` for runtime control.
+
+## Collision Plugin
+
+The collision plugin detects overlaps between entities with `aabbCollider` or `circleCollider` components and publishes `collision` events. It's event-only — it never mutates position or velocity. Use it for gameplay hit detection; pair it with the physics2D plugin when you also want impulse response.
+
+Collision pairs are filtered by layer. `defineCollisionLayers` declares the layer graph once and produces typed factory helpers plus a `Layer` type that flows through event subscribers and pair handlers.
+
+```typescript
+import {
+  createCollisionPlugin,
+  createAABBCollider, createCircleCollider,
+  defineCollisionLayers, createCollisionPairHandler,
+  type LayersOf,
+} from 'ecspresso/plugins/collision';
+import { createTransformPlugin, createTransform } from 'ecspresso/plugins/transform';
+
+const layers = defineCollisionLayers({
+  player: ['enemy', 'pickup'],
+  enemy: ['player'],
+  pickup: [],
+});
+type Layer = LayersOf<typeof layers>;
+
+const ecs = ECSpresso.create()
+  .withPlugin(createTransformPlugin())
+  .withPlugin(createCollisionPlugin({ layers }))
+  .build();
+
+ecs.spawn({
+  ...createTransform(100, 100),
+  ...createAABBCollider(50, 50),
+  ...layers.player(),
+});
+
+ecs.spawn({
+  ...createTransform(120, 120),
+  ...createCircleCollider(20),
+  ...layers.enemy(),
+});
+
+// Route pairs to layer-specific handlers
+type ECS = typeof ecs;
+const onCollide = createCollisionPairHandler<ECS, Layer>({
+  'player:enemy': (playerId, enemyId, world) => {
+    world.commands.removeEntity(enemyId);
+  },
+  'player:pickup': (playerId, pickupId, world) => {
+    world.commands.removeEntity(pickupId);
+  },
+});
+ecs.eventBus.subscribe('collision', (data) => onCollide({ data, ecs }));
+```
+
+`collision` events carry `entityA`, `entityB`, `layerA`, `layerB`, and flat contact fields `normalX` / `normalY` / `depth`. The normal points from A toward B. Declaring `"a:b"` in a pair handler automatically also handles `(layerA=b, layerB=a)` with the entity arguments swapped so the declared key order holds.
+
+Collider positions are read from `worldTransform`, so hierarchical parents and offsets work correctly. Optional `offsetX` / `offsetY` on the collider itself shifts the collision shape relative to the entity's transform.
+
+Without a spatial index installed, the collision system uses O(N²) brute-force pair testing. Install `createSpatialIndexPlugin()` for broadphase acceleration — see the Spatial Index section below.
+
+## Physics2D Plugin
+
+The physics2D plugin provides ECS-native 2D arcade physics: gravity, forces, drag, semi-implicit Euler integration, and impulse-based collision response with restitution and friction. It reuses the collider types from the collision plugin and runs in `fixedUpdate` so timestep is deterministic.
+
+```typescript
+import {
+  createPhysics2DPlugin, createRigidBody, applyForce, applyImpulse,
+} from 'ecspresso/plugins/physics2D';
+import {
+  createAABBCollider, defineCollisionLayers,
+} from 'ecspresso/plugins/collision';
+import { createTransformPlugin, createTransform } from 'ecspresso/plugins/transform';
+
+const layers = defineCollisionLayers({
+  ball: ['ball', 'wall'],
+  wall: ['ball'],
+});
+
+const ecs = ECSpresso.create()
+  .withPlugin(createTransformPlugin())
+  .withPlugin(createPhysics2DPlugin({ gravity: { x: 0, y: 980 }, layers }))
+  .withFixedTimestep(1 / 60)
+  .build();
+
+// Dynamic body — gravity, forces, and collision response all apply
+ecs.spawn({
+  ...createTransform(100, 50),
+  ...createRigidBody('dynamic', { mass: 1, restitution: 0.6, friction: 0.2 }),
+  velocity: { x: 0, y: 0 },
+  ...createAABBCollider(20, 20),
+  ...layers.ball(),
+});
+
+// Static body — immovable, mass automatically set to Infinity
+ecs.spawn({
+  ...createTransform(400, 600),
+  ...createRigidBody('static'),
+  velocity: { x: 0, y: 0 },
+  ...createAABBCollider(800, 20),
+  ...layers.wall(),
+});
+
+// Accumulate a force inside a system:
+applyForce(ecs, entityId, 0, -500);
+// Or apply an instantaneous impulse:
+applyImpulse(ecs, entityId, 100, 0);
+```
+
+Body types: `'dynamic'` (fully simulated), `'kinematic'` (moves via velocity only, ignores gravity and collision response), `'static'` (immovable). `rigidBody` auto-creates `velocity` and `force` components via required-component registration, so you only need to spread `createRigidBody(...)` plus an explicit `velocity` if you want a non-zero initial value.
+
+`physicsCollision` events carry `entityA`, `entityB`, and flat contact fields `normalX` / `normalY` / `depth`. Collision response happens before the event fires, so subscribers observe post-impulse state.
+
+The collision system can be placed in an additional group via `collisionSystemGroup`, which lets you toggle collision detection on/off independently of integration. Like the collision plugin, physics2D benefits from `createSpatialIndexPlugin()` for anything beyond a handful of bodies.
+
+## Spatial Index Plugin
+
+The spatial index plugin provides a uniform-grid spatial hash that accelerates collision detection and proximity queries. Installing it alongside `createCollisionPlugin()` or `createPhysics2DPlugin()` automatically switches them from O(N²) brute-force to a broadphase + narrowphase pipeline — no other code changes required.
+
+```typescript
+import { createSpatialIndexPlugin } from 'ecspresso/plugins/spatial-index';
+
+const ecs = ECSpresso.create()
+  .withPlugin(createTransformPlugin())
+  .withPlugin(createCollisionPlugin({ layers }))
+  .withPlugin(createSpatialIndexPlugin({ cellSize: 64 }))
+  .withFixedTimestep(1 / 60)
+  .build();
+
+// Proximity queries from any system:
+const si = ecs.getResource('spatialIndex');
+const nearbyIds = si.queryRadius(playerX, playerY, 200);
+const inRect = si.queryRect(minX, minY, maxX, maxY);
+```
+
+Options:
+
+- `cellSize` (default `64`) — roughly 1–2× the size of a typical collider. Too small wastes memory on empty cells; too large collapses the broadphase back toward brute force.
+- `phases` (default `['fixedUpdate', 'postUpdate']`) — when to rebuild the grid. `fixedUpdate` is required for physics2D; `postUpdate` is required for the collision plugin's default phase. Limit to one phase if you only use one plugin.
+- `priority` (default `2000`) — runs before collision detection (priority `0`) so each consumer sees a freshly rebuilt grid.
+
+Steady-state rebuilds allocate zero `SpatialEntry` objects and zero cell buckets — both are pooled in place across frames. Rebuild cost is proportional to the number of colliders, not the world size.
+
+Besides accelerating collision, the `spatialIndex` resource exposes `queryRect`, `queryRadius`, and the out-parameter variants `queryRectInto` / `queryRadiusInto` (write into a caller-owned `Set<number>`, zero allocations per call) for game-logic proximity checks.
