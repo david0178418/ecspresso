@@ -76,21 +76,21 @@ function parseArgs(argv: string[]): Args {
 async function buildWorld(args: Args) {
 	const layers = defineCollisionLayers({ ball: ['ball'] });
 
-	const builder = ECSpresso.create()
+	const ecs = ECSpresso.create()
 		.withPlugin(createTransformPlugin())
 		.withPlugin(createPhysics2DPlugin({
 			gravity: { x: 0, y: 400 },
 			layers,
-		}));
-
-	const withSpatial = args.spatial
-		? builder.withPlugin(createSpatialIndexPlugin({ cellSize: 32 }))
-		: builder;
-
-	const ecs = withSpatial
+		}))
+		.withPlugin(createSpatialIndexPlugin({ cellSize: 32 }))
 		.withPlugin(createDiagnosticsPlugin())
 		.withComponentTypes<{ radius: number }>()
 		.build();
+
+	if (!args.spatial) {
+		ecs.disableSystemGroup('spatialIndex');
+		ecs.removeResource('spatialIndex');
+	}
 
 	// Bounce system — mirrors the example
 	ecs

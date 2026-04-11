@@ -125,7 +125,6 @@ interface RunResult {
 }
 
 function measure(
-	label: string,
 	colliders: BaseColliderInfo<'ball'>[],
 	spatialIndex: SpatialIndex | undefined,
 	iters: number,
@@ -178,8 +177,8 @@ function main() {
 		const { grid, index } = buildSpatialIndex(args.cellSize);
 		populateGrid(grid, colliders);
 
-		const brute = measure('brute', colliders, undefined, args.iters);
-		const broad = measure('broadphase', colliders, index, args.iters);
+		const brute = measure(colliders, undefined, args.iters);
+		const broad = measure(colliders, index, args.iters);
 
 		printRow([
 			String(count),
