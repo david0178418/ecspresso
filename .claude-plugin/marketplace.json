@@ -6,7 +6,7 @@
 	"plugins": [
 		{
 			"name": "ecspresso",
-			"source": ".",
+			"source": "./",
 			"description": "ECSpresso ECS library skill for AI-assisted development"
 		}
 	]
