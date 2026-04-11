@@ -612,7 +612,7 @@ describe('createCollisionPairHandler', () => {
 			},
 		});
 
-		handler({ data: { entityA: 1, entityB: 2, layerA: 'player', layerB: 'enemy', normal: { x: 1, y: 0 }, depth: 1 }, ecs: undefined });
+		handler({ data: { entityA: 1, entityB: 2, layerA: 'player', layerB: 'enemy', normalX: 1, normalY: 0, depth: 1 }, ecs: undefined });
 
 		expect(calls).toEqual([{ first: 1, second: 2 }]);
 	});
@@ -627,7 +627,7 @@ describe('createCollisionPairHandler', () => {
 		});
 
 		// Event arrives with layers in reverse order
-		handler({ data: { entityA: 10, entityB: 20, layerA: 'enemy', layerB: 'player', normal: { x: 1, y: 0 }, depth: 1 }, ecs: undefined });
+		handler({ data: { entityA: 10, entityB: 20, layerA: 'enemy', layerB: 'player', normalX: 1, normalY: 0, depth: 1 }, ecs: undefined });
 
 		// Entities should be swapped so player is first
 		expect(calls).toEqual([{ first: 20, second: 10 }]);
@@ -646,8 +646,8 @@ describe('createCollisionPairHandler', () => {
 			},
 		});
 
-		handler({ data: { entityA: 1, entityB: 2, layerA: 'player', layerB: 'enemy', normal: { x: 1, y: 0 }, depth: 1 }, ecs: undefined });
-		handler({ data: { entityA: 3, entityB: 4, layerA: 'bullet', layerB: 'wall', normal: { x: 1, y: 0 }, depth: 1 }, ecs: undefined });
+		handler({ data: { entityA: 1, entityB: 2, layerA: 'player', layerB: 'enemy', normalX: 1, normalY: 0, depth: 1 }, ecs: undefined });
+		handler({ data: { entityA: 3, entityB: 4, layerA: 'bullet', layerB: 'wall', normalX: 1, normalY: 0, depth: 1 }, ecs: undefined });
 
 		expect(playerEnemyCalls).toEqual([{ first: 1, second: 2 }]);
 		expect(bulletWallCalls).toEqual([{ first: 3, second: 4 }]);
@@ -662,7 +662,7 @@ describe('createCollisionPairHandler', () => {
 			},
 		});
 
-		handler({ data: { entityA: 5, entityB: 6, layerA: 'enemy', layerB: 'enemy', normal: { x: 1, y: 0 }, depth: 1 }, ecs: undefined });
+		handler({ data: { entityA: 5, entityB: 6, layerA: 'enemy', layerB: 'enemy', normalX: 1, normalY: 0, depth: 1 }, ecs: undefined });
 
 		expect(calls).toEqual([{ first: 5, second: 6 }]);
 	});
@@ -681,9 +681,9 @@ describe('createCollisionPairHandler', () => {
 		});
 
 		// Forward: layerA=a, layerB=b → should call a:b handler
-		handler({ data: { entityA: 1, entityB: 2, layerA: 'a', layerB: 'b', normal: { x: 1, y: 0 }, depth: 1 }, ecs: undefined });
+		handler({ data: { entityA: 1, entityB: 2, layerA: 'a', layerB: 'b', normalX: 1, normalY: 0, depth: 1 }, ecs: undefined });
 		// Reverse: layerA=b, layerB=a → should call b:a handler
-		handler({ data: { entityA: 3, entityB: 4, layerA: 'b', layerB: 'a', normal: { x: -1, y: 0 }, depth: 1 }, ecs: undefined });
+		handler({ data: { entityA: 3, entityB: 4, layerA: 'b', layerB: 'a', normalX: -1, normalY: 0, depth: 1 }, ecs: undefined });
 
 		expect(abCalls).toEqual([{ first: 1, second: 2 }]);
 		expect(baCalls).toEqual([{ first: 3, second: 4 }]);
@@ -699,7 +699,7 @@ describe('createCollisionPairHandler', () => {
 		});
 
 		// This pair has no handler
-		handler({ data: { entityA: 1, entityB: 2, layerA: 'bullet', layerB: 'wall', normal: { x: 1, y: 0 }, depth: 1 }, ecs: undefined });
+		handler({ data: { entityA: 1, entityB: 2, layerA: 'bullet', layerB: 'wall', normalX: 1, normalY: 0, depth: 1 }, ecs: undefined });
 
 		expect(calls).toEqual([]);
 	});
@@ -708,7 +708,7 @@ describe('createCollisionPairHandler', () => {
 		const handler = createCollisionPairHandler({});
 
 		// Should not throw
-		handler({ data: { entityA: 1, entityB: 2, layerA: 'a', layerB: 'b', normal: { x: 1, y: 0 }, depth: 1 }, ecs: undefined });
+		handler({ data: { entityA: 1, entityB: 2, layerA: 'a', layerB: 'b', normalX: 1, normalY: 0, depth: 1 }, ecs: undefined });
 	});
 
 	test('invalid key format — throws on construction (missing colon)', () => {
@@ -819,7 +819,7 @@ describe('Collision type narrowing', () => {
 		});
 
 		// handler accepts CollisionEvent<Layer>
-		const event: CollisionEvent<Layer> = { entityA: 1, entityB: 2, layerA: 'player', layerB: 'enemy', normal: { x: 1, y: 0 }, depth: 1 };
+		const event: CollisionEvent<Layer> = { entityA: 1, entityB: 2, layerA: 'player', layerB: 'enemy', normalX: 1, normalY: 0, depth: 1 };
 		handler({ data: event, ecs: undefined });
 	});
 

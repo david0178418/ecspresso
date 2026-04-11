@@ -876,7 +876,7 @@ describe('Physics 2D Plugin', () => {
 			expect(collisions.length).toBe(1);
 			const event = collisions[0]!;
 			// Normal should point from A toward B (positive x direction)
-			expect(event.normal.x).toBeGreaterThan(0);
+			expect(event.normalX).toBeGreaterThan(0);
 		});
 	});
 

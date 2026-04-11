@@ -18,8 +18,10 @@
  */
 
 import {
-	buildBaseColliderInfo,
+	fillBaseColliderInfo,
 	detectCollisions,
+	AABB_SHAPE,
+	CIRCLE_SHAPE,
 	type BaseColliderInfo,
 	type Contact,
 } from '../src/utils/narrowphase';
@@ -65,12 +67,13 @@ function buildColliders(count: number, worldSize: number, radius: number): BaseC
 	for (let i = 0; i < count; i++) {
 		const x = rng() * worldSize;
 		const y = rng() * worldSize;
-		const info = buildBaseColliderInfo(
-			i, x, y, 'ball', ['ball'],
-			undefined,
-			{ radius },
-		);
-		if (info) colliders.push(info);
+		const info: BaseColliderInfo<'ball'> = {
+			entityId: i, x, y, layer: 'ball', collidesWith: ['ball'],
+			shape: AABB_SHAPE, halfWidth: 0, halfHeight: 0, radius: 0,
+		};
+		if (fillBaseColliderInfo(info, i, x, y, 'ball', ['ball'], undefined, { radius })) {
+			colliders.push(info);
+		}
 	}
 	return colliders;
 }
@@ -110,7 +113,7 @@ function buildSpatialIndex(cellSize: number): { grid: SpatialHashGrid; index: Sp
 function populateGrid(grid: SpatialHashGrid, colliders: BaseColliderInfo<'ball'>[]): void {
 	clearGrid(grid);
 	for (const c of colliders) {
-		const r = c.circle?.radius ?? 0;
+		const r = c.shape === CIRCLE_SHAPE ? c.radius : c.halfWidth;
 		insertEntity(grid, c.entityId, c.x, c.y, r, r);
 	}
 }
@@ -131,10 +134,11 @@ function measure(
 ): RunResult {
 	let pairHits = 0;
 	const onContact = (_a: BaseColliderInfo<'ball'>, _b: BaseColliderInfo<'ball'>, _c: Contact) => { pairHits++; };
+	const workingMap = new Map<number, BaseColliderInfo<'ball'>>();
 
 	// Warmup — let the JIT settle
 	for (let i = 0; i < 10; i++) {
-		detectCollisions(colliders, spatialIndex, onContact, null);
+		detectCollisions(colliders, colliders.length, workingMap, spatialIndex, onContact, null);
 	}
 	pairHits = 0;
 
@@ -143,7 +147,7 @@ function measure(
 	const t0 = Bun.nanoseconds();
 
 	for (let i = 0; i < iters; i++) {
-		detectCollisions(colliders, spatialIndex, onContact, null);
+		detectCollisions(colliders, colliders.length, workingMap, spatialIndex, onContact, null);
 	}
 
 	const t1 = Bun.nanoseconds();

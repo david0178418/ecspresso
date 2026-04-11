@@ -15,7 +15,7 @@ import type { WorldConfigFrom } from '../type-utils';
 import type { TransformComponentTypes, TransformWorldConfig } from './transform';
 import type { CollisionComponentTypes, LayerFactories } from './collision';
 import type { Vector2D } from 'ecspresso';
-import { buildBaseColliderInfo, detectCollisions, tryGetSpatialIndex, type Contact, type BaseColliderInfo } from '../utils/narrowphase';
+import { fillBaseColliderInfo, detectCollisions, tryGetSpatialIndex, AABB_SHAPE, type Contact, type BaseColliderInfo } from '../utils/narrowphase';
 
 // ==================== Component Types ====================
 
@@ -77,12 +77,17 @@ export interface Physics2DResourceTypes {
 
 /**
  * Event emitted for each physics collision pair.
+ *
+ * Normal components are flattened (`normalX`/`normalY`) rather than nested
+ * in a `Vector2D` to avoid a per-event allocation in the physics hot path.
  */
 export interface Physics2DCollisionEvent {
 	entityA: number;
 	entityB: number;
-	/** Unit normal pointing from A toward B */
-	normal: Vector2D;
+	/** Unit normal X, pointing from A toward B */
+	normalX: number;
+	/** Unit normal Y, pointing from A toward B */
+	normalY: number;
 	/** Penetration depth (positive) */
 	depth: number;
 }
@@ -292,7 +297,8 @@ function resolvePhysicsContact(
 	ecs.eventBus.publish('physicsCollision', {
 		entityA: a.entityId,
 		entityB: b.entityId,
-		normal: { x: contact.normalX, y: contact.normalY },
+		normalX: contact.normalX,
+		normalY: contact.normalY,
 		depth: contact.depth,
 	});
 }
@@ -424,27 +430,58 @@ export function createPhysics2DPlugin<L extends string = never, G extends string
 				collisionSystem.inGroup(collisionSystemGroup);
 			}
 
+			// Grow-only pool of Physics2DColliderInfo slots reused across frames.
+			// Steady-state: zero allocations per frame once the pool is warm.
+			const colliderPool: Physics2DColliderInfo<L>[] = [];
+			// Reusable entityId → collider lookup for the broadphase path.
+			const broadphaseMap = new Map<number, Physics2DColliderInfo<L>>();
+
 			collisionSystem
 				.addQuery('collidables', {
 					with: ['localTransform', 'rigidBody', 'velocity', 'collisionLayer'],
 				})
 				.setProcess(({ queries, ecs }) => {
-					const colliders: Physics2DColliderInfo<L>[] = [];
+					let count = 0;
 
 					for (const entity of queries.collidables) {
 						const { localTransform, rigidBody, velocity, collisionLayer } = entity.components;
-						const base = buildBaseColliderInfo(
+						const aabb = ecs.getComponent(entity.id, 'aabbCollider');
+						const circle = ecs.getComponent(entity.id, 'circleCollider');
+						if (!aabb && !circle) continue;
+
+						let slot = colliderPool[count];
+						if (!slot) {
+							slot = {
+								entityId: entity.id,
+								x: localTransform.x,
+								y: localTransform.y,
+								layer: collisionLayer.layer,
+								collidesWith: collisionLayer.collidesWith,
+								shape: AABB_SHAPE,
+								halfWidth: 0,
+								halfHeight: 0,
+								radius: 0,
+								rigidBody,
+								velocity,
+							};
+							colliderPool[count] = slot;
+						} else {
+							slot.rigidBody = rigidBody;
+							slot.velocity = velocity;
+						}
+
+						if (!fillBaseColliderInfo(
+							slot,
 							entity.id, localTransform.x, localTransform.y,
 							collisionLayer.layer, collisionLayer.collidesWith,
-							ecs.getComponent(entity.id, 'aabbCollider'),
-							ecs.getComponent(entity.id, 'circleCollider'),
-						);
-						if (!base) continue;
-						colliders.push(Object.assign(base, { rigidBody, velocity }));
+							aabb, circle,
+						)) continue;
+
+						count++;
 					}
 
 					const si = tryGetSpatialIndex(ecs.tryGetResource.bind(ecs));
-					detectCollisions(colliders, si, onPhysicsContact, ecs);
+					detectCollisions(colliderPool, count, broadphaseMap, si, onPhysicsContact, ecs);
 				});
 		},
 	});

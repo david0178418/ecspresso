@@ -82,7 +82,7 @@ describe('Spatial Hash Grid — Data Structure', () => {
 		expect(cellCount).toBe(4);
 	});
 
-	test('clearGrid empties all cells and entries', () => {
+	test('clearGrid drops all entries and empties cell buckets', () => {
 		const grid = createGrid(64);
 		insertEntity(grid, 1, 50, 50, 10, 10);
 		insertEntity(grid, 2, 200, 200, 10, 10);
@@ -93,7 +93,48 @@ describe('Spatial Hash Grid — Data Structure', () => {
 		clearGrid(grid);
 
 		expect(grid.entries.size).toBe(0);
-		expect(grid.cells.size).toBe(0);
+		// Cell keys are retained for bucket reuse, but every bucket must be empty
+		for (const bucket of grid.cells.values()) {
+			expect(bucket.length).toBe(0);
+		}
+
+		// Post-clear queries return nothing
+		const result = new Set<number>();
+		gridQueryRect(grid, 0, 0, 500, 500, result);
+		expect(result.size).toBe(0);
+	});
+
+	test('clearGrid + rebuild reuses SpatialEntry objects in place for persistent ids', () => {
+		const grid = createGrid(64);
+		insertEntity(grid, 1, 50, 50, 10, 10);
+		const originalEntry = grid.entries.get(1);
+		expect(originalEntry).toBeDefined();
+
+		clearGrid(grid);
+		insertEntity(grid, 1, 120, 75, 10, 10);
+
+		const rebuiltEntry = grid.entries.get(1);
+		// Same object identity — fields updated in place
+		expect(rebuiltEntry).toBe(originalEntry);
+		expect(rebuiltEntry!.x).toBe(120);
+		expect(rebuiltEntry!.y).toBe(75);
+	});
+
+	test('entries removed from the rebuild are not resurrected', () => {
+		const grid = createGrid(64);
+		insertEntity(grid, 1, 50, 50, 10, 10);
+		insertEntity(grid, 2, 200, 200, 10, 10);
+
+		clearGrid(grid);
+		insertEntity(grid, 1, 55, 55, 10, 10);
+		// Entity 2 deliberately not re-inserted
+
+		expect(grid.entries.has(1)).toBe(true);
+		expect(grid.entries.has(2)).toBe(false);
+
+		const result = new Set<number>();
+		gridQueryRect(grid, 150, 150, 250, 250, result);
+		expect(result.has(2)).toBe(false);
 	});
 });
 

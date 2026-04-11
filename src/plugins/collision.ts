@@ -9,7 +9,7 @@
 import { definePlugin, type Plugin, type BasePluginOptions } from 'ecspresso';
 import type { WorldConfigFrom } from '../type-utils';
 import type { TransformWorldConfig } from './transform';
-import { buildBaseColliderInfo, detectCollisions, tryGetSpatialIndex, type Contact, type BaseColliderInfo } from '../utils/narrowphase';
+import { fillBaseColliderInfo, detectCollisions, tryGetSpatialIndex, AABB_SHAPE, type Contact, type BaseColliderInfo } from '../utils/narrowphase';
 
 // ==================== Component Types ====================
 
@@ -71,6 +71,9 @@ export interface CollisionComponentTypes<L extends string = never> {
 
 /**
  * Event fired when two entities collide.
+ *
+ * Normal components are flattened (`normalX`/`normalY`) rather than nested
+ * in a sub-object to avoid a per-event allocation in the collision hot path.
  */
 export interface CollisionEvent<L extends string = never> {
 	/** First entity in the collision */
@@ -81,8 +84,10 @@ export interface CollisionEvent<L extends string = never> {
 	layerA: L;
 	/** Layer of the second entity */
 	layerB: L;
-	/** Contact normal pointing from entityA toward entityB */
-	normal: { x: number; y: number };
+	/** Contact normal X, pointing from entityA toward entityB */
+	normalX: number;
+	/** Contact normal Y, pointing from entityA toward entityB */
+	normalY: number;
 	/** Penetration depth (positive = overlapping) */
 	depth: number;
 }
@@ -388,7 +393,8 @@ function onCollisionDetected<L extends string>(
 		entityB: b.entityId,
 		layerA: a.layer,
 		layerB: b.layer,
-		normal: { x: contact.normalX, y: contact.normalY },
+		normalX: contact.normalX,
+		normalY: contact.normalY,
 		depth: contact.depth,
 	});
 }
@@ -438,6 +444,12 @@ export function createCollisionPlugin<L extends string, G extends string = 'phys
 	return definePlugin<WorldConfigFrom<CollisionComponentTypes<L>, CollisionEventTypes<L>>, TransformWorldConfig, 'collision-detection', G>({
 		id: 'collision',
 		install(world) {
+			// Grow-only pool of BaseColliderInfo slots reused across frames.
+			// Steady-state: zero allocations per frame once the pool is warm.
+			const colliderPool: BaseColliderInfo<L>[] = [];
+			// Reusable entityId → collider lookup for the broadphase path.
+			const broadphaseMap = new Map<number, BaseColliderInfo<L>>();
+
 			world
 				.addSystem('collision-detection')
 				.setPriority(priority)
@@ -447,21 +459,42 @@ export function createCollisionPlugin<L extends string, G extends string = 'phys
 					with: ['worldTransform', 'collisionLayer'],
 				})
 				.setProcess(({ queries, ecs }) => {
-					const colliders: BaseColliderInfo<L>[] = [];
+					let count = 0;
 
 					for (const entity of queries.collidables) {
 						const { worldTransform, collisionLayer } = entity.components;
-						const info = buildBaseColliderInfo(
+						const aabb = ecs.getComponent(entity.id, 'aabbCollider');
+						const circle = ecs.getComponent(entity.id, 'circleCollider');
+						if (!aabb && !circle) continue;
+
+						let slot = colliderPool[count];
+						if (!slot) {
+							slot = {
+								entityId: entity.id,
+								x: worldTransform.x,
+								y: worldTransform.y,
+								layer: collisionLayer.layer,
+								collidesWith: collisionLayer.collidesWith,
+								shape: AABB_SHAPE,
+								halfWidth: 0,
+								halfHeight: 0,
+								radius: 0,
+							};
+							colliderPool[count] = slot;
+						}
+
+						if (!fillBaseColliderInfo(
+							slot,
 							entity.id, worldTransform.x, worldTransform.y,
 							collisionLayer.layer, collisionLayer.collidesWith,
-							ecs.getComponent(entity.id, 'aabbCollider'),
-							ecs.getComponent(entity.id, 'circleCollider'),
-						);
-						if (info) colliders.push(info);
+							aabb, circle,
+						)) continue;
+
+						count++;
 					}
 
 					const si = tryGetSpatialIndex(ecs.tryGetResource.bind(ecs));
-					detectCollisions(colliders, si, onCollisionDetected<L>, ecs.eventBus);
+					detectCollisions(colliderPool, count, broadphaseMap, si, onCollisionDetected<L>, ecs.eventBus);
 				});
 		},
 	});

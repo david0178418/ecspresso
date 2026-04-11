@@ -20,6 +20,8 @@ export interface SpatialHashGrid {
 	invCellSize: number;
 	cells: Map<number, number[]>;
 	entries: Map<number, SpatialEntry>;
+	/** Previous-frame entries held for in-place reuse during rebuild. Internal. */
+	_entriesPrev: Map<number, SpatialEntry>;
 }
 
 // ==================== Pure Functions ====================
@@ -42,15 +44,30 @@ export function createGrid(cellSize: number): SpatialHashGrid {
 		invCellSize: 1 / cellSize,
 		cells: new Map(),
 		entries: new Map(),
+		_entriesPrev: new Map(),
 	};
 }
 
 /**
- * Clear all data from the grid without reallocating the Maps.
+ * Prepare the grid for a rebuild.
+ *
+ * Swaps `entries` with `_entriesPrev` so `insertEntity` can reuse existing
+ * `SpatialEntry` objects in place (steady-state rebuilds allocate zero
+ * entries). Any stale entries left in `_entriesPrev` from the previous
+ * rebuild are dropped here.
+ *
+ * Cell buckets are cleared in place — keys are retained so subsequent
+ * inserts hit the existing array rather than allocating a fresh one.
  */
 export function clearGrid(grid: SpatialHashGrid): void {
-	grid.cells.clear();
-	grid.entries.clear();
+	grid._entriesPrev.clear();
+	const tmp = grid.entries;
+	grid.entries = grid._entriesPrev;
+	grid._entriesPrev = tmp;
+
+	for (const bucket of grid.cells.values()) {
+		bucket.length = 0;
+	}
 }
 
 /**
@@ -64,7 +81,17 @@ export function insertEntity(
 	halfW: number,
 	halfH: number,
 ): void {
-	grid.entries.set(entityId, { entityId, x, y, halfW, halfH });
+	const recycled = grid._entriesPrev.get(entityId);
+	if (recycled) {
+		grid._entriesPrev.delete(entityId);
+		recycled.x = x;
+		recycled.y = y;
+		recycled.halfW = halfW;
+		recycled.halfH = halfH;
+		grid.entries.set(entityId, recycled);
+	} else {
+		grid.entries.set(entityId, { entityId, x, y, halfW, halfH });
+	}
 
 	const inv = grid.invCellSize;
 	const minCX = Math.floor((x - halfW) * inv);
