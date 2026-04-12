@@ -136,6 +136,10 @@ interface Renderer2DPluginCommonOptions<G extends string = 'renderer2d'> {
 	startLoop?: boolean;
 	/** Ordered render layer names (back-to-front). Entities with a renderLayer component are placed in the corresponding container. */
 	renderLayers?: string[];
+	/** Render layers that should not be affected by camera transforms.
+	 *  These layers are placed outside rootContainer so camera zoom/pan/rotation does not apply.
+	 *  Only relevant when `camera: true`. Layer names listed here must also appear in `renderLayers`. */
+	screenSpaceLayers?: string[];
 	/** Automatically apply cameraState resource to rootContainer each frame.
 	 *  Requires the camera plugin to be installed. (default: false) */
 	camera?: boolean;
@@ -485,6 +489,7 @@ export function createRenderer2DPlugin<G extends string = 'renderer2d'>(
 		transform: transformOptions,
 		startLoop = true,
 		renderLayers = [],
+		screenSpaceLayers = [],
 		camera = false,
 		screenScale,
 	} = options;
@@ -499,12 +504,16 @@ export function createRenderer2DPlugin<G extends string = 'renderer2d'>(
 
 	// Render layer name -> PixiJS Container mapping
 	const layerContainers = new Map<string, Container>();
+	const screenSpaceLayerSet = new Set(screenSpaceLayers);
 
 	// Container constructor captured during initialization via dynamic import
 	// Used by getOrCreateLayerContainer for lazy layer creation
 	let createLayerContainer: (label: string) => Container = () => {
 		throw new Error('renderer2D: createLayerContainer called before initialization');
 	};
+
+	// Parent container for screen-space layers (set during init when camera + screenSpaceLayers)
+	let screenSpaceParent: Container | null = null;
 
 	// Helper to get or create a render layer container
 	function getOrCreateLayerContainer(
@@ -517,7 +526,10 @@ export function createRenderer2DPlugin<G extends string = 'renderer2d'>(
 		// Lazy-create for undeclared layers, appended to end
 		const cont = createLayerContainer(`layer:${layerName}`);
 		layerContainers.set(layerName, cont);
-		rootCont.addChild(cont);
+		const parent = (screenSpaceParent && screenSpaceLayerSet.has(layerName))
+			? screenSpaceParent
+			: rootCont;
+		parent.addChild(cont);
 		return cont;
 	}
 
@@ -788,10 +800,22 @@ export function createRenderer2DPlugin<G extends string = 'renderer2d'>(
 						rootCont = newRoot;
 					}
 
+					// When camera + screenSpaceLayers are active, ensure rootContainer is
+					// not the stage itself so camera transforms don't affect screen-space layers.
+					if (camera && screenSpaceLayerSet.size > 0) {
+						if (rootCont === pixiApp.stage) {
+							const worldContainer = new ContainerClass();
+							worldContainer.label = 'rootContainer';
+							pixiApp.stage.addChild(worldContainer);
+							ecs.updateResource('rootContainer', () => worldContainer);
+							rootCont = worldContainer;
+						}
+						// Screen-space layers are siblings of rootContainer
+						screenSpaceParent = rootCont.parent ?? pixiApp.stage;
+					}
+
 					for (const layerName of renderLayers) {
-						const cont = createLayerContainer(`layer:${layerName}`);
-						layerContainers.set(layerName, cont);
-						rootCont.addChild(cont);
+						getOrCreateLayerContainer(layerName, rootCont);
 					}
 
 					ecs.addReactiveQuery('renderer2d-sprites', {

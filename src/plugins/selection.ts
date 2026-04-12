@@ -8,6 +8,10 @@
  *
  * Requires the input plugin (for pointer state) and the renderer2D plugin
  * (for graphics rendering of the selection box).
+ *
+ * Camera-aware: when a `cameraState` resource is present (from the camera
+ * plugin), pointer coordinates are automatically converted to world space
+ * for hit-testing. The selection box overlay remains in screen space.
  */
 
 import { Graphics } from 'pixi.js';
@@ -15,6 +19,8 @@ import { definePlugin, type BasePluginOptions } from 'ecspresso';
 import type { WorldConfigFrom } from 'ecspresso';
 import type { InputResourceTypes } from './input';
 import type { Renderer2DComponentTypes, Renderer2DResourceTypes } from './renderers/renderer2D';
+import type { CameraState } from './camera';
+import { screenToWorld } from './camera';
 
 // ==================== Component Types ====================
 
@@ -108,6 +114,7 @@ export function createSelectable(): Pick<SelectionComponentTypes, 'selectable'> 
  * - Click selection (left-click to select a single entity)
  * - Visual feedback (configurable sprite tint for selected entities)
  * - Selection box overlay (rendered as a PixiJS Graphics entity)
+ * - Automatic camera-awareness when cameraState resource is present
  *
  * Requires the input plugin and renderer2D plugin to be installed.
  *
@@ -208,7 +215,7 @@ export function createSelectionPlugin<G extends string = 'selection'>(
 						selectionState.boxEntityId = boxEntity.id;
 					}
 
-					// Update drag visual
+					// Update drag visual (screen-space — no camera conversion)
 					if (pointer.isDown(0) && selectionState.boxEntityId !== null) {
 						const g = ecs.getComponent(selectionState.boxEntityId, 'graphics');
 						if (!g) return;
@@ -246,15 +253,21 @@ export function createSelectionPlugin<G extends string = 'selection'>(
 
 					const isClick = w < clickThreshold && h < clickThreshold;
 
+					// Convert screen coords to world space for hit-testing
+					const camState = ecs.tryGetResource('cameraState') as CameraState | undefined;
+					const worldEnd = camState
+						? screenToWorld(endX, endY, camState)
+						: { x: endX, y: endY };
+
 					if (isClick) {
-						const clickRadiusSq = 400; // 20px radius
+						const clickRadiusSq = 400; // 20px radius in world space
 						let nearestId: number | null = null;
 						let nearestDistSq = Infinity;
 
 						for (const entity of queries.selectables) {
 							const { worldTransform } = entity.components;
-							const dx = worldTransform.x - endX;
-							const dy = worldTransform.y - endY;
+							const dx = worldTransform.x - worldEnd.x;
+							const dy = worldTransform.y - worldEnd.y;
 							const distSq = dx * dx + dy * dy;
 							if (distSq < clickRadiusSq && distSq < nearestDistSq) {
 								nearestDistSq = distSq;
@@ -266,18 +279,21 @@ export function createSelectionPlugin<G extends string = 'selection'>(
 							ecs.addComponent(nearestId, 'selected', true);
 						}
 					} else {
-						const minX = Math.min(startX, endX);
-						const maxX = Math.max(startX, endX);
-						const minY = Math.min(startY, endY);
-						const maxY = Math.max(startY, endY);
+						const worldStart = camState
+							? screenToWorld(startX, startY, camState)
+							: { x: startX, y: startY };
+						const minWX = Math.min(worldStart.x, worldEnd.x);
+						const maxWX = Math.max(worldStart.x, worldEnd.x);
+						const minWY = Math.min(worldStart.y, worldEnd.y);
+						const maxWY = Math.max(worldStart.y, worldEnd.y);
 
 						for (const entity of queries.selectables) {
 							const { worldTransform } = entity.components;
 							if (
-								worldTransform.x >= minX &&
-								worldTransform.x <= maxX &&
-								worldTransform.y >= minY &&
-								worldTransform.y <= maxY
+								worldTransform.x >= minWX &&
+								worldTransform.x <= maxWX &&
+								worldTransform.y >= minWY &&
+								worldTransform.y <= maxWY
 							) {
 								ecs.addComponent(entity.id, 'selected', true);
 							}

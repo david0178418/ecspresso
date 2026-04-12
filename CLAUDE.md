@@ -38,7 +38,8 @@ src/
     │   ├── sprite-animation.ts # Frame-based sprite animation
     │   ├── particles.ts  # Pooled particle system with PixiJS ParticleContainer rendering
     │   ├── selection.ts  # Pointer-driven box/click selection with visual feedback
-    │   └── steering.ts   # Move-to-target with arrival detection
+    │   ├── steering.ts   # Move-to-target with arrival detection
+    │   └── camera-zoom.ts # Cursor-centered mouse wheel zoom
     └── renderers/
         └── renderer2D.ts  # PixiJS scene graph wiring
 ```

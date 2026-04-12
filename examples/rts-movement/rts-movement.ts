@@ -5,6 +5,8 @@ import {
 	createLocalTransform,
 } from '../../src/plugins/renderers/renderer2D';
 import { createInputPlugin } from '../../src/plugins/input';
+import { createCameraPlugin, createCamera, screenToWorld } from '../../src/plugins/camera';
+import { createCameraZoomPlugin } from '../../src/plugins/camera-zoom';
 import { createSelectionPlugin, createSelectable } from '../../src/plugins/selection';
 import { createSteeringPlugin, createMoveSpeed } from '../../src/plugins/steering';
 
@@ -12,24 +14,32 @@ const ecs = ECSpresso.create()
 	.withPlugin(createRenderer2DPlugin({
 		background: '#1a1a2e',
 		renderLayers: ['game', 'ui'],
+		screenSpaceLayers: ['ui'],
+		camera: true,
 	}))
 	.withPlugin(createInputPlugin())
+	.withPlugin(createCameraPlugin())
+	.withPlugin(createCameraZoomPlugin({ minZoom: 0.3, maxZoom: 3 }))
 	.withPlugin(createSelectionPlugin({ renderLayer: 'ui' }))
 	.withPlugin(createSteeringPlugin())
 	.build();
 
-// Issue move orders on right-click
+// Issue move orders on right-click (convert screen → world coords)
 ecs.addSystem('issue-move-order')
 	.inPhase('preUpdate')
 	.setPriority(50)
 	.addQuery('selectedUnits', { with: ['selected', 'localTransform'] })
-	.withResources(['inputState'])
-	.setProcess(({ queries, ecs: world, resources: { inputState: input } }) => {
+	.withResources(['inputState', 'cameraState'])
+	.setProcess(({ queries, ecs: world, resources: { inputState: input, cameraState } }) => {
 		if (!input.pointer.justPressed(2)) return;
 
-		const { x, y } = input.pointer.position;
+		const worldPos = screenToWorld(
+			input.pointer.position.x,
+			input.pointer.position.y,
+			cameraState,
+		);
 		for (const entity of queries.selectedUnits) {
-			world.addComponent(entity.id, 'moveTarget', { x, y });
+			world.addComponent(entity.id, 'moveTarget', { x: worldPos.x, y: worldPos.y });
 		}
 	});
 
@@ -41,8 +51,13 @@ const unitTexture = pixiApp.renderer.generateTexture(
 	new Graphics().circle(0, 0, unitRadius).fill(0x4488FF)
 );
 
+// Spawn camera entity at center of the screen
 const screenWidth = pixiApp.screen.width;
 const screenHeight = pixiApp.screen.height;
+ecs.spawn({
+	...createCamera(screenWidth / 2, screenHeight / 2),
+});
+
 const unitCount = 20;
 const margin = 60;
 
