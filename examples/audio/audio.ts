@@ -46,10 +46,10 @@ interface Resources extends AudioResourceTypes<Ch> {}
 const ecs = ECSpresso
 	.create<WorldConfigFrom<Components, Events, Resources>>()
 	.withAssets(a => a
-		.add('click', loadSound('/16-audio/assets/click.wav'))
-		.add('coin', loadSound('/16-audio/assets/coin.wav'))
-		.add('explosion', loadSound('/16-audio/assets/explosion.wav'))
-		.add('bgm', loadSound('/16-audio/assets/bgm.wav'))
+		.add('click', loadSound('/audio/assets/click.wav'))
+		.add('coin', loadSound('/audio/assets/coin.wav'))
+		.add('explosion', loadSound('/audio/assets/explosion.wav'))
+		.add('bgm', loadSound('/audio/assets/bgm.wav'))
 	)
 	.withPlugin(createAudioPlugin({ channels }))
 	.build();
