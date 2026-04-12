@@ -8,9 +8,8 @@
  * One system processes all state machine entities each tick.
  */
 
-import { definePlugin, type Plugin, type BasePluginOptions } from 'ecspresso';
+import { definePlugin, type BasePluginOptions } from 'ecspresso';
 import type { BaseWorld } from 'ecspresso';
-import type { WorldConfigFrom, EmptyConfig } from '../type-utils';
 
 /** BaseWorld narrowed to state-machine components for typed access in helpers. */
 type StateMachineWorld = BaseWorld<StateMachineComponentTypes>;
@@ -349,16 +348,19 @@ export function createStateMachineHelpers<W extends BaseWorld<StateMachineCompon
  */
 export function createStateMachinePlugin<S extends string = string, G extends string = 'stateMachine'>(
 	options?: StateMachinePluginOptions<G>,
-): Plugin<WorldConfigFrom<StateMachineComponentTypes<S>, StateMachineEventTypes<S>>, EmptyConfig, 'state-machine-update', G> {
+) {
 	const {
 		systemGroup = 'stateMachine',
 		priority = 0,
 		phase = 'update',
 	} = options ?? {};
 
-	return definePlugin<WorldConfigFrom<StateMachineComponentTypes<S>, StateMachineEventTypes<S>>, EmptyConfig, 'state-machine-update', G>({
-		id: 'stateMachine',
-		install(world) {
+	return definePlugin('stateMachine')
+		.withComponentTypes<StateMachineComponentTypes<S>>()
+		.withEventTypes<StateMachineEventTypes<S>>()
+		.withLabels<'state-machine-update'>()
+		.withGroups<G>()
+		.install((world) => {
 			world
 				.addSystem('state-machine-update')
 				.setPriority(priority)
@@ -403,6 +405,5 @@ export function createStateMachinePlugin<S extends string = string, G extends st
 						}
 					}
 				});
-		},
-	});
+		});
 }

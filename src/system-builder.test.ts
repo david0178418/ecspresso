@@ -1,7 +1,6 @@
 import { expect, describe, test } from 'bun:test';
 import ECSpresso from './ecspresso';
 import { definePlugin } from './plugin';
-import type { WorldConfigFrom } from './type-utils';
 
 // Define component types for testing
 interface TestComponents {
@@ -17,9 +16,9 @@ describe('SystemBuilder', () => {
 	test('should create a system that can query entities', () => {
 		const processedIds: number[] = [];
 
-		const plugin = definePlugin<WorldConfigFrom<TestComponents, {}, {}>>({
-			id: 'test',
-			install(world) {
+		const plugin = definePlugin('test')
+			.withComponentTypes<TestComponents>()
+			.install((world) => {
 				world.addSystem('TestSystem')
 					.addQuery('movingEntities', {
 						with: ['position', 'velocity'],
@@ -30,8 +29,7 @@ describe('SystemBuilder', () => {
 							processedIds.push(entity.id);
 						}
 					});
-			},
-		});
+			});
 
 		const world = ECSpresso.create().withComponentTypes<TestComponents>()
 			.withPlugin(plugin)
@@ -60,9 +58,9 @@ describe('SystemBuilder', () => {
 			withHealth: [] as number[],
 		};
 
-		const plugin = definePlugin<WorldConfigFrom<TestComponents, {}, {}>>({
-			id: 'multi-query',
-			install(world) {
+		const plugin = definePlugin('multi-query')
+			.withComponentTypes<TestComponents>()
+			.install((world) => {
 				world.addSystem('MultiQuerySystem')
 					.addQuery('withMarker', {
 						with: ['marker']
@@ -78,8 +76,7 @@ describe('SystemBuilder', () => {
 							queriesProcessed.withHealth.push(entity.id);
 						}
 					});
-			},
-		});
+			});
 
 		const world = ECSpresso.create().withComponentTypes<TestComponents>()
 			.withPlugin(plugin)
@@ -114,9 +111,9 @@ describe('SystemBuilder', () => {
 		let onDetachCalled = false;
 		let processCalledCount = 0;
 
-		const plugin = definePlugin<WorldConfigFrom<TestComponents, {}, {}>>({
-			id: 'lifecycle',
-			install(world) {
+		const plugin = definePlugin('lifecycle')
+			.withComponentTypes<TestComponents>()
+			.install((world) => {
 				world.addSystem('LifecycleSystem')
 					.setOnInitialize(() => {
 						onInitializeCalled = true;
@@ -130,8 +127,7 @@ describe('SystemBuilder', () => {
 					.setOnDetach(() => {
 						onDetachCalled = true;
 					});
-			},
-		});
+			});
 
 		const world = ECSpresso.create().withComponentTypes<TestComponents>()
 			.withPlugin(plugin)
@@ -158,9 +154,9 @@ describe('SystemBuilder', () => {
 	});
 
 	test('should support statically typed queries with correct component access', () => {
-		const plugin = definePlugin<WorldConfigFrom<TestComponents, {}, {}>>({
-			id: 'typed',
-			install(world) {
+		const plugin = definePlugin('typed')
+			.withComponentTypes<TestComponents>()
+			.install((world) => {
 				world.addSystem('TypedSystem')
 					.addQuery('entities', {
 						with: ['position', 'health']
@@ -176,8 +172,7 @@ describe('SystemBuilder', () => {
 							health.value -= 1;
 						}
 					});
-			},
-		});
+			});
 
 		const world = ECSpresso.create().withComponentTypes<TestComponents>()
 			.withPlugin(plugin)

@@ -7,9 +7,8 @@
  * `waitForEvent`, `parallel`, `race`) compose via `yield*`.
  */
 
-import { definePlugin, type Plugin, type BasePluginOptions } from 'ecspresso';
+import { definePlugin, type BasePluginOptions } from 'ecspresso';
 import type { EventsOfWorld, AnyECSpresso } from 'ecspresso';
-import type { WorldConfigFrom, EmptyConfig } from '../type-utils';
 
 // ==================== Generator Protocol ====================
 
@@ -275,7 +274,7 @@ export function createCoroutineHelpers<W extends AnyECSpresso>(_world?: W): Coro
  */
 export function createCoroutinePlugin<G extends string = 'coroutines'>(
 	options?: CoroutinePluginOptions<G>,
-): Plugin<WorldConfigFrom<CoroutineComponentTypes>, EmptyConfig, 'coroutine-update', G> {
+) {
 	const {
 		systemGroup = 'coroutines',
 		priority = 0,
@@ -286,9 +285,11 @@ export function createCoroutinePlugin<G extends string = 'coroutines'>(
 	// before the command buffer removes the component.
 	const finished = new Set<number>();
 
-	return definePlugin<WorldConfigFrom<CoroutineComponentTypes>, EmptyConfig, 'coroutine-update', G>({
-		id: 'coroutines',
-		install(world) {
+	return definePlugin('coroutines')
+		.withComponentTypes<CoroutineComponentTypes>()
+		.withLabels<'coroutine-update'>()
+		.withGroups<G>()
+		.install((world) => {
 			world.registerDispose('coroutine', ({ value, entityId }) => {
 				value.generator.return();
 				finished.delete(entityId);
@@ -330,6 +331,5 @@ export function createCoroutinePlugin<G extends string = 'coroutines'>(
 						}
 					}
 				});
-		},
-	});
+		});
 }

@@ -3,7 +3,7 @@
 Organize related systems and resources into reusable plugins:
 
 ```typescript
-import ECSpresso, { definePlugin, type WorldConfigFrom } from 'ecspresso';
+import ECSpresso, { definePlugin } from 'ecspresso';
 
 interface PhysicsComponents {
   position: { x: number; y: number };
@@ -14,9 +14,10 @@ interface PhysicsResources {
   gravity: { value: number };
 }
 
-const physicsPlugin = definePlugin<WorldConfigFrom<PhysicsComponents, {}, PhysicsResources>>({
-  id: 'physics',
-  install(world) {
+const physicsPlugin = definePlugin('physics')
+  .withComponentTypes<PhysicsComponents>()
+  .withResourceTypes<PhysicsResources>()
+  .install((world) => {
     world.addSystem('applyVelocity')
       .addQuery('moving', { with: ['position', 'velocity'] })
       .setProcess(({ queries, dt }) => {
@@ -36,8 +37,7 @@ const physicsPlugin = definePlugin<WorldConfigFrom<PhysicsComponents, {}, Physic
       });
 
     world.addResource('gravity', { value: 9.8 });
-  },
-});
+  });
 
 // Register plugins with the world — types merge automatically
 const game = ECSpresso.create()
@@ -72,29 +72,18 @@ export const movementPlugin = definePlugin({
 });
 ```
 
-You can also pass a world type directly to `definePlugin` as a one-off alternative:
-
-```typescript
-type MyWorld = typeof ecs; // derive from a built world
-const plugin = definePlugin<MyWorld>({
-  id: 'my-plugin',
-  install(world) { /* world is fully typed */ },
-});
-```
-
 ## Required Components
 
 Plugins can declare that certain components depend on others. When an entity gains a trigger component, any required components that aren't already present are auto-added with default values:
 
 ```typescript
-const transformPlugin = definePlugin<WorldConfigFrom<TransformComponents>>({
-  id: 'transform',
-  install(world) {
+const transformPlugin = definePlugin('transform')
+  .withComponentTypes<TransformComponents>()
+  .install((world) => {
     world.registerRequired('localTransform', 'worldTransform', () => ({
       x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1,
     }));
-  },
-});
+  });
 
 const world = ECSpresso.create()
   .withPlugin(transformPlugin)

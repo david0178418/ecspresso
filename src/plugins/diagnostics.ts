@@ -5,9 +5,8 @@
  * and an optional DOM overlay for visual debugging.
  */
 
-import { definePlugin, type Plugin } from 'ecspresso';
+import { definePlugin } from 'ecspresso';
 import type { SystemPhase } from 'ecspresso';
-import type { WorldConfigFrom, EmptyConfig } from '../type-utils';
 
 // ==================== Types ====================
 
@@ -91,7 +90,7 @@ function createRingBuffer(capacity: number) {
 
 export function createDiagnosticsPlugin<G extends string = 'diagnostics'>(
 	options?: DiagnosticsPluginOptions<G>,
-): Plugin<WorldConfigFrom<{}, {}, DiagnosticsResourceTypes>, EmptyConfig, 'diagnostics-collect', G> {
+) {
 	const {
 		systemGroup = 'diagnostics',
 		enableTimingOnInit = true,
@@ -108,9 +107,11 @@ export function createDiagnosticsPlugin<G extends string = 'diagnostics'>(
 
 	const ringBuffer = createRingBuffer(fpsSampleCount);
 
-	return definePlugin<WorldConfigFrom<{}, {}, DiagnosticsResourceTypes>, EmptyConfig, 'diagnostics-collect', G>({
-		id: 'diagnostics',
-		install(world) {
+	return definePlugin('diagnostics')
+		.withResourceTypes<DiagnosticsResourceTypes>()
+		.withLabels<'diagnostics-collect'>()
+		.withGroups<G>()
+		.install((world) => {
 			world.addResource('diagnostics', initialData);
 
 			world
@@ -146,8 +147,7 @@ export function createDiagnosticsPlugin<G extends string = 'diagnostics'>(
 					(resource as { -readonly [K in keyof DiagnosticsData]: DiagnosticsData[K] }).phaseTimings = updated.phaseTimings;
 					(resource as { -readonly [K in keyof DiagnosticsData]: DiagnosticsData[K] }).averageFrameTime = updated.averageFrameTime;
 				});
-		},
-	});
+		});
 }
 
 // ==================== Overlay Helper ====================

@@ -27,7 +27,7 @@ interface TestComponents extends SpriteAnimationComponentTypes {
 	sprite: { texture: unknown };
 }
 
-const stubRenderer = definePlugin({ id: 'renderer2d', install() {} });
+const stubRenderer = definePlugin('renderer2d').install(() => {});
 
 function createTestEcs() {
 	return ECSpresso

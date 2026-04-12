@@ -97,9 +97,11 @@ describe('ResourceManager', () => {
 	});
 
 	test('should handle resources in ECS systems', () => {
-		const plugin = definePlugin<WorldConfigFrom<TestComponents, TestEvents, TestResources>>({
-			id: 'config-aware',
-			install(world) {
+		const plugin = definePlugin('config-aware')
+			.withComponentTypes<TestComponents>()
+			.withEventTypes<TestEvents>()
+			.withResourceTypes<TestResources>()
+			.install((world) => {
 				world.addResource('config', { debug: true, maxEntities: 1000 });
 				world.addSystem('ConfigAwareSystem')
 					.addQuery('entities', {
@@ -111,8 +113,7 @@ describe('ResourceManager', () => {
 							systemDebugRan = true;
 						}
 					});
-			},
-		});
+			});
 
 		const world = ECSpresso.create()
 			.withPlugin(plugin)
@@ -152,9 +153,11 @@ describe('ResourceManager', () => {
 		// Track logged messages
 		const loggedMessages: string[] = [];
 
-		const plugin = definePlugin<WorldConfigFrom<TestComponents, TestEvents, TestResources>>({
-			id: 'resource-system',
-			install(world) {
+		const plugin = definePlugin('resource-system')
+			.withComponentTypes<TestComponents>()
+			.withEventTypes<TestEvents>()
+			.withResourceTypes<TestResources>()
+			.install((world) => {
 				world.addResource('logger', customLogger);
 				world.addResource('counter', counter);
 				world.addSystem('ResourceSystem')
@@ -168,8 +171,7 @@ describe('ResourceManager', () => {
 						const value = counter.increment();
 						logger.log(`Counter value: ${value}`);
 					});
-			},
-		});
+			});
 
 		const world = ECSpresso.create()
 			.withPlugin(plugin)
@@ -204,9 +206,11 @@ describe('ResourceManager', () => {
 		// Track logged messages
 		const loggedMessages: string[] = [];
 
-		const plugin = definePlugin<WorldConfigFrom<TestComponents, TestEvents, TestResources>>({
-			id: 'event-system',
-			install(world) {
+		const plugin = definePlugin('event-system')
+			.withComponentTypes<TestComponents>()
+			.withEventTypes<TestEvents>()
+			.withResourceTypes<TestResources>()
+			.install((world) => {
 				world.addResource('gameState', gameState);
 				world.addResource('logger', logger);
 				world.addSystem('EventSystem')
@@ -221,8 +225,7 @@ describe('ResourceManager', () => {
 							gameState.current = 'updated';
 						}
 					});
-			},
-		});
+			});
 
 		const world = ECSpresso.create()
 			.withPlugin(plugin)

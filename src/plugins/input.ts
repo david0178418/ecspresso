@@ -9,8 +9,7 @@
  * in the system's process step, so all systems see consistent state.
  */
 
-import { definePlugin, type Plugin, type BasePluginOptions } from 'ecspresso';
-import type { WorldConfigFrom, EmptyConfig } from '../type-utils';
+import { definePlugin, type BasePluginOptions } from 'ecspresso';
 
 // ==================== Public Types ====================
 
@@ -368,7 +367,7 @@ function snapshotRaw(raw: RawInputState, prevActionsActive: ReadonlySet<string>,
  */
 export function createInputPlugin<A extends string = string, G extends string = 'input'>(
 	options?: InputPluginOptions<A, G>
-): Plugin<WorldConfigFrom<{}, {}, InputResourceTypes<A>>, EmptyConfig, 'input-state', G> {
+) {
 	const {
 		systemGroup = 'input',
 		priority = 100,
@@ -468,9 +467,11 @@ export function createInputPlugin<A extends string = string, G extends string = 
 		cleanupFns.push(() => { target.removeEventListener(type, handler); });
 	}
 
-	return definePlugin<WorldConfigFrom<{}, {}, InputResourceTypes<A>>, EmptyConfig, 'input-state', G>({
-		id: 'input',
-		install(world) {
+	return definePlugin('input')
+		.withResourceTypes<InputResourceTypes<A>>()
+		.withLabels<'input-state'>()
+		.withGroups<G>()
+		.install((world) => {
 			world.addResource('inputState', inputState);
 
 			world
@@ -501,6 +502,5 @@ export function createInputPlugin<A extends string = string, G extends string = 
 					delta.x = snapshot.pointerDeltaX;
 					delta.y = snapshot.pointerDeltaY;
 				});
-		},
-	});
+		});
 }

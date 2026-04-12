@@ -1,5 +1,5 @@
 import { Graphics, Sprite } from 'pixi.js';
-import ECSpresso, { definePlugin, type WorldConfigFrom } from "../../src";
+import ECSpresso, { definePlugin } from "../../src";
 import {
 	createRenderer2DPlugin,
 	createLocalTransform,
@@ -27,9 +27,11 @@ interface BouncingResources {
 }
 
 function createBouncingPlugin() {
-	return definePlugin<WorldConfigFrom<BouncingComponents, BouncingEvents, BouncingResources>>({
-		id: 'bouncing',
-		install(world) {
+	return definePlugin('bouncing')
+		.withComponentTypes<BouncingComponents>()
+		.withEventTypes<BouncingEvents>()
+		.withResourceTypes<BouncingResources>()
+		.install((world) => {
 			world.addSystem('movement')
 				.addQuery('moving', { with: ['localTransform', 'velocity'] })
 				.setProcess(({ queries, dt }) => {
@@ -55,8 +57,7 @@ function createBouncingPlugin() {
 						}
 					}
 				});
-		},
-	});
+		});
 }
 
 // -- Build the world --

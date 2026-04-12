@@ -6,8 +6,7 @@
  * Supports AABB and circle colliders.
  */
 
-import { definePlugin, type Plugin, type BasePluginOptions } from 'ecspresso';
-import type { WorldConfigFrom } from '../type-utils';
+import { definePlugin, type BasePluginOptions } from 'ecspresso';
 import type { TransformWorldConfig } from './transform';
 import { fillBaseColliderInfo, detectCollisions, tryGetSpatialIndex, AABB_SHAPE, type Contact, type BaseColliderInfo } from '../utils/narrowphase';
 
@@ -434,16 +433,20 @@ function onCollisionDetected<L extends string>(
  */
 export function createCollisionPlugin<L extends string, G extends string = 'physics'>(
 	options: CollisionPluginOptions<G> & { layers: LayerFactories<Record<L, readonly string[]>> }
-): Plugin<WorldConfigFrom<CollisionComponentTypes<L>, CollisionEventTypes<L>>, TransformWorldConfig, 'collision-detection', G> {
+) {
 	const {
 		systemGroup = 'physics',
 		priority = 0,
 		phase = 'postUpdate',
 	} = options;
 
-	return definePlugin<WorldConfigFrom<CollisionComponentTypes<L>, CollisionEventTypes<L>>, TransformWorldConfig, 'collision-detection', G>({
-		id: 'collision',
-		install(world) {
+	return definePlugin('collision')
+		.withComponentTypes<CollisionComponentTypes<L>>()
+		.withEventTypes<CollisionEventTypes<L>>()
+		.withLabels<'collision-detection'>()
+		.withGroups<G>()
+		.requires<TransformWorldConfig>()
+		.install((world) => {
 			// Grow-only pool of BaseColliderInfo slots reused across frames.
 			// Steady-state: zero allocations per frame once the pool is warm.
 			const colliderPool: BaseColliderInfo<L>[] = [];
@@ -496,7 +499,6 @@ export function createCollisionPlugin<L extends string, G extends string = 'phys
 					const si = tryGetSpatialIndex(ecs.tryGetResource.bind(ecs));
 					detectCollisions(colliderPool, count, broadphaseMap, si, onCollisionDetected<L>, ecs.eventBus);
 				});
-		},
-	});
+		});
 }
 

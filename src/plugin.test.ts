@@ -1,7 +1,6 @@
 import { expect, describe, test } from 'bun:test';
 import ECSpresso from './ecspresso';
 import { definePlugin } from './plugin';
-import type { WorldConfigFrom } from './type-utils';
 
 // Define test component and resource types
 interface PositionComponents {
@@ -24,20 +23,20 @@ interface PlayerResources {
 
 describe('Plugin', () => {
 	test('should create a plugin with correct type parameters', () => {
-		const plugin = definePlugin<WorldConfigFrom<PositionComponents, {}, PositionResources>>({
-			id: 'test',
-			install() {},
-		});
+		const plugin = definePlugin('test')
+			.withComponentTypes<PositionComponents>()
+			.withResourceTypes<PositionResources>()
+			.install(() => {});
 		expect(plugin.id).toBe('test');
 	});
 
 	test('should add systems via the install function', () => {
-		const plugin = definePlugin<WorldConfigFrom<PositionComponents, {}, PositionResources>>({
-			id: 'test',
-			install(world) {
+		const plugin = definePlugin('test')
+			.withComponentTypes<PositionComponents>()
+			.withResourceTypes<PositionResources>()
+			.install((world) => {
 				world.addSystem('test').setProcess(() => {});
-			},
-		});
+			});
 
 		const world = ECSpresso.create()
 			.withPlugin(plugin)
@@ -48,12 +47,12 @@ describe('Plugin', () => {
 	});
 
 	test('should add resources via the install function', () => {
-		const plugin = definePlugin<WorldConfigFrom<PositionComponents, {}, PositionResources>>({
-			id: 'test',
-			install(world) {
+		const plugin = definePlugin('test')
+			.withComponentTypes<PositionComponents>()
+			.withResourceTypes<PositionResources>()
+			.install((world) => {
 				world.addResource('gravity', { value: 9.8 });
-			},
-		});
+			});
 
 		const world = ECSpresso.create()
 			.withPlugin(plugin)
@@ -64,12 +63,12 @@ describe('Plugin', () => {
 	});
 
 	test('should handle a world installing a plugin', () => {
-		const plugin = definePlugin<WorldConfigFrom<PositionComponents, {}, PositionResources>>({
-			id: 'test-plugin',
-			install(world) {
+		const plugin = definePlugin('test-plugin')
+			.withComponentTypes<PositionComponents>()
+			.withResourceTypes<PositionResources>()
+			.install((world) => {
 				world.addResource('gravity', { value: 9.8 });
-			},
-		});
+			});
 
 		const world = ECSpresso.create()
 			.withPlugin(plugin)
@@ -81,38 +80,38 @@ describe('Plugin', () => {
 	});
 
 	test('should combine two plugins with a composite plugin', () => {
-		const physicsPlugin = definePlugin<WorldConfigFrom<PositionComponents, {}, PositionResources>>({
-			id: 'physics',
-			install(world) {
+		const physicsPlugin = definePlugin('physics')
+			.withComponentTypes<PositionComponents>()
+			.withResourceTypes<PositionResources>()
+			.install((world) => {
 				world.addResource('gravity', { value: 9.8 });
 				world.addSystem('physics')
 					.addQuery('movingEntities', {
 						with: ['position', 'velocity']
 					})
 					.setProcess(() => {});
-			},
-		});
+			});
 
-		const playerPlugin = definePlugin<WorldConfigFrom<PlayerComponents, {}, PlayerResources>>({
-			id: 'player',
-			install(world) {
+		const playerPlugin = definePlugin('player')
+			.withComponentTypes<PlayerComponents>()
+			.withResourceTypes<PlayerResources>()
+			.install((world) => {
 				world.addResource('playerControls', { up: false, down: false, left: false, right: false });
 				world.addSystem('player')
 					.addQuery('players', {
 						with: ['player', 'health']
 					})
 					.setProcess(() => {});
-			},
-		});
+			});
 
 		// Combine the plugins using a composite plugin
-		const gamePlugin = definePlugin<WorldConfigFrom<PositionComponents & PlayerComponents, {}, PositionResources & PlayerResources>>({
-			id: 'game',
-			install(world) {
+		const gamePlugin = definePlugin('game')
+			.withComponentTypes<PositionComponents & PlayerComponents>()
+			.withResourceTypes<PositionResources & PlayerResources>()
+			.install((world) => {
 				world.installPlugin(physicsPlugin);
 				world.installPlugin(playerPlugin);
-			},
-		});
+			});
 
 		// Install the combined plugin into a world
 		const world = ECSpresso.create()
@@ -126,9 +125,10 @@ describe('Plugin', () => {
 	});
 
 	test('should support defining multiple systems in a plugin', () => {
-		const plugin = definePlugin<WorldConfigFrom<PositionComponents, {}, PositionResources>>({
-			id: 'test',
-			install(world) {
+		const plugin = definePlugin('test')
+			.withComponentTypes<PositionComponents>()
+			.withResourceTypes<PositionResources>()
+			.install((world) => {
 				world.addSystem('physics')
 					.addQuery('moving', { with: ['position', 'velocity'] })
 					.setProcess(() => {});
@@ -136,45 +136,13 @@ describe('Plugin', () => {
 					.addQuery('positioned', { with: ['position'] })
 					.setProcess(() => {});
 				world.addResource('gravity', { value: 9.8 });
-			},
-		});
+			});
 
 		const world = ECSpresso.create()
 			.withPlugin(plugin)
 			.build();
 
 		expect(world.installedPlugins).toContain('test');
-		expect(world.hasResource('gravity')).toBe(true);
-	});
-
-	test('definePlugin with world type param should produce a compatible plugin', () => {
-		// Build a world with known types
-		const baseWorld = ECSpresso.create()
-			.withComponentTypes<PositionComponents & PlayerComponents>()
-			.withResourceTypes<PositionResources & PlayerResources>()
-			.build();
-
-		type World = typeof baseWorld;
-
-		// Use the world-type overload — no need to repeat C/E/R
-		const plugin = definePlugin<World>({
-			id: 'world-typed',
-			install(world) {
-				world.addResource('gravity', { value: 9.8 });
-				world.addSystem('movement')
-					.addQuery('movers', { with: ['position', 'velocity'] })
-					.setProcess(() => {});
-			},
-		});
-
-		expect(plugin.id).toBe('world-typed');
-
-		// The plugin should be installable via withPlugin on a compatible builder
-		const world = ECSpresso.create()
-			.withPlugin(plugin)
-			.build();
-
-		expect(world.installedPlugins).toContain('world-typed');
 		expect(world.hasResource('gravity')).toBe(true);
 	});
 
@@ -261,12 +229,12 @@ describe('world.pluginFactory()', () => {
 	});
 
 	test('includes types from installed plugins', () => {
-		const pluginA = definePlugin<WorldConfigFrom<{ alpha: number }, {}, { alphaRes: string }>>({
-			id: 'plugin-a',
-			install(world) {
+		const pluginA = definePlugin('plugin-a')
+			.withComponentTypes<{ alpha: number }>()
+			.withResourceTypes<{ alphaRes: string }>()
+			.install((world) => {
 				world.addResource('alphaRes', 'hello');
-			},
-		});
+			});
 
 		const ecs = ECSpresso.create()
 			.withPlugin(pluginA)

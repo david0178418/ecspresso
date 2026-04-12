@@ -191,9 +191,13 @@ describe('ECSpressoBuilder.withResource factory receives typed context', () => {
 
 describe('Plugin install addResource factory receives full generic params', () => {
 	test('factory function ecs param is fully typed inside install', () => {
-		const plugin = definePlugin<WorldConfigFrom<TC, TE, TR, TA, TS>>({
-			id: 'test',
-			install(world) {
+		const plugin = definePlugin('test')
+			.withComponentTypes<TC>()
+			.withEventTypes<TE>()
+			.withResourceTypes<TR>()
+			.withAssetTypes<TA>()
+			.withScreenTypes<TS>()
+			.install((world) => {
 				world.addResource('score', (w) => {
 					// Type-level: asset access is typed
 					const _loaded: boolean = w.isAssetLoaded('sprite');
@@ -205,8 +209,7 @@ describe('Plugin install addResource factory receives full generic params', () =
 
 					return { value: 0 };
 				});
-			},
-		});
+			});
 
 		// Install and verify
 		const ecs = ECSpresso.create().withPlugin(plugin).build();
@@ -214,9 +217,13 @@ describe('Plugin install addResource factory receives full generic params', () =
 	});
 
 	test('factory ecs param rejects invalid keys inside install', () => {
-		definePlugin<WorldConfigFrom<TC, TE, TR, TA, TS>>({
-			id: 'test',
-			install(world) {
+		definePlugin('test')
+			.withComponentTypes<TC>()
+			.withEventTypes<TE>()
+			.withResourceTypes<TR>()
+			.withAssetTypes<TA>()
+			.withScreenTypes<TS>()
+			.install((world) => {
 				world.addResource('score', (w) => {
 					// @ts-expect-error - 'nonexistent' is not a valid asset key
 					w.isAssetLoaded('nonexistent');
@@ -226,8 +233,7 @@ describe('Plugin install addResource factory receives full generic params', () =
 
 					return { value: 0 };
 				});
-			},
-		});
+			});
 
 		expect(true).toBe(true);
 	});

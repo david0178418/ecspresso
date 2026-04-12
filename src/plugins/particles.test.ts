@@ -27,6 +27,7 @@ interface TestComponents extends ParticleComponentTypes {
 	position: { x: number; y: number };
 	localTransform: { x: number; y: number; rotation: number; scaleX: number; scaleY: number };
 	worldTransform: { x: number; y: number; rotation: number; scaleX: number; scaleY: number };
+	renderLayer: string;
 }
 
 interface TestEvents {
@@ -34,14 +35,8 @@ interface TestEvents {
 	otherEvent: { value: number };
 }
 
-const stubTransform = definePlugin({
-	id: 'transform',
-	install() {},
-});
-const stubRenderer = definePlugin({
-	id: 'renderer2d',
-	install() {},
-});
+const stubTransform = definePlugin('transform').install(() => {});
+const stubRenderer = definePlugin('renderer2d').install(() => {});
 
 function createTestEcs() {
 	return ECSpresso

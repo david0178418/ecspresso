@@ -23,12 +23,12 @@ world.addSystem('example')
   });
 
 // Plugin type compatibility - conflicting types error at compile time
-const plugin1 = definePlugin<WorldConfigFrom<{ position: { x: number; y: number } }>>({
-  id: 'p1', install() {},
-});
-const plugin2 = definePlugin<WorldConfigFrom<{ velocity: { x: number; y: number } }>>({
-  id: 'p2', install() {},
-});
+const plugin1 = definePlugin('p1')
+  .withComponentTypes<{ position: { x: number; y: number } }>()
+  .install(() => {});
+const plugin2 = definePlugin('p2')
+  .withComponentTypes<{ velocity: { x: number; y: number } }>()
+  .install(() => {});
 // Builder merges plugin types automatically — no manual type params needed
 const world = ECSpresso.create()
   .withPlugin(plugin1)

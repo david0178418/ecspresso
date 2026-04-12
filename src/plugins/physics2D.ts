@@ -9,9 +9,8 @@
  * the existing collision plugin can still run in postUpdate for game logic events.
  */
 
-import { definePlugin, type Plugin } from 'ecspresso';
+import { definePlugin } from 'ecspresso';
 import type { SystemPhase } from 'ecspresso';
-import type { WorldConfigFrom } from '../type-utils';
 import type { TransformComponentTypes, TransformWorldConfig } from './transform';
 import type { CollisionComponentTypes, LayerFactories } from './collision';
 import type { Vector2D } from 'ecspresso';
@@ -346,7 +345,7 @@ type Physics2DProvides<L extends string = never> = Physics2DOwnComponentTypes & 
 
 export function createPhysics2DPlugin<L extends string = never, G extends string = 'physics2D', CG extends string = never>(
 	options?: Physics2DPluginOptions<G, CG> & { layers?: LayerFactories<Record<L, readonly string[]>> },
-): Plugin<WorldConfigFrom<Physics2DProvides<L>, Physics2DEventTypes, Physics2DResourceTypes>, TransformWorldConfig, 'physics2D-integration' | 'physics2D-collision', G | CG> {
+) {
 	const {
 		gravity = { x: 0, y: 0 },
 		systemGroup = 'physics2D',
@@ -356,9 +355,14 @@ export function createPhysics2DPlugin<L extends string = never, G extends string
 		phase = 'fixedUpdate',
 	} = options ?? {};
 
-	return definePlugin<WorldConfigFrom<Physics2DProvides<L>, Physics2DEventTypes, Physics2DResourceTypes>, TransformWorldConfig, 'physics2D-integration' | 'physics2D-collision', G | CG>({
-		id: 'physics2D',
-		install(world) {
+	return definePlugin('physics2D')
+		.withComponentTypes<Physics2DProvides<L>>()
+		.withEventTypes<Physics2DEventTypes>()
+		.withResourceTypes<Physics2DResourceTypes>()
+		.withLabels<'physics2D-integration' | 'physics2D-collision'>()
+		.withGroups<G | CG>()
+		.requires<TransformWorldConfig>()
+		.install((world) => {
 			// rigidBody requires velocity and force — auto-add with zero defaults
 			world.registerRequired('rigidBody', 'velocity', () => ({ x: 0, y: 0 }));
 			world.registerRequired('rigidBody', 'force', () => ({ x: 0, y: 0 }));
@@ -483,6 +487,5 @@ export function createPhysics2DPlugin<L extends string = never, G extends string
 					const si = tryGetSpatialIndex(ecs.tryGetResource.bind(ecs));
 					detectCollisions(colliderPool, count, broadphaseMap, si, onPhysicsContact, ecs);
 				});
-		},
-	});
+		});
 }

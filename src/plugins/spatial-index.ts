@@ -10,9 +10,8 @@
  * spatialIndex resource at runtime and use it for broadphase when present.
  */
 
-import { definePlugin, type Plugin } from 'ecspresso';
+import { definePlugin } from 'ecspresso';
 import type { SystemPhase } from 'ecspresso';
-import type { WorldConfigFrom, EmptyConfig } from '../type-utils';
 import type { TransformComponentTypes } from './transform';
 import type { CollisionComponentTypes } from './collision';
 import {
@@ -109,7 +108,7 @@ export interface SpatialIndexPluginOptions<G extends string = 'spatialIndex'> {
  */
 export function createSpatialIndexPlugin<G extends string = 'spatialIndex'>(
 	options?: SpatialIndexPluginOptions<G>,
-): Plugin<WorldConfigFrom<SpatialIndexComponentTypes, {}, SpatialIndexResourceTypes>, EmptyConfig, SpatialIndexLabel, G> {
+) {
 	const {
 		cellSize = 64,
 		systemGroup = 'spatialIndex',
@@ -120,9 +119,12 @@ export function createSpatialIndexPlugin<G extends string = 'spatialIndex'>(
 	const grid = createGrid(cellSize);
 	const resource = createSpatialIndexResource(grid);
 
-	return definePlugin<WorldConfigFrom<SpatialIndexComponentTypes, {}, SpatialIndexResourceTypes>, EmptyConfig, SpatialIndexLabel, G>({
-		id: 'spatialIndex',
-		install(world) {
+	return definePlugin('spatialIndex')
+		.withComponentTypes<SpatialIndexComponentTypes>()
+		.withResourceTypes<SpatialIndexResourceTypes>()
+		.withLabels<SpatialIndexLabel>()
+		.withGroups<G>()
+		.install((world) => {
 			world.addResource('spatialIndex', resource);
 
 			// Register a rebuild system for each requested phase
@@ -172,6 +174,5 @@ export function createSpatialIndexPlugin<G extends string = 'spatialIndex'>(
 						}
 					});
 			}
-		},
-	});
+		});
 }

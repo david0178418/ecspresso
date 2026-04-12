@@ -386,12 +386,12 @@ describe('Built-in Resource Typing ($assets / $screen)', () => {
 
 describe('withPlugin() asset/screen type propagation', () => {
 	test('withPlugin(pluginWithAssets) + withAssets() merges both asset types', () => {
-		const assetPlugin = definePlugin<WorldConfigFrom<{ pos: { x: number } }, {}, {}, { bundleSprite: string }>>({
-			id: 'asset-plugin',
-			install(world) {
+		const assetPlugin = definePlugin('asset-plugin')
+			.withComponentTypes<{ pos: { x: number } }>()
+			.withAssetTypes<{ bundleSprite: string }>()
+			.install((world) => {
 				world._registerAsset('bundleSprite', { loader: () => Promise.resolve('bundle-sprite') });
-			},
-		});
+			});
 
 		const ecs = ECSpresso.create()
 			.withPlugin(assetPlugin)
@@ -406,12 +406,12 @@ describe('withPlugin() asset/screen type propagation', () => {
 	});
 
 	test('withPlugin(pluginWithAssets) without withAssets() auto-injects $assets', () => {
-		const assetPlugin = definePlugin<WorldConfigFrom<{ pos: { x: number } }, {}, {}, { bundleSprite: string }>>({
-			id: 'asset-plugin',
-			install(world) {
+		const assetPlugin = definePlugin('asset-plugin')
+			.withComponentTypes<{ pos: { x: number } }>()
+			.withAssetTypes<{ bundleSprite: string }>()
+			.install((world) => {
 				world._registerAsset('bundleSprite', { loader: () => Promise.resolve('bundle-sprite') });
-			},
-		});
+			});
 
 		const ecs = ECSpresso.create()
 			.withPlugin(assetPlugin)
@@ -425,12 +425,11 @@ describe('withPlugin() asset/screen type propagation', () => {
 	});
 
 	test('withPlugin(pluginWithScreens) + withScreens() merges both screen types', () => {
-		const screenPlugin = definePlugin<WorldConfigFrom<{}, {}, {}, {}, { loading: { initialState: () => { progress: number } } }>>({
-			id: 'screen-plugin',
-			install(world) {
+		const screenPlugin = definePlugin('screen-plugin')
+			.withScreenTypes<{ loading: { initialState: () => { progress: number } } }>()
+			.install((world) => {
 				world._registerScreen('loading', { initialState: () => ({ progress: 0 }) });
-			},
-		});
+			});
 
 		const ecs = ECSpresso.create()
 			.withPlugin(screenPlugin)
@@ -447,12 +446,11 @@ describe('withPlugin() asset/screen type propagation', () => {
 	});
 
 	test('withPlugin(pluginWithScreens) without withScreens() auto-injects $screen', () => {
-		const screenPlugin = definePlugin<WorldConfigFrom<{}, {}, {}, {}, { loading: { initialState: () => { progress: number } } }>>({
-			id: 'screen-plugin',
-			install(world) {
+		const screenPlugin = definePlugin('screen-plugin')
+			.withScreenTypes<{ loading: { initialState: () => { progress: number } } }>()
+			.install((world) => {
 				world._registerScreen('loading', { initialState: () => ({ progress: 0 }) });
-			},
-		});
+			});
 
 		const ecs = ECSpresso.create()
 			.withPlugin(screenPlugin)
@@ -467,19 +465,19 @@ describe('withPlugin() asset/screen type propagation', () => {
 	});
 
 	test('two plugins with compatible asset types work', () => {
-		const pluginA = definePlugin<WorldConfigFrom<{ a: number }, {}, {}, { spriteA: string }>>({
-			id: 'a',
-			install(world) {
+		const pluginA = definePlugin('a')
+			.withComponentTypes<{ a: number }>()
+			.withAssetTypes<{ spriteA: string }>()
+			.install((world) => {
 				world._registerAsset('spriteA', { loader: () => Promise.resolve('a') });
-			},
-		});
+			});
 
-		const pluginB = definePlugin<WorldConfigFrom<{ b: number }, {}, {}, { spriteB: string }>>({
-			id: 'b',
-			install(world) {
+		const pluginB = definePlugin('b')
+			.withComponentTypes<{ b: number }>()
+			.withAssetTypes<{ spriteB: string }>()
+			.install((world) => {
 				world._registerAsset('spriteB', { loader: () => Promise.resolve('b') });
-			},
-		});
+			});
 
 		const ecs = ECSpresso.create()
 			.withPlugin(pluginA)
@@ -494,19 +492,19 @@ describe('withPlugin() asset/screen type propagation', () => {
 	});
 
 	test('two plugins with conflicting asset types produce error', () => {
-		const pluginA = definePlugin<WorldConfigFrom<{ a: number }, {}, {}, { sprite: string }>>({
-			id: 'a',
-			install(world) {
+		const pluginA = definePlugin('a')
+			.withComponentTypes<{ a: number }>()
+			.withAssetTypes<{ sprite: string }>()
+			.install((world) => {
 				world._registerAsset('sprite', { loader: () => Promise.resolve('string-data') });
-			},
-		});
+			});
 
-		const pluginB = definePlugin<WorldConfigFrom<{ b: number }, {}, {}, { sprite: number }>>({
-			id: 'b',
-			install(world) {
+		const pluginB = definePlugin('b')
+			.withComponentTypes<{ b: number }>()
+			.withAssetTypes<{ sprite: number }>()
+			.install((world) => {
 				world._registerAsset('sprite', { loader: () => Promise.resolve(42) });
-			},
-		});
+			});
 
 		ECSpresso.create()
 			.withPlugin(pluginA)
@@ -516,12 +514,11 @@ describe('withPlugin() asset/screen type propagation', () => {
 	});
 
 	test('runtime: plugin assets accessible after build() + initialize()', async () => {
-		const assetPlugin = definePlugin<WorldConfigFrom<{}, {}, {}, { mySprite: string }>>({
-			id: 'asset-plugin',
-			install(world) {
+		const assetPlugin = definePlugin('asset-plugin')
+			.withAssetTypes<{ mySprite: string }>()
+			.install((world) => {
 				world._registerAsset('mySprite', { loader: () => Promise.resolve('sprite-data'), eager: true });
-			},
-		});
+			});
 
 		const ecs = ECSpresso.create()
 			.withPlugin(assetPlugin)
@@ -535,12 +532,11 @@ describe('withPlugin() asset/screen type propagation', () => {
 	});
 
 	test('runtime: plugin screens accessible after build() + initialize()', async () => {
-		const screenPlugin = definePlugin<WorldConfigFrom<{}, {}, {}, {}, { menu: { initialState: () => { selected: number } } }>>({
-			id: 'screen-plugin',
-			install(world) {
+		const screenPlugin = definePlugin('screen-plugin')
+			.withScreenTypes<{ menu: { initialState: () => { selected: number } } }>()
+			.install((world) => {
 				world._registerScreen('menu', { initialState: () => ({ selected: 0 }) });
-			},
-		});
+			});
 
 		const ecs = ECSpresso.create()
 			.withPlugin(screenPlugin)
@@ -553,13 +549,12 @@ describe('withPlugin() asset/screen type propagation', () => {
 	});
 
 	test('$assets not in ResourceTypes when no plugin assets and no withAssets()', () => {
-		const plugin = definePlugin<WorldConfigFrom<{ a: number }, {}, {}>>({
-			id: 'no-assets',
-			install(world) {
+		const plugin = definePlugin('no-assets')
+			.withComponentTypes<{ a: number }>()
+			.install((world) => {
 				world.addSystem('sys')
 					.setProcess(() => {});
-			},
-		});
+			});
 
 		const ecs = ECSpresso.create()
 			.withPlugin(plugin)
@@ -573,13 +568,12 @@ describe('withPlugin() asset/screen type propagation', () => {
 	});
 
 	test('$screen not in ResourceTypes when no plugin screens and no withScreens()', () => {
-		const plugin = definePlugin<WorldConfigFrom<{ a: number }, {}, {}>>({
-			id: 'no-screens',
-			install(world) {
+		const plugin = definePlugin('no-screens')
+			.withComponentTypes<{ a: number }>()
+			.install((world) => {
 				world.addSystem('sys')
 					.setProcess(() => {});
-			},
-		});
+			});
 
 		const ecs = ECSpresso.create()
 			.withPlugin(plugin)
@@ -656,10 +650,10 @@ describe('withResourceTypes', () => {
 	});
 
 	test('withResourceTypes + withPlugin are compatible', () => {
-		const plugin = definePlugin<WorldConfigFrom<{ pos: { x: number } }, {}, { physics: { gravity: number } }>>({
-			id: 'phys',
-			install() {},
-		});
+		const plugin = definePlugin('phys')
+			.withComponentTypes<{ pos: { x: number } }>()
+			.withResourceTypes<{ physics: { gravity: number } }>()
+			.install(() => {});
 
 		const ecs = ECSpresso.create()
 			.withPlugin(plugin)

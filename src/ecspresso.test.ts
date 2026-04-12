@@ -245,27 +245,27 @@ describe('ECSpresso', () => {
 		});
 
 		test('should handle plugin augmentation', () => {
-			const plugin1 = definePlugin<WorldConfigFrom<{cmpFromB1: number}, {evtFromB1: {data: number}}, {resFromB1: {data: number}}>>({
-				id: 'plugin1',
-				install(world) {
+			const plugin1 = definePlugin('plugin1')
+				.withComponentTypes<{cmpFromB1: number}>()
+				.withEventTypes<{evtFromB1: {data: number}}>()
+				.withResourceTypes<{resFromB1: {data: number}}>()
+				.install((world) => {
 					world.addResource('resFromB1', { data: 100 });
-				},
-			});
+				});
 
-			const plugin2 = definePlugin<WorldConfigFrom<{cmpFromB2: string}, {evtFromB2: {data: string}}, {resFromB2: {data: string}}>>({
-				id: 'plugin2',
-				install(world) {
+			const plugin2 = definePlugin('plugin2')
+				.withComponentTypes<{cmpFromB2: string}>()
+				.withEventTypes<{evtFromB2: {data: string}}>()
+				.withResourceTypes<{resFromB2: {data: string}}>()
+				.install((world) => {
 					world.addResource('resFromB2', { data: 'test' });
-				},
-			});
+				});
 
-			const merged = definePlugin<WorldConfigFrom<
-				{cmpFromB1: number} & {cmpFromB2: string},
-				{evtFromB1: {data: number}} & {evtFromB2: {data: string}},
-				{resFromB1: {data: number}} & {resFromB2: {data: string}}
-			>>({
-				id: 'merged',
-				install(world) {
+			const merged = definePlugin('merged')
+				.withComponentTypes<{cmpFromB1: number} & {cmpFromB2: string}>()
+				.withEventTypes<{evtFromB1: {data: number}} & {evtFromB2: {data: string}}>()
+				.withResourceTypes<{resFromB1: {data: number}} & {resFromB2: {data: string}}>()
+				.install((world) => {
 					world.installPlugin(plugin1);
 					world.installPlugin(plugin2);
 					world
@@ -288,8 +288,7 @@ describe('ECSpresso', () => {
 							// @ts-expect-error // TypeScript should complain if we try to add an event handler for a non-existent event
 							nonExistentEvent: () => {},
 						});
-				},
-			});
+				});
 
 			const ecspresso = ECSpresso.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				.withPlugin(merged)
@@ -333,14 +332,16 @@ describe('ECSpresso', () => {
 		});
 
 		test('should allow overlapping components, events and resources of the same type', () => {
-			const plugin1 = definePlugin<WorldConfigFrom<{cmp: number}, {evt: {data: number}}, {res: {data: number}}>>({
-				id: 'plugin1',
-				install() {},
-			});
-			const plugin2 = definePlugin<WorldConfigFrom<{cmp: number}, {evt: {data: number}}, {res: {data: number}}>>({
-				id: 'plugin2',
-				install() {},
-			});
+			const plugin1 = definePlugin('plugin1')
+				.withComponentTypes<{cmp: number}>()
+				.withEventTypes<{evt: {data: number}}>()
+				.withResourceTypes<{res: {data: number}}>()
+				.install(() => {});
+			const plugin2 = definePlugin('plugin2')
+				.withComponentTypes<{cmp: number}>()
+				.withEventTypes<{evt: {data: number}}>()
+				.withResourceTypes<{res: {data: number}}>()
+				.install(() => {});
 
 			// Test with traditional method-based installation
 			const ecspresso = ECSpresso.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
@@ -363,14 +364,16 @@ describe('ECSpresso', () => {
 		});
 
 		test('should not allow conflicting components, events and resources of different types', () => {
-			const plugin3 = definePlugin<WorldConfigFrom<{cmp: number}, {evt: {data: number}}, {res: {data: number}}>>({
-				id: 'plugin3',
-				install() {},
-			});
-			const plugin4 = definePlugin<WorldConfigFrom<{cmp: string}, {evt: {data: string}}, {res: {data: string}}>>({
-				id: 'plugin4',
-				install() {},
-			});
+			const plugin3 = definePlugin('plugin3')
+				.withComponentTypes<{cmp: number}>()
+				.withEventTypes<{evt: {data: number}}>()
+				.withResourceTypes<{res: {data: number}}>()
+				.install(() => {});
+			const plugin4 = definePlugin('plugin4')
+				.withComponentTypes<{cmp: string}>()
+				.withEventTypes<{evt: {data: string}}>()
+				.withResourceTypes<{res: {data: string}}>()
+				.install(() => {});
 
 			ECSpresso.create()
 				.withPlugin(plugin3)
@@ -378,10 +381,11 @@ describe('ECSpresso', () => {
 				.withPlugin(plugin4)
 				.build();
 
-			const plugin5 = definePlugin<WorldConfigFrom<{position: string}, {gameEnded: string}, {config: boolean}>>({
-				id: 'plugin5',
-				install() {},
-			});
+			const plugin5 = definePlugin('plugin5')
+				.withComponentTypes<{position: string}>()
+				.withEventTypes<{gameEnded: string}>()
+				.withResourceTypes<{config: boolean}>()
+				.install(() => {});
 
 			ECSpresso.create<WorldConfigFrom<TestComponents, TestEvents, TestResources>>()
 				// @ts-expect-error // TypeScript should complain if we try to install plugins that conflict with the type parameters passed to ecspresso
@@ -395,9 +399,9 @@ describe('ECSpresso', () => {
 	// Core ECS functionality tests
 	describe('Core ECS', () => {
 		test('should run systems with queries', () => {
-			const plugin = definePlugin<WorldConfigFrom<TestComponents>>({
-				id: 'movement',
-				install(world) {
+			const plugin = definePlugin('movement')
+				.withComponentTypes<TestComponents>()
+				.install((world) => {
 					world.addSystem('MovementSystem')
 						.addQuery('entities', {
 							with: ['position', 'velocity'],
@@ -408,8 +412,7 @@ describe('ECSpresso', () => {
 								processedEntities.push(entity.id);
 							}
 						});
-				},
-			});
+				});
 
 			const world = ECSpresso.create()
 				.withPlugin(plugin)
@@ -434,12 +437,12 @@ describe('ECSpresso', () => {
 		});
 
 		test('should manage resources', () => {
-			const plugin = definePlugin<WorldConfigFrom<TestComponents, {}, TestResources>>({
-				id: 'resources',
-				install(world) {
+			const plugin = definePlugin('resources')
+				.withComponentTypes<TestComponents>()
+				.withResourceTypes<TestResources>()
+				.install((world) => {
 					world.addResource('config', { debug: true, maxEntities: 1000 });
-				},
-			});
+				});
 
 			const world = ECSpresso.create<WorldConfigFrom<TestComponents, {}, TestResources>>()
 				.withPlugin(plugin)
@@ -466,9 +469,9 @@ describe('ECSpresso', () => {
 		test('should remove systems by label', () => {
 			let processRan = false;
 
-			const plugin = definePlugin<WorldConfigFrom<TestComponents>>({
-				id: 'movement',
-				install(world) {
+			const plugin = definePlugin('movement')
+				.withComponentTypes<TestComponents>()
+				.install((world) => {
 					world.addSystem('MovementSystem')
 						.addQuery('entities', {
 							with: ['position'],
@@ -476,8 +479,7 @@ describe('ECSpresso', () => {
 						.setProcess(() => {
 							processRan = true;
 						});
-				},
-			});
+				});
 
 			const world = ECSpresso.create<WorldConfigFrom<TestComponents>>()
 				.withPlugin(plugin)
@@ -508,9 +510,9 @@ describe('ECSpresso', () => {
 			let detachCalled = false;
 			let processCalled = false;
 
-			const plugin = definePlugin<WorldConfigFrom<TestComponents>>({
-				id: 'movement-control',
-				install(world) {
+			const plugin = definePlugin('movement-control')
+				.withComponentTypes<TestComponents>()
+				.install((world) => {
 					world.addSystem('MovementControlSystem')
 						.setOnInitialize((_ecs) => {
 							initializationCalled = true;
@@ -524,8 +526,7 @@ describe('ECSpresso', () => {
 						.setProcess(() => {
 							processCalled = true;
 						});
-				},
-			});
+				});
 
 			const world = ECSpresso.create<WorldConfigFrom<TestComponents>>()
 				.withPlugin(plugin)
@@ -605,9 +606,9 @@ describe('ECSpresso', () => {
 		});
 
 		test('should handle state transitions in systems', () => {
-			const plugin = definePlugin<WorldConfigFrom<TestComponents>>({
-				id: 'state',
-				install(world) {
+			const plugin = definePlugin('state')
+				.withComponentTypes<TestComponents>()
+				.install((world) => {
 					world.addSystem('StateSystem')
 						.addQuery('statefulEntities', {
 							with: ['state'],
@@ -619,8 +620,7 @@ describe('ECSpresso', () => {
 								state.current = 'running';
 							}
 						});
-				},
-			});
+				});
 
 			const world = ECSpresso.create<WorldConfigFrom<TestComponents>>()
 				.withPlugin(plugin)
@@ -639,9 +639,9 @@ describe('ECSpresso', () => {
 		});
 
 		test('should track entity lifetimes', () => {
-			const plugin = definePlugin<WorldConfigFrom<TestComponents>>({
-				id: 'lifetime',
-				install(world) {
+			const plugin = definePlugin('lifetime')
+				.withComponentTypes<TestComponents>()
+				.install((world) => {
 					world.addSystem('LifetimeSystem')
 						.addQuery('lifetimeEntities', {
 							with: ['lifetime'],
@@ -655,8 +655,7 @@ describe('ECSpresso', () => {
 								}
 							}
 						});
-				},
-			});
+				});
 
 			const world = ECSpresso.create<WorldConfigFrom<TestComponents>>()
 				.withPlugin(plugin)
@@ -702,9 +701,9 @@ describe('ECSpresso', () => {
 		});
 
 		test('should handle component additions and removals during update', () => {
-			const plugin = definePlugin<WorldConfigFrom<TestComponents>>({
-				id: 'dynamic-component',
-				install(world) {
+			const plugin = definePlugin('dynamic-component')
+				.withComponentTypes<TestComponents>()
+				.install((world) => {
 					world.addSystem('DynamicComponentSystem')
 						.addQuery('entities', {
 							with: ['velocity'],
@@ -716,8 +715,7 @@ describe('ECSpresso', () => {
 								ecs.entityManager.removeComponent(entity.id, 'position');
 							}
 						});
-				},
-			});
+				});
 
 			const world = ECSpresso.create<WorldConfigFrom<TestComponents>>()
 				.withPlugin(plugin)
@@ -811,9 +809,9 @@ describe('ECSpresso', () => {
 			let pluginProcessed = false;
 			let directProcessed = false;
 
-			const plugin = definePlugin<WorldConfigFrom<TestComponents>>({
-				id: 'test-plugin',
-				install(world) {
+			const plugin = definePlugin('test-plugin')
+				.withComponentTypes<TestComponents>()
+				.install((world) => {
 					world.addSystem('PluginSystem')
 						.addQuery('entities', {
 							with: ['position', 'velocity'],
@@ -822,8 +820,7 @@ describe('ECSpresso', () => {
 							expect(queries.entities.length).toBe(1);
 							pluginProcessed = true;
 						});
-				},
-			});
+				});
 
 			const worldWithPlugin = ECSpresso.create<WorldConfigFrom<TestComponents>>()
 				.withPlugin(plugin)
@@ -996,9 +993,9 @@ describe('ECSpresso', () => {
 		});
 
 		test('should maintain priority when adding systems through plugins', () => {
-			const pluginHigh = definePlugin<WorldConfigFrom<TestComponents>>({
-				id: 'plugin-high',
-				install(world) {
+			const pluginHigh = definePlugin('plugin-high')
+				.withComponentTypes<TestComponents>()
+				.install((world) => {
 					world.addSystem('PluginSystemHigh')
 						.setPriority(100)
 						.addQuery('entities', {
@@ -1007,12 +1004,11 @@ describe('ECSpresso', () => {
 						.setProcess(() => {
 							executionOrder.push('pluginHigh');
 						});
-				},
-			});
+				});
 
-			const pluginLow = definePlugin<WorldConfigFrom<TestComponents>>({
-				id: 'plugin-low',
-				install(world) {
+			const pluginLow = definePlugin('plugin-low')
+				.withComponentTypes<TestComponents>()
+				.install((world) => {
 					world.addSystem('PluginSystemLow')
 						.setPriority(0)
 						.addQuery('entities', {
@@ -1021,8 +1017,7 @@ describe('ECSpresso', () => {
 						.setProcess(() => {
 							executionOrder.push('pluginLow');
 						});
-				},
-			});
+				});
 
 			const world = ECSpresso.create<WorldConfigFrom<TestComponents>>()
 				.withPlugin(pluginHigh)
@@ -1687,12 +1682,12 @@ describe('ECSpresso', () => {
 		});
 
 		test('should chain with withPlugin()', () => {
-			const plugin = definePlugin<WorldConfigFrom<{ position: { x: number; y: number } }, {}, { physics: { gravity: number } }>>({
-				id: 'physics',
-				install(world) {
+			const plugin = definePlugin('physics')
+				.withComponentTypes<{ position: { x: number; y: number } }>()
+				.withResourceTypes<{ physics: { gravity: number } }>()
+				.install((world) => {
 					world.addResource('physics', { gravity: 9.8 });
-				},
-			});
+				});
 
 			const world = ECSpresso
 				.create()

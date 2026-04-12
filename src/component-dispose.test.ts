@@ -1,7 +1,6 @@
 import { expect, describe, test, spyOn } from 'bun:test';
 import ECSpresso from './ecspresso';
 import { definePlugin } from './plugin';
-import type { WorldConfigFrom } from './type-utils';
 
 interface TestComponents {
 	mesh: { vertices: number[]; dispose: () => void };
@@ -200,12 +199,11 @@ describe('Component Dispose', () => {
 	test('plugin-registered dispose installed and fires correctly', () => {
 		const disposed: Array<TestComponents['mesh']> = [];
 
-		const plugin = definePlugin<WorldConfigFrom<TestComponents, {}, {}>>({
-			id: 'test-dispose-plugin',
-			install(world) {
+		const plugin = definePlugin('test-dispose-plugin')
+			.withComponentTypes<TestComponents>()
+			.install((world) => {
 				world.registerDispose('mesh', ({ value: mesh }) => { disposed.push(mesh); });
-			},
-		});
+			});
 
 		const ecs = ECSpresso.create()
 			.withPlugin(plugin)
@@ -268,27 +266,24 @@ describe('Component Dispose', () => {
 		const disposedMeshes: Array<TestComponents['mesh']> = [];
 		const disposedTextures: Array<TestComponents['texture']> = [];
 
-		const plugin1 = definePlugin<WorldConfigFrom<Pick<TestComponents, 'mesh'>, {}, {}>>({
-			id: 'plugin1',
-			install(world) {
+		const plugin1 = definePlugin('plugin1')
+			.withComponentTypes<Pick<TestComponents, 'mesh'>>()
+			.install((world) => {
 				world.registerDispose('mesh', ({ value: mesh }) => { disposedMeshes.push(mesh); });
-			},
-		});
+			});
 
-		const plugin2 = definePlugin<WorldConfigFrom<Pick<TestComponents, 'texture'>, {}, {}>>({
-			id: 'plugin2',
-			install(world) {
+		const plugin2 = definePlugin('plugin2')
+			.withComponentTypes<Pick<TestComponents, 'texture'>>()
+			.install((world) => {
 				world.registerDispose('texture', ({ value: texture }) => { disposedTextures.push(texture); });
-			},
-		});
+			});
 
-		const composite = definePlugin<WorldConfigFrom<Pick<TestComponents, 'mesh' | 'texture'>, {}, {}>>({
-			id: 'composite',
-			install(world) {
+		const composite = definePlugin('composite')
+			.withComponentTypes<Pick<TestComponents, 'mesh' | 'texture'>>()
+			.install((world) => {
 				world.installPlugin(plugin1);
 				world.installPlugin(plugin2);
-			},
-		});
+			});
 
 		const ecs = ECSpresso.create()
 			.withPlugin(composite)
@@ -368,12 +363,11 @@ describe('Component Dispose', () => {
 	test('plugin-registered dispose receives entity ID', () => {
 		const received: Array<{ entityId: number }> = [];
 
-		const plugin = definePlugin<WorldConfigFrom<TestComponents, {}, {}>>({
-			id: 'test-dispose-plugin',
-			install(world) {
+		const plugin = definePlugin('test-dispose-plugin')
+			.withComponentTypes<TestComponents>()
+			.install((world) => {
 				world.registerDispose('mesh', ({ entityId }) => { received.push({ entityId }); });
-			},
-		});
+			});
 
 		const ecs = ECSpresso.create()
 			.withPlugin(plugin)

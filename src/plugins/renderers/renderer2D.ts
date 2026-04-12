@@ -575,9 +575,14 @@ export function createRenderer2DPlugin<G extends string = 'renderer2d'>(
 	// Determine mode: pre-initialized if an Application instance was provided, otherwise managed
 	const isManaged = !('app' in options && options.app !== undefined);
 
-	return definePlugin<WorldConfigFrom<Renderer2DComponentTypes, Renderer2DEventTypes, PluginResourceTypes>, EmptyConfig, Renderer2DLabels, G, never, Renderer2DReactiveQueryNames>({
-		id: 'renderer2d',
-		install(world) {
+	return definePlugin('renderer2d')
+		.withComponentTypes<Renderer2DComponentTypes>()
+		.withEventTypes<Renderer2DEventTypes>()
+		.withResourceTypes<PluginResourceTypes>()
+		.withLabels<Renderer2DLabels>()
+		.withGroups<G>()
+		.withReactiveQueryNames<Renderer2DReactiveQueryNames>()
+		.install((world) => {
 			// Install transform plugin (deduplicates if already installed)
 			world.installPlugin(createTransformPlugin(transformOptions));
 
@@ -904,6 +909,5 @@ export function createRenderer2DPlugin<G extends string = 'renderer2d'>(
 						root.rotation = -(state.rotation + state.shakeRotation);
 					});
 			}
-		},
-	});
+		});
 }

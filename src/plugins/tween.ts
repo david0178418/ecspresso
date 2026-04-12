@@ -5,9 +5,8 @@
  * field over time with standard easing functions, sequences, and completion events.
  */
 
-import { definePlugin, type Plugin, type BasePluginOptions } from 'ecspresso';
+import { definePlugin, type BasePluginOptions } from 'ecspresso';
 import type { ComponentsOfWorld, AnyECSpresso } from 'ecspresso';
-import type { WorldConfigFrom, EmptyConfig } from '../type-utils';
 import { linear, type EasingFn } from '../utils/easing';
 
 // ==================== Event Types ====================
@@ -535,16 +534,18 @@ function processTweenProgress(
  */
 export function createTweenPlugin<G extends string = 'tweens'>(
 	options?: TweenPluginOptions<G>
-): Plugin<WorldConfigFrom<TweenComponentTypes>, EmptyConfig, 'tween-update', G> {
+) {
 	const {
 		systemGroup = 'tweens',
 		priority = 0,
 		phase = 'update',
 	} = options ?? {};
 
-	return definePlugin<WorldConfigFrom<TweenComponentTypes>, EmptyConfig, 'tween-update', G>({
-		id: 'tweens',
-		install(world) {
+	return definePlugin('tweens')
+		.withComponentTypes<TweenComponentTypes>()
+		.withLabels<'tween-update'>()
+		.withGroups<G>()
+		.install((world) => {
 			world
 				.addSystem('tween-update')
 				.setPriority(priority)
@@ -583,6 +584,5 @@ export function createTweenPlugin<G extends string = 'tweens'>(
 						processTweenProgress(tween, entityComponents, entity.id, ecs);
 					}
 				});
-		},
-	});
+		});
 }

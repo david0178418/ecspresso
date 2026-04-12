@@ -115,9 +115,10 @@ describe('EventSystem', () => {
 	test('should auto-register event handlers from systems', () => {
 		let eventHandlerCalled = false;
 
-		const plugin = definePlugin<WorldConfigFrom<TestComponents, TestEvents>>({
-			id: 'health',
-			install(world) {
+		const plugin = definePlugin('health')
+			.withComponentTypes<TestComponents>()
+			.withEventTypes<TestEvents>()
+			.install((world) => {
 				world.addSystem('health-system')
 					.setEventHandlers({
 						playerDamaged: ({ data }: { data: { entityId: number; amount: number } }) => {
@@ -125,8 +126,7 @@ describe('EventSystem', () => {
 							expect(data.amount).toBe(10);
 						}
 					});
-			},
-		});
+			});
 
 		const world = ECSpresso.create()
 			.withComponentTypes<TestComponents>()
@@ -152,9 +152,10 @@ describe('EventSystem', () => {
 		let receivedEntityManager: any = null;
 		let receivedData: any = null;
 
-		const plugin = definePlugin<WorldConfigFrom<TestComponents, TestEvents>>({
-			id: 'param-test',
-			install(world) {
+		const plugin = definePlugin('param-test')
+			.withComponentTypes<TestComponents>()
+			.withEventTypes<TestEvents>()
+			.install((world) => {
 				world.addSystem('ParameterTestSystem')
 					.setEventHandlers({
 						healthChanged: ({ data, ecs }) => {
@@ -162,8 +163,7 @@ describe('EventSystem', () => {
 							receivedEntityManager = ecs.entityManager;
 						}
 					});
-			},
-		});
+			});
 
 		const world = ECSpresso.create()
 			.withComponentTypes<TestComponents>()
@@ -246,9 +246,10 @@ describe('EventSystem', () => {
 	test('should integrate event system with ECS for event-driven behavior', () => {
 		const damageLog: Record<number, string[]> = {};
 
-		const plugin = definePlugin<WorldConfigFrom<TestComponents, TestEvents>>({
-			id: 'damage',
-			install(world) {
+		const plugin = definePlugin('damage')
+			.withComponentTypes<TestComponents>()
+			.withEventTypes<TestEvents>()
+			.install((world) => {
 				world.addSystem('EventDrivenDamageSystem')
 					.setEventHandlers({
 						collision: ({ data, ecs }) => {
@@ -296,8 +297,7 @@ describe('EventSystem', () => {
 							damageLog[data.entityId]?.push(`healthChanged=${data.newValue}`);
 						}
 					});
-			},
-		});
+			});
 
 		const world = ECSpresso.create()
 			.withComponentTypes<TestComponents>()

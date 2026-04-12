@@ -9,9 +9,8 @@
  * This plugin declares only `spriteAnimation` as its component type.
  */
 
-import { definePlugin, type Plugin, type BasePluginOptions } from 'ecspresso';
+import { definePlugin, type BasePluginOptions } from 'ecspresso';
 import type { BaseWorld } from 'ecspresso';
-import type { WorldConfigFrom, EmptyConfig } from '../type-utils';
 
 /** BaseWorld narrowed to sprite-animation components for typed access in helpers. */
 type SpriteAnimationWorld = BaseWorld<SpriteAnimationComponentTypes>;
@@ -382,16 +381,18 @@ export function createSpriteAnimationPlugin<
 	G extends string = 'spriteAnimation',
 >(
 	options?: SpriteAnimationPluginOptions<G>,
-): Plugin<WorldConfigFrom<SpriteAnimationComponentTypes>, EmptyConfig, 'sprite-animation-update', G> {
+) {
 	const {
 		systemGroup = 'spriteAnimation',
 		priority = 0,
 		phase = 'update',
 	} = options ?? {};
 
-	return definePlugin<WorldConfigFrom<SpriteAnimationComponentTypes>, EmptyConfig, 'sprite-animation-update', G>({
-		id: 'spriteAnimation',
-		install(world) {
+	return definePlugin('spriteAnimation')
+		.withComponentTypes<SpriteAnimationComponentTypes>()
+		.withLabels<'sprite-animation-update'>()
+		.withGroups<G>()
+		.install((world) => {
 			world
 				.addSystem('sprite-animation-update')
 				.setPriority(priority)
@@ -433,8 +434,7 @@ export function createSpriteAnimationPlugin<
 						}
 					}
 				});
-		},
-	});
+		});
 }
 
 // ==================== Internal: Sprite Texture Sync ====================

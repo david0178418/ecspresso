@@ -1,7 +1,7 @@
 import { test, expect } from 'bun:test';
 import ECSpresso from './ecspresso';
 import { definePlugin } from './plugin';
-import type { LabelsOf, GroupsOf, ComponentsOf, EventsOf, ResourcesOf, AssetGroupNamesOf, ReactiveQueryNamesOf, AssetTypesOf, ScreenStatesOf, WorldConfigFrom, EmptyConfig } from './type-utils';
+import type { LabelsOf, GroupsOf, ComponentsOf, EventsOf, ResourcesOf, AssetGroupNamesOf, ReactiveQueryNamesOf, AssetTypesOf, ScreenStatesOf } from './type-utils';
 import { createTransformPlugin } from './plugins/transform';
 
 // ==================== Type-level assertion helpers ====================
@@ -18,15 +18,15 @@ type IsEqual<T, U> = [T] extends [U] ? [U] extends [T] ? true : false : false;
 
 // 1. Plugin accumulates labels
 test('type-level: Plugin accumulates labels', () => {
-	const plugin = definePlugin<WorldConfigFrom<{ pos: { x: number } }>, EmptyConfig, 'move' | 'render', never>({
-		id: 'test',
-		install(world) {
+	const plugin = definePlugin('test')
+		.withComponentTypes<{ pos: { x: number } }>()
+		.withLabels<'move' | 'render'>()
+		.install((world) => {
 			world.addSystem('move')
 				.setProcess(() => {});
 			world.addSystem('render')
 				.setProcess(() => {});
-		},
-	});
+		});
 
 	assertType<IsEqual<LabelsOf<typeof plugin>, 'move' | 'render'>>();
 
@@ -35,17 +35,18 @@ test('type-level: Plugin accumulates labels', () => {
 
 // 2. Plugin accumulates groups
 test('type-level: Plugin accumulates groups', () => {
-	const plugin = definePlugin<WorldConfigFrom<{ pos: { x: number } }>, EmptyConfig, 'sys1' | 'sys2', 'rendering' | 'physics'>({
-		id: 'test',
-		install(world) {
+	const plugin = definePlugin('test')
+		.withComponentTypes<{ pos: { x: number } }>()
+		.withLabels<'sys1' | 'sys2'>()
+		.withGroups<'rendering' | 'physics'>()
+		.install((world) => {
 			world.addSystem('sys1')
 				.inGroup('rendering')
 				.setProcess(() => {});
 			world.addSystem('sys2')
 				.inGroup('physics')
 				.setProcess(() => {});
-		},
-	});
+		});
 
 	assertType<IsEqual<GroupsOf<typeof plugin>, 'rendering' | 'physics'>>();
 
@@ -54,23 +55,25 @@ test('type-level: Plugin accumulates groups', () => {
 
 // 3. Builder accumulates from multiple plugins
 test('type-level: Builder accumulates labels/groups from multiple plugins', () => {
-	const pluginA = definePlugin<WorldConfigFrom<{ a: number }>, EmptyConfig, 'sysA', 'groupA'>({
-		id: 'a',
-		install(world) {
+	const pluginA = definePlugin('a')
+		.withComponentTypes<{ a: number }>()
+		.withLabels<'sysA'>()
+		.withGroups<'groupA'>()
+		.install((world) => {
 			world.addSystem('sysA')
 				.inGroup('groupA')
 				.setProcess(() => {});
-		},
-	});
+		});
 
-	const pluginB = definePlugin<WorldConfigFrom<{ b: number }>, EmptyConfig, 'sysB', 'groupB'>({
-		id: 'b',
-		install(world) {
+	const pluginB = definePlugin('b')
+		.withComponentTypes<{ b: number }>()
+		.withLabels<'sysB'>()
+		.withGroups<'groupB'>()
+		.install((world) => {
 			world.addSystem('sysB')
 				.inGroup('groupB')
 				.setProcess(() => {});
-		},
-	});
+		});
 
 	const ecs = ECSpresso.create()
 		.withPlugin(pluginA)
@@ -90,13 +93,13 @@ test('type-level: Builder accumulates labels/groups from multiple plugins', () =
 
 // 4. @ts-expect-error on invalid labels
 test('type-level: invalid label produces compile error', () => {
-	const plugin = definePlugin<WorldConfigFrom<{ a: number }>, EmptyConfig, 'validLabel'>({
-		id: 'test',
-		install(world) {
+	const plugin = definePlugin('test')
+		.withComponentTypes<{ a: number }>()
+		.withLabels<'validLabel'>()
+		.install((world) => {
 			world.addSystem('validLabel')
 				.setProcess(() => {});
-		},
-	});
+		});
 
 	const ecs = ECSpresso.create()
 		.withPlugin(plugin)
@@ -114,14 +117,15 @@ test('type-level: invalid label produces compile error', () => {
 
 // 5. @ts-expect-error on invalid groups
 test('type-level: invalid group produces compile error', () => {
-	const plugin = definePlugin<WorldConfigFrom<{ a: number }>, EmptyConfig, 'sys', 'validGroup'>({
-		id: 'test',
-		install(world) {
+	const plugin = definePlugin('test')
+		.withComponentTypes<{ a: number }>()
+		.withLabels<'sys'>()
+		.withGroups<'validGroup'>()
+		.install((world) => {
 			world.addSystem('sys')
 				.inGroup('validGroup')
 				.setProcess(() => {});
-		},
-	});
+		});
 
 	const ecs = ECSpresso.create()
 		.withPlugin(plugin)
@@ -166,14 +170,15 @@ test('type-level: direct construction defaults to string', () => {
 
 // 8. withComponentTypes preserves labels/groups
 test('type-level: withComponentTypes preserves labels/groups', () => {
-	const plugin = definePlugin<WorldConfigFrom<{ a: number }>, EmptyConfig, 'mySystem', 'myGroup'>({
-		id: 'test',
-		install(world) {
+	const plugin = definePlugin('test')
+		.withComponentTypes<{ a: number }>()
+		.withLabels<'mySystem'>()
+		.withGroups<'myGroup'>()
+		.install((world) => {
 			world.addSystem('mySystem')
 				.inGroup('myGroup')
 				.setProcess(() => {});
-		},
-	});
+		});
 
 	const ecs = ECSpresso.create()
 		.withPlugin(plugin)
@@ -195,15 +200,16 @@ test('type-level: withComponentTypes preserves labels/groups', () => {
 
 // 9. Multiple groups per system
 test('type-level: multiple groups per system tracked', () => {
-	const plugin = definePlugin<WorldConfigFrom<{ a: number }>, EmptyConfig, 'sys', 'groupA' | 'groupB'>({
-		id: 'test',
-		install(world) {
+	const plugin = definePlugin('test')
+		.withComponentTypes<{ a: number }>()
+		.withLabels<'sys'>()
+		.withGroups<'groupA' | 'groupB'>()
+		.install((world) => {
 			world.addSystem('sys')
 				.inGroup('groupA')
 				.inGroup('groupB')
 				.setProcess(() => {});
-		},
-	});
+		});
 
 	assertType<IsEqual<GroupsOf<typeof plugin>, 'groupA' | 'groupB'>>();
 
@@ -212,36 +218,34 @@ test('type-level: multiple groups per system tracked', () => {
 
 // 10. Composite plugin unions labels/groups
 test('type-level: composite plugin unions labels/groups', () => {
-	const pluginA = definePlugin<WorldConfigFrom<{ a: number }>, EmptyConfig, 'sysA', 'groupA'>({
-		id: 'a',
-		install(world) {
+	const pluginA = definePlugin('a')
+		.withComponentTypes<{ a: number }>()
+		.withLabels<'sysA'>()
+		.withGroups<'groupA'>()
+		.install((world) => {
 			world.addSystem('sysA')
 				.inGroup('groupA')
 				.setProcess(() => {});
-		},
-	});
+		});
 
-	const pluginB = definePlugin<WorldConfigFrom<{ b: number }>, EmptyConfig, 'sysB', 'groupB'>({
-		id: 'b',
-		install(world) {
+	const pluginB = definePlugin('b')
+		.withComponentTypes<{ b: number }>()
+		.withLabels<'sysB'>()
+		.withGroups<'groupB'>()
+		.install((world) => {
 			world.addSystem('sysB')
 				.inGroup('groupB')
 				.setProcess(() => {});
-		},
-	});
+		});
 
-	const composite = definePlugin<
-		WorldConfigFrom<{ a: number } & { b: number }>,
-		EmptyConfig,
-		'sysA' | 'sysB',
-		'groupA' | 'groupB'
-	>({
-		id: 'composite',
-		install(world) {
+	const composite = definePlugin('composite')
+		.withComponentTypes<{ a: number } & { b: number }>()
+		.withLabels<'sysA' | 'sysB'>()
+		.withGroups<'groupA' | 'groupB'>()
+		.install((world) => {
 			world.installPlugin(pluginA);
 			world.installPlugin(pluginB);
-		},
-	});
+		});
 
 	assertType<IsEqual<LabelsOf<typeof composite>, 'sysA' | 'sysB'>>();
 	assertType<IsEqual<GroupsOf<typeof composite>, 'groupA' | 'groupB'>>();
@@ -251,17 +255,20 @@ test('type-level: composite plugin unions labels/groups', () => {
 
 // 11. LabelsOf/GroupsOf extraction utilities
 test('type-level: LabelsOf and GroupsOf extraction', () => {
-	const plugin = definePlugin<WorldConfigFrom<{ x: number }, { click: true }, { db: object }>, EmptyConfig, 'alpha' | 'beta', 'grp1' | 'grp2'>({
-		id: 'test',
-		install(world) {
+	const plugin = definePlugin('test')
+		.withComponentTypes<{ x: number }>()
+		.withEventTypes<{ click: true }>()
+		.withResourceTypes<{ db: object }>()
+		.withLabels<'alpha' | 'beta'>()
+		.withGroups<'grp1' | 'grp2'>()
+		.install((world) => {
 			world.addSystem('alpha')
 				.inGroup('grp1')
 				.setProcess(() => {});
 			world.addSystem('beta')
 				.inGroup('grp2')
 				.setProcess(() => {});
-		},
-	});
+		});
 
 	assertType<IsEqual<LabelsOf<typeof plugin>, 'alpha' | 'beta'>>();
 	assertType<IsEqual<GroupsOf<typeof plugin>, 'grp1' | 'grp2'>>();
@@ -298,13 +305,13 @@ test('type-level: built-in plugin labels/groups flow through', () => {
 
 // 13. removeSystem works correctly
 test('runtime: removeSystem returns true/false', () => {
-	const plugin = definePlugin<WorldConfigFrom<{ pos: { x: number } }>, EmptyConfig, 'mySys'>({
-		id: 'test',
-		install(world) {
+	const plugin = definePlugin('test')
+		.withComponentTypes<{ pos: { x: number } }>()
+		.withLabels<'mySys'>()
+		.install((world) => {
 			world.addSystem('mySys')
 				.setProcess(() => {});
-		},
-	});
+		});
 
 	const ecs = ECSpresso.create()
 		.withPlugin(plugin)
@@ -316,14 +323,15 @@ test('runtime: removeSystem returns true/false', () => {
 
 // 14. disableSystemGroup/enableSystemGroup work correctly
 test('runtime: disableSystemGroup/enableSystemGroup', () => {
-	const plugin = definePlugin<WorldConfigFrom<{ pos: { x: number } }>, EmptyConfig, 'grouped', 'myGroup'>({
-		id: 'test',
-		install(world) {
+	const plugin = definePlugin('test')
+		.withComponentTypes<{ pos: { x: number } }>()
+		.withLabels<'grouped'>()
+		.withGroups<'myGroup'>()
+		.install((world) => {
 			world.addSystem('grouped')
 				.inGroup('myGroup')
 				.setProcess(() => {});
-		},
-	});
+		});
 
 	const ecs = ECSpresso.create()
 		.withPlugin(plugin)
@@ -338,9 +346,11 @@ test('runtime: disableSystemGroup/enableSystemGroup', () => {
 
 // 15. getSystemsInGroup returns correct labels
 test('runtime: getSystemsInGroup returns correct labels', () => {
-	const plugin = definePlugin<WorldConfigFrom<{ pos: { x: number } }>, EmptyConfig, 'a' | 'b' | 'c', 'grp'>({
-		id: 'test',
-		install(world) {
+	const plugin = definePlugin('test')
+		.withComponentTypes<{ pos: { x: number } }>()
+		.withLabels<'a' | 'b' | 'c'>()
+		.withGroups<'grp'>()
+		.install((world) => {
 			world.addSystem('a')
 				.inGroup('grp')
 				.setProcess(() => {});
@@ -349,8 +359,7 @@ test('runtime: getSystemsInGroup returns correct labels', () => {
 				.setProcess(() => {});
 			world.addSystem('c')
 				.setProcess(() => {});
-		},
-	});
+		});
 
 	const ecs = ECSpresso.create()
 		.withPlugin(plugin)
@@ -365,13 +374,13 @@ test('runtime: getSystemsInGroup returns correct labels', () => {
 
 // 16. updateSystemPhase/updateSystemPriority work correctly
 test('runtime: updateSystemPhase and updateSystemPriority', () => {
-	const plugin = definePlugin<WorldConfigFrom<{ pos: { x: number } }>, EmptyConfig, 'mover'>({
-		id: 'test',
-		install(world) {
+	const plugin = definePlugin('test')
+		.withComponentTypes<{ pos: { x: number } }>()
+		.withLabels<'mover'>()
+		.install((world) => {
 			world.addSystem('mover')
 				.setProcess(() => {});
-		},
-	});
+		});
 
 	const ecs = ECSpresso.create()
 		.withPlugin(plugin)
@@ -386,14 +395,15 @@ test('runtime: updateSystemPhase and updateSystemPriority', () => {
 
 // Additional: withEventTypes preserves labels/groups
 test('type-level: withEventTypes preserves labels/groups', () => {
-	const plugin = definePlugin<WorldConfigFrom<{ a: number }>, EmptyConfig, 'sys1', 'grp1'>({
-		id: 'test',
-		install(world) {
+	const plugin = definePlugin('test')
+		.withComponentTypes<{ a: number }>()
+		.withLabels<'sys1'>()
+		.withGroups<'grp1'>()
+		.install((world) => {
 			world.addSystem('sys1')
 				.inGroup('grp1')
 				.setProcess(() => {});
-		},
-	});
+		});
 
 	const ecs = ECSpresso.create()
 		.withPlugin(plugin)
@@ -413,14 +423,15 @@ test('type-level: withEventTypes preserves labels/groups', () => {
 
 // Additional: withResource preserves labels/groups
 test('type-level: withResource preserves labels/groups', () => {
-	const plugin = definePlugin<WorldConfigFrom<{ a: number }>, EmptyConfig, 'sys1', 'grp1'>({
-		id: 'test',
-		install(world) {
+	const plugin = definePlugin('test')
+		.withComponentTypes<{ a: number }>()
+		.withLabels<'sys1'>()
+		.withGroups<'grp1'>()
+		.install((world) => {
 			world.addSystem('sys1')
 				.inGroup('grp1')
 				.setProcess(() => {});
-		},
-	});
+		});
 
 	const ecs = ECSpresso.create()
 		.withPlugin(plugin)
@@ -440,14 +451,15 @@ test('type-level: withResource preserves labels/groups', () => {
 
 // Additional: isSystemGroupEnabled and getSystemsInGroup have typed params
 test('type-level: isSystemGroupEnabled and getSystemsInGroup accept typed groups', () => {
-	const plugin = definePlugin<WorldConfigFrom<{ a: number }>, EmptyConfig, 'sys', 'myGroup'>({
-		id: 'test',
-		install(world) {
+	const plugin = definePlugin('test')
+		.withComponentTypes<{ a: number }>()
+		.withLabels<'sys'>()
+		.withGroups<'myGroup'>()
+		.install((world) => {
 			world.addSystem('sys')
 				.inGroup('myGroup')
 				.setProcess(() => {});
-		},
-	});
+		});
 
 	const ecs = ECSpresso.create()
 		.withPlugin(plugin)
@@ -473,10 +485,9 @@ test('type-level: isSystemGroupEnabled and getSystemsInGroup accept typed groups
 // Asset/screen type propagation is tested via the builder in builder-type-inference.test.ts.
 
 test('type-level: AssetTypesOf returns {} for plugin with no assets', () => {
-	const plugin = definePlugin<WorldConfigFrom<{ a: number }>>({
-		id: 'test',
-		install() {},
-	});
+	const plugin = definePlugin('test')
+		.withComponentTypes<{ a: number }>()
+		.install(() => {});
 
 	assertType<IsEqual<AssetTypesOf<typeof plugin>, {}>>();
 
@@ -484,10 +495,9 @@ test('type-level: AssetTypesOf returns {} for plugin with no assets', () => {
 });
 
 test('type-level: ScreenStatesOf returns {} for plugin with no screens', () => {
-	const plugin = definePlugin<WorldConfigFrom<{ a: number }>>({
-		id: 'test',
-		install() {},
-	});
+	const plugin = definePlugin('test')
+		.withComponentTypes<{ a: number }>()
+		.install(() => {});
 
 	assertType<IsEqual<ScreenStatesOf<typeof plugin>, {}>>();
 

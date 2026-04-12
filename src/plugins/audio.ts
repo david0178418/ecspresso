@@ -6,9 +6,8 @@
  * and asset manager integration.
  */
 
-import { definePlugin, type Plugin, type BasePluginOptions } from 'ecspresso';
+import { definePlugin, type BasePluginOptions } from 'ecspresso';
 import type { AssetsOfWorld, AnyECSpresso, ChannelOfWorld } from 'ecspresso';
-import type { WorldConfigFrom, EmptyConfig } from '../type-utils';
 import type { Howl } from 'howler';
 
 // ==================== Channel Definition ====================
@@ -338,7 +337,7 @@ interface MusicEntry<Ch extends string> {
  */
 export function createAudioPlugin<Ch extends string, G extends string = 'audio'>(
 	options: AudioPluginOptions<Ch, G>
-): Plugin<WorldConfigFrom<AudioComponentTypes<Ch>, AudioEventTypes<Ch>, AudioResourceTypes<Ch>>, EmptyConfig, 'audio-sync', G, never, 'audio-sources'> {
+) {
 	const {
 		channels: channelDefs,
 		systemGroup = 'audio',
@@ -558,9 +557,14 @@ export function createAudioPlugin<Ch extends string, G extends string = 'audio'>
 		},
 	};
 
-	return definePlugin<WorldConfigFrom<AudioComponentTypes<Ch>, AudioEventTypes<Ch>, AudioResourceTypes<Ch>>, EmptyConfig, 'audio-sync', G, never, 'audio-sources'>({
-		id: 'audio',
-		install(world) {
+	return definePlugin('audio')
+		.withComponentTypes<AudioComponentTypes<Ch>>()
+		.withEventTypes<AudioEventTypes<Ch>>()
+		.withResourceTypes<AudioResourceTypes<Ch>>()
+		.withLabels<'audio-sync'>()
+		.withGroups<G>()
+		.withReactiveQueryNames<'audio-sources'>()
+		.install((world) => {
 			world.addResource('audioState', audioState);
 
 			// Dispose callback: stop sounds when audioSource component is removed
@@ -654,8 +658,7 @@ export function createAudioPlugin<Ch extends string, G extends string = 'audio'>
 					eventBusRef = null;
 					getAsset = null;
 				});
-		},
-	});
+		});
 }
 
 // ==================== Post-Build Helpers ====================

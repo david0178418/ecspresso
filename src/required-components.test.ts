@@ -1,7 +1,6 @@
 import { expect, describe, test } from 'bun:test';
 import ECSpresso from './index';
 import { definePlugin } from './plugin';
-import type { WorldConfigFrom } from './type-utils';
 
 interface TestComponents {
 	position: { x: number; y: number };
@@ -218,12 +217,11 @@ describe('Required Components', () => {
 
 	describe('plugin registration', () => {
 		test('should register required components from plugin', () => {
-			const plugin = definePlugin<WorldConfigFrom<TestComponents, {}, {}>>({
-				id: 'test',
-				install(world) {
+			const plugin = definePlugin('test')
+				.withComponentTypes<TestComponents>()
+				.install((world) => {
 					world.registerRequired('position', 'velocity', () => ({ x: 0, y: 0 }));
-				},
-			});
+				});
 
 			const ecs = ECSpresso.create()
 				.withPlugin(plugin)
@@ -235,19 +233,17 @@ describe('Required Components', () => {
 		});
 
 		test('should merge required components from multiple plugins', () => {
-			const plugin1 = definePlugin<WorldConfigFrom<Pick<TestComponents, 'position' | 'velocity'>, {}, {}>>({
-				id: 'b1',
-				install(world) {
+			const plugin1 = definePlugin('b1')
+				.withComponentTypes<Pick<TestComponents, 'position' | 'velocity'>>()
+				.install((world) => {
 					world.registerRequired('position', 'velocity', () => ({ x: 0, y: 0 }));
-				},
-			});
+				});
 
-			const plugin2 = definePlugin<WorldConfigFrom<Pick<TestComponents, 'componentA' | 'componentB'>, {}, {}>>({
-				id: 'b2',
-				install(world) {
+			const plugin2 = definePlugin('b2')
+				.withComponentTypes<Pick<TestComponents, 'componentA' | 'componentB'>>()
+				.install((world) => {
 					world.registerRequired('componentA', 'componentB', () => ({ b: 0 }));
-				},
-			});
+				});
 
 			const ecs = ECSpresso.create()
 				.withPlugin(plugin1)
@@ -262,29 +258,24 @@ describe('Required Components', () => {
 		});
 
 		test('should propagate required components through composite plugin', () => {
-			const plugin1 = definePlugin<WorldConfigFrom<Pick<TestComponents, 'position' | 'velocity'>, {}, {}>>({
-				id: 'b1',
-				install(world) {
+			const plugin1 = definePlugin('b1')
+				.withComponentTypes<Pick<TestComponents, 'position' | 'velocity'>>()
+				.install((world) => {
 					world.registerRequired('position', 'velocity', () => ({ x: 0, y: 0 }));
-				},
-			});
+				});
 
-			const plugin2 = definePlugin<WorldConfigFrom<Pick<TestComponents, 'componentA' | 'componentB'>, {}, {}>>({
-				id: 'b2',
-				install(world) {
+			const plugin2 = definePlugin('b2')
+				.withComponentTypes<Pick<TestComponents, 'componentA' | 'componentB'>>()
+				.install((world) => {
 					world.registerRequired('componentA', 'componentB', () => ({ b: 0 }));
-				},
-			});
+				});
 
-			const composite = definePlugin<
-				WorldConfigFrom<Pick<TestComponents, 'position' | 'velocity' | 'componentA' | 'componentB'>, {}, {}>
-			>({
-				id: 'composite',
-				install(world) {
+			const composite = definePlugin('composite')
+				.withComponentTypes<Pick<TestComponents, 'position' | 'velocity' | 'componentA' | 'componentB'>>()
+				.install((world) => {
 					world.installPlugin(plugin1);
 					world.installPlugin(plugin2);
-				},
-			});
+				});
 
 			const ecs = ECSpresso.create()
 				.withPlugin(composite)

@@ -10,7 +10,7 @@
  * side-storage Map for PixiJS objects, kit pattern for typed helpers.
  */
 
-import { definePlugin, type Plugin, type BasePluginOptions } from 'ecspresso';
+import { definePlugin, type BasePluginOptions } from 'ecspresso';
 import type { BaseWorld } from 'ecspresso';
 import type { WorldConfigFrom } from '../type-utils';
 import type { TransformComponentTypes, LocalTransform } from 'ecspresso/plugins/transform';
@@ -598,7 +598,7 @@ export function createParticlePlugin<
 	G extends string = 'particles',
 >(
 	options?: ParticlePluginOptions<G>,
-): Plugin<WorldConfigFrom<ParticleComponentTypes>, ParticleRequires, ParticleLabels, G, never, 'particle-emitters'> {
+) {
 	const {
 		systemGroup = 'particles',
 		priority = 0,
@@ -608,9 +608,13 @@ export function createParticlePlugin<
 	// Side storage for runtime particle data
 	const emitterData = new Map<number, EmitterRuntimeData>();
 
-	return definePlugin<WorldConfigFrom<ParticleComponentTypes>, ParticleRequires, ParticleLabels, G, never, 'particle-emitters'>({
-		id: 'particles',
-		install(world) {
+	return definePlugin('particles')
+		.withComponentTypes<ParticleComponentTypes>()
+		.withLabels<ParticleLabels>()
+		.withGroups<G>()
+		.withReactiveQueryNames<'particle-emitters'>()
+		.requires<ParticleRequires>()
+		.install((world) => {
 			// Required component: particleEmitter needs localTransform
 			world.registerRequired('particleEmitter', 'localTransform', (): LocalTransform => ({
 				x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1,
@@ -809,8 +813,7 @@ export function createParticlePlugin<
 						}
 					}
 				});
-		},
-	});
+		});
 }
 
 /**

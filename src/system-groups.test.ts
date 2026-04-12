@@ -164,15 +164,14 @@ describe('System Groups', () => {
 		test('should work with plugin-installed systems', () => {
 			let pluginRan = false;
 
-			const plugin = definePlugin<WorldConfigFrom<TestComponents, {}, {}>>({
-				id: 'grouped-plugin',
-				install(world) {
+			const plugin = definePlugin('grouped-plugin')
+				.withComponentTypes<TestComponents>()
+				.install((world) => {
 					world.addSystem('pluginSystem')
 						.inGroup('pluginGroup')
 						.addQuery('entities', { with: ['position'] })
 						.setProcess(() => { pluginRan = true; });
-				},
-			});
+				});
 
 			const world = ECSpresso.create()
 				.withPlugin(plugin)

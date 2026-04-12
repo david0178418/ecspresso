@@ -1798,7 +1798,9 @@ export default class ECSpresso<
 		id: string;
 		install: (world: ECSpresso<Cfg>) => void;
 	}) => Plugin<Cfg, EmptyConfig, PL, PG, PAG, PRQ> {
-		return definePlugin as unknown as ReturnType<
+		return ((config: { id: string; install: (world: ECSpresso<any>) => void }) =>
+			definePlugin(config.id).install(config.install)
+		) as unknown as ReturnType<
 			ECSpresso<Cfg>['pluginFactory']
 		>;
 	}

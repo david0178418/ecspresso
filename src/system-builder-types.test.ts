@@ -2,7 +2,6 @@ import { expect, describe, test } from 'bun:test';
 import ECSpresso from './ecspresso';
 import { definePlugin } from './plugin';
 import type { ScreenDefinition } from './screen-types';
-import type { WorldConfigFrom } from './type-utils';
 
 type TestComponents = {
 	position: { x: number; y: number };
@@ -205,9 +204,13 @@ describe('SystemBuilder Type Safety for AssetTypes and ScreenStates', () => {
 	});
 
 	test('plugin-defined systems thread A/S correctly', () => {
-		const plugin = definePlugin<WorldConfigFrom<TestComponents, TestEvents, TestResources, TestAssets, TestScreens>>({
-			id: 'test-plugin',
-			install(world) {
+		const plugin = definePlugin('test-plugin')
+			.withComponentTypes<TestComponents>()
+			.withEventTypes<TestEvents>()
+			.withResourceTypes<TestResources>()
+			.withAssetTypes<TestAssets>()
+			.withScreenTypes<TestScreens>()
+			.install((world) => {
 				world.addSystem('pluginSystem')
 					.inScreens(['gameplay'])
 					.requiresAssets(['playerTexture'])
@@ -216,8 +219,7 @@ describe('SystemBuilder Type Safety for AssetTypes and ScreenStates', () => {
 				world.addSystem('invalidPlugin')
 					// @ts-expect-error - invalid screen name in plugin system
 					.inScreens(['nonexistent']);
-			},
-		});
+			});
 
 		ECSpresso.create()
 			.withPlugin(plugin)

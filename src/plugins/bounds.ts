@@ -6,8 +6,7 @@
  * Supports destroy, clamp, and wrap behaviors.
  */
 
-import { definePlugin, type Plugin, type BasePluginOptions } from 'ecspresso';
-import type { WorldConfigFrom } from '../type-utils';
+import { definePlugin, type BasePluginOptions } from 'ecspresso';
 import type { TransformWorldConfig } from './transform';
 
 // ==================== Component Types ====================
@@ -228,7 +227,7 @@ export function createWrapAtBounds(padding?: number): Pick<BoundsComponentTypes,
  */
 export function createBoundsPlugin<ResourceTypes extends BoundsResourceTypes = BoundsResourceTypes, G extends string = 'physics'>(
 	options?: BoundsPluginOptions<G>
-): Plugin<WorldConfigFrom<BoundsComponentTypes, BoundsEventTypes, ResourceTypes>, TransformWorldConfig, 'bounds-destroy' | 'bounds-clamp' | 'bounds-wrap', G> {
+) {
 	const {
 		systemGroup = 'physics',
 		priority = 50,
@@ -237,9 +236,14 @@ export function createBoundsPlugin<ResourceTypes extends BoundsResourceTypes = B
 		phase = 'postUpdate',
 	} = options ?? {};
 
-	return definePlugin<WorldConfigFrom<BoundsComponentTypes, BoundsEventTypes, ResourceTypes>, TransformWorldConfig, 'bounds-destroy' | 'bounds-clamp' | 'bounds-wrap', G>({
-		id: 'bounds',
-		install(world) {
+	return definePlugin('bounds')
+		.withComponentTypes<BoundsComponentTypes>()
+		.withEventTypes<BoundsEventTypes>()
+		.withResourceTypes<ResourceTypes>()
+		.withLabels<'bounds-destroy' | 'bounds-clamp' | 'bounds-wrap'>()
+		.withGroups<G>()
+		.requires<TransformWorldConfig>()
+		.install((world) => {
 			// Destroy out of bounds system
 			world
 				.addSystem('bounds-destroy')
@@ -363,8 +367,7 @@ export function createBoundsPlugin<ResourceTypes extends BoundsResourceTypes = B
 						}
 					}
 				});
-		},
-	});
+		});
 }
 
 /**

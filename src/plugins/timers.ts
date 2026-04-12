@@ -5,8 +5,7 @@
  * Timers are components processed each frame, automatically cleaned up when entities are removed.
  */
 
-import { definePlugin, type Plugin, type BasePluginOptions } from 'ecspresso';
-import type { WorldConfigFrom, EmptyConfig } from '../type-utils';
+import { definePlugin, type BasePluginOptions } from 'ecspresso';
 
 // ==================== Event Types ====================
 
@@ -197,16 +196,18 @@ export function createRepeatingTimer(
  */
 export function createTimerPlugin<G extends string = 'timers'>(
 	options?: TimerPluginOptions<G>
-): Plugin<WorldConfigFrom<TimerComponentTypes>, EmptyConfig, 'timer-update', G> {
+) {
 	const {
 		systemGroup = 'timers',
 		priority = 0,
 		phase = 'preUpdate',
 	} = options ?? {};
 
-	return definePlugin<WorldConfigFrom<TimerComponentTypes>, EmptyConfig, 'timer-update', G>({
-		id: 'timers',
-		install(world) {
+	return definePlugin('timers')
+		.withComponentTypes<TimerComponentTypes>()
+		.withLabels<'timer-update'>()
+		.withGroups<G>()
+		.install((world) => {
 			world
 				.addSystem('timer-update')
 				.setPriority(priority)
@@ -250,6 +251,5 @@ export function createTimerPlugin<G extends string = 'timers'>(
 						}
 					}
 				});
-		},
-	});
+		});
 }

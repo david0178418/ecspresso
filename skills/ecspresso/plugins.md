@@ -2,12 +2,12 @@
 
 ## Defining Plugins
 
-Plugins group related systems, resources, and component types. Three approaches:
+Plugins group related systems, resources, and component types. Two approaches:
 
-### 1. Explicit Config Type
+### 1. Fluent Builder
 
 ```typescript
-import { definePlugin, type WorldConfigFrom } from 'ecspresso';
+import { definePlugin } from 'ecspresso';
 
 interface MyComponents {
   position: { x: number; y: number };
@@ -18,9 +18,10 @@ interface MyResources {
   gravity: { value: number };
 }
 
-const physicsPlugin = definePlugin<WorldConfigFrom<MyComponents, {}, MyResources>>({
-  id: 'physics',
-  install(world) {
+const physicsPlugin = definePlugin('physics')
+  .withComponentTypes<MyComponents>()
+  .withResourceTypes<MyResources>()
+  .install((world) => {
     world.addResource('gravity', { value: 9.8 });
 
     world.addSystem('applyVelocity')
@@ -31,23 +32,16 @@ const physicsPlugin = definePlugin<WorldConfigFrom<MyComponents, {}, MyResources
           entity.components.position.y += entity.components.velocity.y * dt;
         }
       });
-  },
-});
+  });
 ```
 
-`WorldConfigFrom<Components, Events, Resources>` constructs the config type. All three params default to `{}`.
+The builder mirrors `ECSpresso.create()`:
+- `.withComponentTypes<T>()`, `.withEventTypes<T>()`, `.withResourceTypes<T>()`, `.withAssetTypes<T>()`, `.withScreenTypes<T>()` — declare types this plugin provides
+- `.withLabels<L>()`, `.withGroups<G>()`, `.withReactiveQueryNames<N>()` — declare system labels, groups, and reactive query names
+- `.requires<W>()` — declare dependency on another plugin's `WorldConfig` type (e.g., `TransformWorldConfig`)
+- `.install(fn)` — terminal, returns the finalized `Plugin` object
 
-### 2. Derive from World Type
-
-```typescript
-type ECS = typeof ecs;
-const plugin = definePlugin<ECS>({
-  id: 'derived-plugin',
-  install(world) { /* world is fully typed */ },
-});
-```
-
-### 3. Plugin Factory (no type params)
+### 2. Plugin Factory (no type params)
 
 When multiple plugins share the same world types:
 

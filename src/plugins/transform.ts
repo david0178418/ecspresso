@@ -7,9 +7,9 @@
  * @see https://docs.rs/bevy/latest/bevy/transform/components/struct.GlobalTransform.html
  */
 
-import { definePlugin, type Plugin, type BasePluginOptions } from 'ecspresso';
+import { definePlugin, type BasePluginOptions } from 'ecspresso';
 import type ECSpresso from 'ecspresso';
-import type { WorldConfigFrom, EmptyConfig } from '../type-utils';
+import type { WorldConfigFrom } from '../type-utils';
 
 // ==================== Component Types ====================
 
@@ -225,16 +225,18 @@ export function createTransform(
  */
 export function createTransformPlugin<G extends string = 'transform'>(
 	options?: TransformPluginOptions<G>
-): Plugin<WorldConfigFrom<TransformComponentTypes>, EmptyConfig, 'transform-propagation', G> {
+) {
 	const {
 		systemGroup = 'transform',
 		priority = 500,
 		phase = 'postUpdate',
 	} = options ?? {};
 
-	return definePlugin<WorldConfigFrom<TransformComponentTypes>, EmptyConfig, 'transform-propagation', G>({
-		id: 'transform',
-		install(world) {
+	return definePlugin('transform')
+		.withComponentTypes<TransformComponentTypes>()
+		.withLabels<'transform-propagation'>()
+		.withGroups<G>()
+		.install((world) => {
 			// localTransform requires worldTransform — initialize from localTransform values
 			world.registerRequired('localTransform', 'worldTransform', (lt) => ({
 				x: lt.x, y: lt.y, rotation: lt.rotation, scaleX: lt.scaleX, scaleY: lt.scaleY,
@@ -250,8 +252,7 @@ export function createTransformPlugin<G extends string = 'transform'>(
 				.setProcess(({ ecs }) => {
 					propagateTransforms(ecs, orphanBuffer);
 				});
-		},
-	});
+		});
 }
 
 /**
