@@ -36,7 +36,9 @@ src/
     │   ├── tween.ts      # Declarative property animation with easing, sequences, and loops
     │   ├── audio.ts      # Howler.js audio integration
     │   ├── sprite-animation.ts # Frame-based sprite animation
-    │   └── particles.ts  # Pooled particle system with PixiJS ParticleContainer rendering
+    │   ├── particles.ts  # Pooled particle system with PixiJS ParticleContainer rendering
+    │   ├── selection.ts  # Pointer-driven box/click selection with visual feedback
+    │   └── steering.ts   # Move-to-target with arrival detection
     └── renderers/
         └── renderer2D.ts  # PixiJS scene graph wiring
 ```
