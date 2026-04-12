@@ -1,0 +1,169 @@
+import { Graphics, Sprite } from 'pixi.js';
+import ECSpresso from '../../src';
+import {
+	createRenderer2DPlugin,
+	createLocalTransform,
+} from '../../src/plugins/renderers/renderer2D';
+import {
+	createPhysics2DPlugin,
+	createRigidBody,
+} from '../../src/plugins/physics2D';
+import { createInputPlugin } from '../../src/plugins/input';
+import {
+	defineCollisionLayers,
+	createAABBCollider,
+} from '../../src/plugins/collision';
+
+const MOVE_SPEED = 300;
+const JUMP_VELOCITY = -450;
+const GRAVITY = 800;
+const PLAYER_WIDTH = 32;
+const PLAYER_HEIGHT = 48;
+const PLAYER_COLOR = 0xFF4444;
+const PLATFORM_COLOR = 0x44AA44;
+const PLATFORM_HEIGHT = 20;
+const GROUND_HEIGHT = 32;
+
+const layers = defineCollisionLayers({
+	player: ['platform'],
+	platform: ['player'],
+});
+
+const ecs = ECSpresso.create()
+	.withPlugin(createRenderer2DPlugin({ background: '#222244' }))
+	.withPlugin(createPhysics2DPlugin({
+		gravity: { x: 0, y: GRAVITY },
+		layers,
+	}))
+	.withPlugin(createInputPlugin({
+		actions: {
+			moveLeft: { keys: ['a', 'ArrowLeft'] },
+			moveRight: { keys: ['d', 'ArrowRight'] },
+			jump: { keys: ['w', 'ArrowUp', ' '] },
+		},
+	}))
+	.withFixedTimestep(1 / 60)
+	.withComponentTypes<{
+		player: true;
+		groundContact: { grounded: boolean };
+	}>()
+	.build();
+
+// Reset grounded flag before physics runs each tick
+ecs.addSystem('ground-reset')
+	.inPhase('fixedUpdate')
+	.setPriority(2000)
+	.addQuery('players', { with: ['groundContact'] })
+	.setProcess(({ queries }) => {
+		for (const entity of queries.players) {
+			entity.components.groundContact.grounded = false;
+		}
+	});
+
+// Detect ground contact from physics collision normals
+// Normal points from entityA toward entityB; normalY > 0.5 means A is above B
+ecs.addSystem('ground-detect')
+	.setEventHandlers({
+		physicsCollision({ data, ecs: world }) {
+			if (world.getComponent(data.entityA, 'player') && data.normalY > 0.5) {
+				const gc = world.getComponent(data.entityA, 'groundContact');
+				if (gc) gc.grounded = true;
+				return;
+			}
+			if (world.getComponent(data.entityB, 'player') && data.normalY < -0.5) {
+				const gc = world.getComponent(data.entityB, 'groundContact');
+				if (gc) gc.grounded = true;
+			}
+		},
+	});
+
+// Player input: horizontal movement + jump when grounded
+ecs.addSystem('player-input')
+	.inPhase('preUpdate')
+	.addQuery('players', { with: ['player', 'velocity', 'groundContact'] })
+	.withResources(['inputState'])
+	.setProcess(({ queries, resources: { inputState: input } }) => {
+		for (const entity of queries.players) {
+			const { velocity, groundContact } = entity.components;
+
+			const left = input.actions.isActive('moveLeft') ? -MOVE_SPEED : 0;
+			const right = input.actions.isActive('moveRight') ? MOVE_SPEED : 0;
+			velocity.x = left + right;
+
+			if (groundContact.grounded && input.actions.justActivated('jump')) {
+				velocity.y = JUMP_VELOCITY;
+			}
+		}
+	});
+
+await ecs.initialize();
+
+const pixiApp = ecs.getResource('pixiApp');
+const screenW = pixiApp.screen.width;
+const screenH = pixiApp.screen.height;
+
+function createRectSprite(width: number, height: number, color: number): Sprite {
+	const gfx = new Graphics().rect(0, 0, width, height).fill(color);
+	const texture = pixiApp.renderer.generateTexture(gfx);
+	gfx.destroy();
+	const sprite = new Sprite(texture);
+	sprite.anchor.set(0.5, 0.5);
+	return sprite;
+}
+
+function spawnPlatform(x: number, y: number, w: number, h: number) {
+	ecs.spawn({
+		sprite: createRectSprite(w, h, PLATFORM_COLOR),
+		...createLocalTransform(x, y),
+		...createRigidBody('static'),
+		...createAABBCollider(w, h),
+		...layers.platform(),
+	});
+}
+
+// Player
+ecs.spawn({
+	sprite: createRectSprite(PLAYER_WIDTH, PLAYER_HEIGHT, PLAYER_COLOR),
+	...createLocalTransform(screenW / 2, screenH - 100),
+	...createRigidBody('dynamic', { restitution: 0, friction: 0 }),
+	velocity: { x: 0, y: 0 },
+	...createAABBCollider(PLAYER_WIDTH, PLAYER_HEIGHT),
+	...layers.player(),
+	player: true as const,
+	groundContact: { grounded: false },
+});
+
+// Ground
+spawnPlatform(screenW / 2, screenH - GROUND_HEIGHT / 2, screenW, GROUND_HEIGHT);
+
+// Platforms
+function col(frac: number) { return screenW * frac; }
+const platforms = [
+	// Bottom tier
+	{ x: col(0.1), y: screenH - 130, w: 130 },
+	{ x: col(0.3), y: screenH - 160, w: 120 },
+	{ x: col(0.5), y: screenH - 120, w: 110 },
+	{ x: col(0.7), y: screenH - 170, w: 120 },
+	{ x: col(0.9), y: screenH - 140, w: 130 },
+	// Mid-low tier
+	{ x: col(0.15), y: screenH - 250, w: 120 },
+	{ x: col(0.4), y: screenH - 270, w: 130 },
+	{ x: col(0.6), y: screenH - 240, w: 110 },
+	{ x: col(0.85), y: screenH - 260, w: 120 },
+	// Mid-high tier
+	{ x: col(0.1), y: screenH - 350, w: 110 },
+	{ x: col(0.3), y: screenH - 370, w: 120 },
+	{ x: col(0.5), y: screenH - 340, w: 140 },
+	{ x: col(0.7), y: screenH - 360, w: 110 },
+	{ x: col(0.9), y: screenH - 380, w: 120 },
+	// Upper tier
+	{ x: col(0.2), y: screenH - 460, w: 120 },
+	{ x: col(0.45), y: screenH - 480, w: 110 },
+	{ x: col(0.65), y: screenH - 460, w: 110 },
+	{ x: col(0.85), y: screenH - 490, w: 120 },
+	// Top
+	{ x: col(0.35), y: screenH - 560, w: 120 },
+	{ x: col(0.6), y: screenH - 570, w: 130 },
+];
+
+platforms.forEach(p => spawnPlatform(p.x, p.y, p.w, PLATFORM_HEIGHT));

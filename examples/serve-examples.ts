@@ -18,6 +18,7 @@ import coroutines from './coroutines/coroutines.html';
 import spriteAnimation from './sprite-animation/sprite-animation.html';
 import particles from './particles/particles.html';
 import viewportScaling from './viewport-scaling/viewport-scaling.html';
+import platformer from './platformer/platformer.html';
 
 const examplesDir = import.meta.dir;
 
@@ -45,6 +46,7 @@ const server = serve({
 		'/sprite-animation/': spriteAnimation,
 		'/particles/': particles,
 		'/viewport-scaling/': viewportScaling,
+		'/platformer/': platformer,
 	},
 	async fetch(request) {
 		// Serve static assets (e.g. .wav, .mp3) from example directories
