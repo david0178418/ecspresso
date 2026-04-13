@@ -21,6 +21,7 @@ import particles from './particles/particles.html';
 import viewportScaling from './viewport-scaling/viewport-scaling.html';
 import platformer from './platformer/platformer.html';
 import rtsMovement from './rts-movement/rts-movement.html';
+import turretDefense from './turret-defense/turret-defense.html';
 
 const examplesDir = import.meta.dir;
 
@@ -51,6 +52,7 @@ const server = serve({
 		'/viewport-scaling/': viewportScaling,
 		'/platformer/': platformer,
 		'/rts-movement/': rtsMovement,
+		'/turret-defense/': turretDefense,
 	},
 	async fetch(request) {
 		// Serve static assets (e.g. .wav, .mp3) from example directories

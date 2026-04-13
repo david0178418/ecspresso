@@ -83,6 +83,18 @@
 		"./plugins/debug/diagnostics": {
 			"import": "./dist/plugins/debug/diagnostics.js",
 			"types": "./dist/plugins/debug/diagnostics.d.ts"
+		},
+		"./plugins/ai/detection": {
+			"import": "./dist/plugins/ai/detection.js",
+			"types": "./dist/plugins/ai/detection.d.ts"
+		},
+		"./plugins/combat/health": {
+			"import": "./dist/plugins/combat/health.js",
+			"types": "./dist/plugins/combat/health.d.ts"
+		},
+		"./plugins/combat/projectile": {
+			"import": "./dist/plugins/combat/projectile.js",
+			"types": "./dist/plugins/combat/projectile.d.ts"
 		}
 	},
 	"publishConfig": {
