@@ -1,5 +1,5 @@
 /**
- * Camera Plugin Example
+ * Camera Follow Example
  *
  * Demonstrates:
  * - Camera following a player entity with smooth tracking and deadzone

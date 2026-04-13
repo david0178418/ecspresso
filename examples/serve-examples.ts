@@ -9,6 +9,7 @@ import spaceInvaders from './space-invaders/space-invaders.html';
 import turretShooter from './turret-shooter/turret-shooter.html';
 import hierarchy from './hierarchy/hierarchy.html';
 import camera from './camera/camera.html';
+import cameraZoom from './camera-zoom/camera-zoom.html';
 import stateMachine from './state-machine/state-machine.html';
 import tweens from './tweens/tweens.html';
 import screens from './screens/screens.html';
@@ -38,6 +39,7 @@ const server = serve({
 		'/turret-shooter/': turretShooter,
 		'/hierarchy/': hierarchy,
 		'/camera/': camera,
+		'/camera-zoom/': cameraZoom,
 		'/state-machine/': stateMachine,
 		'/tweens/': tweens,
 		'/screens/': screens,
