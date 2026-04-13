@@ -116,6 +116,9 @@ All are created via factory functions (e.g., `createInputPlugin(options)`). Each
 | Particles | `ecspresso/plugins/particles` | `update + render` | Pooled particle system with PixiJS ParticleContainer |
 | Sprite Animation | `ecspresso/plugins/sprite-animation` | `update` | Frame-based sprite animation |
 | Audio | `ecspresso/plugins/audio` | `update` | Howler.js audio integration |
+| Detection | `ecspresso/plugins/ai/detection` | `update` | Proximity detection with spatial-index, sorted by distance |
+| Health | `ecspresso/plugins/combat/health` | (event-driven) | Health/damage/death lifecycle |
+| Projectile | `ecspresso/plugins/combat/projectile` | `update` | Homing + linear projectile movement, collision integration |
 | Diagnostics | `ecspresso/plugins/diagnostics` | `render` | Performance monitoring and debug overlay |
 | 2D Renderer | `ecspresso/plugins/renderers/renderer2D` | `render` | Automated PixiJS scene graph wiring |
 

@@ -45,6 +45,11 @@ src/
     │   ├── timers.ts        # ECS-native timer components
     │   ├── state-machine.ts # Per-entity finite state machines
     │   └── tween.ts         # Declarative property animation with easing, sequences, and loops
+    ├── ai/
+    │   └── detection.ts     # Proximity detection with spatial-index, sorted by distance
+    ├── combat/
+    │   ├── health.ts        # Health/damage/death lifecycle (event-driven)
+    │   └── projectile.ts    # Homing + linear projectile movement, collision integration
     ├── audio/
     │   └── audio.ts         # Howler.js audio integration
     └── debug/
@@ -84,6 +89,16 @@ Prefer the builder chain (`.withPlugin()`, `.withComponentTypes<T>()`, `.withEve
 ## Plugin Exports
 
 Each plugin is a distinct entry point in `package.json` `exports` (e.g. `ecspresso/plugins/spatial/transform`). This lets consumers import only the plugins they use, keeping bundles lean. **Any new plugin file must have a corresponding export entry added to `package.json` before it can be used as an npm package import.**
+
+## Skill: `skills/ecspresso/`
+
+A Claude Code skill that teaches correct ECSpresso usage. It tracks:
+
+- **`SKILL.md`** — Mental model, builder API, system builder chain, query definitions, callback conventions, initialization sequence, common mistakes
+- **`api-reference.md`** — Entity/component CRUD signatures, resource API, event API, hierarchy API, command buffer API
+- **`plugins.md`** — Plugin definition patterns (fluent builder + factory), required components, and the **built-in plugin catalog table** (name, import path, default phase, description)
+
+**When to update the skill:** Adding/removing/renaming a plugin, changing a public API signature, changing the system builder chain, changing callback conventions, or changing the initialization sequence. The built-in plugin table in `plugins.md` must stay in sync with `package.json` exports and the source structure above.
 
 ## Design Principles
 
