@@ -86,6 +86,17 @@ Prefer the builder chain (`.withPlugin()`, `.withComponentTypes<T>()`, `.withEve
 - `bun run check:types` - Type check
 - Examples in `examples/` directory
 
+## File Sync Requirements
+
+When adding or renaming examples, three files must stay in sync:
+- `examples/serve-examples.ts` — dev server routes
+- `scripts/build-examples.ts` — the `examples` array (route, dir, html, entry)
+- Example dirs use flat names (e.g. `movement`, `camera-zoom`) — no numbered prefixes
+
+When adding, renaming, or moving plugin source files, update:
+- `typedoc.json` `entryPoints` — must reflect actual paths under `src/plugins/<category>/<name>.ts`
+- `package.json` `exports` — required for npm consumers (see Plugin Exports section above)
+
 ## Plugin Exports
 
 Each plugin is a distinct entry point in `package.json` `exports` (e.g. `ecspresso/plugins/spatial/transform`). This lets consumers import only the plugins they use, keeping bundles lean. **Any new plugin file must have a corresponding export entry added to `package.json` before it can be used as an npm package import.**
