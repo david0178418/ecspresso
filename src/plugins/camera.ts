@@ -1,8 +1,8 @@
 /**
  * Camera / Viewport Plugin for ECSpresso
  *
- * Provides a camera entity with world/screen coordinate conversion, smooth follow,
- * trauma-based shake, bounds clamping, and logical viewport dimensions.
+ * Provides a declarative camera with world/screen coordinate conversion, smooth follow,
+ * trauma-based shake, bounds clamping, cursor-centered zoom, and logical viewport dimensions.
  *
  * This plugin is renderer-agnostic. PixiJS or other renderer integration (applying
  * cameraState to a container/stage transform) is the consumer's responsibility.
@@ -58,10 +58,20 @@ export interface CameraComponentTypes {
 	cameraBounds: CameraBounds;
 }
 
-
 // ==================== Resource Types ====================
 
+export interface FollowOptions {
+	smoothing?: number;
+	deadzoneX?: number;
+	deadzoneY?: number;
+	offsetX?: number;
+	offsetY?: number;
+}
+
+export type EntityHandle = { id: number };
+
 export interface CameraState {
+	// Read-only data (synced from camera entity each frame)
 	x: number;
 	y: number;
 	zoom: number;
@@ -71,6 +81,17 @@ export interface CameraState {
 	shakeRotation: number;
 	viewportWidth: number;
 	viewportHeight: number;
+	entityId: number;
+
+	// Mutation methods
+	follow(target: number | EntityHandle, options?: FollowOptions): void;
+	unfollow(): void;
+	setPosition(x: number, y: number): void;
+	setZoom(zoom: number): void;
+	setRotation(rotation: number): void;
+	setBounds(minX: number, minY: number, maxX: number, maxY: number): void;
+	clearBounds(): void;
+	addTrauma(amount: number): void;
 }
 
 export interface CameraResourceTypes {
@@ -82,6 +103,22 @@ export interface CameraResourceTypes {
 export interface CameraPluginOptions<G extends string = 'camera'> {
 	viewportWidth?: number;
 	viewportHeight?: number;
+	initial?: {
+		x?: number;
+		y?: number;
+		zoom?: number;
+		rotation?: number;
+	};
+	follow?: FollowOptions;
+	shake?: boolean | Partial<Omit<CameraShake, 'trauma'>>;
+	bounds?:
+		| { minX: number; minY: number; maxX: number; maxY: number }
+		| [number, number, number, number];
+	zoom?: {
+		zoomStep?: number;
+		minZoom?: number;
+		maxZoom?: number;
+	};
 	systemGroup?: G;
 	phase?: SystemPhase;
 	randomFn?: () => number;
@@ -89,90 +126,20 @@ export interface CameraPluginOptions<G extends string = 'camera'> {
 
 // ==================== Default Values ====================
 
-export const DEFAULT_CAMERA: Readonly<Camera> = {
-	x: 0,
-	y: 0,
-	zoom: 1,
-	rotation: 0,
+const DEFAULT_SHAKE: Readonly<Omit<CameraShake, 'trauma'>> = {
+	traumaDecay: 1,
+	maxOffsetX: 10,
+	maxOffsetY: 10,
+	maxRotation: 0.05,
 };
 
-export const DEFAULT_CAMERA_STATE: Readonly<CameraState> = {
-	x: 0,
-	y: 0,
-	zoom: 1,
-	rotation: 0,
-	shakeOffsetX: 0,
-	shakeOffsetY: 0,
-	shakeRotation: 0,
-	viewportWidth: 800,
-	viewportHeight: 600,
+const DEFAULT_FOLLOW: Readonly<Omit<CameraFollow, 'target'>> = {
+	smoothing: 5,
+	deadzoneX: 0,
+	deadzoneY: 0,
+	offsetX: 0,
+	offsetY: 0,
 };
-
-// ==================== Helper Functions ====================
-
-export function createCamera(
-	x = 0,
-	y = 0,
-	zoom = 1,
-	rotation = 0,
-): Pick<CameraComponentTypes, 'camera'> {
-	return {
-		camera: { x, y, zoom, rotation },
-	};
-}
-
-export function createCameraFollow(
-	target: number,
-	options?: Partial<Omit<CameraFollow, 'target'>>,
-): Pick<CameraComponentTypes, 'cameraFollow'> {
-	return {
-		cameraFollow: {
-			target,
-			smoothing: options?.smoothing ?? 5,
-			deadzoneX: options?.deadzoneX ?? 0,
-			deadzoneY: options?.deadzoneY ?? 0,
-			offsetX: options?.offsetX ?? 0,
-			offsetY: options?.offsetY ?? 0,
-		},
-	};
-}
-
-export function createCameraShake(
-	options?: Partial<CameraShake>,
-): Pick<CameraComponentTypes, 'cameraShake'> {
-	return {
-		cameraShake: {
-			trauma: options?.trauma ?? 0,
-			traumaDecay: options?.traumaDecay ?? 1,
-			maxOffsetX: options?.maxOffsetX ?? 10,
-			maxOffsetY: options?.maxOffsetY ?? 10,
-			maxRotation: options?.maxRotation ?? 0.05,
-		},
-	};
-}
-
-export function createCameraBounds(
-	minX: number,
-	minY: number,
-	maxX: number,
-	maxY: number,
-): Pick<CameraComponentTypes, 'cameraBounds'> {
-	return {
-		cameraBounds: { minX, minY, maxX, maxY },
-	};
-}
-
-export function addTrauma<
-	Cfg extends WorldConfigFrom<CameraComponentTypes, {}, CameraResourceTypes>,
->(
-	ecs: ECSpresso<Cfg>,
-	entityId: number,
-	amount: number,
-): void {
-	const shake = ecs.getComponent(entityId, 'cameraShake');
-	if (!shake) return;
-	shake.trauma = Math.min(1, Math.max(0, shake.trauma + amount));
-}
 
 // ==================== Coordinate Conversion ====================
 
@@ -216,7 +183,53 @@ export function screenToWorld(
 	};
 }
 
+// ==================== Internal Helpers ====================
+
+function resolveTarget(target: number | EntityHandle): number {
+	return typeof target === 'number' ? target : target.id;
+}
+
+function resolveShakeOptions(shake: true | Partial<Omit<CameraShake, 'trauma'>>): CameraShake {
+	const opts = shake === true ? {} : shake;
+	return {
+		trauma: 0,
+		traumaDecay: opts.traumaDecay ?? DEFAULT_SHAKE.traumaDecay,
+		maxOffsetX: opts.maxOffsetX ?? DEFAULT_SHAKE.maxOffsetX,
+		maxOffsetY: opts.maxOffsetY ?? DEFAULT_SHAKE.maxOffsetY,
+		maxRotation: opts.maxRotation ?? DEFAULT_SHAKE.maxRotation,
+	};
+}
+
+function resolveBounds(
+	bounds: { minX: number; minY: number; maxX: number; maxY: number } | [number, number, number, number],
+): CameraBounds {
+	if (Array.isArray(bounds)) {
+		return { minX: bounds[0], minY: bounds[1], maxX: bounds[2], maxY: bounds[3] };
+	}
+	return { ...bounds };
+}
+
+function resolveFollowOptions(options?: FollowOptions): Omit<CameraFollow, 'target'> {
+	return {
+		smoothing: options?.smoothing ?? DEFAULT_FOLLOW.smoothing,
+		deadzoneX: options?.deadzoneX ?? DEFAULT_FOLLOW.deadzoneX,
+		deadzoneY: options?.deadzoneY ?? DEFAULT_FOLLOW.deadzoneY,
+		offsetX: options?.offsetX ?? DEFAULT_FOLLOW.offsetX,
+		offsetY: options?.offsetY ?? DEFAULT_FOLLOW.offsetY,
+	};
+}
+
 // ==================== Plugin Factory ====================
+
+type CameraWorldConfig = WorldConfigFrom<CameraComponentTypes, {}, CameraResourceTypes>;
+
+type CameraLabels =
+	| 'camera-init'
+	| 'camera-follow'
+	| 'camera-shake-update'
+	| 'camera-bounds'
+	| 'camera-state-sync'
+	| 'camera-zoom';
 
 export function createCameraPlugin<G extends string = 'camera'>(
 	options?: CameraPluginOptions<G>,
@@ -224,6 +237,11 @@ export function createCameraPlugin<G extends string = 'camera'>(
 	const {
 		viewportWidth = 800,
 		viewportHeight = 600,
+		initial,
+		follow: followConfig,
+		shake: shakeConfig,
+		bounds: boundsConfig,
+		zoom: zoomConfig,
 		systemGroup = 'camera',
 		phase = 'postUpdate',
 		randomFn = Math.random,
@@ -232,21 +250,148 @@ export function createCameraPlugin<G extends string = 'camera'>(
 	return definePlugin('camera')
 		.withComponentTypes<CameraComponentTypes>()
 		.withResourceTypes<CameraResourceTypes>()
-		.withLabels<'camera-follow' | 'camera-shake-update' | 'camera-bounds' | 'camera-state-sync'>()
+		.withLabels<CameraLabels>()
 		.withGroups<G>()
 		.requires<TransformWorldConfig>()
 		.install((world) => {
-			world.addResource('cameraState', {
-				x: 0,
-				y: 0,
-				zoom: 1,
-				rotation: 0,
+			// Build mutation methods as closures over the world reference.
+			// The cameraState resource is created immediately with placeholder methods,
+			// then the init system populates entityId and wires up real methods.
+
+			const cameraState: CameraState = {
+				x: initial?.x ?? 0,
+				y: initial?.y ?? 0,
+				zoom: initial?.zoom ?? 1,
+				rotation: initial?.rotation ?? 0,
 				shakeOffsetX: 0,
 				shakeOffsetY: 0,
 				shakeRotation: 0,
 				viewportWidth,
 				viewportHeight,
-			});
+				entityId: -1,
+
+				// Mutation methods — wired up after camera entity is spawned
+				follow: () => {},
+				unfollow: () => {},
+				setPosition: () => {},
+				setZoom: () => {},
+				setRotation: () => {},
+				setBounds: () => {},
+				clearBounds: () => {},
+				addTrauma: () => {},
+			};
+
+			world.addResource('cameraState', cameraState);
+
+			// camera-init: spawns camera entity and wires up mutation closures
+			world
+				.addSystem('camera-init')
+				.inGroup(systemGroup)
+				.setOnInitialize((ecs: ECSpresso<CameraWorldConfig & TransformWorldConfig>) => {
+					// Spawn with required camera component
+					const entity = ecs.spawn({
+						camera: {
+							x: initial?.x ?? 0,
+							y: initial?.y ?? 0,
+							zoom: initial?.zoom ?? 1,
+							rotation: initial?.rotation ?? 0,
+						},
+					});
+
+					// Conditionally add optional components
+					if (followConfig) {
+						ecs.addComponent(entity.id, 'cameraFollow', {
+							target: -1,
+							...resolveFollowOptions(followConfig),
+						});
+					}
+
+					if (shakeConfig) {
+						ecs.addComponent(entity.id, 'cameraShake', resolveShakeOptions(shakeConfig));
+					}
+
+					if (boundsConfig) {
+						ecs.addComponent(entity.id, 'cameraBounds', resolveBounds(boundsConfig));
+					}
+					cameraState.entityId = entity.id;
+
+					// Wire up mutation methods
+					cameraState.follow = (target: number | EntityHandle, opts?: FollowOptions) => {
+						const targetId = resolveTarget(target);
+						const followData: CameraFollow = {
+							target: targetId,
+							...resolveFollowOptions(opts),
+						};
+						const existing = ecs.getComponent(cameraState.entityId, 'cameraFollow');
+						if (existing) {
+							existing.target = followData.target;
+							existing.smoothing = followData.smoothing;
+							existing.deadzoneX = followData.deadzoneX;
+							existing.deadzoneY = followData.deadzoneY;
+							existing.offsetX = followData.offsetX;
+							existing.offsetY = followData.offsetY;
+						} else {
+							ecs.addComponent(cameraState.entityId, 'cameraFollow', followData);
+						}
+					};
+
+					cameraState.unfollow = () => {
+						const existing = ecs.getComponent(cameraState.entityId, 'cameraFollow');
+						if (existing) {
+							ecs.removeComponent(cameraState.entityId, 'cameraFollow');
+						}
+					};
+
+					cameraState.setPosition = (x: number, y: number) => {
+						const camera = ecs.getComponent(cameraState.entityId, 'camera');
+						if (!camera) return;
+						camera.x = x;
+						camera.y = y;
+					};
+
+					cameraState.setZoom = (zoom: number) => {
+						const camera = ecs.getComponent(cameraState.entityId, 'camera');
+						if (!camera) return;
+						camera.zoom = zoom;
+					};
+
+					cameraState.setRotation = (rotation: number) => {
+						const camera = ecs.getComponent(cameraState.entityId, 'camera');
+						if (!camera) return;
+						camera.rotation = rotation;
+					};
+
+					cameraState.setBounds = (minX: number, minY: number, maxX: number, maxY: number) => {
+						const existing = ecs.getComponent(cameraState.entityId, 'cameraBounds');
+						if (existing) {
+							existing.minX = minX;
+							existing.minY = minY;
+							existing.maxX = maxX;
+							existing.maxY = maxY;
+						} else {
+							ecs.addComponent(cameraState.entityId, 'cameraBounds', { minX, minY, maxX, maxY });
+						}
+					};
+
+					cameraState.clearBounds = () => {
+						const existing = ecs.getComponent(cameraState.entityId, 'cameraBounds');
+						if (existing) {
+							ecs.removeComponent(cameraState.entityId, 'cameraBounds');
+						}
+					};
+
+					cameraState.addTrauma = (amount: number) => {
+						const shake = ecs.getComponent(cameraState.entityId, 'cameraShake');
+						if (shake) {
+							shake.trauma = Math.min(1, Math.max(0, shake.trauma + amount));
+						} else {
+							ecs.addComponent(cameraState.entityId, 'cameraShake', {
+								...resolveShakeOptions(true),
+								trauma: Math.min(1, Math.max(0, amount)),
+							});
+						}
+					};
+				});
 
 			// camera-follow: priority 400 (after transform propagation at 500)
 			world
@@ -261,6 +406,8 @@ export function createCameraPlugin<G extends string = 'camera'>(
 					const t = Math.min(1, dt);
 					for (const entity of queries.cameras) {
 						const { camera, cameraFollow } = entity.components;
+						if (cameraFollow.target < 0) continue;
+
 						let targetWorld;
 						try {
 							targetWorld = ecs.getComponent(cameraFollow.target, 'worldTransform');
@@ -268,23 +415,19 @@ export function createCameraPlugin<G extends string = 'camera'>(
 							continue;
 						}
 						if (!targetWorld) continue;
-						if (!targetWorld) continue;
 
 						const goalX = targetWorld.x + cameraFollow.offsetX;
 						const goalY = targetWorld.y + cameraFollow.offsetY;
 						const dx = goalX - camera.x;
 						const dy = goalY - camera.y;
 
-						const absDx = Math.abs(dx);
-						const absDy = Math.abs(dy);
-
-						if (absDx > cameraFollow.deadzoneX) {
+						if (Math.abs(dx) > cameraFollow.deadzoneX) {
 							const sign = dx > 0 ? 1 : -1;
 							const excessX = dx - sign * cameraFollow.deadzoneX;
 							const factor = Math.min(1, cameraFollow.smoothing * t);
 							camera.x += excessX * factor;
 						}
-						if (absDy > cameraFollow.deadzoneY) {
+						if (Math.abs(dy) > cameraFollow.deadzoneY) {
 							const sign = dy > 0 ? 1 : -1;
 							const excessY = dy - sign * cameraFollow.deadzoneY;
 							const factor = Math.min(1, cameraFollow.smoothing * t);
@@ -318,12 +461,11 @@ export function createCameraPlugin<G extends string = 'camera'>(
 				.addQuery('boundedCameras', {
 					with: ['camera', 'cameraBounds'],
 				})
-				.setProcess(({ queries, ecs }) => {
-					const state = ecs.getResource('cameraState');
+				.setProcess(({ queries }) => {
 					for (const entity of queries.boundedCameras) {
 						const { camera, cameraBounds } = entity.components;
-						const halfW = state.viewportWidth / (2 * camera.zoom);
-						const halfH = state.viewportHeight / (2 * camera.zoom);
+						const halfW = cameraState.viewportWidth / (2 * camera.zoom);
+						const halfH = cameraState.viewportHeight / (2 * camera.zoom);
 
 						const effectiveMinX = cameraBounds.minX + halfW;
 						const effectiveMaxX = cameraBounds.maxX - halfW;
@@ -351,38 +493,113 @@ export function createCameraPlugin<G extends string = 'camera'>(
 				.inPhase(phase)
 				.inGroup(systemGroup)
 				.setProcess(({ ecs }) => {
-					const state = ecs.getResource('cameraState');
-					const cameras = ecs.getEntitiesWithQuery(['camera']);
-					const first = cameras[0];
-
-					if (!first) {
-						state.x = 0;
-						state.y = 0;
-						state.zoom = 1;
-						state.rotation = 0;
-						state.shakeOffsetX = 0;
-						state.shakeOffsetY = 0;
-						state.shakeRotation = 0;
+					const camera = ecs.getComponent(cameraState.entityId, 'camera');
+					if (!camera) {
+						cameraState.x = 0;
+						cameraState.y = 0;
+						cameraState.zoom = 1;
+						cameraState.rotation = 0;
+						cameraState.shakeOffsetX = 0;
+						cameraState.shakeOffsetY = 0;
+						cameraState.shakeRotation = 0;
 						return;
 					}
 
-					const camera = first.components.camera;
-					state.x = camera.x;
-					state.y = camera.y;
-					state.zoom = camera.zoom;
-					state.rotation = camera.rotation;
+					cameraState.x = camera.x;
+					cameraState.y = camera.y;
+					cameraState.zoom = camera.zoom;
+					cameraState.rotation = camera.rotation;
 
-					const shake = ecs.getComponent(first.id, 'cameraShake');
+					const shake = ecs.getComponent(cameraState.entityId, 'cameraShake');
 					if (shake && shake.trauma > 0) {
 						const intensity = shake.trauma * shake.trauma;
-						state.shakeOffsetX = shake.maxOffsetX * intensity * (randomFn() * 2 - 1);
-						state.shakeOffsetY = shake.maxOffsetY * intensity * (randomFn() * 2 - 1);
-						state.shakeRotation = shake.maxRotation * intensity * (randomFn() * 2 - 1);
+						cameraState.shakeOffsetX = shake.maxOffsetX * intensity * (randomFn() * 2 - 1);
+						cameraState.shakeOffsetY = shake.maxOffsetY * intensity * (randomFn() * 2 - 1);
+						cameraState.shakeRotation = shake.maxRotation * intensity * (randomFn() * 2 - 1);
 					} else {
-						state.shakeOffsetX = 0;
-						state.shakeOffsetY = 0;
-						state.shakeRotation = 0;
+						cameraState.shakeOffsetX = 0;
+						cameraState.shakeOffsetY = 0;
+						cameraState.shakeRotation = 0;
 					}
 				});
+
+			// camera-zoom: conditionally registered when zoom option is provided
+			if (zoomConfig) {
+				const {
+					zoomStep = 0.1,
+					minZoom = 0.1,
+					maxZoom = 10,
+				} = zoomConfig;
+
+				let pendingSteps = 0;
+				let zoomActive = false;
+
+				function onWheel(e: WheelEvent) {
+					e.preventDefault();
+					pendingSteps += Math.sign(e.deltaY);
+				}
+
+				world
+					.addSystem('camera-zoom')
+					.setPriority(410)
+					.inPhase('preUpdate')
+					.inGroup(systemGroup)
+					.addQuery('cameras', {
+						with: ['camera'],
+					})
+					.setOnInitialize((ecs) => {
+						// Check for required dependencies
+						type InputState = { pointer: { position: { x: number; y: number } } };
+						const inputState = ecs.tryGetResource<InputState>('inputState');
+						const pixiApp = ecs.tryGetResource<{ canvas: HTMLCanvasElement }>('pixiApp');
+
+						if (!inputState || !pixiApp) {
+							console.error(
+								'[camera] zoom requires the input plugin and renderer2D plugin. ' +
+								'Zoom will be disabled.',
+							);
+							return;
+						}
+
+						pixiApp.canvas.addEventListener('wheel', onWheel as EventListener, { passive: false });
+						zoomActive = true;
+					})
+					.setOnDetach((ecs) => {
+						if (!zoomActive) return;
+						const pixiApp = ecs.tryGetResource('pixiApp') as { canvas: HTMLCanvasElement } | undefined;
+						if (pixiApp) {
+							pixiApp.canvas.removeEventListener('wheel', onWheel as EventListener);
+						}
+					})
+					.setProcess(({ queries, ecs }) => {
+						if (!zoomActive || pendingSteps === 0) return;
+
+						const steps = pendingSteps;
+						pendingSteps = 0;
+
+						const [cameraEntity] = queries.cameras;
+						if (!cameraEntity) return;
+
+						const cam = cameraEntity.components.camera;
+						type InputState = { pointer: { position: { x: number; y: number } } };
+						const inputState = ecs.tryGetResource<InputState>('inputState');
+						if (!inputState) return;
+
+						// World point under cursor before zoom
+						const worldBefore = screenToWorld(
+							inputState.pointer.position.x,
+							inputState.pointer.position.y,
+							cameraState,
+						);
+
+						// Apply zoom — proportional to number of wheel steps
+						const direction = steps > 0 ? (1 - zoomStep) : (1 + zoomStep);
+						cam.zoom = Math.max(minZoom, Math.min(maxZoom, cam.zoom * Math.pow(direction, Math.abs(steps))));
+
+						// Adjust camera position so the world point under cursor stays fixed
+						cam.x = worldBefore.x - (inputState.pointer.position.x - cameraState.viewportWidth / 2) / cam.zoom;
+						cam.y = worldBefore.y - (inputState.pointer.position.y - cameraState.viewportHeight / 2) / cam.zoom;
+					});
+			}
 		});
 }

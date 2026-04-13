@@ -23,11 +23,6 @@ import {
 import { createInputPlugin } from '../../src/plugins/input';
 import {
 	createCameraPlugin,
-	createCamera,
-	createCameraFollow,
-	createCameraShake,
-	createCameraBounds,
-	addTrauma,
 	screenToWorld,
 } from '../../src/plugins/camera';
 
@@ -61,6 +56,10 @@ const ecs = ECSpresso.create()
 	.withPlugin(createCameraPlugin({
 		viewportWidth: VIEWPORT_WIDTH,
 		viewportHeight: VIEWPORT_HEIGHT,
+		initial: { x: WORLD_WIDTH / 2, y: WORLD_HEIGHT / 2 },
+		follow: { smoothing: 4, deadzoneX: 40, deadzoneY: 30 },
+		shake: { traumaDecay: 1.5, maxOffsetX: 12, maxOffsetY: 12, maxRotation: 0.03 },
+		bounds: [0, 0, WORLD_WIDTH, WORLD_HEIGHT],
 	}))
 	.withComponentTypes<{
 		player: true;
@@ -90,13 +89,10 @@ ecs.addSystem('player-input')
 
 ecs.addSystem('shake-trigger')
 	.inPhase('preUpdate')
-	.addQuery('cameras', { with: ['camera', 'cameraShake'] })
-	.withResources(['inputState'])
-	.setProcess(({ queries, ecs, resources: { inputState: input } }) => {
+	.withResources(['inputState', 'cameraState'])
+	.setProcess(({ resources: { inputState: input, cameraState } }) => {
 		if (input.actions.justActivated('shake')) {
-			for (const cam of queries.cameras) {
-				addTrauma(ecs, cam.id, 0.6);
-			}
+			cameraState.addTrauma(0.6);
 		}
 	});
 
@@ -201,22 +197,9 @@ ecs.addSystem('init')
 			player: true,
 		});
 
-		// -- Camera entity --
-		ecs.spawn({
-			...createCamera(WORLD_WIDTH / 2, WORLD_HEIGHT / 2),
-			...createCameraFollow(player.id, {
-				smoothing: 4,
-				deadzoneX: 40,
-				deadzoneY: 30,
-			}),
-			...createCameraShake({
-				traumaDecay: 1.5,
-				maxOffsetX: 12,
-				maxOffsetY: 12,
-				maxRotation: 0.03,
-			}),
-			...createCameraBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT),
-		});
+		// -- Follow the player --
+		const cameraState = ecs.getResource('cameraState');
+		cameraState.follow(player);
 	});
 
 // ==================== Start ====================

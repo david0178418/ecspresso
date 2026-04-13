@@ -5,8 +5,7 @@ import {
 	createLocalTransform,
 } from '../../src/plugins/renderers/renderer2D';
 import { createInputPlugin } from '../../src/plugins/input';
-import { createCameraPlugin, createCamera, screenToWorld } from '../../src/plugins/camera';
-import { createCameraZoomPlugin } from '../../src/plugins/camera-zoom';
+import { createCameraPlugin, screenToWorld } from '../../src/plugins/camera';
 import { createSelectionPlugin, createSelectable } from '../../src/plugins/selection';
 import { createSteeringPlugin, createMoveSpeed } from '../../src/plugins/steering';
 
@@ -18,8 +17,9 @@ const ecs = ECSpresso.create()
 		camera: true,
 	}))
 	.withPlugin(createInputPlugin())
-	.withPlugin(createCameraPlugin())
-	.withPlugin(createCameraZoomPlugin({ minZoom: 0.3, maxZoom: 3 }))
+	.withPlugin(createCameraPlugin({
+		zoom: { minZoom: 0.3, maxZoom: 3 },
+	}))
 	.withPlugin(createSelectionPlugin({ renderLayer: 'ui' }))
 	.withPlugin(createSteeringPlugin())
 	.build();
@@ -51,12 +51,11 @@ const unitTexture = pixiApp.renderer.generateTexture(
 	new Graphics().circle(0, 0, unitRadius).fill(0x4488FF)
 );
 
-// Spawn camera entity at center of the screen
+// Position camera at center of the screen
 const screenWidth = pixiApp.screen.width;
 const screenHeight = pixiApp.screen.height;
-ecs.spawn({
-	...createCamera(screenWidth / 2, screenHeight / 2),
-});
+const cameraState = ecs.getResource('cameraState');
+cameraState.setPosition(screenWidth / 2, screenHeight / 2);
 
 const unitCount = 20;
 const margin = 60;
