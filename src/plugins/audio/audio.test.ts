@@ -1,6 +1,6 @@
 import { describe, test, expect, mock } from 'bun:test';
-import ECSpresso from '../ecspresso';
-import type { WorldConfigFrom } from '../type-utils';
+import ECSpresso from '../../ecspresso';
+import type { WorldConfigFrom } from '../../type-utils';
 import {
 	defineAudioChannels,
 	createAudioSource,

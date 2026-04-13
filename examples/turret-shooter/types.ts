@@ -6,7 +6,7 @@ import {
 	Vector3
 } from 'three';
 import ECSpresso from '../../src';
-import type { TimerComponentTypes } from '../../src/plugins/timers';
+import type { TimerComponentTypes } from '../../src/plugins/scripting/timers';
 
 export const builder = ECSpresso.create()
 	.withComponentTypes<

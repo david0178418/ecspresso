@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test';
-import ECSpresso from '../ecspresso';
+import ECSpresso from '../../ecspresso';
 import {
 	linear,
 	easeInQuad,
@@ -33,7 +33,7 @@ import {
 	easeOutBounce,
 	easeInOutBounce,
 	easings,
-} from '../utils/easing';
+} from '../../utils/easing';
 import {
 	createTweenPlugin,
 	createTween,

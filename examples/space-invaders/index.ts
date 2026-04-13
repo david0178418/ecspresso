@@ -1,8 +1,8 @@
-import { createRenderer2DPlugin } from '../../src/plugins/renderers/renderer2D';
-import { createTimerPlugin } from '../../src/plugins/timers';
-import { createPhysics2DPlugin } from '../../src/plugins/physics2D';
-import { createBoundsPlugin } from '../../src/plugins/bounds';
-import { createCollisionPlugin } from '../../src/plugins/collision';
+import { createRenderer2DPlugin } from '../../src/plugins/rendering/renderer2D';
+import { createTimerPlugin } from '../../src/plugins/scripting/timers';
+import { createPhysics2DPlugin } from '../../src/plugins/physics/physics2D';
+import { createBoundsPlugin } from '../../src/plugins/spatial/bounds';
+import { createCollisionPlugin } from '../../src/plugins/physics/collision';
 import collisionLayers from './collision-layers';
 import createCombatPlugin from './plugins/combat-plugin';
 import createInputProcessingPlugin, { createInputPlugin } from './plugins/input-plugin';

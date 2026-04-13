@@ -1,13 +1,13 @@
 import { Container, Text } from 'pixi.js';
 import ECSpresso from '../../src';
-import type { TimerComponentTypes } from '../../src/plugins/timers';
-import type { TransformComponentTypes } from '../../src/plugins/transform';
-import type { Physics2DComponentTypes } from '../../src/plugins/physics2D';
-import type { BoundsComponentTypes } from '../../src/plugins/bounds';
-import type { CollisionComponentTypes, CollisionEventTypes, LayersOf } from '../../src/plugins/collision';
+import type { TimerComponentTypes } from '../../src/plugins/scripting/timers';
+import type { TransformComponentTypes } from '../../src/plugins/spatial/transform';
+import type { Physics2DComponentTypes } from '../../src/plugins/physics/physics2D';
+import type { BoundsComponentTypes } from '../../src/plugins/spatial/bounds';
+import type { CollisionComponentTypes, CollisionEventTypes, LayersOf } from '../../src/plugins/physics/collision';
 import type collisionLayers from './collision-layers';
-import type { Renderer2DComponentTypes, Renderer2DResourceTypes } from '../../src/plugins/renderers/renderer2D';
-import type { InputResourceTypes } from '../../src/plugins/input';
+import type { Renderer2DComponentTypes, Renderer2DResourceTypes } from '../../src/plugins/rendering/renderer2D';
+import type { InputResourceTypes } from '../../src/plugins/input/input';
 
 type Layer = LayersOf<typeof collisionLayers>;
 

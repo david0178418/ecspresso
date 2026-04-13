@@ -1,7 +1,7 @@
-import { createLocalTransform } from '../../../src/plugins/renderers/renderer2D';
-import { createRigidBody } from '../../../src/plugins/physics2D';
-import { createAABBCollider } from '../../../src/plugins/collision';
-import { createDestroyOutOfBounds } from '../../../src/plugins/bounds';
+import { createLocalTransform } from '../../../src/plugins/rendering/renderer2D';
+import { createRigidBody } from '../../../src/plugins/physics/physics2D';
+import { createAABBCollider } from '../../../src/plugins/physics/collision';
+import { createDestroyOutOfBounds } from '../../../src/plugins/spatial/bounds';
 import { definePlugin } from '../types';
 import { spawnPlayer, createProjectileSprite } from '../utils';
 import collisionLayers from '../collision-layers';

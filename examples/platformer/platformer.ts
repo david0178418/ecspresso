@@ -3,16 +3,16 @@ import ECSpresso from '../../src';
 import {
 	createRenderer2DPlugin,
 	createLocalTransform,
-} from '../../src/plugins/renderers/renderer2D';
+} from '../../src/plugins/rendering/renderer2D';
 import {
 	createPhysics2DPlugin,
 	createRigidBody,
-} from '../../src/plugins/physics2D';
-import { createInputPlugin } from '../../src/plugins/input';
+} from '../../src/plugins/physics/physics2D';
+import { createInputPlugin } from '../../src/plugins/input/input';
 import {
 	defineCollisionLayers,
 	createAABBCollider,
-} from '../../src/plugins/collision';
+} from '../../src/plugins/physics/collision';
 
 const MOVE_SPEED = 300;
 const JUMP_VELOCITY = -450;

@@ -5,20 +5,20 @@ import {
 	createSpriteComponents,
 	clientToLogical,
 	type ViewportScale,
-} from "../../src/plugins/renderers/renderer2D";
+} from "../../src/plugins/rendering/renderer2D";
 import {
 	createPhysics2DPlugin,
 	createRigidBody,
-} from "../../src/plugins/physics2D";
+} from "../../src/plugins/physics/physics2D";
 import {
 	defineCollisionLayers,
 	createCircleCollider,
-} from "../../src/plugins/collision";
-import { createSpatialIndexPlugin } from "../../src/plugins/spatial-index";
+} from "../../src/plugins/physics/collision";
+import { createSpatialIndexPlugin } from "../../src/plugins/spatial/spatial-index";
 import {
 	createDiagnosticsPlugin,
 	createDiagnosticsOverlay,
-} from "../../src/plugins/diagnostics";
+} from "../../src/plugins/debug/diagnostics";
 
 // -- Constants --
 

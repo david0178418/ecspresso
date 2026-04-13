@@ -15,19 +15,19 @@ import ECSpresso from '../../src';
 import {
 	createRenderer2DPlugin,
 	createSpriteComponents,
-} from '../../src/plugins/renderers/renderer2D';
+} from '../../src/plugins/rendering/renderer2D';
 import {
 	createPhysics2DPlugin,
 	createRigidBody,
 	setVelocity,
-} from '../../src/plugins/physics2D';
-import { createInputPlugin } from '../../src/plugins/input';
+} from '../../src/plugins/physics/physics2D';
+import { createInputPlugin } from '../../src/plugins/input/input';
 import {
 	createStateMachinePlugin,
 	createStateMachine,
 	createStateMachineHelpers,
 	getStateMachineState,
-} from '../../src/plugins/state-machine';
+} from '../../src/plugins/scripting/state-machine';
 
 // ==================== Types ====================
 

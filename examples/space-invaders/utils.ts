@@ -1,8 +1,8 @@
 import { Graphics, Sprite } from "pixi.js";
-import { createLocalTransform } from "../../src/plugins/renderers/renderer2D";
-import { createRigidBody } from "../../src/plugins/physics2D";
-import { createAABBCollider } from "../../src/plugins/collision";
-import { createClampToBounds } from "../../src/plugins/bounds";
+import { createLocalTransform } from "../../src/plugins/rendering/renderer2D";
+import { createRigidBody } from "../../src/plugins/physics/physics2D";
+import { createAABBCollider } from "../../src/plugins/physics/collision";
+import { createClampToBounds } from "../../src/plugins/spatial/bounds";
 import collisionLayers from "./collision-layers";
 import type { World } from "./types";
 

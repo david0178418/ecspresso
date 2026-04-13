@@ -3,7 +3,7 @@ import ECSpresso from "../../src";
 import {
 	createRenderer2DPlugin,
 	createLocalTransform,
-} from "../../src/plugins/renderers/renderer2D";
+} from "../../src/plugins/rendering/renderer2D";
 
 // -- Step 1: Create the world --
 // ECSpresso.create() starts a builder chain where you declare your types and plugins.

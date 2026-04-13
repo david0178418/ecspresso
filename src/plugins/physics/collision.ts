@@ -7,8 +7,8 @@
  */
 
 import { definePlugin, type BasePluginOptions } from 'ecspresso';
-import type { TransformWorldConfig } from './transform';
-import { fillBaseColliderInfo, detectCollisions, tryGetSpatialIndex, AABB_SHAPE, type Contact, type BaseColliderInfo } from '../utils/narrowphase';
+import type { TransformWorldConfig } from '../spatial/transform';
+import { fillBaseColliderInfo, detectCollisions, tryGetSpatialIndex, AABB_SHAPE, type Contact, type BaseColliderInfo } from '../../utils/narrowphase';
 
 // ==================== Component Types ====================
 

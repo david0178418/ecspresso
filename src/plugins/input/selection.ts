@@ -18,9 +18,9 @@ import { Graphics } from 'pixi.js';
 import { definePlugin, type BasePluginOptions } from 'ecspresso';
 import type { WorldConfigFrom } from 'ecspresso';
 import type { InputResourceTypes } from './input';
-import type { Renderer2DComponentTypes, Renderer2DResourceTypes } from './renderers/renderer2D';
-import type { CameraState } from './camera';
-import { screenToWorld } from './camera';
+import type { Renderer2DComponentTypes, Renderer2DResourceTypes } from '../rendering/renderer2D';
+import type { CameraState } from '../spatial/camera';
+import { screenToWorld } from '../spatial/camera';
 
 // ==================== Component Types ====================
 

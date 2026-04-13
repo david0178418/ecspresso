@@ -9,7 +9,7 @@
 
 import { definePlugin, type BasePluginOptions } from 'ecspresso';
 import type { WorldConfigFrom } from 'ecspresso';
-import type { TransformWorldConfig } from './transform';
+import type { TransformWorldConfig } from '../spatial/transform';
 
 // ==================== Component Types ====================
 

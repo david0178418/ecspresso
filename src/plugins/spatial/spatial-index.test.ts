@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test';
-import ECSpresso from '../ecspresso';
+import ECSpresso from '../../ecspresso';
 import {
 	createGrid,
 	clearGrid,
@@ -9,7 +9,7 @@ import {
 	gridQueryRadius,
 	type SpatialHashGrid,
 	type SpatialIndex,
-} from '../utils/spatial-hash';
+} from '../../utils/spatial-hash';
 import {
 	createSpatialIndexPlugin,
 } from './spatial-index';
@@ -21,12 +21,12 @@ import {
 	createCollisionLayer,
 	defineCollisionLayers,
 	type CollisionEvent,
-} from './collision';
+} from '../physics/collision';
 import {
 	createPhysics2DPlugin,
 	createRigidBody,
 	type Physics2DCollisionEvent,
-} from './physics2D';
+} from '../physics/physics2D';
 
 // ==================== Grid Data Structure ====================
 

@@ -1,6 +1,6 @@
 import { describe, test, expect } from 'bun:test';
-import ECSpresso from '../ecspresso';
-import type { WorldConfigFrom, ComponentsOf } from '../type-utils';
+import ECSpresso from '../../ecspresso';
+import type { WorldConfigFrom, ComponentsOf } from '../../type-utils';
 import {
 	defineStateMachine,
 	createStateMachine,

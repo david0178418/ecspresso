@@ -1,6 +1,6 @@
 import { describe, test, expect } from 'bun:test';
-import ECSpresso from '../ecspresso';
-import type { WorldConfigFrom } from '../type-utils';
+import ECSpresso from '../../ecspresso';
+import type { WorldConfigFrom } from '../../type-utils';
 import { createTimer, createRepeatingTimer, createTimerPlugin, type TimerEventData } from './timers';
 
 interface TestComponents {

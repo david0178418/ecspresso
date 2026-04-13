@@ -11,14 +11,14 @@ import ECSpresso from '../../src';
 import {
 	createRenderer2DPlugin,
 	createSpriteComponents,
-} from '../../src/plugins/renderers/renderer2D';
+} from '../../src/plugins/rendering/renderer2D';
 import {
 	createCoroutinePlugin,
 	createCoroutine,
 	waitSeconds,
 	parallel,
 	type CoroutineGenerator,
-} from '../../src/plugins/coroutine';
+} from '../../src/plugins/scripting/coroutine';
 
 // ==================== Constants ====================
 

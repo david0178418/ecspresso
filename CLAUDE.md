@@ -24,24 +24,31 @@ src/
 ├── math.ts            # Vector2D type + pure vector math functions
 ├── index.ts           # Public API exports
 └── plugins/
-    ├── utils/
-    │   ├── timers.ts     # Timer plugin with callback-based completion
-    │   ├── transform.ts  # Hierarchical local/world transform propagation
-    │   ├── physics2D.ts  # ECS-native 2D arcade physics
-    │   ├── input.ts      # Frame-accurate keyboard/pointer input with action mapping
-    │   ├── bounds.ts     # Screen bounds enforcement (destroy, clamp, wrap)
-    │   ├── narrowphase.ts # Shared contact-computing narrowphase and collision iteration
-    │   ├── collision.ts  # Layer-based collision detection + pair handler routing
+    ├── spatial/
+    │   ├── transform.ts     # Hierarchical local/world transform propagation
+    │   ├── bounds.ts        # Screen bounds enforcement (destroy, clamp, wrap)
+    │   ├── camera.ts        # Viewport, follow, shake, zoom
+    │   └── spatial-index.ts # Uniform-grid spatial hash for broadphase/proximity queries
+    ├── physics/
+    │   ├── physics2D.ts     # ECS-native 2D arcade physics
+    │   ├── collision.ts     # Layer-based collision detection + pair handler routing
+    │   └── steering.ts      # Move-to-target with arrival detection
+    ├── rendering/
+    │   ├── renderer2D.ts    # PixiJS scene graph wiring
+    │   ├── particles.ts     # Pooled particle system with PixiJS ParticleContainer rendering
+    │   └── sprite-animation.ts # Frame-based sprite animation
+    ├── input/
+    │   ├── input.ts         # Frame-accurate keyboard/pointer input with action mapping
+    │   └── selection.ts     # Pointer-driven box/click selection with visual feedback
+    ├── scripting/
+    │   ├── coroutine.ts     # Generator-based multi-frame scripted sequences
+    │   ├── timers.ts        # ECS-native timer components
     │   ├── state-machine.ts # Per-entity finite state machines
-    │   ├── tween.ts      # Declarative property animation with easing, sequences, and loops
-    │   ├── audio.ts      # Howler.js audio integration
-    │   ├── sprite-animation.ts # Frame-based sprite animation
-    │   ├── particles.ts  # Pooled particle system with PixiJS ParticleContainer rendering
-    │   ├── selection.ts  # Pointer-driven box/click selection with visual feedback
-    │   ├── steering.ts   # Move-to-target with arrival detection
-    │   └── camera-zoom.ts # Cursor-centered mouse wheel zoom
-    └── renderers/
-        └── renderer2D.ts  # PixiJS scene graph wiring
+    │   └── tween.ts         # Declarative property animation with easing, sequences, and loops
+    ├── audio/
+    │   └── audio.ts         # Howler.js audio integration
+    └── debug/
+        └── diagnostics.ts   # FPS, entity count, per-system timing overlay
 ```
 
 ## Core Concepts
@@ -73,6 +80,10 @@ Prefer the builder chain (`.withPlugin()`, `.withComponentTypes<T>()`, `.withEve
 - `bun test` - Run tests
 - `bun run check:types` - Type check
 - Examples in `examples/` directory
+
+## Plugin Exports
+
+Each plugin is a distinct entry point in `package.json` `exports` (e.g. `ecspresso/plugins/spatial/transform`). This lets consumers import only the plugins they use, keeping bundles lean. **Any new plugin file must have a corresponding export entry added to `package.json` before it can be used as an npm package import.**
 
 ## Design Principles
 

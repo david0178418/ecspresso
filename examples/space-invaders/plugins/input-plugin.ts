@@ -1,4 +1,4 @@
-import { createInputPlugin as createLibInputPlugin } from '../../../src/plugins/input';
+import { createInputPlugin as createLibInputPlugin } from '../../../src/plugins/input/input';
 import { definePlugin } from '../types';
 
 /**

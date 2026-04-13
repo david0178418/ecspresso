@@ -17,7 +17,7 @@ import ECSpresso from '../../src';
 import {
 	createRenderer2DPlugin,
 	createSpriteComponents,
-} from '../../src/plugins/renderers/renderer2D';
+} from '../../src/plugins/rendering/renderer2D';
 import {
 	createParticlePlugin,
 	defineParticleEffect,
@@ -28,7 +28,7 @@ import {
 	particlePresets,
 	type ParticleComponentTypes,
 	type ParticleEmitterEventData,
-} from '../../src/plugins/particles';
+} from '../../src/plugins/rendering/particles';
 
 // ==================== Constants ====================
 

@@ -1,6 +1,6 @@
 import { describe, test, expect } from 'bun:test';
-import ECSpresso from '../ecspresso';
-import { definePlugin } from '../plugin';
+import ECSpresso from '../../ecspresso';
+import { definePlugin } from '../../plugin';
 import {
 	defineSpriteAnimation,
 	defineSpriteAnimations,

@@ -17,7 +17,7 @@ import ECSpresso from '../../src';
 import {
 	createRenderer2DPlugin,
 	createSpriteComponents,
-} from '../../src/plugins/renderers/renderer2D';
+} from '../../src/plugins/rendering/renderer2D';
 import {
 	createSpriteAnimationPlugin,
 	defineSpriteAnimation,
@@ -28,7 +28,7 @@ import {
 	resumeAnimation,
 	type SpriteAnimationEventData,
 	type SpriteAnimationComponentTypes,
-} from '../../src/plugins/sprite-animation';
+} from '../../src/plugins/rendering/sprite-animation';
 
 // ==================== Constants ====================
 

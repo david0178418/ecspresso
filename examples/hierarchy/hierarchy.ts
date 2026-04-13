@@ -3,8 +3,8 @@ import ECSpresso from "../../src";
 import {
 	createRenderer2DPlugin,
 	createGraphicsComponents,
-} from "../../src/plugins/renderers/renderer2D";
-import { createInputPlugin } from "../../src/plugins/input";
+} from "../../src/plugins/rendering/renderer2D";
+import { createInputPlugin } from "../../src/plugins/input/input";
 
 // ==================== Solar System Data ====================
 

@@ -1,10 +1,10 @@
 import { Graphics, Sprite } from 'pixi.js';
 import ECSpresso from "../../src";
-import { createInputPlugin } from "../../src/plugins/input";
+import { createInputPlugin } from "../../src/plugins/input/input";
 import {
 	createRenderer2DPlugin,
 	createLocalTransform,
-} from "../../src/plugins/renderers/renderer2D";
+} from "../../src/plugins/rendering/renderer2D";
 
 // -- Build the world --
 // Building on example 01, we add the input plugin for keyboard handling.

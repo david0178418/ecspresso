@@ -11,10 +11,10 @@
 
 import { definePlugin } from 'ecspresso';
 import type { SystemPhase } from 'ecspresso';
-import type { TransformComponentTypes, TransformWorldConfig } from './transform';
+import type { TransformComponentTypes, TransformWorldConfig } from '../spatial/transform';
 import type { CollisionComponentTypes, LayerFactories } from './collision';
 import type { Vector2D } from 'ecspresso';
-import { fillBaseColliderInfo, detectCollisions, tryGetSpatialIndex, AABB_SHAPE, type Contact, type BaseColliderInfo } from '../utils/narrowphase';
+import { fillBaseColliderInfo, detectCollisions, tryGetSpatialIndex, AABB_SHAPE, type Contact, type BaseColliderInfo } from '../../utils/narrowphase';
 
 // ==================== Component Types ====================
 

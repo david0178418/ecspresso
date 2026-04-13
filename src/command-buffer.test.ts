@@ -1,7 +1,7 @@
 import { describe, test, expect, spyOn } from 'bun:test';
 import ECSpresso from './ecspresso';
 import CommandBuffer from './command-buffer';
-import { createTimer, createTimerPlugin } from './plugins/timers';
+import { createTimer, createTimerPlugin } from './plugins/scripting/timers';
 import type { WorldConfigFrom } from './type-utils';
 
 interface TestComponents {

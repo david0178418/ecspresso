@@ -15,16 +15,16 @@ import {
 	createRenderer2DPlugin,
 	createGraphicsComponents,
 	createContainerComponents,
-} from '../../src/plugins/renderers/renderer2D';
+} from '../../src/plugins/rendering/renderer2D';
 import {
 	createPhysics2DPlugin,
 	createRigidBody,
-} from '../../src/plugins/physics2D';
-import { createInputPlugin } from '../../src/plugins/input';
+} from '../../src/plugins/physics/physics2D';
+import { createInputPlugin } from '../../src/plugins/input/input';
 import {
 	createCameraPlugin,
 	screenToWorld,
-} from '../../src/plugins/camera';
+} from '../../src/plugins/spatial/camera';
 
 // ==================== Constants ====================
 

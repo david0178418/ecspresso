@@ -9,7 +9,7 @@
 
 import { definePlugin, type BasePluginOptions } from 'ecspresso';
 import type ECSpresso from 'ecspresso';
-import type { WorldConfigFrom } from '../type-utils';
+import type { WorldConfigFrom } from '../../type-utils';
 
 // ==================== Component Types ====================
 
@@ -242,7 +242,7 @@ export function createTransformPlugin<G extends string = 'transform'>(
 				x: lt.x, y: lt.y, rotation: lt.rotation, scaleX: lt.scaleX, scaleY: lt.scaleY,
 			}));
 
-			const orphanBuffer: Array<import('../types').FilteredEntity<TransformComponentTypes, 'localTransform' | 'worldTransform'>> = [];
+			const orphanBuffer: Array<import('../../types').FilteredEntity<TransformComponentTypes, 'localTransform' | 'worldTransform'>> = [];
 
 			world
 				.addSystem('transform-propagation')
@@ -266,7 +266,7 @@ export function createTransformPlugin<G extends string = 'transform'>(
  */
 function propagateTransforms(
 	ecs: ECSpresso<WorldConfigFrom<TransformComponentTypes>>,
-	orphanBuffer: Array<import('../types').FilteredEntity<TransformComponentTypes, 'localTransform' | 'worldTransform'>>,
+	orphanBuffer: Array<import('../../types').FilteredEntity<TransformComponentTypes, 'localTransform' | 'worldTransform'>>,
 ): void {
 	const em = ecs.entityManager;
 

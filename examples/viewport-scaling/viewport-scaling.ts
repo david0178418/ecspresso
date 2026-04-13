@@ -1,6 +1,6 @@
 import { Graphics, Sprite } from 'pixi.js';
 import ECSpresso from '../../src';
-import { createInputPlugin } from '../../src/plugins/input';
+import { createInputPlugin } from '../../src/plugins/input/input';
 import {
 	createRenderer2DPlugin,
 	createGraphicsComponents,
@@ -9,7 +9,7 @@ import {
 	reapplyViewportScale,
 	type ScaleMode,
 	type ViewportScale,
-} from '../../src/plugins/renderers/renderer2D';
+} from '../../src/plugins/rendering/renderer2D';
 
 const DESIGN_W = 1920;
 const DESIGN_H = 1080;

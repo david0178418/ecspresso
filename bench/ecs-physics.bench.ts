@@ -21,17 +21,17 @@
  */
 
 import ECSpresso from '../src';
-import { createTransformPlugin } from '../src/plugins/transform';
+import { createTransformPlugin } from '../src/plugins/spatial/transform';
 import {
 	createPhysics2DPlugin,
 	createRigidBody,
-} from '../src/plugins/physics2D';
+} from '../src/plugins/physics/physics2D';
 import {
 	defineCollisionLayers,
 	createCircleCollider,
-} from '../src/plugins/collision';
-import { createSpatialIndexPlugin } from '../src/plugins/spatial-index';
-import { createDiagnosticsPlugin } from '../src/plugins/diagnostics';
+} from '../src/plugins/physics/collision';
+import { createSpatialIndexPlugin } from '../src/plugins/spatial/spatial-index';
+import { createDiagnosticsPlugin } from '../src/plugins/debug/diagnostics';
 
 // -- CLI --
 

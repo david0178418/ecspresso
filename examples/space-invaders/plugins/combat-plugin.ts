@@ -1,5 +1,5 @@
-import { createTimer } from '../../../src/plugins/timers';
-import { createCollisionPairHandler } from '../../../src/plugins/collision';
+import { createTimer } from '../../../src/plugins/scripting/timers';
+import { createCollisionPairHandler } from '../../../src/plugins/physics/collision';
 import { definePlugin, type World } from '../types';
 import type collisionLayers from '../collision-layers';
 

@@ -22,7 +22,7 @@ import {
 	type AudioEventTypes,
 	type AudioResourceTypes,
 	type SoundEndedEvent,
-} from '../../src/plugins/audio';
+} from '../../src/plugins/audio/audio';
 
 // ==================== Channel Definition ====================
 

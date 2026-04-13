@@ -1,7 +1,7 @@
 import { describe, test, expect } from 'bun:test';
-import ECSpresso from '../ecspresso';
-import type { WorldConfigFrom } from '../type-utils';
-import { createTransform, createTransformPlugin } from './transform';
+import ECSpresso from '../../ecspresso';
+import type { WorldConfigFrom } from '../../type-utils';
+import { createTransform, createTransformPlugin } from '../spatial/transform';
 import {
 	createAABBCollider,
 	createCircleCollider,

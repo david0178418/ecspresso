@@ -1,5 +1,5 @@
 import { Container, Text, TextStyle } from 'pixi.js';
-import { createTimer } from '../../../src/plugins/timers';
+import { createTimer } from '../../../src/plugins/scripting/timers';
 import { definePlugin } from '../types';
 
 export default function createUIPlugin() {

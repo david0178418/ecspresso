@@ -3,11 +3,11 @@ import ECSpresso from '../../src';
 import {
 	createRenderer2DPlugin,
 	createLocalTransform,
-} from '../../src/plugins/renderers/renderer2D';
-import { createInputPlugin } from '../../src/plugins/input';
-import { createCameraPlugin, screenToWorld } from '../../src/plugins/camera';
-import { createSelectionPlugin, createSelectable } from '../../src/plugins/selection';
-import { createSteeringPlugin, createMoveSpeed } from '../../src/plugins/steering';
+} from '../../src/plugins/rendering/renderer2D';
+import { createInputPlugin } from '../../src/plugins/input/input';
+import { createCameraPlugin, screenToWorld } from '../../src/plugins/spatial/camera';
+import { createSelectionPlugin, createSelectable } from '../../src/plugins/input/selection';
+import { createSteeringPlugin, createMoveSpeed } from '../../src/plugins/physics/steering';
 
 const ecs = ECSpresso.create()
 	.withPlugin(createRenderer2DPlugin({

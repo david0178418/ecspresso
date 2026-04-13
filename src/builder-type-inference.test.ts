@@ -1,7 +1,7 @@
 import { expect, describe, test } from 'bun:test';
 import ECSpresso from './ecspresso';
-import { createTimerPlugin } from './plugins/timers';
-import { createTransformPlugin, createLocalTransform, type TransformComponentTypes } from './plugins/transform';
+import { createTimerPlugin } from './plugins/scripting/timers';
+import { createTransformPlugin, createLocalTransform, type TransformComponentTypes } from './plugins/spatial/transform';
 import type { ComponentsOf, EventsOf, ResourcesOf } from './types';
 import type { AssetsResource } from './asset-types';
 import { definePlugin } from './plugin';

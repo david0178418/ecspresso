@@ -2,7 +2,7 @@ import { test, expect } from 'bun:test';
 import ECSpresso from './ecspresso';
 import { definePlugin } from './plugin';
 import type { LabelsOf, GroupsOf, ComponentsOf, EventsOf, ResourcesOf, AssetGroupNamesOf, ReactiveQueryNamesOf, AssetTypesOf, ScreenStatesOf } from './type-utils';
-import { createTransformPlugin } from './plugins/transform';
+import { createTransformPlugin } from './plugins/spatial/transform';
 
 // ==================== Type-level assertion helpers ====================
 

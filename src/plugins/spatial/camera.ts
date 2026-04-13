@@ -15,7 +15,7 @@
 import { definePlugin } from 'ecspresso';
 import type { SystemPhase } from 'ecspresso';
 import type ECSpresso from 'ecspresso';
-import type { WorldConfigFrom } from '../type-utils';
+import type { WorldConfigFrom } from '../../type-utils';
 import type { TransformWorldConfig } from './transform';
 
 // ==================== Component Types ====================

@@ -12,69 +12,77 @@
 			"import": "./dist/index.js",
 			"types": "./dist/index.d.ts"
 		},
-		"./plugins/renderers/renderer2D": {
-			"import": "./dist/plugins/renderers/renderer2D.js",
-			"types": "./dist/plugins/renderers/renderer2D.d.ts"
+		"./plugins/spatial/transform": {
+			"import": "./dist/plugins/spatial/transform.js",
+			"types": "./dist/plugins/spatial/transform.d.ts"
 		},
-		"./plugins/bounds": {
-			"import": "./dist/plugins/bounds.js",
-			"types": "./dist/plugins/bounds.d.ts"
+		"./plugins/spatial/bounds": {
+			"import": "./dist/plugins/spatial/bounds.js",
+			"types": "./dist/plugins/spatial/bounds.d.ts"
 		},
-		"./plugins/camera": {
-			"import": "./dist/plugins/camera.js",
-			"types": "./dist/plugins/camera.d.ts"
+		"./plugins/spatial/camera": {
+			"import": "./dist/plugins/spatial/camera.js",
+			"types": "./dist/plugins/spatial/camera.d.ts"
 		},
-		"./plugins/collision": {
-			"import": "./dist/plugins/collision.js",
-			"types": "./dist/plugins/collision.d.ts"
+		"./plugins/spatial/spatial-index": {
+			"import": "./dist/plugins/spatial/spatial-index.js",
+			"types": "./dist/plugins/spatial/spatial-index.d.ts"
 		},
-		"./plugins/diagnostics": {
-			"import": "./dist/plugins/diagnostics.js",
-			"types": "./dist/plugins/diagnostics.d.ts"
+		"./plugins/physics/physics2D": {
+			"import": "./dist/plugins/physics/physics2D.js",
+			"types": "./dist/plugins/physics/physics2D.d.ts"
 		},
-		"./plugins/input": {
-			"import": "./dist/plugins/input.js",
-			"types": "./dist/plugins/input.d.ts"
+		"./plugins/physics/collision": {
+			"import": "./dist/plugins/physics/collision.js",
+			"types": "./dist/plugins/physics/collision.d.ts"
 		},
-		"./plugins/physics2D": {
-			"import": "./dist/plugins/physics2D.js",
-			"types": "./dist/plugins/physics2D.d.ts"
+		"./plugins/physics/steering": {
+			"import": "./dist/plugins/physics/steering.js",
+			"types": "./dist/plugins/physics/steering.d.ts"
 		},
-		"./plugins/spatial-index": {
-			"import": "./dist/plugins/spatial-index.js",
-			"types": "./dist/plugins/spatial-index.d.ts"
+		"./plugins/rendering/renderer2D": {
+			"import": "./dist/plugins/rendering/renderer2D.js",
+			"types": "./dist/plugins/rendering/renderer2D.d.ts"
 		},
-		"./plugins/state-machine": {
-			"import": "./dist/plugins/state-machine.js",
-			"types": "./dist/plugins/state-machine.d.ts"
+		"./plugins/rendering/particles": {
+			"import": "./dist/plugins/rendering/particles.js",
+			"types": "./dist/plugins/rendering/particles.d.ts"
 		},
-		"./plugins/timers": {
-			"import": "./dist/plugins/timers.js",
-			"types": "./dist/plugins/timers.d.ts"
+		"./plugins/rendering/sprite-animation": {
+			"import": "./dist/plugins/rendering/sprite-animation.js",
+			"types": "./dist/plugins/rendering/sprite-animation.d.ts"
 		},
-		"./plugins/transform": {
-			"import": "./dist/plugins/transform.js",
-			"types": "./dist/plugins/transform.d.ts"
+		"./plugins/input/input": {
+			"import": "./dist/plugins/input/input.js",
+			"types": "./dist/plugins/input/input.d.ts"
 		},
-		"./plugins/tween": {
-			"import": "./dist/plugins/tween.js",
-			"types": "./dist/plugins/tween.d.ts"
+		"./plugins/input/selection": {
+			"import": "./dist/plugins/input/selection.js",
+			"types": "./dist/plugins/input/selection.d.ts"
 		},
-		"./plugins/audio": {
-			"import": "./dist/plugins/audio.js",
-			"types": "./dist/plugins/audio.d.ts"
+		"./plugins/scripting/coroutine": {
+			"import": "./dist/plugins/scripting/coroutine.js",
+			"types": "./dist/plugins/scripting/coroutine.d.ts"
 		},
-		"./plugins/sprite-animation": {
-			"import": "./dist/plugins/sprite-animation.js",
-			"types": "./dist/plugins/sprite-animation.d.ts"
+		"./plugins/scripting/timers": {
+			"import": "./dist/plugins/scripting/timers.js",
+			"types": "./dist/plugins/scripting/timers.d.ts"
 		},
-		"./plugins/particles": {
-			"import": "./dist/plugins/particles.js",
-			"types": "./dist/plugins/particles.d.ts"
+		"./plugins/scripting/state-machine": {
+			"import": "./dist/plugins/scripting/state-machine.js",
+			"types": "./dist/plugins/scripting/state-machine.d.ts"
 		},
-		"./plugins/coroutine": {
-			"import": "./dist/plugins/coroutine.js",
-			"types": "./dist/plugins/coroutine.d.ts"
+		"./plugins/scripting/tween": {
+			"import": "./dist/plugins/scripting/tween.js",
+			"types": "./dist/plugins/scripting/tween.d.ts"
+		},
+		"./plugins/audio/audio": {
+			"import": "./dist/plugins/audio/audio.js",
+			"types": "./dist/plugins/audio/audio.d.ts"
+		},
+		"./plugins/debug/diagnostics": {
+			"import": "./dist/plugins/debug/diagnostics.js",
+			"types": "./dist/plugins/debug/diagnostics.d.ts"
 		}
 	},
 	"publishConfig": {

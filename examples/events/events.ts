@@ -3,7 +3,7 @@ import ECSpresso from "../../src";
 import {
 	createRenderer2DPlugin,
 	createLocalTransform,
-} from "../../src/plugins/renderers/renderer2D";
+} from "../../src/plugins/rendering/renderer2D";
 
 // -- Build the world --
 // Building on example 01, we add custom event types for inter-system communication.

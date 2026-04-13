@@ -1,4 +1,4 @@
-import { createTimer, createRepeatingTimer } from '../../../src/plugins/timers';
+import { createTimer, createRepeatingTimer } from '../../../src/plugins/scripting/timers';
 import { definePlugin } from '../types';
 import { updateUI } from '../utils';
 

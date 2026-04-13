@@ -1,4 +1,4 @@
-import { createTimer } from '../../../src/plugins/timers';
+import { createTimer } from '../../../src/plugins/scripting/timers';
 import { definePlugin } from '../types';
 import { spawnEnemyFormation } from '../utils';
 

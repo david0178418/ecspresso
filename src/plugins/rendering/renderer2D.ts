@@ -2,7 +2,7 @@
  * 2D Renderer Plugin for ECSpresso
  *
  * An opt-in PixiJS-based 2D rendering plugin that automates scene graph wiring.
- * Import from 'ecspresso/plugins/renderers/renderer2D'
+ * Import from 'ecspresso/plugins/rendering/renderer2D'
  *
  * This plugin includes transform propagation automatically.
  */
@@ -17,14 +17,14 @@ import {
 	type WorldTransform,
 	type TransformComponentTypes,
 	type TransformPluginOptions,
-} from 'ecspresso/plugins/transform';
-import { createBounds, type BoundsRect } from 'ecspresso/plugins/bounds';
-import type { CameraResourceTypes, CameraState } from 'ecspresso/plugins/camera';
+} from 'ecspresso/plugins/spatial/transform';
+import { createBounds, type BoundsRect } from 'ecspresso/plugins/spatial/bounds';
+import type { CameraResourceTypes, CameraState } from 'ecspresso/plugins/spatial/camera';
 
 // Re-export transform and bounds types for convenience
 export type { LocalTransform, WorldTransform, TransformComponentTypes };
 export type { BoundsRect };
-export { createTransform, createLocalTransform, createWorldTransform, DEFAULT_LOCAL_TRANSFORM, DEFAULT_WORLD_TRANSFORM } from 'ecspresso/plugins/transform';
+export { createTransform, createLocalTransform, createWorldTransform, DEFAULT_LOCAL_TRANSFORM, DEFAULT_WORLD_TRANSFORM } from 'ecspresso/plugins/spatial/transform';
 
 // Dynamic import for Application to avoid requiring pixi.js at plugin creation time
 // when using managed mode (pixiInit options instead of pre-initialized app)

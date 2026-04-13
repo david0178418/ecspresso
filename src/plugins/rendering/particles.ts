@@ -12,8 +12,8 @@
 
 import { definePlugin, type BasePluginOptions } from 'ecspresso';
 import type { BaseWorld } from 'ecspresso';
-import type { WorldConfigFrom } from '../type-utils';
-import type { TransformComponentTypes, LocalTransform } from 'ecspresso/plugins/transform';
+import type { WorldConfigFrom } from '../../type-utils';
+import type { TransformComponentTypes, LocalTransform } from 'ecspresso/plugins/spatial/transform';
 
 /** BaseWorld narrowed to particle components for typed access in helpers. */
 type ParticleWorld = BaseWorld<ParticleComponentTypes>;

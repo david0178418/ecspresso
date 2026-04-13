@@ -1,6 +1,6 @@
 import { describe, test, expect } from 'bun:test';
-import ECSpresso from '../ecspresso';
-import type { WorldConfigFrom } from '../type-utils';
+import ECSpresso from '../../ecspresso';
+import type { WorldConfigFrom } from '../../type-utils';
 import {
 	createBoundsPlugin,
 	createBounds,
@@ -12,7 +12,7 @@ import {
 	type BoundsResourceTypes,
 } from './bounds';
 import { createTransformPlugin, createTransform, type TransformComponentTypes } from './transform';
-import { createPhysics2DPlugin, createRigidBody, type Physics2DComponentTypes } from './physics2D';
+import { createPhysics2DPlugin, createRigidBody, type Physics2DComponentTypes } from '../physics/physics2D';
 
 interface TestComponents extends TransformComponentTypes, Physics2DComponentTypes<string>, BoundsComponentTypes {
 	tag: string;

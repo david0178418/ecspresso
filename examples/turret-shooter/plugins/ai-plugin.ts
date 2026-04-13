@@ -1,5 +1,5 @@
 import { Vector3 } from 'three';
-import { createTimer } from '../../../src/plugins/timers';
+import { createTimer } from '../../../src/plugins/scripting/timers';
 import { definePlugin } from '../types';
 
 export default function createAIPlugin() {

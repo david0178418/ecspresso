@@ -13,7 +13,7 @@
 import { definePlugin } from 'ecspresso';
 import type { SystemPhase } from 'ecspresso';
 import type { TransformComponentTypes } from './transform';
-import type { CollisionComponentTypes } from './collision';
+import type { CollisionComponentTypes } from '../physics/collision';
 import {
 	type SpatialEntry,
 	type SpatialHashGrid,
@@ -23,7 +23,7 @@ import {
 	insertEntity,
 	gridQueryRect,
 	gridQueryRadius,
-} from '../utils/spatial-hash';
+} from '../../utils/spatial-hash';
 
 // Module-scoped reusable set to reduce GC pressure
 const _reusableQuerySet = new Set<number>();

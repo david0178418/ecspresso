@@ -1,6 +1,6 @@
 import { describe, test, expect } from 'bun:test';
-import ECSpresso from '../ecspresso';
-import type { WorldConfigFrom } from '../type-utils';
+import ECSpresso from '../../ecspresso';
+import type { WorldConfigFrom } from '../../type-utils';
 import {
 	createCollisionPlugin,
 	createCollisionPairHandler,
@@ -14,7 +14,7 @@ import {
 	type CollisionLayer,
 	type LayersOf,
 } from './collision';
-import { createTransformPlugin, createTransform, type TransformComponentTypes } from './transform';
+import { createTransformPlugin, createTransform, type TransformComponentTypes } from '../spatial/transform';
 
 const playerEnemyLayers = defineCollisionLayers({ player: ['enemy'], enemy: ['player'] });
 type PlayerEnemyLayer = LayersOf<typeof playerEnemyLayers>;

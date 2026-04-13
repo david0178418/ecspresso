@@ -1,4 +1,4 @@
-import { createTimerPlugin } from '../../src/plugins/timers';
+import { createTimerPlugin } from '../../src/plugins/scripting/timers';
 import createInitPlugin from './plugins/init-plugin';
 import createInputPlugin from './plugins/input-plugin';
 import createRenderPlugin from './plugins/render-plugin';

@@ -3,7 +3,7 @@ import ECSpresso from "../../src";
 import {
 	createRenderer2DPlugin,
 	createSpriteComponents,
-} from "../../src/plugins/renderers/renderer2D";
+} from "../../src/plugins/rendering/renderer2D";
 import {
 	linear,
 	easeInQuad,
@@ -18,7 +18,7 @@ import {
 	createTween,
 	createTweenSequence,
 	type LoopMode,
-} from "../../src/plugins/tween";
+} from "../../src/plugins/scripting/tween";
 
 // -- Layout constants --
 

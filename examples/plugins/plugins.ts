@@ -5,7 +5,7 @@ import {
 	createLocalTransform,
 	type TransformComponentTypes,
 	type BoundsRect,
-} from "../../src/plugins/renderers/renderer2D";
+} from "../../src/plugins/rendering/renderer2D";
 
 // -- Custom plugin --
 // A plugin packages related components, events, and systems into a reusable unit.
