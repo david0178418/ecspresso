@@ -39,17 +39,14 @@ export default function createSpawnerPlugin() {
 					},
 
 					enemyShoot({ data, ecs }) {
-						const enemyEntity = ecs.entityManager.getEntity(data.enemyId);
-						if (!enemyEntity) return;
-
-						const enemyWorldTransform = enemyEntity.components['worldTransform'];
-						if (!enemyWorldTransform) return;
+						const worldTransform = ecs.getComponent(data.enemyId, 'worldTransform');
+						if (!worldTransform) return;
 
 						const projectileSprite = createProjectileSprite(ecs, 'enemy');
 
 						ecs.spawn({
 							sprite: projectileSprite,
-							...createLocalTransform(enemyWorldTransform.x, enemyWorldTransform.y + 20),
+							...createLocalTransform(worldTransform.x, worldTransform.y + 20),
 							...createRigidBody('kinematic'),
 							velocity: { x: 0, y: 400 },
 							projectile: { owner: 'enemy', damage: 1 },

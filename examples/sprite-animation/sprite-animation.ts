@@ -226,10 +226,6 @@ const explosionEntity = ecs.spawn({
 	...createSpriteAnimation(explosionSet, { onComplete: (data) => ecs.eventBus.publish('explosionDone', data) }),
 });
 
-// Track explosion completions
-let explosionCount = 0;
-ecs.on('explosionDone', () => { explosionCount++; });
-
 // Click to respawn explosion animation
 pixiApp.canvas.addEventListener('click', (e) => {
 	const rect = pixiApp.canvas.getBoundingClientRect();

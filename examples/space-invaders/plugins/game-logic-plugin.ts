@@ -80,8 +80,7 @@ export default function createGameLogicPlugin() {
 
 						let minX = Number.MAX_VALUE;
 						for (const enemy of enemies) {
-							const worldTransform = enemy.components['worldTransform'];
-							if (worldTransform) minX = Math.min(minX, worldTransform.x);
+							minX = Math.min(minX, enemy.components.worldTransform.x);
 						}
 
 						movementState.isMovingDown = false;
@@ -100,10 +99,9 @@ export default function createGameLogicPlugin() {
 						if (!velocityMultiplier) return;
 
 						for (const enemy of enemies) {
-							const enemyVel = enemy.components['velocity'];
-							if (!enemyVel) continue;
-							enemyVel.x = velocityMultiplier.x * baseSpeed;
-							enemyVel.y = velocityMultiplier.y * baseSpeed;
+							const { velocity } = enemy.components;
+							velocity.x = velocityMultiplier.x * baseSpeed;
+							velocity.y = velocityMultiplier.y * baseSpeed;
 						}
 					}
 				});
@@ -119,8 +117,7 @@ export default function createGameLogicPlugin() {
 					let maxY = Number.MIN_VALUE;
 
 					for (const enemy of enemies) {
-						const worldTransform = enemy.components['worldTransform'];
-						if (!worldTransform) continue;
+						const { worldTransform } = enemy.components;
 						minX = Math.min(minX, worldTransform.x);
 						maxX = Math.max(maxX, worldTransform.x);
 						maxY = Math.max(maxY, worldTransform.y);

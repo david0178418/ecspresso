@@ -1,7 +1,7 @@
 import { serve } from "bun";
 import { join } from "path";
 import home from './index.html';
-import basiceMovement from './movement/movement.html';
+import basicMovement from './movement/movement.html';
 import playerInput from './player-input/player-input.html';
 import events from './events/events.html';
 import plugins from './plugins/plugins.html';
@@ -31,7 +31,7 @@ const server = serve({
 	},
 	routes: {
 		'/': home,
-		'/movement/': basiceMovement,
+		'/movement/': basicMovement,
 		'/player-input/': playerInput,
 		'/events/': events,
 		'/plugins/': plugins,

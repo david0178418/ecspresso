@@ -27,7 +27,6 @@ import {
 	resumeEmitter,
 	particlePresets,
 	type ParticleComponentTypes,
-	type ParticleEmitterEventData,
 } from '../../src/plugins/rendering/particles';
 
 // ==================== Constants ====================
@@ -79,10 +78,6 @@ function generateStarTexture(renderer: Renderer, color: number, size: number): T
 
 // ==================== ECS Setup ====================
 
-interface AppEvents {
-	emitterDone: ParticleEmitterEventData;
-}
-
 const ecs = ECSpresso
 	.create()
 	.withPlugin(createRenderer2DPlugin({
@@ -92,7 +87,6 @@ const ecs = ECSpresso
 	}))
 	.withPlugin(createParticlePlugin())
 	.withComponentTypes<ParticleComponentTypes>()
-	.withEventTypes<AppEvents>()
 	.build();
 
 await ecs.initialize();
@@ -280,9 +274,6 @@ const burstConfig = defineParticleEffect({
 	endTint: 0xd50000,
 });
 
-let explosionCount = 0;
-ecs.on('emitterDone', () => { explosionCount++; });
-
 pixiApp.canvas.addEventListener('click', (e) => {
 	const rect = pixiApp.canvas.getBoundingClientRect();
 	const clickX = e.clientX - rect.left;
@@ -291,7 +282,7 @@ pixiApp.canvas.addEventListener('click', (e) => {
 	// Spawn explosion in the right-side area
 	if (clickX > 510 && clickY > 200) {
 		const entity = ecs.spawn({
-			...createParticleEmitter(burstConfig, { onComplete: () => { ecs.eventBus.publish('emitterDone', {} as ParticleEmitterEventData); } }),
+			...createParticleEmitter(burstConfig),
 			localTransform: { x: clickX, y: clickY, rotation: 0, scaleX: 1, scaleY: 1 },
 			worldTransform: { x: clickX, y: clickY, rotation: 0, scaleX: 1, scaleY: 1 },
 		});

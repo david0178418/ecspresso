@@ -7,7 +7,7 @@ import {
 } from "../../src/plugins/rendering/renderer2D";
 
 // -- Build the world --
-// Building on example 01, we add the input plugin for keyboard handling.
+// Building on the movement example, we add the input plugin for keyboard handling.
 // Actions map named intents to physical keys — systems read actions, not raw keys.
 const ecs = ECSpresso.create()
 	.withPlugin(createRenderer2DPlugin({
@@ -44,7 +44,7 @@ ecs.addSystem('player-input')
 		velocity.y = input.actions.isActive('moveUp') ? -speed : input.actions.isActive('moveDown') ? speed : 0;
 	});
 
-// Movement: applies velocity to position (same pattern as example 01)
+// Movement: applies velocity to position (same pattern as the movement example)
 ecs.addSystem('movement')
 	.addQuery('moving', { with: ['localTransform', 'velocity'] })
 	.setProcess(({ queries, dt }) => {

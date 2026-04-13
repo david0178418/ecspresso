@@ -5,7 +5,7 @@ import {
 	createLocalTransform,
 } from "../../src/plugins/rendering/renderer2D";
 
-// -- Step 1: Create the world --
+// -- Create the world --
 // ECSpresso.create() starts a builder chain where you declare your types and plugins.
 // The renderer2D plugin provides PixiJS rendering and a transform system.
 // withComponentTypes adds app-specific component types (type-level only, no runtime cost).
@@ -19,7 +19,7 @@ const ecs = ECSpresso.create()
 	}>()
 	.build();
 
-// -- Step 2: Define systems --
+// -- Define systems --
 // A system processes entities that match a query each frame.
 // Queries select entities by which components they have.
 
@@ -50,11 +50,11 @@ ecs.addSystem('bounce')
 		}
 	});
 
-// -- Step 3: Initialize the world --
+// -- Initialize the world --
 // initialize() sets up all plugin resources (e.g. the PixiJS application).
 await ecs.initialize();
 
-// -- Step 4: Spawn an entity --
+// -- Spawn an entity --
 // An entity is just an ID with components attached. Components are plain data objects.
 // The sprite component auto-requires localTransform, visible, and worldTransform,
 // so we only need to provide the ones we want to customize.

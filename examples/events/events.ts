@@ -6,7 +6,7 @@ import {
 } from "../../src/plugins/rendering/renderer2D";
 
 // -- Build the world --
-// Building on example 01, we add custom event types for inter-system communication.
+// Building on the movement example, we add custom event types for inter-system communication.
 // withEventTypes declares typed events that systems can publish and subscribe to.
 const ecs = ECSpresso.create()
 	.withPlugin(createRenderer2DPlugin({
@@ -23,7 +23,7 @@ const ecs = ECSpresso.create()
 
 // -- Systems --
 
-// Movement (same as example 01)
+// Movement (same as the movement example)
 ecs.addSystem('movement')
 	.addQuery('moving', { with: ['localTransform', 'velocity'] })
 	.setProcess(({ queries, dt }) => {
