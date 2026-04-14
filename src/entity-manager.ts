@@ -1,6 +1,41 @@
 import type { Entity, FilteredEntity, RemoveEntityOptions, HierarchyEntry, HierarchyIteratorOptions } from "./types";
 import HierarchyManager from "./hierarchy-manager";
 
+/** Returns true if `components` contains ALL keys in `required`. */
+function hasAllComponents(
+	components: Record<string | number | symbol, unknown>,
+	required: ReadonlyArray<string | number | symbol>,
+): boolean {
+	for (const key of required) {
+		if (!(key in components)) return false;
+	}
+	return true;
+}
+
+/** Returns true if `components` contains ANY key in `excluded`. */
+function hasAnyComponent(
+	components: Record<string | number | symbol, unknown>,
+	excluded: ReadonlyArray<string | number | symbol>,
+): boolean {
+	for (const key of excluded) {
+		if (key in components) return true;
+	}
+	return false;
+}
+
+/** Returns true if any component in `changed` was modified after `threshold`. */
+function hasChangedComponent(
+	entitySeqs: Map<string | number | symbol, number> | undefined,
+	changed: ReadonlyArray<string | number | symbol>,
+	threshold: number,
+): boolean {
+	if (!entitySeqs) return false;
+	for (const key of changed) {
+		if ((entitySeqs.get(key) ?? -1) > threshold) return true;
+	}
+	return false;
+}
+
 type ComponentCallback<ComponentTypes> = (ctx: { value: unknown; entity: Entity<ComponentTypes> }) => void;
 
 /**
@@ -328,17 +363,9 @@ class EntityManager<ComponentTypes> {
 			}
 
 			for (const entity of this.entities.values()) {
-				if (excluded.length > 0 && !excluded.every(comp => !(comp in entity.components))) {
-					continue;
-				}
-				if (hasChangedFilter) {
-					const entitySeqs = this.changeSeqs.get(entity.id);
-					if (!entitySeqs) continue;
-					if (!changed.some(comp => (entitySeqs.get(comp) ?? -1) > changeThreshold)) continue;
-				}
-				if (hasParentHasFilter && !this.parentHasComponents(entity.id, parentHas)) {
-					continue;
-				}
+				if (excluded.length > 0 && hasAnyComponent(entity.components, excluded)) continue;
+				if (hasChangedFilter && !hasChangedComponent(this.changeSeqs.get(entity.id), changed, changeThreshold)) continue;
+				if (hasParentHasFilter && !this.parentHasComponents(entity.id, parentHas)) continue;
 				output.push(entity as unknown as ResultEntry);
 			}
 			return output;
@@ -347,11 +374,18 @@ class EntityManager<ComponentTypes> {
 		// Find the component with the smallest entity set to start with
 		const firstRequired = required[0];
 		if (firstRequired === undefined) return output;
-		const smallestComponent = required.reduce((smallest, comp) => {
-			const currentSize = this.componentIndices.get(comp)?.size ?? 0;
-			const smallestSize = this.componentIndices.get(smallest)?.size ?? Infinity;
-			return currentSize < smallestSize ? comp : smallest;
-		}, firstRequired);
+		let smallestComponent: WithComponents = firstRequired;
+		let smallestSize = this.componentIndices.get(firstRequired)?.size ?? 0;
+		// Start at 1 — firstRequired is already the initial candidate
+		for (let i = 1; i < required.length; i++) {
+			const comp = required[i];
+			if (comp === undefined) continue;
+			const size = this.componentIndices.get(comp)?.size ?? 0;
+			if (size < smallestSize) {
+				smallestComponent = comp;
+				smallestSize = size;
+			}
+		}
 
 		// Start with the entities from the smallest component set
 		const candidateSet = this.componentIndices.get(smallestComponent);
@@ -359,26 +393,14 @@ class EntityManager<ComponentTypes> {
 			return output;
 		}
 
-		const hasExclusions = excluded.length > 0;
-
 		for (const id of candidateSet) {
 			const entity = this.entities.get(id);
-			if (
-				entity &&
-				required.every(comp => comp in entity.components) &&
-				(!hasExclusions || excluded.every(comp => !(comp in entity.components)))
-			) {
-				if (hasChangedFilter) {
-					const entitySeqs = this.changeSeqs.get(id);
-					if (!entitySeqs || !changed.some(comp => (entitySeqs.get(comp) ?? -1) > changeThreshold)) {
-						continue;
-					}
-				}
-				if (hasParentHasFilter && !this.parentHasComponents(id, parentHas)) {
-					continue;
-				}
-				output.push(entity as unknown as ResultEntry);
-			}
+			if (!entity) continue;
+			if (!hasAllComponents(entity.components, required)) continue;
+			if (excluded.length > 0 && hasAnyComponent(entity.components, excluded)) continue;
+			if (hasChangedFilter && !hasChangedComponent(this.changeSeqs.get(id), changed, changeThreshold)) continue;
+			if (hasParentHasFilter && !this.parentHasComponents(id, parentHas)) continue;
+			output.push(entity as unknown as ResultEntry);
 		}
 
 		return output;
@@ -394,12 +416,7 @@ class EntityManager<ComponentTypes> {
 		const parentEntity = this.entities.get(parentId);
 		if (!parentEntity) return false;
 
-		for (const comp of components) {
-			if (!(comp in parentEntity.components)) {
-				return false;
-			}
-		}
-		return true;
+		return hasAllComponents(parentEntity.components, components);
 	}
 
 	removeEntity(entityId: number, options?: RemoveEntityOptions): boolean {
