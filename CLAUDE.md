@@ -47,6 +47,9 @@ src/
     │   └── tween.ts         # Declarative property animation with easing, sequences, and loops
     ├── ai/
     │   └── detection.ts     # Proximity detection with spatial-index, sorted by distance
+    ├── isometric/
+    │   ├── projection.ts    # Cartesian→isometric coordinate projection, iso camera sync
+    │   └── depth-sort.ts    # Isometric z-ordering by world position
     ├── combat/
     │   ├── health.ts        # Health/damage/death lifecycle (event-driven)
     │   └── projectile.ts    # Homing + linear projectile movement, collision integration

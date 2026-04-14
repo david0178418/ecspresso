@@ -22,7 +22,9 @@
 		"src/plugins/combat/health.ts",
 		"src/plugins/combat/projectile.ts",
 		"src/plugins/audio/audio.ts",
-		"src/plugins/debug/diagnostics.ts"
+		"src/plugins/debug/diagnostics.ts",
+		"src/plugins/isometric/projection.ts",
+		"src/plugins/isometric/depth-sort.ts"
 	],
 	"readme": "none",
 	"projectDocuments": [

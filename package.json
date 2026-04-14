@@ -95,6 +95,14 @@
 		"./plugins/combat/projectile": {
 			"import": "./dist/plugins/combat/projectile.js",
 			"types": "./dist/plugins/combat/projectile.d.ts"
+		},
+		"./plugins/isometric/projection": {
+			"import": "./dist/plugins/isometric/projection.js",
+			"types": "./dist/plugins/isometric/projection.d.ts"
+		},
+		"./plugins/isometric/depth-sort": {
+			"import": "./dist/plugins/isometric/depth-sort.js",
+			"types": "./dist/plugins/isometric/depth-sort.d.ts"
 		}
 	},
 	"publishConfig": {

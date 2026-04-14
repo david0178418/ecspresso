@@ -119,6 +119,8 @@ All are created via factory functions (e.g., `createInputPlugin(options)`). Each
 | Detection | `ecspresso/plugins/ai/detection` | `update` | Proximity detection with spatial-index, sorted by distance |
 | Health | `ecspresso/plugins/combat/health` | (event-driven) | Health/damage/death lifecycle |
 | Projectile | `ecspresso/plugins/combat/projectile` | `update` | Homing + linear projectile movement, collision integration |
+| Iso Projection | `ecspresso/plugins/isometric/projection` | `render` | Cartesian→isometric coordinate projection, iso camera sync |
+| Iso Depth Sort | `ecspresso/plugins/isometric/depth-sort` | `render` | Isometric z-ordering by world position |
 | Diagnostics | `ecspresso/plugins/diagnostics` | `render` | Performance monitoring and debug overlay |
 | 2D Renderer | `ecspresso/plugins/renderers/renderer2D` | `render` | Automated PixiJS scene graph wiring |
 

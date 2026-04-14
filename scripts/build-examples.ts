@@ -29,6 +29,7 @@ const examples = [
 	{ route: 'platformer', dir: 'platformer', html: 'platformer.html', entry: 'platformer.ts' },
 	{ route: 'rts-movement', dir: 'rts-movement', html: 'rts-movement.html', entry: 'rts-movement.ts' },
 	{ route: 'turret-defense', dir: 'turret-defense', html: 'turret-defense.html', entry: 'index.ts' },
+	{ route: 'isometric', dir: 'isometric', html: 'isometric.html', entry: 'isometric.ts' },
 ] as const;
 
 // Clean output

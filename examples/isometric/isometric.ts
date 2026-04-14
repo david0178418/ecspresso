@@ -1,0 +1,189 @@
+/**
+ * Isometric Example
+ *
+ * Demonstrates:
+ * - Isometric projection of a tile grid (diamond pattern)
+ * - Player movement in Cartesian world space, projected to isometric screen coords
+ * - Depth sorting so entities overlap correctly
+ * - Camera following the player through the isometric projection
+ * - worldToIso / isoToWorld coordinate conversion
+ */
+
+import { Graphics } from 'pixi.js';
+import ECSpresso from '../../src';
+import {
+	createRenderer2DPlugin,
+	createGraphicsComponents,
+} from '../../src/plugins/rendering/renderer2D';
+import {
+	createPhysics2DPlugin,
+	createRigidBody,
+} from '../../src/plugins/physics/physics2D';
+import { createInputPlugin } from '../../src/plugins/input/input';
+import {
+	createCameraPlugin,
+	screenToWorld,
+} from '../../src/plugins/spatial/camera';
+import {
+	createIsoProjectionPlugin,
+	isoToWorld,
+} from '../../src/plugins/isometric/projection';
+import { createIsoDepthSortPlugin } from '../../src/plugins/isometric/depth-sort';
+
+// ==================== Constants ====================
+
+const TILE_WIDTH = 64;
+const TILE_HEIGHT = 32;
+const GRID_SIZE = 10;
+const PLAYER_SPEED = 3;
+const VIEWPORT_WIDTH = 800;
+const VIEWPORT_HEIGHT = 600;
+
+const TILE_COLOR_A = 0x3a7d44;
+const TILE_COLOR_B = 0x2d6a36;
+const PLAYER_COLOR = 0x44bbee;
+
+// ==================== ECS Setup ====================
+
+const ecs = ECSpresso.create()
+	.withPlugin(createRenderer2DPlugin({
+		background: 0x1a1a2e,
+		startLoop: true,
+		camera: false,
+	}))
+	.withPlugin(createPhysics2DPlugin())
+	.withPlugin(createInputPlugin({
+		actions: {
+			moveUp:    { keys: ['w', 'ArrowUp'] },
+			moveDown:  { keys: ['s', 'ArrowDown'] },
+			moveLeft:  { keys: ['a', 'ArrowLeft'] },
+			moveRight: { keys: ['d', 'ArrowRight'] },
+		},
+	}))
+	.withPlugin(createCameraPlugin({
+		viewportWidth: VIEWPORT_WIDTH,
+		viewportHeight: VIEWPORT_HEIGHT,
+		initial: { x: GRID_SIZE / 2, y: GRID_SIZE / 2 },
+		follow: { smoothing: 4 },
+	}))
+	.withPlugin(createIsoProjectionPlugin({
+		tileWidth: TILE_WIDTH,
+		tileHeight: TILE_HEIGHT,
+		camera: true,
+	}))
+	.withPlugin(createIsoDepthSortPlugin())
+	.withComponentTypes<{
+		player: true;
+		tile: true;
+	}>()
+	.build();
+
+// ==================== Player Input System ====================
+
+ecs.addSystem('player-input')
+	.inPhase('preUpdate')
+	.addQuery('players', { with: ['player', 'velocity'] })
+	.withResources(['inputState'])
+	.setProcess(({ queries, resources: { inputState: input } }) => {
+		for (const entity of queries.players) {
+			const { velocity } = entity.components;
+			velocity.x = 0;
+			velocity.y = 0;
+			if (input.actions.isActive('moveUp'))    velocity.y = -PLAYER_SPEED;
+			if (input.actions.isActive('moveDown'))   velocity.y = PLAYER_SPEED;
+			if (input.actions.isActive('moveLeft'))   velocity.x = -PLAYER_SPEED;
+			if (input.actions.isActive('moveRight'))  velocity.x = PLAYER_SPEED;
+		}
+	});
+
+// ==================== Coordinate Display System ====================
+
+ecs.addSystem('coord-display')
+	.inPhase('render')
+	.addQuery('players', { with: ['player', 'worldTransform'] })
+	.withResources(['cameraState', 'inputState', 'isoProjection'])
+	.setProcess(({ queries, resources: { cameraState, inputState: input, isoProjection: iso } }) => {
+		const el = document.getElementById('coords');
+		if (!el) return;
+
+		const first = queries.players[0];
+		if (!first) return;
+
+		const { worldTransform } = first.components;
+
+		// Convert screen mouse → camera world → iso world
+		const cameraWorld = screenToWorld(
+			input.pointer.position.x,
+			input.pointer.position.y,
+			cameraState,
+		);
+		const mouseWorld = isoToWorld(cameraWorld.x, cameraWorld.y, iso);
+
+		el.textContent =
+			`Player: ${worldTransform.x.toFixed(1)}, ${worldTransform.y.toFixed(1)}\n` +
+			`Mouse:  ${mouseWorld.x.toFixed(1)}, ${mouseWorld.y.toFixed(1)}`;
+	});
+
+// ==================== Tile Drawing Helper ====================
+
+function createTileDiamond(color: number): Graphics {
+	const g = new Graphics();
+	g.moveTo(0, -TILE_HEIGHT / 2);
+	g.lineTo(TILE_WIDTH / 2, 0);
+	g.lineTo(0, TILE_HEIGHT / 2);
+	g.lineTo(-TILE_WIDTH / 2, 0);
+	g.closePath();
+	g.fill({ color, alpha: 0.8 });
+	g.stroke({ color: 0x224422, width: 1 });
+	return g;
+}
+
+function createPlayerDiamond(): Graphics {
+	const size = 0.4;
+	const g = new Graphics();
+	g.moveTo(0, -TILE_HEIGHT * size);
+	g.lineTo(TILE_WIDTH * size, 0);
+	g.lineTo(0, TILE_HEIGHT * size);
+	g.lineTo(-TILE_WIDTH * size, 0);
+	g.closePath();
+	g.fill(PLAYER_COLOR);
+	g.stroke({ color: 0x88ddff, width: 1 });
+	return g;
+}
+
+// ==================== Initialization ====================
+
+ecs.addSystem('init')
+	.setOnInitialize((ecs) => {
+		// -- Tile grid --
+		for (let gx = 0; gx < GRID_SIZE; gx++) {
+			for (let gy = 0; gy < GRID_SIZE; gy++) {
+				const color = (gx + gy) % 2 === 0 ? TILE_COLOR_A : TILE_COLOR_B;
+				ecs.spawn({
+					...createGraphicsComponents(createTileDiamond(color), { x: gx, y: gy }),
+					tile: true,
+					depthOffset: -1000,
+				});
+			}
+		}
+
+		// -- Player --
+		const player = ecs.spawn({
+			...createGraphicsComponents(createPlayerDiamond(), {
+				x: GRID_SIZE / 2,
+				y: GRID_SIZE / 2,
+			}),
+			...createRigidBody('kinematic'),
+			velocity: { x: 0, y: 0 },
+			player: true,
+			depthOffset: 0.5,
+		});
+
+		// -- Camera follow --
+		const cameraState = ecs.getResource('cameraState');
+		cameraState.follow(player);
+	});
+
+// ==================== Start ====================
+
+await ecs.initialize();
