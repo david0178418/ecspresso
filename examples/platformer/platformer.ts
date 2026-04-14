@@ -23,6 +23,8 @@ const PLAYER_COLOR = 0xFF4444;
 const PLATFORM_COLOR = 0x44AA44;
 const PLATFORM_HEIGHT = 20;
 const GROUND_HEIGHT = 32;
+const COYOTE_DURATION = 0.12;      // seconds (~7 ticks at 60Hz)
+const JUMP_BUFFER_DURATION = 0.1;  // seconds (~6 ticks at 60Hz)
 
 const layers = defineCollisionLayers({
 	player: ['platform'],
@@ -45,7 +47,7 @@ const ecs = ECSpresso.create()
 	.withFixedTimestep(1 / 60)
 	.withComponentTypes<{
 		player: true;
-		groundContact: { grounded: boolean };
+		groundContact: { grounded: boolean; coyoteTimer: number; coyoteDuration: number; jumpBufferTimer: number; jumpBufferDuration: number };
 	}>()
 	.build();
 
@@ -54,11 +56,26 @@ ecs.addSystem('ground-reset')
 	.inPhase('fixedUpdate')
 	.setPriority(2000)
 	.addQuery('players', { with: ['groundContact'] })
-	.setProcess(({ queries }) => {
+	.setProcess(({ queries, dt }) => {
 		for (const entity of queries.players) {
-			entity.components.groundContact.grounded = false;
+			const gc = entity.components.groundContact;
+			gc.coyoteTimer = Math.max(0, gc.coyoteTimer - dt);
+			gc.jumpBufferTimer = Math.max(0, gc.jumpBufferTimer - dt);
+			gc.grounded = false;
 		}
 	});
+
+function applyGroundLanding(
+	gc: { grounded: boolean; coyoteTimer: number; coyoteDuration: number; jumpBufferTimer: number },
+	vel: { y: number } | undefined,
+) {
+	gc.grounded = true;
+	gc.coyoteTimer = gc.coyoteDuration;
+	if (gc.jumpBufferTimer > 0 && vel) {
+		vel.y = JUMP_VELOCITY;
+		gc.jumpBufferTimer = 0;
+	}
+}
 
 // Detect ground contact from physics collision normals
 // Normal points from entityA toward entityB; normalY > 0.5 means A is above B
@@ -67,12 +84,12 @@ ecs.addSystem('ground-detect')
 		physicsCollision({ data, ecs: world }) {
 			if (world.getComponent(data.entityA, 'player') && data.normalY > 0.5) {
 				const gc = world.getComponent(data.entityA, 'groundContact');
-				if (gc) gc.grounded = true;
+				if (gc) applyGroundLanding(gc, world.getComponent(data.entityA, 'velocity'));
 				return;
 			}
 			if (world.getComponent(data.entityB, 'player') && data.normalY < -0.5) {
 				const gc = world.getComponent(data.entityB, 'groundContact');
-				if (gc) gc.grounded = true;
+				if (gc) applyGroundLanding(gc, world.getComponent(data.entityB, 'velocity'));
 			}
 		},
 	});
@@ -90,8 +107,15 @@ ecs.addSystem('player-input')
 			const right = input.actions.isActive('moveRight') ? MOVE_SPEED : 0;
 			velocity.x = left + right;
 
-			if (groundContact.grounded && input.actions.justActivated('jump')) {
-				velocity.y = JUMP_VELOCITY;
+			const canJump = groundContact.grounded || groundContact.coyoteTimer > 0;
+			if (input.actions.justActivated('jump')) {
+				if (canJump) {
+					velocity.y = JUMP_VELOCITY;
+					groundContact.coyoteTimer = 0;
+					groundContact.jumpBufferTimer = 0;
+				} else {
+					groundContact.jumpBufferTimer = groundContact.jumpBufferDuration;
+				}
 			}
 		}
 	});
@@ -130,7 +154,7 @@ ecs.spawn({
 	...createAABBCollider(PLAYER_WIDTH, PLAYER_HEIGHT),
 	...layers.player(),
 	player: true as const,
-	groundContact: { grounded: false },
+	groundContact: { grounded: false, coyoteTimer: 0, coyoteDuration: COYOTE_DURATION, jumpBufferTimer: 0, jumpBufferDuration: JUMP_BUFFER_DURATION },
 });
 
 // Ground
