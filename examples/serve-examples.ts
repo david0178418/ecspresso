@@ -23,6 +23,7 @@ import platformer from './platformer/platformer.html';
 import rtsMovement from './rts-movement/rts-movement.html';
 import turretDefense from './turret-defense/turret-defense.html';
 import isometric from './isometric/isometric.html';
+import isometricZoom from './isometric-zoom/isometric-zoom.html';
 
 const examplesDir = import.meta.dir;
 
@@ -55,6 +56,7 @@ const server = serve({
 		'/rts-movement/': rtsMovement,
 		'/turret-defense/': turretDefense,
 		'/isometric/': isometric,
+		'/isometric-zoom/': isometricZoom,
 	},
 	async fetch(request) {
 		// Serve static assets (e.g. .wav, .mp3) from example directories

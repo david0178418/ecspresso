@@ -7,6 +7,7 @@
  * - Depth sorting so entities overlap correctly
  * - Camera following the player through the isometric projection
  * - worldToIso / isoToWorld coordinate conversion
+ * - Trauma-based screen shake triggered by spacebar
  */
 
 import { Graphics } from 'pixi.js';
@@ -58,6 +59,7 @@ const ecs = ECSpresso.create()
 			moveDown:  { keys: ['s', 'ArrowDown'] },
 			moveLeft:  { keys: ['a', 'ArrowLeft'] },
 			moveRight: { keys: ['d', 'ArrowRight'] },
+			shake:     { keys: [' '] },
 		},
 	}))
 	.withPlugin(createCameraPlugin({
@@ -65,6 +67,7 @@ const ecs = ECSpresso.create()
 		viewportHeight: VIEWPORT_HEIGHT,
 		initial: { x: GRID_SIZE / 2, y: GRID_SIZE / 2 },
 		follow: { smoothing: 4 },
+		shake: { traumaDecay: 1.5, maxOffsetX: 12, maxOffsetY: 12, maxRotation: 0.03 },
 	}))
 	.withPlugin(createIsoProjectionPlugin({
 		tileWidth: TILE_WIDTH,
@@ -93,6 +96,17 @@ ecs.addSystem('player-input')
 			if (input.actions.isActive('moveDown'))   velocity.y = PLAYER_SPEED;
 			if (input.actions.isActive('moveLeft'))   velocity.x = -PLAYER_SPEED;
 			if (input.actions.isActive('moveRight'))  velocity.x = PLAYER_SPEED;
+		}
+	});
+
+// ==================== Shake Trigger System ====================
+
+ecs.addSystem('shake-trigger')
+	.inPhase('preUpdate')
+	.withResources(['inputState', 'cameraState'])
+	.setProcess(({ resources: { inputState: input, cameraState } }) => {
+		if (input.actions.justActivated('shake')) {
+			cameraState.addTrauma(0.6);
 		}
 	});
 

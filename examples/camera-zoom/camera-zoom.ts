@@ -3,7 +3,7 @@
  *
  * Demonstrates:
  * - Cursor-centered zoom via mouse wheel
- * - Manual camera panning with keyboard
+ * - Built-in camera panning with keyboard
  * - Camera bounds clamping to keep the view inside the world
  * - screenToWorld coordinate conversion showing zoom-aware mouse position
  * - Applying cameraState to the PixiJS rootContainer (renderer integration)
@@ -51,26 +51,12 @@ const ecs = ECSpresso.create()
 		initial: { x: WORLD_WIDTH / 2, y: WORLD_HEIGHT / 2 },
 		bounds: [0, 0, WORLD_WIDTH, WORLD_HEIGHT],
 		zoom: { minZoom: .5, maxZoom: 3, zoomStep: 0.1 },
+		pan: { speed: PAN_SPEED },
 	}))
 	.withComponentTypes<{
 		scenery: true;
 	}>()
 	.build();
-
-// ==================== Camera Pan System ====================
-
-ecs.addSystem('camera-pan')
-	.inPhase('preUpdate')
-	.withResources(['inputState', 'cameraState'])
-	.setProcess(({ resources: { inputState: input, cameraState }, dt }) => {
-		const delta = (PAN_SPEED / cameraState.zoom) * dt;
-		const dx = (input.actions.isActive('panRight') ? 1 : 0) - (input.actions.isActive('panLeft') ? 1 : 0);
-		const dy = (input.actions.isActive('panDown') ? 1 : 0) - (input.actions.isActive('panUp') ? 1 : 0);
-
-		if (dx !== 0 || dy !== 0) {
-			cameraState.setPosition(cameraState.x + dx * delta, cameraState.y + dy * delta);
-		}
-	});
 
 // ==================== Coordinate Display System ====================
 

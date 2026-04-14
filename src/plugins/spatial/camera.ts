@@ -119,6 +119,15 @@ export interface CameraPluginOptions<G extends string = 'camera'> {
 		minZoom?: number;
 		maxZoom?: number;
 	};
+	pan?: {
+		speed: number;
+		actions?: {
+			up?: string;
+			down?: string;
+			left?: string;
+			right?: string;
+		};
+	};
 	systemGroup?: G;
 	phase?: SystemPhase;
 	randomFn?: () => number;
@@ -229,7 +238,8 @@ type CameraLabels =
 	| 'camera-shake-update'
 	| 'camera-bounds'
 	| 'camera-state-sync'
-	| 'camera-zoom';
+	| 'camera-zoom'
+	| 'camera-pan';
 
 export function createCameraPlugin<G extends string = 'camera'>(
 	options?: CameraPluginOptions<G>,
@@ -242,6 +252,7 @@ export function createCameraPlugin<G extends string = 'camera'>(
 		shake: shakeConfig,
 		bounds: boundsConfig,
 		zoom: zoomConfig,
+		pan: panConfig,
 		systemGroup = 'camera',
 		phase = 'postUpdate',
 		randomFn = Math.random,
@@ -531,8 +542,12 @@ export function createCameraPlugin<G extends string = 'camera'>(
 					maxZoom = 10,
 				} = zoomConfig;
 
+				type ZoomInputState = { pointer: { position: { x: number; y: number } } };
+
 				let pendingSteps = 0;
 				let zoomActive = false;
+				let canvas: HTMLCanvasElement | undefined;
+				let isoState: { tileWidth: number; tileHeight: number; originX: number; originY: number } | undefined;
 
 				function onWheel(e: WheelEvent) {
 					e.preventDefault();
@@ -549,8 +564,7 @@ export function createCameraPlugin<G extends string = 'camera'>(
 					})
 					.setOnInitialize((ecs) => {
 						// Check for required dependencies
-						type InputState = { pointer: { position: { x: number; y: number } } };
-						const inputState = ecs.tryGetResource<InputState>('inputState');
+						const inputState = ecs.tryGetResource<ZoomInputState>('inputState');
 						const pixiApp = ecs.tryGetResource<{ canvas: HTMLCanvasElement }>('pixiApp');
 
 						if (!inputState || !pixiApp) {
@@ -561,15 +575,20 @@ export function createCameraPlugin<G extends string = 'camera'>(
 							return;
 						}
 
-						pixiApp.canvas.addEventListener('wheel', onWheel as EventListener, { passive: false });
+						canvas = pixiApp.canvas;
+						canvas.addEventListener('wheel', onWheel as EventListener, { passive: false });
+
+						// Detect isometric projection for iso-aware cursor-centered zoom
+						isoState = ecs.tryGetResource<{
+							tileWidth: number; tileHeight: number;
+							originX: number; originY: number;
+						}>('isoProjection');
+
 						zoomActive = true;
 					})
-					.setOnDetach((ecs) => {
-						if (!zoomActive) return;
-						const pixiApp = ecs.tryGetResource('pixiApp') as { canvas: HTMLCanvasElement } | undefined;
-						if (pixiApp) {
-							pixiApp.canvas.removeEventListener('wheel', onWheel as EventListener);
-						}
+					.setOnDetach(() => {
+						if (!zoomActive || !canvas) return;
+						canvas.removeEventListener('wheel', onWheel as EventListener);
 					})
 					.setProcess(({ queries, ecs }) => {
 						if (!zoomActive || pendingSteps === 0) return;
@@ -581,24 +600,103 @@ export function createCameraPlugin<G extends string = 'camera'>(
 						if (!cameraEntity) return;
 
 						const cam = cameraEntity.components.camera;
-						type InputState = { pointer: { position: { x: number; y: number } } };
-						const inputState = ecs.tryGetResource<InputState>('inputState');
+						const inputState = ecs.tryGetResource<ZoomInputState>('inputState');
 						if (!inputState) return;
-
-						// World point under cursor before zoom
-						const worldBefore = screenToWorld(
-							inputState.pointer.position.x,
-							inputState.pointer.position.y,
-							cameraState,
-						);
 
 						// Apply zoom — proportional to number of wheel steps
 						const direction = steps > 0 ? (1 - zoomStep) : (1 + zoomStep);
-						cam.zoom = Math.max(minZoom, Math.min(maxZoom, cam.zoom * Math.pow(direction, Math.abs(steps))));
+						const newZoom = Math.max(minZoom, Math.min(maxZoom, cam.zoom * Math.pow(direction, Math.abs(steps))));
 
-						// Adjust camera position so the world point under cursor stays fixed
-						cam.x = worldBefore.x - (inputState.pointer.position.x - cameraState.viewportWidth / 2) / cam.zoom;
-						cam.y = worldBefore.y - (inputState.pointer.position.y - cameraState.viewportHeight / 2) / cam.zoom;
+						if (isoState && canvas) {
+							// Iso-aware cursor-centered zoom: work in iso-screen space
+							const rect = canvas.getBoundingClientRect();
+							const screenOffX = inputState.pointer.position.x - (rect.left + rect.width / 2);
+							const screenOffY = inputState.pointer.position.y - (rect.top + rect.height / 2);
+
+							// Inlined worldToIso — avoids cross-plugin import
+							const halfW = isoState.tileWidth / 2;
+							const halfH = isoState.tileHeight / 2;
+							const camIsoX = (cam.x - cam.y) * halfW + isoState.originX;
+							const camIsoY = (cam.x + cam.y) * halfH + isoState.originY;
+							const isoBeforeX = camIsoX + screenOffX / cam.zoom;
+							const isoBeforeY = camIsoY + screenOffY / cam.zoom;
+
+							cam.zoom = newZoom;
+
+							// New camera iso position so the same point stays under cursor
+							const newCamIsoX = isoBeforeX - screenOffX / newZoom;
+							const newCamIsoY = isoBeforeY - screenOffY / newZoom;
+
+							// Inlined isoToWorld
+							const relX = newCamIsoX - isoState.originX;
+							const relY = newCamIsoY - isoState.originY;
+							cam.x = relX / isoState.tileWidth + relY / isoState.tileHeight;
+							cam.y = -relX / isoState.tileWidth + relY / isoState.tileHeight;
+						} else {
+							// Pixel-space cursor-centered zoom
+							const worldBefore = screenToWorld(
+								inputState.pointer.position.x,
+								inputState.pointer.position.y,
+								cameraState,
+							);
+
+							cam.zoom = newZoom;
+
+							cam.x = worldBefore.x - (inputState.pointer.position.x - cameraState.viewportWidth / 2) / newZoom;
+							cam.y = worldBefore.y - (inputState.pointer.position.y - cameraState.viewportHeight / 2) / newZoom;
+						}
+					});
+			}
+
+			// camera-pan: conditionally registered when pan option is provided
+			if (panConfig) {
+				type PanInputState = { actions: { isActive(action: string): boolean } };
+
+				const {
+					speed,
+					actions: panActions,
+				} = panConfig;
+
+				const actionUp = panActions?.up ?? 'panUp';
+				const actionDown = panActions?.down ?? 'panDown';
+				const actionLeft = panActions?.left ?? 'panLeft';
+				const actionRight = panActions?.right ?? 'panRight';
+
+				let panActive = false;
+
+				world
+					.addSystem('camera-pan')
+					.setPriority(420)
+					.inPhase('preUpdate')
+					.inGroup(systemGroup)
+					.setOnInitialize((ecs) => {
+						const inputState = ecs.tryGetResource<PanInputState>('inputState');
+						if (!inputState) {
+							console.error(
+								'[camera] pan requires the input plugin. Pan will be disabled.',
+							);
+							return;
+						}
+						panActive = true;
+					})
+					.setProcess(({ ecs, dt }) => {
+						if (!panActive) return;
+
+						const inputState = ecs.tryGetResource<PanInputState>('inputState');
+						if (!inputState) return;
+
+						const delta = (speed / cameraState.zoom) * dt;
+						const dx = (inputState.actions.isActive(actionRight) ? 1 : 0)
+							- (inputState.actions.isActive(actionLeft) ? 1 : 0);
+						const dy = (inputState.actions.isActive(actionDown) ? 1 : 0)
+							- (inputState.actions.isActive(actionUp) ? 1 : 0);
+
+						if (dx !== 0 || dy !== 0) {
+							cameraState.setPosition(
+								cameraState.x + dx * delta,
+								cameraState.y + dy * delta,
+							);
+						}
 					});
 			}
 		});

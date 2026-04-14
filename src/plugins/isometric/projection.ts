@@ -113,6 +113,35 @@ export function isoToWorld(
 	};
 }
 
+/**
+ * Convert screen coordinates (e.g. clientX/clientY) to isometric world (tile) coordinates,
+ * accounting for camera position and zoom.
+ *
+ * @param screenX Screen-space X coordinate (e.g. clientX from a pointer event)
+ * @param screenY Screen-space Y coordinate (e.g. clientY from a pointer event)
+ * @param cameraState Camera state with position and zoom
+ * @param isoState Isometric projection state
+ * @param canvas The HTMLCanvasElement used for rendering
+ * @returns World-space { x, y } in tile coordinates
+ */
+export function screenToIsoWorld(
+	screenX: number,
+	screenY: number,
+	cameraState: { x: number; y: number; zoom: number },
+	isoState: IsoProjectionState,
+	canvas: HTMLCanvasElement,
+): { x: number; y: number } {
+	const rect = canvas.getBoundingClientRect();
+	const screenOffX = screenX - (rect.left + rect.width / 2);
+	const screenOffY = screenY - (rect.top + rect.height / 2);
+	const camIso = worldToIso(cameraState.x, cameraState.y, isoState);
+	return isoToWorld(
+		camIso.x + screenOffX / cameraState.zoom,
+		camIso.y + screenOffY / cameraState.zoom,
+		isoState,
+	);
+}
+
 // ==================== Plugin Factory ====================
 
 /**

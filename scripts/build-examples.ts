@@ -30,6 +30,7 @@ const examples = [
 	{ route: 'rts-movement', dir: 'rts-movement', html: 'rts-movement.html', entry: 'rts-movement.ts' },
 	{ route: 'turret-defense', dir: 'turret-defense', html: 'turret-defense.html', entry: 'index.ts' },
 	{ route: 'isometric', dir: 'isometric', html: 'isometric.html', entry: 'isometric.ts' },
+	{ route: 'isometric-zoom', dir: 'isometric-zoom', html: 'isometric-zoom.html', entry: 'isometric-zoom.ts' },
 ] as const;
 
 // Clean output
