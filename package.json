@@ -129,7 +129,7 @@
 		"howler": "^2.2.4",
 		"pixi.js": "^8.17.1",
 		"three": "^0.183.2",
-		"typedoc": "^0.28.18"
+		"typedoc": "^0.28.19"
 	},
 	"peerDependencies": {
 		"typescript": "^6.0.2",
