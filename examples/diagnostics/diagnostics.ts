@@ -19,12 +19,16 @@ import {
 	createDiagnosticsPlugin,
 	createDiagnosticsOverlay,
 } from "../../src/plugins/debug/diagnostics";
+import { createCameraPlugin, screenToWorld } from 'ecspresso/plugins/spatial/camera';
+import { createInputPlugin } from 'ecspresso/plugins/input/input';
 
 // -- Constants --
 
 const SCREEN_W = 1920;
 const SCREEN_H = 1080;
-const BALL_RADIUS = 5;
+const WORLD_W = SCREEN_W * 4;
+const WORLD_H = SCREEN_H * 4;
+const BALL_RADIUS = 3;
 const SPAWN_RATE = 5; // balls per frame while held
 const COLORS = [0xff6b6b, 0x4ecdc4, 0x45b7d1, 0xf9ca24, 0xa29bfe, 0xfd79a8, 0x00cec9, 0xe17055];
 
@@ -39,6 +43,7 @@ const layers = defineCollisionLayers({
 const ecs = ECSpresso.create()
 	.withPlugin(createRenderer2DPlugin({
 		background: '#1a1a2e',
+		camera: true,
 		screenScale: {
 			width: SCREEN_W,
 			height: SCREEN_H,
@@ -50,6 +55,26 @@ const ecs = ECSpresso.create()
 	.withPlugin(createSpatialIndexPlugin({ cellSize: 64, phases: ['fixedUpdate'] }))
 	.withPlugin(createPhysics2DPlugin({ collisionSystemGroup: 'collision', layers }))
 	.withPlugin(createDiagnosticsPlugin())
+	.withPlugin(createInputPlugin({
+		actions: {
+			panUp:    { keys: ['w', 'ArrowUp'] },
+			panDown:  { keys: ['s', 'ArrowDown'] },
+			panLeft:  { keys: ['a', 'ArrowLeft'] },
+			panRight: { keys: ['d', 'ArrowRight'] },
+		},
+	}))
+	.withPlugin(createCameraPlugin({
+		viewportWidth: SCREEN_W,
+		viewportHeight: SCREEN_H,
+		initial: { x: SCREEN_W, y: SCREEN_H },
+		bounds: [0, 0, WORLD_W, WORLD_H],
+		pan: { speed: 5 },
+		zoom: {
+			minZoom: .5,
+			maxZoom: 2,
+			zoomStep: .1,
+		}
+	}))
 	.withComponentTypes<{ radius: number; color: number }>()
 	.build();
 
@@ -67,16 +92,16 @@ ecs
 			if (worldTransform.x < radius) {
 				worldTransform.x = radius;
 				velocity.x = Math.abs(velocity.x);
-			} else if (worldTransform.x > SCREEN_W - radius) {
-				worldTransform.x = SCREEN_W - radius;
+			} else if (worldTransform.x > WORLD_W - radius) {
+				worldTransform.x = WORLD_W - radius;
 				velocity.x = -Math.abs(velocity.x);
 			}
 
 			if (worldTransform.y < radius) {
 				worldTransform.y = radius;
 				velocity.y = Math.abs(velocity.y);
-			} else if (worldTransform.y > SCREEN_H - radius) {
-				worldTransform.y = SCREEN_H - radius;
+			} else if (worldTransform.y > WORLD_H - radius) {
+				worldTransform.y = WORLD_H - radius;
 				velocity.y = -Math.abs(velocity.y);
 			}
 		}
@@ -88,13 +113,16 @@ const pointerState = { down: false, x: 0, y: 0 };
 ecs
 	.addSystem('continuous-spawn')
 	.inPhase('preUpdate')
-	.setProcess(() => {
+	.withResources(['cameraState'])
+	.setProcess(({resources: { cameraState }}) => {
 		if (!pointerState.down) return;
+		const world = screenToWorld(
+			pointerState.x + (Math.random() - 0.5) * 40,
+			pointerState.y + (Math.random() - 0.5) * 40,
+			cameraState,
+		)
 		for (let i = 0; i < SPAWN_RATE; i++) {
-			spawnBall(
-				pointerState.x + (Math.random() - 0.5) * 40,
-				pointerState.y + (Math.random() - 0.5) * 40,
-			);
+			spawnBall(world.x, world.y);
 		}
 	});
 
@@ -135,8 +163,8 @@ function spawnBall(x: number, y: number) {
 // Spawn initial batch
 for (let i = 0; i < 50; i++) {
 	spawnBall(
-		BALL_RADIUS + Math.random() * (SCREEN_W - BALL_RADIUS * 2),
-		BALL_RADIUS + Math.random() * (SCREEN_H / 2),
+		BALL_RADIUS + Math.random() * (WORLD_W - BALL_RADIUS * 2),
+		BALL_RADIUS + Math.random() * (WORLD_H / 2),
 	);
 }
 
