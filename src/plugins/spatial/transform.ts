@@ -243,6 +243,7 @@ export function createTransformPlugin<G extends string = 'transform'>(
 			}));
 
 			const orphanBuffer: Array<import('../../types').FilteredEntity<TransformComponentTypes, 'localTransform' | 'worldTransform'>> = [];
+			const hierarchyVisited = new Set<number>();
 
 			world
 				.addSystem('transform-propagation')
@@ -250,7 +251,7 @@ export function createTransformPlugin<G extends string = 'transform'>(
 				.inPhase(phase)
 				.inGroup(systemGroup)
 				.setProcess(({ ecs }) => {
-					propagateTransforms(ecs, orphanBuffer);
+					propagateTransforms(ecs, orphanBuffer, hierarchyVisited);
 				});
 		});
 }
@@ -261,47 +262,54 @@ export function createTransformPlugin<G extends string = 'transform'>(
  *
  * Runs unconditionally for all entities with transforms — user code can
  * freely mutate localTransform without needing to call markChanged.
- * Marks worldTransform as changed so downstream systems (e.g. renderer
- * sync) pick up the updated values.
+ * Only marks worldTransform as changed when values actually differ,
+ * so downstream systems (e.g. renderer sync) can skip static entities.
  */
 function propagateTransforms(
 	ecs: ECSpresso<WorldConfigFrom<TransformComponentTypes>>,
 	orphanBuffer: Array<import('../../types').FilteredEntity<TransformComponentTypes, 'localTransform' | 'worldTransform'>>,
+	hierarchyVisited: Set<number>,
 ): void {
 	const em = ecs.entityManager;
 
-	// Use parent-first traversal for entities in hierarchy
+	// Fast path: no hierarchy relationships exist — all entities are flat
+	if (!em.hasHierarchy) {
+		em.getEntitiesWithQueryInto(orphanBuffer, ['localTransform', 'worldTransform']);
+		for (const entity of orphanBuffer) {
+			const { localTransform, worldTransform } = entity.components;
+			if (copyTransform(localTransform, worldTransform)) {
+				ecs.markChanged(entity.id, 'worldTransform');
+			}
+		}
+		return;
+	}
+
+	// Hierarchy exists — use parent-first traversal then process remaining orphans
+	hierarchyVisited.clear();
+
 	ecs.forEachInHierarchy((entityId, parentId) => {
+		hierarchyVisited.add(entityId);
 		const localTransform = em.getComponent(entityId, 'localTransform');
 		const worldTransform = em.getComponent(entityId, 'worldTransform');
 
 		if (!localTransform || !worldTransform) return;
 
-		if (parentId === null) {
-			// Root entity: world transform equals local transform
-			copyTransform(localTransform, worldTransform);
-		} else {
-			// Child entity: combine with parent's world transform
-			const parentWorld = em.getComponent(parentId, 'worldTransform');
-			if (parentWorld) {
-				combineTransforms(parentWorld, localTransform, worldTransform);
-			} else {
-				// Parent has no world transform, treat as root
-				copyTransform(localTransform, worldTransform);
-			}
-		}
+		const parentWorld = parentId !== null
+			? em.getComponent(parentId, 'worldTransform')
+			: null;
 
-		ecs.markChanged(entityId, 'worldTransform');
+		const changed = parentWorld
+			? combineTransforms(parentWorld, localTransform, worldTransform)
+			: copyTransform(localTransform, worldTransform);
+
+		if (changed) ecs.markChanged(entityId, 'worldTransform');
 	});
 
-	// Process orphaned entities (not in hierarchy but have transforms)
 	em.getEntitiesWithQueryInto(orphanBuffer, ['localTransform', 'worldTransform']);
 	for (const entity of orphanBuffer) {
-		const parentId = ecs.getParent(entity.id);
-		// Only process if truly orphaned (no parent and not a root with children)
-		if (parentId === null && ecs.getChildren(entity.id).length === 0) {
-			const { localTransform, worldTransform } = entity.components;
-			copyTransform(localTransform, worldTransform);
+		if (hierarchyVisited.has(entity.id)) continue;
+		const { localTransform, worldTransform } = entity.components;
+		if (copyTransform(localTransform, worldTransform)) {
 			ecs.markChanged(entity.id, 'worldTransform');
 		}
 	}
@@ -309,23 +317,31 @@ function propagateTransforms(
 
 /**
  * Copy transform values from source to destination.
+ * Returns true if the destination was actually modified.
  */
-function copyTransform(src: LocalTransform, dest: WorldTransform): void {
+function copyTransform(src: LocalTransform, dest: WorldTransform): boolean {
+	if (dest.x === src.x && dest.y === src.y &&
+		dest.rotation === src.rotation &&
+		dest.scaleX === src.scaleX && dest.scaleY === src.scaleY) {
+		return false;
+	}
 	dest.x = src.x;
 	dest.y = src.y;
 	dest.rotation = src.rotation;
 	dest.scaleX = src.scaleX;
 	dest.scaleY = src.scaleY;
+	return true;
 }
 
 /**
  * Combine parent world transform with child local transform into child world transform.
+ * Returns true if the destination was actually modified.
  */
 function combineTransforms(
 	parent: WorldTransform,
 	local: LocalTransform,
 	world: WorldTransform
-): void {
+): boolean {
 	// Apply parent's scale to local position
 	const scaledLocalX = local.x * parent.scaleX;
 	const scaledLocalY = local.y * parent.scaleY;
@@ -337,9 +353,22 @@ function combineTransforms(
 	const rotatedY = scaledLocalX * sin + scaledLocalY * cos;
 
 	// Add to parent's position
-	world.x = parent.x + rotatedX;
-	world.y = parent.y + rotatedY;
-	world.rotation = parent.rotation + local.rotation;
-	world.scaleX = parent.scaleX * local.scaleX;
-	world.scaleY = parent.scaleY * local.scaleY;
+	const newX = parent.x + rotatedX;
+	const newY = parent.y + rotatedY;
+	const newRotation = parent.rotation + local.rotation;
+	const newScaleX = parent.scaleX * local.scaleX;
+	const newScaleY = parent.scaleY * local.scaleY;
+
+	if (world.x === newX && world.y === newY &&
+		world.rotation === newRotation &&
+		world.scaleX === newScaleX && world.scaleY === newScaleY) {
+		return false;
+	}
+
+	world.x = newX;
+	world.y = newY;
+	world.rotation = newRotation;
+	world.scaleX = newScaleX;
+	world.scaleY = newScaleY;
+	return true;
 }

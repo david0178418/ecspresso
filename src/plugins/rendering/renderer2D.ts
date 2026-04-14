@@ -228,31 +228,10 @@ interface TransformOptions {
 	alpha?: number;
 }
 
-function createLocalTransformInternal(
+function createTransformInternal(
 	position?: PositionOption,
 	options?: TransformOptions
-): LocalTransform {
-	const scaleValue = options?.scale;
-	const scaleX = typeof scaleValue === 'number'
-		? scaleValue
-		: scaleValue?.x ?? 1;
-	const scaleY = typeof scaleValue === 'number'
-		? scaleValue
-		: scaleValue?.y ?? 1;
-
-	return {
-		x: position?.x ?? 0,
-		y: position?.y ?? 0,
-		rotation: options?.rotation ?? 0,
-		scaleX,
-		scaleY,
-	};
-}
-
-function createWorldTransformInternal(
-	position?: PositionOption,
-	options?: TransformOptions
-): WorldTransform {
+): LocalTransform & WorldTransform {
 	const scaleValue = options?.scale;
 	const scaleX = typeof scaleValue === 'number'
 		? scaleValue
@@ -299,8 +278,8 @@ export function createSpriteComponents(
 	}
 	return {
 		sprite,
-		localTransform: createLocalTransformInternal(position, options),
-		worldTransform: createWorldTransformInternal(position, options),
+		localTransform: createTransformInternal(position, options),
+		worldTransform: createTransformInternal(position, options),
 		visible: createVisibleComponent(options),
 	};
 }
@@ -323,8 +302,8 @@ export function createGraphicsComponents(
 ): Pick<Renderer2DComponentTypes, 'graphics' | 'localTransform' | 'worldTransform' | 'visible'> {
 	return {
 		graphics,
-		localTransform: createLocalTransformInternal(position, options),
-		worldTransform: createWorldTransformInternal(position, options),
+		localTransform: createTransformInternal(position, options),
+		worldTransform: createTransformInternal(position, options),
 		visible: createVisibleComponent(options),
 	};
 }
@@ -347,8 +326,8 @@ export function createContainerComponents(
 ): Pick<Renderer2DComponentTypes, 'container' | 'localTransform' | 'worldTransform' | 'visible'> {
 	return {
 		container,
-		localTransform: createLocalTransformInternal(position, options),
-		worldTransform: createWorldTransformInternal(position, options),
+		localTransform: createTransformInternal(position, options),
+		worldTransform: createTransformInternal(position, options),
 		visible: createVisibleComponent(options),
 	};
 }
@@ -689,11 +668,11 @@ export function createRenderer2DPlugin<G extends string = 'renderer2d'>(
 			});
 
 			// Display objects require localTransform and visible
-			world.registerRequired('sprite', 'localTransform', () => createLocalTransformInternal());
+			world.registerRequired('sprite', 'localTransform', () => createTransformInternal());
 			world.registerRequired('sprite', 'visible', () => createVisibleComponent());
-			world.registerRequired('graphics', 'localTransform', () => createLocalTransformInternal());
+			world.registerRequired('graphics', 'localTransform', () => createTransformInternal());
 			world.registerRequired('graphics', 'visible', () => createVisibleComponent());
-			world.registerRequired('container', 'localTransform', () => createLocalTransformInternal());
+			world.registerRequired('container', 'localTransform', () => createTransformInternal());
 			world.registerRequired('container', 'visible', () => createVisibleComponent());
 
 			// ==================== Render Sync System ====================
@@ -703,64 +682,43 @@ export function createRenderer2DPlugin<G extends string = 'renderer2d'>(
 				.inPhase('render')
 				.inGroup(systemGroup)
 				.addQuery('sprites', {
-					with: ['sprite', 'worldTransform'],
+					with: ['sprite', 'worldTransform', 'visible'],
 					changed: ['worldTransform'],
 				})
 				.addQuery('graphics', {
-					with: ['graphics', 'worldTransform'],
+					with: ['graphics', 'worldTransform', 'visible'],
 					changed: ['worldTransform'],
 				})
 				.addQuery('containers', {
-					with: ['container', 'worldTransform'],
+					with: ['container', 'worldTransform', 'visible'],
 					changed: ['worldTransform'],
 				})
-				.setProcess(({ queries, ecs }) => {
+				.setProcess(({ queries }) => {
 					for (const entity of queries.sprites) {
-						const { sprite, worldTransform } = entity.components;
-
+						const { sprite, worldTransform, visible: vis } = entity.components;
 						sprite.position.set(worldTransform.x, worldTransform.y);
 						sprite.rotation = worldTransform.rotation;
 						sprite.scale.set(worldTransform.scaleX, worldTransform.scaleY);
-
-						const visibleComp = ecs.getComponent(entity.id, 'visible');
-						if (visibleComp) {
-							sprite.visible = visibleComp.visible;
-							if (visibleComp.alpha !== undefined) {
-								sprite.alpha = visibleComp.alpha;
-							}
-						}
+						sprite.visible = vis.visible;
+						if (vis.alpha !== undefined) sprite.alpha = vis.alpha;
 					}
 
 					for (const entity of queries.graphics) {
-						const { graphics, worldTransform } = entity.components;
-
+						const { graphics, worldTransform, visible: vis } = entity.components;
 						graphics.position.set(worldTransform.x, worldTransform.y);
 						graphics.rotation = worldTransform.rotation;
 						graphics.scale.set(worldTransform.scaleX, worldTransform.scaleY);
-
-						const visibleComp = ecs.getComponent(entity.id, 'visible');
-						if (visibleComp) {
-							graphics.visible = visibleComp.visible;
-							if (visibleComp.alpha !== undefined) {
-								graphics.alpha = visibleComp.alpha;
-							}
-						}
+						graphics.visible = vis.visible;
+						if (vis.alpha !== undefined) graphics.alpha = vis.alpha;
 					}
 
 					for (const entity of queries.containers) {
-						const { container, worldTransform } = entity.components;
-
+						const { container, worldTransform, visible: vis } = entity.components;
 						container.position.set(worldTransform.x, worldTransform.y);
 						container.rotation = worldTransform.rotation;
 						container.scale.set(worldTransform.scaleX, worldTransform.scaleY);
-
-						const visibleComp = ecs.getComponent(entity.id, 'visible');
-						if (visibleComp) {
-							container.visible = visibleComp.visible;
-							if (visibleComp.alpha !== undefined) {
-								container.alpha = visibleComp.alpha;
-							}
-						}
+						container.visible = vis.visible;
+						if (vis.alpha !== undefined) container.alpha = vis.alpha;
 					}
 				});
 

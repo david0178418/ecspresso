@@ -742,6 +742,13 @@ class EntityManager<ComponentTypes> {
 	}
 
 	/**
+	 * Returns true when at least one parent-child relationship exists.
+	 */
+	get hasHierarchy(): boolean {
+		return this.hierarchyManager.hasHierarchy;
+	}
+
+	/**
 	 * Get all root entities (entities that have children but no parent)
 	 * @returns Readonly array of root entity IDs
 	 */

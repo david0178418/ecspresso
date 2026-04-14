@@ -104,15 +104,19 @@ await ecs.initialize();
 const pixiApp = ecs.getResource('pixiApp');
 const viewport: ViewportScale = ecs.getResource('viewportScale');
 
+// Pre-generate one texture per color so PixiJS can batch sprites sharing the same texture
+const ballTextures = COLORS.map(color =>
+	pixiApp.renderer.generateTexture(
+		new Graphics().circle(0, 0, BALL_RADIUS).fill(color),
+	),
+);
+
 // -- Ball spawning --
 
 function spawnBall(x: number, y: number) {
-	const color = COLORS[Math.floor(Math.random() * COLORS.length)]!;
-	const sprite = new Sprite(
-		pixiApp.renderer.generateTexture(
-			new Graphics().circle(0, 0, BALL_RADIUS).fill(color),
-		),
-	);
+	const colorIndex = Math.floor(Math.random() * COLORS.length);
+	const color = COLORS[colorIndex]!;
+	const sprite = new Sprite(ballTextures[colorIndex]);
 
 	ecs.spawn({
 		...createSpriteComponents(sprite, { x, y }, { anchor: { x: 0.5, y: 0.5 } }),

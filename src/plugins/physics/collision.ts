@@ -8,7 +8,8 @@
 
 import { definePlugin, type BasePluginOptions } from 'ecspresso';
 import type { TransformWorldConfig } from '../spatial/transform';
-import { fillBaseColliderInfo, detectCollisions, tryGetSpatialIndex, AABB_SHAPE, type Contact, type BaseColliderInfo } from '../../utils/narrowphase';
+import { fillBaseColliderInfo, detectCollisions, AABB_SHAPE, type Contact, type BaseColliderInfo } from '../../utils/narrowphase';
+import type { SpatialIndex } from '../../utils/spatial-hash';
 
 // ==================== Component Types ====================
 
@@ -381,21 +382,29 @@ interface CollisionEventBus<L extends string> {
 	publish(event: 'collision', data: CollisionEvent<L>): void;
 }
 
+/**
+ * Module-level reusable collision event. Subscribers must consume
+ * synchronously — same contract as the shared narrowphase Contact.
+ */
+const _collisionEvent: CollisionEvent<string> = {
+	entityA: 0, entityB: 0, layerA: '', layerB: '',
+	normalX: 0, normalY: 0, depth: 0,
+};
+
 function onCollisionDetected<L extends string>(
 	a: BaseColliderInfo<L>,
 	b: BaseColliderInfo<L>,
 	contact: Contact,
 	eventBus: CollisionEventBus<L>,
 ): void {
-	eventBus.publish('collision', {
-		entityA: a.entityId,
-		entityB: b.entityId,
-		layerA: a.layer,
-		layerB: b.layer,
-		normalX: contact.normalX,
-		normalY: contact.normalY,
-		depth: contact.depth,
-	});
+	_collisionEvent.entityA = a.entityId;
+	_collisionEvent.entityB = b.entityId;
+	_collisionEvent.layerA = a.layer;
+	_collisionEvent.layerB = b.layer;
+	_collisionEvent.normalX = contact.normalX;
+	_collisionEvent.normalY = contact.normalY;
+	_collisionEvent.depth = contact.depth;
+	eventBus.publish('collision', _collisionEvent as CollisionEvent<L>);
 }
 
 // ==================== Plugin Factory ====================
@@ -452,6 +461,9 @@ export function createCollisionPlugin<L extends string, G extends string = 'phys
 			const colliderPool: BaseColliderInfo<L>[] = [];
 			// Reusable entityId → collider lookup for the broadphase path.
 			const broadphaseMap = new Map<number, BaseColliderInfo<L>>();
+			// Cached spatial index reference (resolved once on first frame).
+			let cachedSI: SpatialIndex | undefined;
+			let siResolved = false;
 
 			world
 				.addSystem('collision-detection')
@@ -467,7 +479,7 @@ export function createCollisionPlugin<L extends string, G extends string = 'phys
 					for (const entity of queries.collidables) {
 						const { worldTransform, collisionLayer } = entity.components;
 						const aabb = ecs.getComponent(entity.id, 'aabbCollider');
-						const circle = ecs.getComponent(entity.id, 'circleCollider');
+						const circle = aabb ? undefined : ecs.getComponent(entity.id, 'circleCollider');
 						if (!aabb && !circle) continue;
 
 						let slot = colliderPool[count];
@@ -496,8 +508,11 @@ export function createCollisionPlugin<L extends string, G extends string = 'phys
 						count++;
 					}
 
-					const si = tryGetSpatialIndex(ecs.tryGetResource.bind(ecs));
-					detectCollisions(colliderPool, count, broadphaseMap, si, onCollisionDetected<L>, ecs.eventBus);
+					if (!siResolved) {
+						cachedSI = ecs.tryGetResource<SpatialIndex>('spatialIndex');
+						siResolved = true;
+					}
+					detectCollisions(colliderPool, count, broadphaseMap, cachedSI, onCollisionDetected<L>, ecs.eventBus);
 				});
 		});
 }

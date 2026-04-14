@@ -9,6 +9,8 @@ export default class HierarchyManager {
 	private parentMap: Map<number, number> = new Map();
 	/** parentId -> ordered childIds */
 	private childrenMap: Map<number, number[]> = new Map();
+	/** Pre-allocated flat BFS queue for forEachInHierarchy [entityId, parentId (-1=null), depth, ...] */
+	private _bfsQueue: number[] = [];
 
 	/**
 	 * Set the parent of an entity.
@@ -254,6 +256,14 @@ export default class HierarchyManager {
 	}
 
 	/**
+	 * Returns true when at least one parent-child relationship exists.
+	 * O(1) — checks Map size, no iteration.
+	 */
+	get hasHierarchy(): boolean {
+		return this.childrenMap.size > 0;
+	}
+
+	/**
 	 * Get all root entities (entities that have children but no parent).
 	 * @returns Readonly array of root entity IDs
 	 */
@@ -293,24 +303,26 @@ export default class HierarchyManager {
 		options?: HierarchyIteratorOptions
 	): void {
 		const roots = options?.roots ?? this.getRootEntities();
-		const queue: Array<{ entityId: number; parentId: number | null; depth: number }> = [];
+		// Flat queue with stride 3: [entityId, parentId (-1 for null), depth, ...]
+		const queue = this._bfsQueue;
+		queue.length = 0;
 
-		// Initialize queue with root entities
 		for (const id of roots) {
-			queue.push({ entityId: id, parentId: null, depth: 0 });
+			queue.push(id, -1, 0);
 		}
 
-		for (const current of queue) {
-			callback(current.entityId, current.parentId, current.depth);
+		for (let i = 0; i < queue.length; i += 3) {
+			const entityId = queue[i]!;
+			const rawParent = queue[i + 1]!;
+			const depth = queue[i + 2]!;
 
-			const children = this.childrenMap.get(current.entityId);
+			callback(entityId, rawParent === -1 ? null : rawParent, depth);
+
+			const children = this.childrenMap.get(entityId);
 			if (children) {
+				const childDepth = depth + 1;
 				for (const childId of children) {
-					queue.push({
-						entityId: childId,
-						parentId: current.entityId,
-						depth: current.depth + 1
-					});
+					queue.push(childId, entityId, childDepth);
 				}
 			}
 		}
