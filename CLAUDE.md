@@ -47,7 +47,8 @@ src/
     │   └── tween.ts         # Declarative property animation with easing, sequences, and loops
     ├── ai/
     │   ├── detection.ts     # Proximity detection with spatial-index, sorted by distance
-    │   └── flocking.ts      # Boid flocking — separation, alignment, cohesion via force-based steering
+    │   ├── flocking.ts      # Boid flocking — separation, alignment, cohesion via force-based steering
+    │   └── behavior-tree.ts # Composable priority-driven AI via behavior trees
     ├── isometric/
     │   ├── projection.ts    # Cartesian→isometric coordinate projection, iso camera sync
     │   └── depth-sort.ts    # Isometric z-ordering by world position

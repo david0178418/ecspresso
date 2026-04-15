@@ -27,6 +27,7 @@ import isometricZoom from './isometric-zoom/isometric-zoom.html';
 import reactUI from './react-ui/react-ui.html';
 import patrolChase from './patrol-chase/patrol-chase.html';
 import flocking from './flocking/flocking.html';
+import behaviorTree from './behavior-tree/behavior-tree.html';
 
 const examplesDir = import.meta.dir;
 
@@ -63,6 +64,7 @@ const server = serve({
 		'/react-ui/': reactUI,
 		'/patrol-chase/': patrolChase,
 		'/flocking/': flocking,
+		'/behavior-tree/': behaviorTree,
 	},
 	async fetch(request) {
 		// Serve static assets (e.g. .wav, .mp3) from example directories
