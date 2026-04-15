@@ -119,6 +119,28 @@ export function createDetector(
 	return { detector: { range, layerFilter, maxResults } };
 }
 
+/**
+ * Check whether an entity has any detected targets.
+ *
+ * @param ecs  ECS world instance
+ * @param entityId Entity with a detector component
+ * @returns true if detectedEntities contains at least one entry
+ *
+ * @example
+ * ```typescript
+ * if (hasDetectedTargets(ecs, guardId)) {
+ *   // transition to chase
+ * }
+ * ```
+ */
+export function hasDetectedTargets(
+	ecs: { getComponent(entityId: number, name: 'detectedEntities'): DetectedEntities | undefined },
+	entityId: number,
+): boolean {
+	const detected = ecs.getComponent(entityId, 'detectedEntities');
+	return (detected?.entities.length ?? 0) > 0;
+}
+
 // ==================== Plugin Factory ====================
 
 function compareByDistance(a: DetectedEntry, b: DetectedEntry): number {
