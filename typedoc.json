@@ -19,6 +19,7 @@
 		"src/plugins/scripting/state-machine.ts",
 		"src/plugins/scripting/tween.ts",
 		"src/plugins/ai/detection.ts",
+		"src/plugins/ai/flocking.ts",
 		"src/plugins/combat/health.ts",
 		"src/plugins/combat/projectile.ts",
 		"src/plugins/audio/audio.ts",

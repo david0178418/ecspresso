@@ -33,6 +33,7 @@ const examples = [
 	{ route: 'isometric-zoom', dir: 'isometric-zoom', html: 'isometric-zoom.html', entry: 'isometric-zoom.ts' },
 	{ route: 'react-ui', dir: 'react-ui', html: 'react-ui.html', entry: 'index.tsx' },
 	{ route: 'patrol-chase', dir: 'patrol-chase', html: 'patrol-chase.html', entry: 'patrol-chase.ts' },
+	{ route: 'flocking', dir: 'flocking', html: 'flocking.html', entry: 'flocking.ts' },
 ] as const;
 
 // Clean output

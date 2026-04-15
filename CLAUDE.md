@@ -46,7 +46,8 @@ src/
     │   ├── state-machine.ts # Per-entity finite state machines
     │   └── tween.ts         # Declarative property animation with easing, sequences, and loops
     ├── ai/
-    │   └── detection.ts     # Proximity detection with spatial-index, sorted by distance
+    │   ├── detection.ts     # Proximity detection with spatial-index, sorted by distance
+    │   └── flocking.ts      # Boid flocking — separation, alignment, cohesion via force-based steering
     ├── isometric/
     │   ├── projection.ts    # Cartesian→isometric coordinate projection, iso camera sync
     │   └── depth-sort.ts    # Isometric z-ordering by world position

@@ -96,6 +96,10 @@
 			"import": "./dist/plugins/ai/detection.js",
 			"types": "./dist/plugins/ai/detection.d.ts"
 		},
+		"./plugins/ai/flocking": {
+			"import": "./dist/plugins/ai/flocking.js",
+			"types": "./dist/plugins/ai/flocking.d.ts"
+		},
 		"./plugins/combat/health": {
 			"import": "./dist/plugins/combat/health.js",
 			"types": "./dist/plugins/combat/health.d.ts"
