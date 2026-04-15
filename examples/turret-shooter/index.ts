@@ -1,4 +1,5 @@
 import { createTimerPlugin } from '../../src/plugins/scripting/timers';
+import { createRenderer3DPlugin } from '../../src/plugins/rendering/renderer3D';
 import createInitPlugin from './plugins/init-plugin';
 import createInputPlugin from './plugins/input-plugin';
 import createRenderPlugin from './plugins/render-plugin';
@@ -13,8 +14,23 @@ import { builder } from './types';
 async function initGame() {
 	// Create ECS instance with our types
 	const game = builder
+		.withPlugin(createRenderer3DPlugin({
+			container: '#game-container',
+			width: window.innerWidth,
+			height: window.innerHeight,
+			antialias: true,
+			shadows: true,
+			startLoop: false, // We manage the loop via gameInit event
+			cameraOptions: {
+				fov: 75,
+				near: 0.1,
+				far: 1000,
+				position: { x: 0, y: 5, z: 0 },
+				lookAt: { x: 0, y: 5, z: -10 },
+			},
+		}))
 		.withPlugin(createTimerPlugin())
-		.withPlugin(await createInitPlugin())
+		.withPlugin(createInitPlugin())
 		.withPlugin(createInputPlugin())
 		.withPlugin(createRenderPlugin())
 		.withPlugin(createPhysicsPlugin())

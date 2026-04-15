@@ -3,6 +3,7 @@
 	"entryPoints": [
 		"src/index.ts",
 		"src/plugins/spatial/transform.ts",
+		"src/plugins/spatial/transform3D.ts",
 		"src/plugins/spatial/bounds.ts",
 		"src/plugins/spatial/camera.ts",
 		"src/plugins/spatial/spatial-index.ts",
@@ -10,6 +11,7 @@
 		"src/plugins/physics/collision.ts",
 		"src/plugins/physics/steering.ts",
 		"src/plugins/rendering/renderer2D.ts",
+		"src/plugins/rendering/renderer3D.ts",
 		"src/plugins/rendering/particles.ts",
 		"src/plugins/rendering/sprite-animation.ts",
 		"src/plugins/input/input.ts",

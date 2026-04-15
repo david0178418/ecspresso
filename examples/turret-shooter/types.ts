@@ -1,37 +1,19 @@
 import {
-	Object3D,
-	Scene,
-	PerspectiveCamera,
-	WebGLRenderer,
 	Vector3
 } from 'three';
 import ECSpresso from '../../src';
 import type { TimerComponentTypes } from '../../src/plugins/scripting/timers';
+import type { Renderer3DComponentTypes, Renderer3DResourceTypes, Renderer3DEventTypes } from '../../src/plugins/rendering/renderer3D';
 
 export const builder = ECSpresso.create()
 	.withComponentTypes<
 		TimerComponentTypes &
+		Renderer3DComponentTypes &
 		{
 			// Timer tags
 			enemySpawner: true;
 			pendingDestroy: true;
 			messageTimer: true;
-			// 3D position, rotation and scale
-			position: {
-				x: number;
-				y: number;
-				z: number;
-			};
-			rotation: {
-				x: number;
-				y: number;
-				z: number;
-			};
-			scale: {
-				x: number;
-				y: number;
-				z: number;
-			};
 
 			// 3D velocity and movement
 			velocity: {
@@ -39,9 +21,6 @@ export const builder = ECSpresso.create()
 				y: number;
 				z: number;
 			};
-
-			// 3D model/mesh
-			model: Object3D;
 
 			// Game object types
 			player: {
@@ -56,7 +35,7 @@ export const builder = ECSpresso.create()
 				speed: number;
 				attackDamage: number;
 				scoreValue: number;
-				isDestroying?: boolean; // Flag to track if enemy is already being destroyed
+				isDestroying?: boolean;
 			};
 			projectile: {
 				owner: 'player';
@@ -80,150 +59,151 @@ export const builder = ECSpresso.create()
 			};
 		}
 	>()
-	.withEventTypes<{
-		// Game state events
-		gameInit: true;
-		gameStart: true;
-		gamePause: true;
-		gameResume: true;
-		gameOver: {
-			win: boolean;
-			score: number;
-		};
-		waveComplete: {
-			wave: number;
-		};
+	.withEventTypes<
+		Renderer3DEventTypes &
+		{
+			// Game state events
+			gameInit: true;
+			gameStart: true;
+			gamePause: true;
+			gameResume: true;
+			gameOver: {
+				win: boolean;
+				score: number;
+			};
+			waveComplete: {
+				wave: number;
+			};
 
-		// Input events
-		inputMouseMove: {
-			x: number;
-			y: number;
-		};
-		inputMouseDown: {
-			button: number;
-		};
-		inputMouseUp: {
-			button: number;
-		};
-		inputKeyDown: {
-			key: string;
-		};
-		inputKeyUp: {
-			key: string;
-		};
-
-		// Gameplay events
-		playerShoot: {
-			direction: Vector3;
-		};
-		playerHit: {
-			damage: number;
-		};
-		enemySpawn: {
-			type: 'ground' | 'air';
-			position: Vector3;
-		};
-		enemyDestroyed: {
-			entityId: number;
-			points: number;
-		};
-		entityDestroyed: {
-			entityId: number;
-		};
-
-		// UI events
-		updateScore: {
-			points: number;
-		};
-		updateHealth: {
-			health: number;
-		};
-		updateWave: {
-			wave: number;
-		};
-	}>()
-	.withResourceTypes<{
-		// Three.js resources
-		renderer: WebGLRenderer;
-		scene: Scene;
-		camera: PerspectiveCamera;
-
-		// Game state
-		gameState: {
-			status: 'ready' | 'playing' | 'paused' | 'gameOver';
-			wave: number;
-			score: number;
-		};
-
-		// Player input
-		input: {
-			mousePosition: {
+			// Input events
+			inputMouseMove: {
 				x: number;
 				y: number;
 			};
-			mouseButtons: {
-				left: boolean;
-				right: boolean;
-				middle: boolean;
+			inputMouseDown: {
+				button: number;
 			};
-			keys: Record<string, boolean>;
-		};
+			inputMouseUp: {
+				button: number;
+			};
+			inputKeyDown: {
+				key: string;
+			};
+			inputKeyUp: {
+				key: string;
+			};
 
-		// Game configuration
-		config: {
-			playerFireRate: number;
-			playerProjectileSpeed: number;
-			playerProjectileDamage: number;
-			maxEnemies: number;
-			enemySpawnRate: number; // enemies per second
-			waveCount: number;
-			enemiesPerWave: number;
-		};
+			// Gameplay events
+			playerShoot: {
+				direction: Vector3;
+			};
+			playerHit: {
+				damage: number;
+			};
+			enemySpawn: {
+				type: 'ground' | 'air';
+				position: Vector3;
+			};
+			enemyDestroyed: {
+				entityId: number;
+				points: number;
+			};
+			entityDestroyed: {
+				entityId: number;
+			};
 
-		// Game assets
-		assets: {
-			models: Record<string, Object3D>;
-			textures: Record<string, any>;
-		};
+			// UI events
+			updateScore: {
+				points: number;
+			};
+			updateHealth: {
+				health: number;
+			};
+			updateWave: {
+				wave: number;
+			};
+		}
+	>()
+	.withResourceTypes<
+		Renderer3DResourceTypes &
+		{
+			// Game state
+			gameState: {
+				status: 'ready' | 'playing' | 'paused' | 'gameOver';
+				wave: number;
+				score: number;
+			};
 
-		// Wave management
-		waveManager: {
-			currentWave: number;
-			enemiesRemaining: number;
-			waveStartTime: number;
-		};
+			// Player input
+			input: {
+				mousePosition: {
+					x: number;
+					y: number;
+				};
+				mouseButtons: {
+					left: boolean;
+					right: boolean;
+					middle: boolean;
+				};
+				keys: Record<string, boolean>;
+			};
 
-		// UI elements
-		uiElements: {
-			scoreElement: HTMLElement | null;
-			healthElement: HTMLElement | null;
-			waveElement: HTMLElement | null;
-			messageElement: HTMLElement | null;
-			radarElement: HTMLElement | null;
-		};
+			// Game configuration
+			config: {
+				playerFireRate: number;
+				playerProjectileSpeed: number;
+				playerProjectileDamage: number;
+				maxEnemies: number;
+				enemySpawnRate: number; // enemies per second
+				waveCount: number;
+				enemiesPerWave: number;
+			};
 
-		// Radar system
-		radar: {
-			range: number; // Maximum radar detection range
-			updateFrequency: number; // How often (in seconds) the radar updates
-			lastUpdateTime: number;
-		};
+			// Game assets
+			assets: {
+				models: Record<string, import('three').Object3D>;
+				textures: Record<string, unknown>;
+			};
 
-		// Player initial rotation (for enemy spawn direction)
-		playerInitialRotation: {
-			y: number; // Initial horizontal rotation angle
-		};
+			// Wave management
+			waveManager: {
+				currentWave: number;
+				enemiesRemaining: number;
+				waveStartTime: number;
+			};
 
-		// Event listeners (for cleanup)
-		eventListeners: {
-			mousemove: (event: MouseEvent) => void;
-			mousedown: (event: MouseEvent) => void;
-			mouseup: (event: MouseEvent) => void;
-			keydown: (event: KeyboardEvent) => void;
-			keyup: (event: KeyboardEvent) => void;
-			contextmenu: (event: MouseEvent) => void;
-		};
-	}>();
+			// UI elements
+			uiElements: {
+				scoreElement: HTMLElement | null;
+				healthElement: HTMLElement | null;
+				waveElement: HTMLElement | null;
+				messageElement: HTMLElement | null;
+				radarElement: HTMLElement | null;
+			};
+
+			// Radar system
+			radar: {
+				range: number;
+				updateFrequency: number;
+				lastUpdateTime: number;
+			};
+
+			// Player initial rotation (for enemy spawn direction)
+			playerInitialRotation: {
+				y: number;
+			};
+
+			// Event listeners (for cleanup)
+			eventListeners: {
+				mousemove: (event: MouseEvent) => void;
+				mousedown: (event: MouseEvent) => void;
+				mouseup: (event: MouseEvent) => void;
+				keydown: (event: KeyboardEvent) => void;
+				keyup: (event: KeyboardEvent) => void;
+				contextmenu: (event: MouseEvent) => void;
+			};
+		}
+	>();
 
 export const definePlugin = builder.pluginFactory();
 

@@ -31,7 +31,10 @@ export { createTransform, createLocalTransform, createWorldTransform, DEFAULT_LO
 async function createPixiApplication(options: Partial<ApplicationOptions>): Promise<Application> {
 	const { Application } = await import('pixi.js');
 	const app = new Application();
-	await app.init(options);
+	await app.init({
+		preference: 'webgpu',
+		...options,
+	});
 	return app;
 }
 

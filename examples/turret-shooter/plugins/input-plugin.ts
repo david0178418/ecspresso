@@ -1,5 +1,5 @@
 import { Vector3, Euler, Quaternion } from 'three';
-import { definePlugin } from '../types';
+import { definePlugin, type World } from '../types';
 
 export default function createInputPlugin() {
 	return definePlugin({
@@ -74,16 +74,16 @@ export default function createInputPlugin() {
 							targetRotationX = mouseY; // Vertical rotation
 
 							// Get player and camera
-							const playerEntities = ecs.entityManager.getEntitiesWithQuery(['player', 'rotation']);
+							const playerEntities = ecs.entityManager.getEntitiesWithQuery(['player', 'localTransform3D']);
 							const camera = ecs.getResource('camera');
 
 							if (playerEntities.length > 0) {
 								const player = playerEntities[0];
 								if (!player) return;
 
-								// Update player rotation
-								player.components.rotation.y = targetRotationY;
-								player.components.rotation.x = targetRotationX;
+								// Update player rotation via localTransform3D
+								player.components.localTransform3D.ry = targetRotationY;
+								player.components.localTransform3D.rx = targetRotationX;
 
 								// Update camera rotation to match player
 								const euler = new Euler(targetRotationX, targetRotationY, 0, 'YXZ');
@@ -240,7 +240,7 @@ export default function createInputPlugin() {
 }
 
 // Helper function to handle shooting
-function handleShoot(ecs: any) {
+function handleShoot(ecs: World) {
 	const playerEntities = ecs.entityManager.getEntitiesWithQuery(['player']);
 	if (playerEntities.length === 0) return;
 
@@ -255,15 +255,13 @@ function handleShoot(ecs: any) {
 		// Update last shot time
 		player.lastShotTime = currentTime;
 
-		// Get player rotation
-		const rotation = playerEntity.components.rotation;
+		const transform = playerEntity.components.localTransform3D;
+		if (!transform) return;
 
-		// Calculate forward direction based on camera rotation (both horizontal and vertical)
+		// Calculate forward direction based on camera rotation
 		const direction = new Vector3(0, 0, -1);
-
-		// Apply rotations in the correct order - first Y (horizontal), then X (vertical)
 		const rotationQuaternion = new Quaternion()
-			.setFromEuler(new Euler(rotation.x, rotation.y, 0, 'YXZ'));
+			.setFromEuler(new Euler(transform.rx, transform.ry, 0, 'YXZ'));
 
 		direction.applyQuaternion(rotationQuaternion);
 

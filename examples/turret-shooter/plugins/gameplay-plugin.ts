@@ -4,7 +4,7 @@ export default function createGameplayPlugin() {
 	return definePlugin({
 		id: 'gameplay-plugin',
 		install(world) {
-			// Lifetime system - in gameplay group
+			// Lifetime system
 			world.addSystem('lifetime')
 				.inGroup('gameplay')
 				.addQuery('expirables', {
@@ -14,7 +14,6 @@ export default function createGameplayPlugin() {
 					for (const entity of expirables) {
 						entity.components.lifetime.remaining -= dt;
 
-						// Destroy entity when lifetime expires
 						if (entity.components.lifetime.remaining <= 0) {
 							ecs.eventBus.publish('entityDestroyed', {
 								entityId: entity.id
@@ -22,70 +21,60 @@ export default function createGameplayPlugin() {
 						}
 					}
 				});
-				// Collision system - in gameplay group with separate queries for type safety
-				world.addSystem('collision')
+
+			// Collision system
+			world.addSystem('collision')
 				.inGroup('gameplay')
 				.inPhase('postUpdate')
 				.addQuery('players', {
-					with: ['player', 'position', 'collider']
+					with: ['player', 'localTransform3D', 'collider']
 				})
 				.addQuery('enemies', {
-					with: ['enemy', 'position', 'collider']
+					with: ['enemy', 'localTransform3D', 'collider']
 				})
 				.addQuery('projectiles', {
-					with: ['projectile', 'position', 'collider']
+					with: ['projectile', 'localTransform3D', 'collider']
 				})
 				.withResources(['waveManager'])
 				.setProcess(({ queries: { enemies, projectiles }, ecs, resources: { waveManager } }) => {
-					// Check projectile collisions with enemies
 					for (const projectile of projectiles) {
-						const projectilePosition = projectile.components.position;
+						const projTransform = projectile.components.localTransform3D;
 						const projectileRadius = projectile.components.collider.radius;
 						const projectileComponent = projectile.components.projectile;
 
-						// Only player projectiles can hit enemies
 						if (projectileComponent.owner !== 'player') continue;
 
 						for (const enemy of enemies) {
-							const enemyPosition = enemy.components.position;
+							const enemyTransform = enemy.components.localTransform3D;
 							const enemyRadius = enemy.components.collider.radius;
 							const enemyComponent = enemy.components.enemy;
 
-							// Skip enemies already marked for destruction
 							if (enemyComponent.isDestroying) continue;
 
-							// Simple sphere collision detection
-							const dx = projectilePosition.x - enemyPosition.x;
-							const dy = projectilePosition.y - enemyPosition.y;
-							const dz = projectilePosition.z - enemyPosition.z;
+							const dx = projTransform.x - enemyTransform.x;
+							const dy = projTransform.y - enemyTransform.y;
+							const dz = projTransform.z - enemyTransform.z;
 							const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
 
-							// Check collision
 							if (distance < (projectileRadius + enemyRadius)) {
-								// Damage enemy
 								enemyComponent.health -= projectileComponent.damage;
 
-								// Destroy projectile
 								ecs.eventBus.publish('entityDestroyed', {
 									entityId: projectile.id
 								});
 
-								// Check if enemy is destroyed
 								if (enemyComponent.health <= 0) {
 									ecs.eventBus.publish('enemyDestroyed', {
 										entityId: enemy.id,
 										points: enemyComponent.scoreValue
 									});
 
-									// Update score
 									ecs.eventBus.publish('updateScore', {
 										points: enemyComponent.scoreValue
 									});
 
-									// Reduce enemies remaining in wave
 									waveManager.enemiesRemaining--;
 
-									// Check if wave is complete
 									if (waveManager.enemiesRemaining <= 0) {
 										ecs.eventBus.publish('waveComplete', {
 											wave: waveManager.currentWave
@@ -93,7 +82,7 @@ export default function createGameplayPlugin() {
 									}
 								}
 
-								break; // Projectile can only hit one enemy
+								break;
 							}
 						}
 					}

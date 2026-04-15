@@ -18,12 +18,12 @@ export default function createGameStatePlugin() {
 						ecs.enableSystemGroup('gameplay');
 
 						// Get player's initial rotation
-						const playerEntities = ecs.entityManager.getEntitiesWithQuery(['player', 'rotation']);
+						const playerEntities = ecs.entityManager.getEntitiesWithQuery(['player', 'localTransform3D']);
 						if (playerEntities.length > 0) {
 							const playerEntity = playerEntities[0];
 							if (playerEntity) {
 								ecs.addResource('playerInitialRotation', {
-									y: playerEntity.components.rotation.y
+									y: playerEntity.components.localTransform3D.ry
 								});
 							}
 						}
@@ -205,46 +205,24 @@ export default function createGameStatePlugin() {
 						}
 					},
 					enemyDestroyed({ data, ecs }) {
-						console.log('enemyDestroyed event received:', data);
-
-						// Make sure the entity exists
 						const entity = ecs.entityManager.getEntity(data.entityId);
-						if (!entity) {
-							console.log('Entity not found:', data.entityId);
-							return;
-						}
+						if (!entity) return;
 
-						// Mark as destroying to prevent multiple destructions
+						// Visual effects and destruction timing only —
+						// score/wave tracking is handled by gameplay-plugin's collision system
 						if (entity.components.enemy) {
 							entity.components.enemy.isDestroying = true;
 
-							// Add destruction visual effects for enemies
-							if (entity.components.model) {
-								// Scale up the enemy model briefly before destruction
-								entity.components.model.scale.set(1.5, 1.5, 1.5);
+							if (entity.components.localTransform3D) {
+								entity.components.localTransform3D.sx = 1.5;
+								entity.components.localTransform3D.sy = 1.5;
+								entity.components.localTransform3D.sz = 1.5;
 							}
 
-							// Add timer for pending destruction if not already pending
-							// (enemies reaching player already have pendingDestroy from ai-plugin)
+							// Enemies reaching the player already have pendingDestroy from ai-plugin
 							if (!entity.components.pendingDestroy) {
 								ecs.addComponent(data.entityId, 'timer', createTimer(0.2).timer);
 								ecs.addComponent(data.entityId, 'pendingDestroy', true);
-							}
-
-							// Update score
-							ecs.eventBus.publish('updateScore', {
-								points: data.points
-							});
-
-							// Reduce enemies remaining in wave
-							const waveManager = ecs.getResource('waveManager');
-							waveManager.enemiesRemaining--;
-
-							// Check if wave is complete
-							if (waveManager.enemiesRemaining <= 0) {
-								ecs.eventBus.publish('waveComplete', {
-									wave: waveManager.currentWave
-								});
 							}
 						}
 					}

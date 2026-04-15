@@ -1,39 +1,13 @@
-import {
-	type Object3D,
-	Scene,
-	WebGLRenderer,
-	PerspectiveCamera,
-} from 'three';
+import type { Object3D } from 'three';
 import { definePlugin } from '../types';
 import { createGround, createSkybox, createUIElement, setupLighting } from '../utils';
 
-export default async function createInitPlugin() {
-	// Create Three.js renderer
-	const renderer = new WebGLRenderer({ antialias: true });
-	renderer.setSize(window.innerWidth, window.innerHeight);
-	renderer.shadowMap.enabled = true;
-
-	// Create scene
-	const scene = new Scene();
-
-	// Create first-person camera (positioned at the turret's viewpoint)
-	const camera = new PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-	camera.position.set(0, 5, 0); // Position at turret height
-	camera.lookAt(0, 5, -10); // Look forward
-
+export default function createInitPlugin() {
 	return definePlugin({
 		id: 'init-plugin',
 		install(world) {
-			world
-				.addResource('renderer', renderer)
-				.addResource('scene', scene)
-				.addResource('camera', camera);
-
 			world.addSystem('init')
 				.setOnInitialize((ecs) => {
-					// Append renderer to DOM
-					document.getElementById('game-container')?.appendChild(renderer.domElement);
-
 					// Add a reticle/crosshair for aiming
 					const reticle = document.createElement('div');
 					reticle.id = 'reticle';
@@ -46,10 +20,9 @@ export default async function createInitPlugin() {
 					reticle.style.borderRadius = '50%';
 					reticle.style.border = '2px solid white';
 					reticle.style.boxShadow = '0 0 5px rgba(0,0,0,0.5)';
-					reticle.style.pointerEvents = 'none'; // Don't block clicks
+					reticle.style.pointerEvents = 'none';
 					reticle.style.zIndex = '1000';
 
-					// Add a dot in the middle
 					const centerDot = document.createElement('div');
 					centerDot.style.position = 'absolute';
 					centerDot.style.top = '50%';
@@ -63,28 +36,21 @@ export default async function createInitPlugin() {
 
 					document.getElementById('game-container')?.appendChild(reticle);
 
-					// Handle window resize
-					window.addEventListener('resize', () => {
-						camera.aspect = window.innerWidth / window.innerHeight;
-						camera.updateProjectionMatrix();
-						renderer.setSize(window.innerWidth, window.innerHeight);
-					});
-
 					// Initialize assets object
-					const assets: { models: Record<string, Object3D>; textures: Record<string, any> } = {
+					const assets: { models: Record<string, Object3D>; textures: Record<string, unknown> } = {
 						models: {},
 						textures: {}
 					};
 
-					// Add ground to scene
+					// Add static scene objects as entities — auto-added to scene by renderer3D plugin
 					const ground = createGround();
-					scene.add(ground);
+					ecs.spawn({ group: ground, localTransform3D: { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0, sx: 1, sy: 1, sz: 1 } });
 
-					// Add skybox to scene
 					const skybox = createSkybox();
-					scene.add(skybox);
+					ecs.spawn({ mesh: skybox, localTransform3D: { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0, sx: 1, sy: 1, sz: 1 } });
 
-					// Setup lighting
+					// Setup lighting directly on the scene (lights aren't typically ECS entities)
+					const scene = ecs.getResource('scene');
 					setupLighting(scene);
 
 					// Create UI elements
@@ -137,24 +103,18 @@ export default async function createInitPlugin() {
 						});
 				})
 				.setEventHandlers({
-					// Initialize the game when gameInit event is fired
 					gameInit({ ecs }) {
-						// Start animation loop
-						const renderer = ecs.getResource('renderer');
-						const scene = ecs.getResource('scene');
-						const camera = ecs.getResource('camera');
-
-						// Animation loop
+						// Start animation loop manually (startLoop: false in renderer3D config)
+						// renderer3d-render system handles the actual Three.js render call
+						let lastTime = 0;
 						function animate(time: number) {
 							requestAnimationFrame(animate);
-							// Convert time to seconds for the ECS update
-							ecs.update(time / 1000);
-							// Render the scene
-							renderer.render(scene, camera);
+							const dt = lastTime === 0 ? 0 : (time - lastTime) / 1000;
+							lastTime = time;
+							ecs.update(dt);
 						}
 
-						// Start animation loop
-						animate(0);
+						requestAnimationFrame(animate);
 
 						// Show ready message
 						const uiElements = ecs.getResource('uiElements');
@@ -164,7 +124,6 @@ export default async function createInitPlugin() {
 							setTimeout(() => {
 								if (uiElements.messageElement) {
 									uiElements.messageElement.style.opacity = '0';
-									// Start the game after message disappears
 									setTimeout(() => {
 										ecs.eventBus.publish('gameStart', true);
 									}, 500);

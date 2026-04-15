@@ -11,7 +11,7 @@
         "@types/react-dom": "^19.2.3",
         "@types/three": "^0.183.1",
         "howler": "^2.2.4",
-        "pixi.js": "^8.17.1",
+        "pixi.js": "^8.18.1",
         "react": "^19.2.5",
         "react-dom": "^19.2.5",
         "three": "^0.183.2",

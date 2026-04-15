@@ -108,7 +108,8 @@ All are created via factory functions (e.g., `createInputPlugin(options)`). Each
 | State Machine | `ecspresso/plugins/state-machine` | `update` | Per-entity finite state machines |
 | Tween | `ecspresso/plugins/tween` | `update` | Declarative property animation with easing, sequences, loops |
 | Physics2D | `ecspresso/plugins/physics2D` | `fixedUpdate` | ECS-native 2D arcade physics |
-| Transform | `ecspresso/plugins/transform` | `postUpdate` | Hierarchical transform propagation (local/world) |
+| Transform | `ecspresso/plugins/transform` | `postUpdate` | Hierarchical 2D transform propagation (local/world) |
+| Transform 3D | `ecspresso/plugins/spatial/transform3D` | `postUpdate` | Hierarchical 3D transform propagation with quaternion composition |
 | Bounds | `ecspresso/plugins/bounds` | `postUpdate` | Screen bounds enforcement (destroy, clamp, wrap) |
 | Collision | `ecspresso/plugins/collision` | `postUpdate` | Layer-based AABB/circle collision detection with events |
 | Spatial Index | `ecspresso/plugins/spatial-index` | `fixedUpdate + postUpdate` | Spatial hashing for efficient proximity queries |
@@ -124,5 +125,6 @@ All are created via factory functions (e.g., `createInputPlugin(options)`). Each
 | Iso Depth Sort | `ecspresso/plugins/isometric/depth-sort` | `render` | Isometric z-ordering by world position |
 | Diagnostics | `ecspresso/plugins/diagnostics` | `render` | Performance monitoring and debug overlay |
 | 2D Renderer | `ecspresso/plugins/renderers/renderer2D` | `render` | Automated PixiJS scene graph wiring |
+| 3D Renderer | `ecspresso/plugins/rendering/renderer3D` | `render` | Automated Three.js scene graph wiring |
 
 For plugin-specific options and API details, see `docs/built-in-plugins.md`.

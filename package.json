@@ -24,6 +24,10 @@
 			"import": "./dist/plugins/spatial/camera.js",
 			"types": "./dist/plugins/spatial/camera.d.ts"
 		},
+		"./plugins/spatial/transform3D": {
+			"import": "./dist/plugins/spatial/transform3D.js",
+			"types": "./dist/plugins/spatial/transform3D.d.ts"
+		},
 		"./plugins/isometric/projection": {
 			"import": "./dist/plugins/isometric/projection.js",
 			"types": "./dist/plugins/isometric/projection.d.ts"
@@ -51,6 +55,10 @@
 		"./plugins/rendering/renderer2D": {
 			"import": "./dist/plugins/rendering/renderer2D.js",
 			"types": "./dist/plugins/rendering/renderer2D.d.ts"
+		},
+		"./plugins/rendering/renderer3D": {
+			"import": "./dist/plugins/rendering/renderer3D.js",
+			"types": "./dist/plugins/rendering/renderer3D.d.ts"
 		},
 		"./plugins/rendering/particles": {
 			"import": "./dist/plugins/rendering/particles.js",

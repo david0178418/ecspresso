@@ -6,59 +6,57 @@ export default function createAIPlugin() {
 	return definePlugin({
 		id: 'ai-plugin',
 		install(world) {
-			// Enemy AI system - in gameplay group so it pauses automatically
+			// Enemy AI system
 			world.addSystem('enemy-ai')
 				.inGroup('gameplay')
 				.addQuery('enemies', {
-					with: ['enemy', 'position', 'velocity', 'rotation']
+					with: ['enemy', 'localTransform3D', 'velocity']
 				})
 				.setProcess(({ queries: { enemies }, ecs }) => {
-					const playerEntities = ecs.entityManager.getEntitiesWithQuery(['player', 'position']);
+					const playerEntities = ecs.entityManager.getEntitiesWithQuery(['player', 'localTransform3D']);
 
-					// Skip if no player exists
 					if (playerEntities.length === 0) return;
 
 					const playerEntity = playerEntities[0];
 					if (!playerEntity) return;
 
-					const playerPosition = playerEntity.components.position;
+					const playerTransform = playerEntity.components.localTransform3D;
 
 					for (const enemy of enemies) {
-						const { position, velocity, rotation, enemy: enemyComponent } = enemy.components;
+						const { localTransform3D, velocity, enemy: enemyComponent } = enemy.components;
 
 						// Skip enemies already marked for destruction
 						if (enemyComponent.isDestroying) continue;
 
 						// Calculate direction to player
-						const directionX = playerPosition.x - position.x;
-						const directionZ = playerPosition.z - position.z;
+						const directionX = playerTransform.x - localTransform3D.x;
+						const directionZ = playerTransform.z - localTransform3D.z;
 						const distance = Math.sqrt(directionX * directionX + directionZ * directionZ);
 
 						// Skip if enemy is too close to player
-						const minDistance = 10; // Minimum distance to player
+						const minDistance = 10;
 						if (distance < minDistance) {
 							// Damage player and mark for destruction
 							if (!enemyComponent.isDestroying) {
-								// Mark as destroying to avoid multiple hits
 								enemyComponent.isDestroying = true;
 
-								// Immediately stop movement
+								// Stop movement
 								velocity.x = 0;
 								velocity.y = 0;
 								velocity.z = 0;
 
 								// Deal damage to player
 								ecs.eventBus.publish('playerHit', {
-									damage: enemyComponent.attackDamage * 0.1 // Reduced damage (10% of base)
+									damage: enemyComponent.attackDamage * 0.1
 								});
 
 								// Create destruction effect and award score
 								ecs.eventBus.publish('enemyDestroyed', {
 									entityId: enemy.id,
-									points: Math.floor(enemyComponent.scoreValue / 2) // Half points for enemies that reach the player
+									points: Math.floor(enemyComponent.scoreValue / 2)
 								});
 
-								// Add timer for pending destruction (visual effect delay)
+								// Add timer for pending destruction
 								ecs.addComponent(enemy.id, 'timer', createTimer(0.5).timer);
 								ecs.addComponent(enemy.id, 'pendingDestroy', true);
 							}
@@ -67,28 +65,26 @@ export default function createAIPlugin() {
 							const normalizedDirX = directionX / distance;
 							const normalizedDirZ = directionZ / distance;
 
-							// Calculate rotation to face player (fixing direction)
-							rotation.y = Math.atan2(normalizedDirX, normalizedDirZ);
+							// Calculate rotation to face player
+							localTransform3D.ry = Math.atan2(normalizedDirX, normalizedDirZ);
 
 							// Update velocity to move towards player
-							// (matches rotation calculation direction)
 							velocity.x = normalizedDirX * enemyComponent.speed;
 							velocity.z = normalizedDirZ * enemyComponent.speed;
 						}
 
-						// Apply different behavior for air enemies
+						// Air enemies bob up/down
 						if (enemyComponent.type === 'air') {
-							// Add some vertical movement for air enemies
-							position.y = 15 + Math.sin(performance.now() / 1000) * 3;
+							localTransform3D.y = 15 + Math.sin(performance.now() / 1000) * 3;
 						}
 					}
 				})
 				.setOnInitialize((ecs) => {
-					// Add playerInitialRotation resource to track initial player facing direction
 					ecs.addResource('playerInitialRotation', { y: 0 });
 				});
-				// Pending destroy system - destroys entities after their timer finishes
-				world.addSystem('pending-destroy')
+
+			// Pending destroy system
+			world.addSystem('pending-destroy')
 				.inGroup('gameplay')
 				.addQuery('pendingDestroys', {
 					with: ['timer', 'pendingDestroy'],
@@ -102,8 +98,9 @@ export default function createAIPlugin() {
 						}
 					}
 				});
-				// Spawn timer system - handles enemy spawning via spawner entity
-				world.addSystem('spawn-timer')
+
+			// Spawn timer system
+			world.addSystem('spawn-timer')
 				.inGroup('gameplay')
 				.inPhase('preUpdate')
 				.addQuery('spawners', {
@@ -111,33 +108,24 @@ export default function createAIPlugin() {
 				})
 				.withResources(['waveManager', 'config', 'playerInitialRotation'])
 				.setProcess(({ queries: { spawners }, ecs, resources: { waveManager, config, playerInitialRotation } }) => {
-
 					for (const spawner of spawners) {
 						if (!spawner.components.timer.justFinished) continue;
 
-						// Check if we still need to spawn enemies for this wave
 						if (waveManager.enemiesRemaining > 0) {
-							// Count current enemies
 							const enemies = ecs.entityManager.getEntitiesWithQuery(['enemy']);
 
-							// Don't spawn more than max enemies at once
 							if (enemies.length < config.maxEnemies) {
-								// Randomly decide if ground or air enemy (70% ground, 30% air)
 								const isGroundEnemy = Math.random() < 0.7;
 								const enemyType = isGroundEnemy ? 'ground' : 'air';
 
-								// Calculate spawn angle within +/-60 degrees of player's initial facing direction
 								const baseAngle = playerInitialRotation.y;
-								const randomOffset = (Math.random() - 0.5) * (Math.PI / 3); // Random angle between -60 and +60 degrees
-								// Add Math.PI to place enemies in front instead of behind
+								const randomOffset = (Math.random() - 0.5) * (Math.PI / 3);
 								const angle = baseAngle + Math.PI + randomOffset;
-								const spawnDistance = 180 + Math.random() * 40; // 180-220 units from center
+								const spawnDistance = 180 + Math.random() * 40;
 
-								// Calculate spawn position
 								const spawnX = Math.sin(angle) * spawnDistance;
 								const spawnZ = Math.cos(angle) * spawnDistance;
 
-								// Spawn enemy
 								ecs.eventBus.publish('enemySpawn', {
 									type: enemyType,
 									position: new Vector3(spawnX, 0, spawnZ)

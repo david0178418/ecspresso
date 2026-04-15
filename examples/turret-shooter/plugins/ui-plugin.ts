@@ -30,32 +30,31 @@ export default function createUIPlugin() {
 					if (!radarContainer) return;
 
 					// Get player entity and rotation
-					const playerEntities = ecs.entityManager.getEntitiesWithQuery(['player', 'rotation']);
+					const playerEntities = ecs.entityManager.getEntitiesWithQuery(['player', 'localTransform3D']);
 					if (playerEntities.length === 0) return;
 
 					const player = playerEntities[0];
-					if (!player) return; // Ensure player exists
+					if (!player) return;
 
-					const playerRotation = player.components.rotation;
-					const playerFacing = playerRotation.y; // Horizontal rotation angle
+					const playerFacing = player.components.localTransform3D.ry;
 
 					// Get all enemies
-					const enemyEntities = ecs.entityManager.getEntitiesWithQuery(['enemy', 'position']);
+					const enemyEntities = ecs.entityManager.getEntitiesWithQuery(['enemy', 'localTransform3D']);
 
 					// Update or create blips for each enemy
 					for (const enemy of enemyEntities) {
 						if (enemy.components.enemy.isDestroying) continue;
 
-						const position = enemy.components.position;
+						const enemyTransform = enemy.components.localTransform3D;
 						const enemyType = enemy.components.enemy.type;
 
 						// Calculate distance from player (center)
-						const distanceFromCenter = Math.sqrt(position.x * position.x + position.z * position.z);
+						const distanceFromCenter = Math.sqrt(enemyTransform.x * enemyTransform.x + enemyTransform.z * enemyTransform.z);
 						const maxDistance = 200; // Maximum radar range
 						const normalizedDistance = Math.min(distanceFromCenter, maxDistance) / maxDistance;
 
 						// Calculate absolute angle from center to enemy
-						const absoluteAngle = Math.atan2(position.x, position.z);
+						const absoluteAngle = Math.atan2(enemyTransform.x, enemyTransform.z);
 
 						// Calculate relative angle (subtract player's facing direction)
 						// This makes straight ahead (player facing) always point up on the radar
