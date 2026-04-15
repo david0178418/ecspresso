@@ -31,6 +31,7 @@ const examples = [
 	{ route: 'turret-defense', dir: 'turret-defense', html: 'turret-defense.html', entry: 'index.ts' },
 	{ route: 'isometric', dir: 'isometric', html: 'isometric.html', entry: 'isometric.ts' },
 	{ route: 'isometric-zoom', dir: 'isometric-zoom', html: 'isometric-zoom.html', entry: 'isometric-zoom.ts' },
+	{ route: 'react-ui', dir: 'react-ui', html: 'react-ui.html', entry: 'index.tsx' },
 ] as const;
 
 // Clean output
@@ -52,7 +53,7 @@ const results = await Promise.all(
 
 		// Bundle TS entry point
 		const entryPath = join(exampleSrcDir, example.entry);
-		const bundleName = example.entry.replace(/\.ts$/, '.js');
+		const bundleName = example.entry.replace(/\.tsx?$/, '.js');
 
 		const result = await Bun.build({
 			entrypoints: [entryPath],
@@ -72,9 +73,9 @@ const results = await Promise.all(
 		// Read HTML source, rewrite .ts references to .js, and fix paths for flat file serving
 		const htmlSrc = await Bun.file(join(exampleSrcDir, example.html)).text();
 		const rewrittenHtml = htmlSrc
-			// Rewrite script src from .ts to .js
+			// Rewrite script src from .ts/.tsx to .js
 			.replace(
-				/src="\.\/([^"]+)\.ts"/g,
+				/src="\.\/([^"]+)\.tsx?"/g,
 				(_match, name) => `src="./${name}.js"`,
 			)
 			// Rewrite stylesheet href from ../styles.css to ../styles.css (same relative path works)

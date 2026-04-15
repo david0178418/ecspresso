@@ -24,7 +24,8 @@
 		"src/plugins/audio/audio.ts",
 		"src/plugins/debug/diagnostics.ts",
 		"src/plugins/isometric/projection.ts",
-		"src/plugins/isometric/depth-sort.ts"
+		"src/plugins/isometric/depth-sort.ts",
+		"src/bindings/react/index.ts"
 	],
 	"readme": "none",
 	"projectDocuments": [

@@ -103,6 +103,10 @@
 		"./plugins/combat/projectile": {
 			"import": "./dist/plugins/combat/projectile.js",
 			"types": "./dist/plugins/combat/projectile.d.ts"
+		},
+		"./bindings/react": {
+			"import": "./dist/bindings/react/index.js",
+			"types": "./dist/bindings/react/index.d.ts"
 		}
 	},
 	"publishConfig": {
@@ -125,9 +129,13 @@
 	"devDependencies": {
 		"@types/bun": "latest",
 		"@types/howler": "^2.2.12",
+		"@types/react": "^19.2.14",
+		"@types/react-dom": "^19.2.3",
 		"@types/three": "^0.183.1",
 		"howler": "^2.2.4",
 		"pixi.js": "^8.17.1",
+		"react": "^19.2.5",
+		"react-dom": "^19.2.5",
 		"three": "^0.183.2",
 		"typedoc": "^0.28.19"
 	},

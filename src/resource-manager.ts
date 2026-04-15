@@ -36,6 +36,33 @@ export function directValue<T>(value: T): ResourceDirectValue<T> {
 }
 
 /**
+ * Create a shallow snapshot of a value for change detection.
+ * For objects, copies own enumerable properties one level deep.
+ * For primitives, wraps in { $value } so reference changes are caught.
+ */
+function shallowSnapshot(value: unknown): Record<string, unknown> {
+	if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+		return { ...value as Record<string, unknown> };
+	}
+	return { $value: value };
+}
+
+/**
+ * Compare a live value against a snapshot taken by shallowSnapshot.
+ * Returns true if any shallow property differs.
+ */
+function shallowChanged(current: unknown, snapshot: Record<string, unknown>): boolean {
+	if (typeof current === 'object' && current !== null && !Array.isArray(current)) {
+		const obj = current as Record<string, unknown>;
+		for (const k in snapshot) {
+			if (!Object.is(obj[k], snapshot[k])) return true;
+		}
+		return false;
+	}
+	return !Object.is(current, snapshot['$value']);
+}
+
+/**
  * Type guard for detecting { factory } pattern (with optional dependsOn and onDispose)
  */
 function isFactoryWithDeps<T>(resource: unknown): resource is ResourceFactoryWithDeps<T> {
@@ -110,6 +137,8 @@ class ResourceManager<
 	private resourceDisposers: Map<keyof ResourceTypes, (resource: any, context: Context) => void | Promise<void>> = new Map();
 	private initializedResourceKeys: Set<keyof ResourceTypes> = new Set();
 	private _changeSubscribers: Map<keyof ResourceTypes, Set<(newValue: any, oldValue: any) => void>> = new Map();
+	/** Shallow snapshots of observed resources, keyed by resource key */
+	private _observedSnapshots: Map<keyof ResourceTypes, Record<string, unknown>> = new Map();
 
 	/**
 	 * Add a resource to the manager.
@@ -368,6 +397,15 @@ class ResourceManager<
 
 	/**
 	 * Subscribe to changes for a specific resource key.
+	 *
+	 * Subscribing marks the resource as "observed." Observed resources:
+	 * - Are re-resolved each frame by `withResources` (no stale cache)
+	 * - Are shallow-diffed at the end of each frame via `flushObserved()`,
+	 *   so in-place mutations are detected and subscribers notified
+	 *
+	 * When the last subscriber unsubscribes, the resource reverts to
+	 * normal (cached, no per-frame diff).
+	 *
 	 * @param key The resource key to watch
 	 * @param callback Function called with (newValue, oldValue) when the resource changes
 	 * @returns Unsubscribe function
@@ -380,6 +418,9 @@ class ResourceManager<
 		const subscribers = existing ?? new Set<(newValue: any, oldValue: any) => void>();
 		if (!existing) {
 			this._changeSubscribers.set(key, subscribers);
+			// First subscriber — take a shallow snapshot for per-frame diffing
+			const current = this.resources.get(key);
+			this._observedSnapshots.set(key, shallowSnapshot(current));
 		}
 		const wrapped = callback as (newValue: any, oldValue: any) => void;
 		subscribers.add(wrapped);
@@ -388,6 +429,7 @@ class ResourceManager<
 			subscribers.delete(wrapped);
 			if (subscribers.size === 0) {
 				this._changeSubscribers.delete(key);
+				this._observedSnapshots.delete(key);
 			}
 		};
 	}
@@ -407,9 +449,45 @@ class ResourceManager<
 		if (Object.is(newValue, oldValue)) return;
 		const subscribers = this._changeSubscribers.get(key);
 		if (!subscribers || subscribers.size === 0) return;
-		const snapshot = [...subscribers];
-		for (const cb of snapshot) {
+		// Update snapshot so flushObserved doesn't double-fire for this change
+		if (this._observedSnapshots.has(key)) {
+			this._observedSnapshots.set(key, shallowSnapshot(newValue));
+		}
+		const subscriberSnapshot = [...subscribers];
+		for (const cb of subscriberSnapshot) {
 			cb(newValue, oldValue);
+		}
+	}
+
+	/**
+	 * Whether a resource has active change subscribers.
+	 * Observed resources should not be cached by systems — they need
+	 * to be re-resolved each frame so external mutations are visible.
+	 */
+	isObserved<K extends keyof ResourceTypes>(key: K): boolean {
+		return this._observedSnapshots.has(key);
+	}
+
+	/**
+	 * Diff all observed resources against their snapshots.
+	 * Fires subscribers for any resource whose shallow properties changed
+	 * since the last snapshot, then updates the snapshot.
+	 * Call once per frame after all systems have run.
+	 */
+	flushObserved(): void {
+		if (this._observedSnapshots.size === 0) return;
+		for (const [key, snapshot] of this._observedSnapshots) {
+			const current = this.resources.get(key);
+			if (!shallowChanged(current, snapshot)) continue;
+
+			// Reconstruct the old value from the snapshot encoding
+			const oldValue = '$value' in snapshot ? snapshot['$value'] : snapshot;
+			const newSnapshot = shallowSnapshot(current);
+			const subscribers = this._changeSubscribers.get(key)!;
+			for (const cb of subscribers) {
+				cb(current, oldValue);
+			}
+			this._observedSnapshots.set(key, newSnapshot);
 		}
 	}
 

@@ -297,6 +297,10 @@ export default class ECSpresso<
 		// 6. render phase
 		this._runPhase('render', deltaTime, currentScreen, timing);
 
+		// 7. Flush observed resources — shallow-diff any resource with active
+		// subscribers and fire callbacks for in-place mutations.
+		this._resourceManager.flushObserved();
+
 		// Set change threshold to current sequence so that public
 		// getEntitiesWithQuery (called between updates) sees command
 		// buffer marks but not stale ones.
@@ -850,6 +854,14 @@ export default class ECSpresso<
 		callback: (newValue: Cfg['resources'][K], oldValue: Cfg['resources'][K]) => void
 	): () => void {
 		return this._resourceManager.onResourceChange(key, callback);
+	}
+
+	/**
+		* Whether a resource has active change subscribers.
+		* Used by the system builder to skip caching for observed resources.
+	*/
+	isResourceObserved<K extends keyof Cfg['resources']>(key: K): boolean {
+		return this._resourceManager.isObserved(key);
 	}
 
 	/**

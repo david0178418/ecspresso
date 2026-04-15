@@ -233,14 +233,15 @@ export class SystemBuilder<
 	): this {
 		if (this._resourceKeys?.length) {
 			const keys = this._resourceKeys;
-			let resolved: Record<string, unknown> | undefined;
+			const resolved: Record<string, unknown> = {};
+			let initialized = false;
 			this.processFunction = ((ctx) => {
-				if (!resolved) {
-					resolved = {};
-					for (const key of keys) {
+				for (const key of keys) {
+					if (!initialized || ctx.ecs.isResourceObserved(key as keyof Cfg['resources'] & string)) {
 						resolved[key] = ctx.ecs.getResource(key as keyof Cfg['resources'] & string);
 					}
 				}
+				initialized = true;
 				(ctx as Record<string, unknown>)['resources'] = resolved;
 				(process as Function)(ctx);
 			}) as InternalProcessFunction<Cfg, Queries>;
