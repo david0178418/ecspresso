@@ -180,6 +180,10 @@ export function gridQueryRadius(
 
 // ==================== Resource API ====================
 
+// TODO: Move SpatialIndex interface to src/plugins/spatial/spatial-index.ts.
+// It's a resource API concern, not a data structure concern. This file should
+// only contain the grid primitives (SpatialEntry, SpatialHashGrid, and the
+// pure functions that operate on them).
 export interface SpatialIndex {
 	readonly grid: SpatialHashGrid;
 	queryRect(minX: number, minY: number, maxX: number, maxY: number): number[];
