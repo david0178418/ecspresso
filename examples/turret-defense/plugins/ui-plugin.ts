@@ -99,17 +99,12 @@ export default function createUIPlugin() {
 				.addSystem('enemy-health-bars')
 				.inPhase('render')
 				.setPriority(50)
-				.addQuery('enemies', {
-					with: ['enemy', 'health', 'worldTransform', 'sprite'],
-				})
-				.setProcess(({ queries }) => {
-					for (const entity of queries.enemies) {
-						const { health, sprite } = entity.components;
-						// Tint enemies red as they take damage
-						const healthRatio = health.current / health.max;
-						const gb = Math.floor(255 * healthRatio);
-						sprite.tint = (255 << 16) | (gb << 8) | gb;
-					}
+				.processEach({ with: ['enemy', 'health', 'worldTransform', 'sprite'] }, ({ entity }) => {
+					const { health, sprite } = entity.components;
+					// Tint enemies red as they take damage
+					const healthRatio = health.current / health.max;
+					const gb = Math.floor(255 * healthRatio);
+					sprite.tint = (255 << 16) | (gb << 8) | gb;
 				});
 
 			// Game over overlay

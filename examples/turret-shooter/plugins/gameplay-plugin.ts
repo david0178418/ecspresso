@@ -7,18 +7,13 @@ export default function createGameplayPlugin() {
 			// Lifetime system
 			world.addSystem('lifetime')
 				.inGroup('gameplay')
-				.addQuery('expirables', {
-					with: ['lifetime']
-				})
-				.setProcess(({ queries: { expirables }, dt, ecs }) => {
-					for (const entity of expirables) {
-						entity.components.lifetime.remaining -= dt;
+				.processEach({ with: ['lifetime'] }, ({ entity, dt, ecs }) => {
+					entity.components.lifetime.remaining -= dt;
 
-						if (entity.components.lifetime.remaining <= 0) {
-							ecs.eventBus.publish('entityDestroyed', {
-								entityId: entity.id
-							});
-						}
+					if (entity.components.lifetime.remaining <= 0) {
+						ecs.eventBus.publish('entityDestroyed', {
+							entityId: entity.id
+						});
 					}
 				});
 

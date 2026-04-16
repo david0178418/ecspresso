@@ -8,17 +8,11 @@ export default function createPhysicsPlugin() {
 			world.addSystem('movement')
 				.inGroup('gameplay')
 				.inPhase('fixedUpdate')
-				.addQuery('movables', {
-					with: ['localTransform3D', 'velocity']
-				})
-				.setProcess(({ queries: { movables }, dt }) => {
-					for (const entity of movables) {
-						const { localTransform3D, velocity } = entity.components;
-
-						localTransform3D.x += velocity.x * dt;
-						localTransform3D.y += velocity.y * dt;
-						localTransform3D.z += velocity.z * dt;
-					}
+				.processEach({ with: ['localTransform3D', 'velocity'] }, ({ entity, dt }) => {
+					const { localTransform3D, velocity } = entity.components;
+					localTransform3D.x += velocity.x * dt;
+					localTransform3D.y += velocity.y * dt;
+					localTransform3D.z += velocity.z * dt;
 				});
 		},
 	});

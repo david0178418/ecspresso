@@ -155,15 +155,11 @@ export default function createGameLogicPlugin() {
 			world.addSystem('player-input')
 				.inGroup('gameplay')
 				.inPhase('preUpdate')
-				.addQuery('players', { with: ['player', 'velocity'] })
 				.withResources(['inputState', 'config'])
-				.setProcess(({ queries: { players }, resources: { inputState: input, config } }) => {
-
-					for (const player of players) {
-						player.components.velocity.x = input.actions.isActive('moveLeft') ? -config.playerSpeed
-							: input.actions.isActive('moveRight') ? config.playerSpeed
-							: 0;
-					}
+				.processEach({ with: ['player', 'velocity'] }, ({ entity, resources: { inputState: input, config } }) => {
+					entity.components.velocity.x = input.actions.isActive('moveLeft') ? -config.playerSpeed
+						: input.actions.isActive('moveRight') ? config.playerSpeed
+						: 0;
 				});
 		},
 	});

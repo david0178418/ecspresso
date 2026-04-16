@@ -111,13 +111,10 @@ export default function createEnemyPlugin() {
 				.addSystem('enemy-spawner')
 				.inGroup('gameplay')
 				.inPhase('preUpdate')
-				.addQuery('spawners', {
-					with: ['timer'],
-					without: ['turret', 'enemy', 'projectile', 'base'],
-				})
-				.setProcess(({ queries, ecs }) => {
-					for (const entity of queries.spawners) {
-						if (!entity.components.timer.justFinished) continue;
+				.processEach(
+					{ with: ['timer'], without: ['turret', 'enemy', 'projectile', 'base'] },
+					({ entity, ecs }) => {
+						if (!entity.components.timer.justFinished) return;
 
 						if (spawnQueue.length > 0) {
 							const type = spawnQueue.pop() as EnemyType;
@@ -125,8 +122,8 @@ export default function createEnemyPlugin() {
 						} else {
 							ecs.commands.removeEntity(entity.id);
 						}
-					}
-				});
+					},
+				);
 
 			// All enemiesRemaining tracking consolidated here
 			world

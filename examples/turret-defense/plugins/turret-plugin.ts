@@ -26,21 +26,16 @@ export default function createTurretPlugin() {
 				.addSystem('turret-aim')
 				.inGroup('gameplay')
 				.setPriority(600)
-				.addQuery('turrets', {
-					with: ['turret', 'localTransform', 'detectedEntities'],
-				})
-				.setProcess(({ queries, ecs }) => {
-					for (const entity of queries.turrets) {
-						const { localTransform, detectedEntities } = entity.components;
-						const target = findNearestLiveTarget(detectedEntities, ecs as World);
-						if (!target) continue;
+				.processEach({ with: ['turret', 'localTransform', 'detectedEntities'] }, ({ entity, ecs }) => {
+					const { localTransform, detectedEntities } = entity.components;
+					const target = findNearestLiveTarget(detectedEntities, ecs as World);
+					if (!target) return;
 
-						const dx = target.x - localTransform.x;
-						const dy = target.y - localTransform.y;
-						// Offset by PI/2 so barrel (drawn pointing up) faces the target
-						localTransform.rotation = Math.atan2(dy, dx) + Math.PI / 2;
-						ecs.markChanged(entity.id, 'localTransform');
-					}
+					const dx = target.x - localTransform.x;
+					const dy = target.y - localTransform.y;
+					// Offset by PI/2 so barrel (drawn pointing up) faces the target
+					localTransform.rotation = Math.atan2(dy, dx) + Math.PI / 2;
+					ecs.markChanged(entity.id, 'localTransform');
 				});
 
 			// Fire projectiles on timer tick when targets are available
@@ -48,25 +43,20 @@ export default function createTurretPlugin() {
 				.addSystem('turret-fire')
 				.inGroup('gameplay')
 				.setPriority(700)
-				.addQuery('turrets', {
-					with: ['turret', 'localTransform', 'detectedEntities', 'timer'],
-				})
-				.setProcess(({ queries, ecs }) => {
-					for (const entity of queries.turrets) {
-						const { timer, localTransform, detectedEntities } = entity.components;
-						if (!timer.justFinished) continue;
+				.processEach({ with: ['turret', 'localTransform', 'detectedEntities', 'timer'] }, ({ entity, ecs }) => {
+					const { timer, localTransform, detectedEntities } = entity.components;
+					if (!timer.justFinished) return;
 
-						const target = findNearestLiveTarget(detectedEntities, ecs as World);
-						if (!target) continue;
+					const target = findNearestLiveTarget(detectedEntities, ecs as World);
+					if (!target) return;
 
-						spawnProjectileAt(
-							ecs as World,
-							localTransform.x,
-							localTransform.y,
-							target.entityId,
-							entity.id,
-						);
-					}
+					spawnProjectileAt(
+						ecs as World,
+						localTransform.x,
+						localTransform.y,
+						target.entityId,
+						entity.id,
+					);
 				});
 		},
 	});

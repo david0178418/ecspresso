@@ -46,13 +46,10 @@ ecs.addSystem('player-input')
 
 // Movement: applies velocity to position (same pattern as the movement example)
 ecs.addSystem('movement')
-	.addQuery('moving', { with: ['localTransform', 'velocity'] })
-	.setProcess(({ queries, dt }) => {
-		for (const entity of queries.moving) {
-			const { localTransform, velocity } = entity.components;
-			localTransform.x += velocity.x * dt;
-			localTransform.y += velocity.y * dt;
-		}
+	.processEach({ with: ['localTransform', 'velocity'] }, ({ entity, dt }) => {
+		const { localTransform, velocity } = entity.components;
+		localTransform.x += velocity.x * dt;
+		localTransform.y += velocity.y * dt;
 	});
 
 // -- Initialize and spawn --

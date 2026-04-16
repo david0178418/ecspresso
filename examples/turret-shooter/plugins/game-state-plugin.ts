@@ -229,22 +229,16 @@ export default function createGameStatePlugin() {
 				});
 				// Message timer system - hides messages after their timer finishes
 				world.addSystem('message-timer')
-				.addQuery('messageTimers', {
-					with: ['timer', 'messageTimer'],
-				})
 				.withResources(['uiElements'])
-				.setProcess(({ queries: { messageTimers }, ecs, resources: { uiElements } }) => {
-
-					for (const entity of messageTimers) {
-						if (entity.components.timer.justFinished) {
-							// Hide the message
-							if (uiElements.messageElement) {
-								uiElements.messageElement.style.opacity = '0';
-							}
-
-							// Remove the timer entity
-							ecs.removeEntity(entity.id);
+				.processEach({ with: ['timer', 'messageTimer'] }, ({ entity, ecs, resources: { uiElements } }) => {
+					if (entity.components.timer.justFinished) {
+						// Hide the message
+						if (uiElements.messageElement) {
+							uiElements.messageElement.style.opacity = '0';
 						}
+
+						// Remove the timer entity
+						ecs.removeEntity(entity.id);
 					}
 				});
 		},

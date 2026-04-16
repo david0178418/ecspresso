@@ -55,14 +55,11 @@ const ecs = ECSpresso.create()
 ecs.addSystem('ground-reset')
 	.inPhase('fixedUpdate')
 	.setPriority(2000)
-	.addQuery('players', { with: ['groundContact'] })
-	.setProcess(({ queries, dt }) => {
-		for (const entity of queries.players) {
-			const gc = entity.components.groundContact;
-			gc.coyoteTimer = Math.max(0, gc.coyoteTimer - dt);
-			gc.jumpBufferTimer = Math.max(0, gc.jumpBufferTimer - dt);
-			gc.grounded = false;
-		}
+	.processEach({ with: ['groundContact'] }, ({ entity, dt }) => {
+		const gc = entity.components.groundContact;
+		gc.coyoteTimer = Math.max(0, gc.coyoteTimer - dt);
+		gc.jumpBufferTimer = Math.max(0, gc.jumpBufferTimer - dt);
+		gc.grounded = false;
 	});
 
 function applyGroundLanding(
@@ -97,25 +94,22 @@ ecs.addSystem('ground-detect')
 // Player input: horizontal movement + jump when grounded
 ecs.addSystem('player-input')
 	.inPhase('preUpdate')
-	.addQuery('players', { with: ['player', 'velocity', 'groundContact'] })
 	.withResources(['inputState'])
-	.setProcess(({ queries, resources: { inputState: input } }) => {
-		for (const entity of queries.players) {
-			const { velocity, groundContact } = entity.components;
+	.processEach({ with: ['player', 'velocity', 'groundContact'] }, ({ entity, resources: { inputState: input } }) => {
+		const { velocity, groundContact } = entity.components;
 
-			const left = input.actions.isActive('moveLeft') ? -MOVE_SPEED : 0;
-			const right = input.actions.isActive('moveRight') ? MOVE_SPEED : 0;
-			velocity.x = left + right;
+		const left = input.actions.isActive('moveLeft') ? -MOVE_SPEED : 0;
+		const right = input.actions.isActive('moveRight') ? MOVE_SPEED : 0;
+		velocity.x = left + right;
 
-			const canJump = groundContact.grounded || groundContact.coyoteTimer > 0;
-			if (input.actions.justActivated('jump')) {
-				if (canJump) {
-					velocity.y = JUMP_VELOCITY;
-					groundContact.coyoteTimer = 0;
-					groundContact.jumpBufferTimer = 0;
-				} else {
-					groundContact.jumpBufferTimer = groundContact.jumpBufferDuration;
-				}
+		const canJump = groundContact.grounded || groundContact.coyoteTimer > 0;
+		if (input.actions.justActivated('jump')) {
+			if (canJump) {
+				velocity.y = JUMP_VELOCITY;
+				groundContact.coyoteTimer = 0;
+				groundContact.jumpBufferTimer = 0;
+			} else {
+				groundContact.jumpBufferTimer = groundContact.jumpBufferDuration;
 			}
 		}
 	});

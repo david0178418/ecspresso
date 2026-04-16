@@ -203,20 +203,17 @@ ecs.addSystem('dotSpawner')
 // Dot movement and expiry — only runs during 'playing' screen
 ecs.addSystem('dotLifecycle')
 	.inScreens(['playing'])
-	.addQuery('dots', { with: ['dot', 'localTransform'] })
-	.setProcess(({ queries, dt, ecs }) => {
-		for (const entity of queries.dots) {
-			const { dot } = entity.components;
-			dot.lifetime -= dt;
-			if (dot.lifetime <= 0) {
-				activeDots.delete(entity.id);
-				ecs.removeEntity(entity.id);
-				continue;
-			}
-			ecs.mutateComponent(entity.id, 'localTransform', (lt) => {
-				lt.y += dot.speed * dt;
-			});
+	.processEach({ with: ['dot', 'localTransform'] }, ({ entity, dt, ecs }) => {
+		const { dot } = entity.components;
+		dot.lifetime -= dt;
+		if (dot.lifetime <= 0) {
+			activeDots.delete(entity.id);
+			ecs.removeEntity(entity.id);
+			return;
 		}
+		ecs.mutateComponent(entity.id, 'localTransform', (lt) => {
+			lt.y += dot.speed * dt;
+		});
 	});
 
 // -- Keyboard input --

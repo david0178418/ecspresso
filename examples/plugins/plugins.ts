@@ -33,28 +33,22 @@ function createBouncingPlugin() {
 		.withResourceTypes<BouncingResources>()
 		.install((world) => {
 			world.addSystem('movement')
-				.addQuery('moving', { with: ['localTransform', 'velocity'] })
-				.setProcess(({ queries, dt }) => {
-					for (const entity of queries.moving) {
-						const { localTransform, velocity } = entity.components;
-						localTransform.x += velocity.x * dt;
-						localTransform.y += velocity.y * dt;
-					}
+				.processEach({ with: ['localTransform', 'velocity'] }, ({ entity, dt }) => {
+					const { localTransform, velocity } = entity.components;
+					localTransform.x += velocity.x * dt;
+					localTransform.y += velocity.y * dt;
 				});
 			world.addSystem('bounce')
-				.addQuery('bouncing', { with: ['localTransform', 'velocity', 'radius'] })
 				.withResources(['bounds'])
-				.setProcess(({ queries, ecs, resources: { bounds } }) => {
-					for (const entity of queries.bouncing) {
-						const { localTransform, velocity, radius } = entity.components;
-						if (localTransform.x > bounds.width - radius || localTransform.x < radius) {
-							velocity.x *= -1;
-							ecs.eventBus.publish('wallHit', { x: localTransform.x, y: localTransform.y });
-						}
-						if (localTransform.y > bounds.height - radius || localTransform.y < radius) {
-							velocity.y *= -1;
-							ecs.eventBus.publish('wallHit', { x: localTransform.x, y: localTransform.y });
-						}
+				.processEach({ with: ['localTransform', 'velocity', 'radius'] }, ({ entity, ecs, resources: { bounds } }) => {
+					const { localTransform, velocity, radius } = entity.components;
+					if (localTransform.x > bounds.width - radius || localTransform.x < radius) {
+						velocity.x *= -1;
+						ecs.eventBus.publish('wallHit', { x: localTransform.x, y: localTransform.y });
+					}
+					if (localTransform.y > bounds.height - radius || localTransform.y < radius) {
+						velocity.y *= -1;
+						ecs.eventBus.publish('wallHit', { x: localTransform.x, y: localTransform.y });
 					}
 				});
 		});

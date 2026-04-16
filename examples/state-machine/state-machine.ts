@@ -185,45 +185,34 @@ const enemyFSM = defineStateMachine('enemy', {
 ecs
 	.addSystem('player-input')
 	.inPhase('preUpdate')
-	.addQuery('players', {
-		with: ['player', 'velocity', 'speed'],
-	})
 	.withResources(['inputState'])
-	.setProcess(({ queries, ecs, resources: { inputState: input } }) => {
+	.processEach({ with: ['player', 'velocity', 'speed'] }, ({ entity, ecs, resources: { inputState: input } }) => {
+		const { speed } = entity.components;
+		const vx = (input.actions.isActive('moveRight') ? 1 : 0) - (input.actions.isActive('moveLeft') ? 1 : 0);
+		const vy = (input.actions.isActive('moveDown') ? 1 : 0) - (input.actions.isActive('moveUp') ? 1 : 0);
 
-		for (const entity of queries.players) {
-			const { speed } = entity.components;
-			const vx = (input.actions.isActive('moveRight') ? 1 : 0) - (input.actions.isActive('moveLeft') ? 1 : 0);
-			const vy = (input.actions.isActive('moveDown') ? 1 : 0) - (input.actions.isActive('moveUp') ? 1 : 0);
+		// Normalize diagonal movement
+		const len = Math.sqrt(vx * vx + vy * vy);
+		const scale = len > 0 ? speed / len : 0;
 
-			// Normalize diagonal movement
-			const len = Math.sqrt(vx * vx + vy * vy);
-			const scale = len > 0 ? speed / len : 0;
-
-			setVelocity(ecs, entity.id, vx * scale, vy * scale);
-		}
+		setVelocity(ecs, entity.id, vx * scale, vy * scale);
 	});
 
 // State label display (updates a text label above each enemy)
 ecs
 	.addSystem('state-label')
 	.inPhase('render')
-	.addQuery('enemies', {
-		with: ['enemy', 'stateMachine', 'worldTransform', 'graphics'],
-	})
-	.setProcess(({ queries }) => {
-		for (const entity of queries.enemies) {
-			const state = getStateMachineState(ecs, entity.id);
-			const gfx = entity.components.graphics;
+	.processEach({ with: ['enemy', 'stateMachine', 'worldTransform', 'graphics'] }, ({ entity }) => {
+		const state = getStateMachineState(ecs, entity.id);
+		const gfx = entity.components.graphics;
 
-			// Pulse scale in attack state for visual feedback
-			if (state === 'attack') {
-				const t = entity.components.stateMachine.stateTime;
-				const pulse = 1 + 0.3 * Math.sin(t * 20);
-				gfx.scale.set(pulse, pulse);
-			} else {
-				gfx.scale.set(1, 1);
-			}
+		// Pulse scale in attack state for visual feedback
+		if (state === 'attack') {
+			const t = entity.components.stateMachine.stateTime;
+			const pulse = 1 + 0.3 * Math.sin(t * 20);
+			gfx.scale.set(pulse, pulse);
+		} else {
+			gfx.scale.set(1, 1);
 		}
 	});
 

@@ -82,28 +82,23 @@ const ecs = ECSpresso.create()
 ecs
 	.addSystem('bounce')
 	.inPhase('postUpdate')
-	.addQuery('balls', {
-		with: ['worldTransform', 'velocity', 'radius'],
-	})
-	.setProcess(({ queries }) => {
-		for (const entity of queries.balls) {
-			const { worldTransform, velocity, radius } = entity.components;
+	.processEach({ with: ['worldTransform', 'velocity', 'radius'] }, ({ entity }) => {
+		const { worldTransform, velocity, radius } = entity.components;
 
-			if (worldTransform.x < radius) {
-				worldTransform.x = radius;
-				velocity.x = Math.abs(velocity.x);
-			} else if (worldTransform.x > WORLD_W - radius) {
-				worldTransform.x = WORLD_W - radius;
-				velocity.x = -Math.abs(velocity.x);
-			}
+		if (worldTransform.x < radius) {
+			worldTransform.x = radius;
+			velocity.x = Math.abs(velocity.x);
+		} else if (worldTransform.x > WORLD_W - radius) {
+			worldTransform.x = WORLD_W - radius;
+			velocity.x = -Math.abs(velocity.x);
+		}
 
-			if (worldTransform.y < radius) {
-				worldTransform.y = radius;
-				velocity.y = Math.abs(velocity.y);
-			} else if (worldTransform.y > WORLD_H - radius) {
-				worldTransform.y = WORLD_H - radius;
-				velocity.y = -Math.abs(velocity.y);
-			}
+		if (worldTransform.y < radius) {
+			worldTransform.y = radius;
+			velocity.y = Math.abs(velocity.y);
+		} else if (worldTransform.y > WORLD_H - radius) {
+			worldTransform.y = WORLD_H - radius;
+			velocity.y = -Math.abs(velocity.y);
 		}
 	});
 

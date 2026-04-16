@@ -196,23 +196,20 @@ ecs
 	.addSystem('player-movement')
 	.inPhase('update')
 	.setPriority(900)
-	.addQuery('players', { with: ['player', 'localTransform'] })
 	.withResources(['inputState'])
-	.setProcess(({ queries, dt, ecs: world, resources: { inputState: input } }) => {
-		for (const entity of queries.players) {
-			const lt = entity.components.localTransform;
-			const vx = (input.actions.isActive('moveRight') ? 1 : 0)
-				- (input.actions.isActive('moveLeft') ? 1 : 0);
-			const vy = (input.actions.isActive('moveDown') ? 1 : 0)
-				- (input.actions.isActive('moveUp') ? 1 : 0);
+	.processEach({ with: ['player', 'localTransform'] }, ({ entity, dt, ecs: world, resources: { inputState: input } }) => {
+		const lt = entity.components.localTransform;
+		const vx = (input.actions.isActive('moveRight') ? 1 : 0)
+			- (input.actions.isActive('moveLeft') ? 1 : 0);
+		const vy = (input.actions.isActive('moveDown') ? 1 : 0)
+			- (input.actions.isActive('moveUp') ? 1 : 0);
 
-			const len = Math.sqrt(vx * vx + vy * vy);
-			if (len > 0) {
-				const scale = PLAYER_SPEED * dt / len;
-				lt.x += vx * scale;
-				lt.y += vy * scale;
-				world.markChanged(entity.id, 'localTransform');
-			}
+		const len = Math.sqrt(vx * vx + vy * vy);
+		if (len > 0) {
+			const scale = PLAYER_SPEED * dt / len;
+			lt.x += vx * scale;
+			lt.y += vy * scale;
+			world.markChanged(entity.id, 'localTransform');
 		}
 	});
 

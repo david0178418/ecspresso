@@ -86,16 +86,11 @@ export default function createAIPlugin() {
 			// Pending destroy system
 			world.addSystem('pending-destroy')
 				.inGroup('gameplay')
-				.addQuery('pendingDestroys', {
-					with: ['timer', 'pendingDestroy'],
-				})
-				.setProcess(({ queries: { pendingDestroys }, ecs }) => {
-					for (const entity of pendingDestroys) {
-						if (entity.components.timer.justFinished) {
-							ecs.eventBus.publish('entityDestroyed', {
-								entityId: entity.id
-							});
-						}
+				.processEach({ with: ['timer', 'pendingDestroy'] }, ({ entity, ecs }) => {
+					if (entity.components.timer.justFinished) {
+						ecs.eventBus.publish('entityDestroyed', {
+							entityId: entity.id
+						});
 					}
 				});
 
@@ -103,34 +98,29 @@ export default function createAIPlugin() {
 			world.addSystem('spawn-timer')
 				.inGroup('gameplay')
 				.inPhase('preUpdate')
-				.addQuery('spawners', {
-					with: ['timer', 'enemySpawner'],
-				})
 				.withResources(['waveManager', 'config', 'playerInitialRotation'])
-				.setProcess(({ queries: { spawners }, ecs, resources: { waveManager, config, playerInitialRotation } }) => {
-					for (const spawner of spawners) {
-						if (!spawner.components.timer.justFinished) continue;
+				.processEach({ with: ['timer', 'enemySpawner'] }, ({ entity: spawner, ecs, resources: { waveManager, config, playerInitialRotation } }) => {
+					if (!spawner.components.timer.justFinished) return;
 
-						if (waveManager.enemiesRemaining > 0) {
-							const enemies = ecs.entityManager.getEntitiesWithQuery(['enemy']);
+					if (waveManager.enemiesRemaining > 0) {
+						const enemies = ecs.entityManager.getEntitiesWithQuery(['enemy']);
 
-							if (enemies.length < config.maxEnemies) {
-								const isGroundEnemy = Math.random() < 0.7;
-								const enemyType = isGroundEnemy ? 'ground' : 'air';
+						if (enemies.length < config.maxEnemies) {
+							const isGroundEnemy = Math.random() < 0.7;
+							const enemyType = isGroundEnemy ? 'ground' : 'air';
 
-								const baseAngle = playerInitialRotation.y;
-								const randomOffset = (Math.random() - 0.5) * (Math.PI / 3);
-								const angle = baseAngle + Math.PI + randomOffset;
-								const spawnDistance = 180 + Math.random() * 40;
+							const baseAngle = playerInitialRotation.y;
+							const randomOffset = (Math.random() - 0.5) * (Math.PI / 3);
+							const angle = baseAngle + Math.PI + randomOffset;
+							const spawnDistance = 180 + Math.random() * 40;
 
-								const spawnX = Math.sin(angle) * spawnDistance;
-								const spawnZ = Math.cos(angle) * spawnDistance;
+							const spawnX = Math.sin(angle) * spawnDistance;
+							const spawnZ = Math.cos(angle) * spawnDistance;
 
-								ecs.eventBus.publish('enemySpawn', {
-									type: enemyType,
-									position: new Vector3(spawnX, 0, spawnZ)
-								});
-							}
+							ecs.eventBus.publish('enemySpawn', {
+								type: enemyType,
+								position: new Vector3(spawnX, 0, spawnZ)
+							});
 						}
 					}
 				});

@@ -39,17 +39,14 @@ const ecs = ECSpresso.create()
 ecs.addSystem('reticle-follow')
 	.inPhase('render')
 	.setPriority(1000)
-	.addQuery('reticles', { with: ['reticle', 'worldTransform'] })
 	.withResources(['inputState'])
-	.setProcess(({ queries, resources: { inputState }, ecs }) => {
+	.processEach({ with: ['reticle', 'worldTransform'] }, ({ entity, resources: { inputState }, ecs }) => {
 		const { x, y } = inputState.pointer.position;
-		for (const entity of queries.reticles) {
-			const { worldTransform } = entity.components;
-			if (worldTransform.x === x && worldTransform.y === y) continue;
-			worldTransform.x = x;
-			worldTransform.y = y;
-			ecs.markChanged(entity.id, 'worldTransform');
-		}
+		const { worldTransform } = entity.components;
+		if (worldTransform.x === x && worldTransform.y === y) return;
+		worldTransform.x = x;
+		worldTransform.y = y;
+		ecs.markChanged(entity.id, 'worldTransform');
 	});
 
 await ecs.initialize();
