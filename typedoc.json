@@ -6,6 +6,7 @@
 		"src/plugins/spatial/transform3D.ts",
 		"src/plugins/spatial/bounds.ts",
 		"src/plugins/spatial/camera.ts",
+		"src/plugins/spatial/camera3D.ts",
 		"src/plugins/spatial/spatial-index.ts",
 		"src/plugins/physics/physics2D.ts",
 		"src/plugins/physics/collision.ts",

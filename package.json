@@ -24,6 +24,10 @@
 			"import": "./dist/plugins/spatial/camera.js",
 			"types": "./dist/plugins/spatial/camera.d.ts"
 		},
+		"./plugins/spatial/camera3D": {
+			"import": "./dist/plugins/spatial/camera3D.js",
+			"types": "./dist/plugins/spatial/camera3D.d.ts"
+		},
 		"./plugins/spatial/transform3D": {
 			"import": "./dist/plugins/spatial/transform3D.js",
 			"types": "./dist/plugins/spatial/transform3D.d.ts"
