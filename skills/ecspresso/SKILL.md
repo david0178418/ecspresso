@@ -103,6 +103,27 @@ ecs.addSystem('scoring')
   });
 ```
 
+### Single-Query Shorthand: `processEach`
+
+For single-query, per-entity iteration — the most common case — use `processEach` to inline the query and the callback in one step. Callback context is `{ entity, dt, ecs }` plus `resources` when declared:
+
+```typescript
+ecs.addSystem('movement')
+  .processEach({ with: ['position', 'velocity'] }, ({ entity, dt }) => {
+    entity.components.position.x += entity.components.velocity.x * dt;
+    entity.components.position.y += entity.components.velocity.y * dt;
+  });
+
+ecs.addSystem('bounce')
+  .withResources(['bounds'])
+  .processEach(
+    { with: ['position', 'velocity', 'radius'] },
+    ({ entity, dt, resources: { bounds } }) => { /* ... */ },
+  );
+```
+
+`processEach` accepts the full query shape (`with`, `without`, `optional`, `changed`, `parentHas`). It's valid only on a builder with no prior `addQuery` / `setProcess` / `processEach` call — TypeScript blocks the misuse and a runtime guard backs it up. For multi-query systems, keep using `addQuery` + `setProcess`.
+
 ### Query Definitions
 
 ```typescript
@@ -136,7 +157,9 @@ ecs.addSystem('label')
   .setEventHandlers({
     playerDied: ({ data, ecs }) => { ... },  // auto-subscribed event handlers
   })
-  .setProcess(({ queries, dt, ecs }) => { ... });
+  .setProcess(({ queries, dt, ecs }) => { ... })
+  // --- OR, for single-query systems, replace addQuery + setProcess with: ---
+  .processEach({ with: [...] }, ({ entity, dt, ecs }) => { ... });
 ```
 
 ### Callback Convention

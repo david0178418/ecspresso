@@ -18,6 +18,33 @@ world.addSystem('rendering')
   });
 ```
 
+## Single-Query Shorthand: `processEach`
+
+For the common case of one query iterated entity-by-entity, `processEach` collapses the query definition, callback wiring, and outer `for…of` into a single chain step:
+
+```typescript
+world.addSystem('movement')
+  .processEach({ with: ['position', 'velocity'] }, ({ entity, dt }) => {
+    entity.components.position.x += entity.components.velocity.x * dt;
+    entity.components.position.y += entity.components.velocity.y * dt;
+  });
+```
+
+The callback receives `{ entity, dt, ecs }`, plus `resources` when `.withResources()` is chained:
+
+```typescript
+world.addSystem('bounce')
+  .withResources(['bounds'])
+  .processEach(
+    { with: ['position', 'velocity', 'radius'] },
+    ({ entity, dt, resources: { bounds } }) => { /* ... */ },
+  );
+```
+
+`processEach` is valid only on a builder with zero prior queries or process function — TypeScript narrows `this` to `never` otherwise, and a runtime guard throws for untyped callers. For multi-query systems, keep using `addQuery` + `setProcess`.
+
+The inline query definition accepts the full query shape (`with`, `without`, `optional`, `changed`, `parentHas`). Phase / priority / group / lifecycle chains still compose around it.
+
 ## System Phases
 
 Systems are organized into named execution phases that run in a fixed order:

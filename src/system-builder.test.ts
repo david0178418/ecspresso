@@ -340,3 +340,344 @@ describe('SystemBuilder', () => {
 		expect(system2Processed).toBe(true);
 	});
 });
+
+describe('processEach', () => {
+	test('iterates every matching entity with correct dt', () => {
+		const seen: { id: number; dt: number }[] = [];
+
+		const world = ECSpresso.create().withComponentTypes<TestComponents>().build();
+
+		world.addSystem('iter')
+			.processEach(
+				{ with: ['position', 'velocity'] },
+				({ entity, dt }) => {
+					seen.push({ id: entity.id, dt });
+				},
+			);
+
+		const e1 = world.spawn({ position: { x: 0, y: 0 }, velocity: { x: 1, y: 1 } });
+		const e2 = world.spawn({ position: { x: 10, y: 10 }, velocity: { x: 2, y: 2 } });
+		world.spawn({ position: { x: 20, y: 20 } }); // no velocity, excluded
+
+		world.update(1 / 60);
+
+		expect(seen.map(s => s.id).sort()).toEqual([e1.id, e2.id].sort());
+		expect(seen[0]!.dt).toBeCloseTo(1 / 60);
+		expect(seen[1]!.dt).toBeCloseTo(1 / 60);
+	});
+
+	test('mutations via entity.components persist', () => {
+		const world = ECSpresso.create().withComponentTypes<TestComponents>().build();
+
+		world.addSystem('movement')
+			.processEach(
+				{ with: ['position', 'velocity'] },
+				({ entity, dt }) => {
+					entity.components.position.x += entity.components.velocity.x * dt;
+					entity.components.position.y += entity.components.velocity.y * dt;
+				},
+			);
+
+		const e = world.spawn({ position: { x: 0, y: 0 }, velocity: { x: 60, y: 120 } });
+		world.update(1 / 60);
+
+		const pos = world.entityManager.getComponent(e.id, 'position');
+		expect(pos).toEqual({ x: 1, y: 2 });
+	});
+
+	test('without filter excludes entities with the listed component', () => {
+		const seen: number[] = [];
+		const world = ECSpresso.create().withComponentTypes<TestComponents>().build();
+
+		world.addSystem('alive')
+			.processEach(
+				{ with: ['position'], without: ['health'] },
+				({ entity }) => { seen.push(entity.id); },
+			);
+
+		const alive = world.spawn({ position: { x: 0, y: 0 } });
+		world.spawn({ position: { x: 0, y: 0 }, health: { value: 100 } });
+
+		world.update(1 / 60);
+		expect(seen).toEqual([alive.id]);
+	});
+
+	test('optional yields present-or-undefined component', () => {
+		const results: { id: number; hasHealth: boolean }[] = [];
+		const world = ECSpresso.create().withComponentTypes<TestComponents>().build();
+
+		world.addSystem('maybe')
+			.processEach(
+				{ with: ['position'], optional: ['health'] },
+				({ entity }) => {
+					results.push({
+						id: entity.id,
+						hasHealth: entity.components.health !== undefined,
+					});
+				},
+			);
+
+		const a = world.spawn({ position: { x: 0, y: 0 } });
+		const b = world.spawn({ position: { x: 0, y: 0 }, health: { value: 100 } });
+
+		world.update(1 / 60);
+
+		expect(results.find(r => r.id === a.id)?.hasHealth).toBe(false);
+		expect(results.find(r => r.id === b.id)?.hasHealth).toBe(true);
+	});
+
+	test('changed filter only iterates entities with changed components', () => {
+		const seen: number[] = [];
+		const world = ECSpresso.create().withComponentTypes<TestComponents>().build();
+
+		world.addSystem('changedOnly')
+			.processEach(
+				{ with: ['position'], changed: ['position'] },
+				({ entity }) => { seen.push(entity.id); },
+			);
+
+		const e1 = world.spawn({ position: { x: 0, y: 0 } });
+		world.spawn({ position: { x: 5, y: 5 } });
+
+		// First update: both freshly spawned, so both are "changed"
+		world.update(1 / 60);
+		seen.length = 0;
+
+		// No further changes → no iteration
+		world.update(1 / 60);
+		expect(seen).toEqual([]);
+
+		world.markChanged(e1.id, 'position');
+		world.update(1 / 60);
+		expect(seen).toEqual([e1.id]);
+	});
+
+	test('parentHas filter scopes to children of qualifying parents', () => {
+		const seen: number[] = [];
+		const world = ECSpresso.create().withComponentTypes<TestComponents>().build();
+
+		world.addSystem('childrenOfHealthy')
+			.processEach(
+				{ with: ['position'], parentHas: ['health'] },
+				({ entity }) => { seen.push(entity.id); },
+			);
+
+		const parent = world.spawn({ position: { x: 0, y: 0 }, health: { value: 100 } });
+		const child = world.spawn({ position: { x: 10, y: 10 } });
+		world.setParent(child.id, parent.id);
+
+		const orphan = world.spawn({ position: { x: 50, y: 50 } });
+		const unhealthyParent = world.spawn({ position: { x: 100, y: 100 } });
+		const unhealthyChild = world.spawn({ position: { x: 110, y: 110 } });
+		world.setParent(unhealthyChild.id, unhealthyParent.id);
+
+		world.update(1 / 60);
+
+		expect(seen).toContain(child.id);
+		expect(seen).not.toContain(orphan.id);
+		expect(seen).not.toContain(unhealthyChild.id);
+		expect(seen).not.toContain(parent.id);
+	});
+
+	test('withResources threads resources into callback context', () => {
+		const calls: number[] = [];
+		const world = ECSpresso.create()
+			.withComponentTypes<TestComponents>()
+			.withResourceTypes<{ config: { speed: number } }>()
+			.withResource('config', { speed: 99 })
+			.build();
+
+		world.addSystem('withRes')
+			.withResources(['config'])
+			.processEach(
+				{ with: ['position'] },
+				({ resources: { config } }) => {
+					calls.push(config.speed);
+				},
+			);
+
+		world.spawn({ position: { x: 0, y: 0 } });
+		world.update(1 / 60);
+		expect(calls).toEqual([99]);
+	});
+
+	test('withResources resolves once and reuses the same object', () => {
+		const observed: Record<string, unknown>[] = [];
+		const world = ECSpresso.create()
+			.withComponentTypes<TestComponents>()
+			.withResourceTypes<{ config: { speed: number } }>()
+			.withResource('config', { speed: 10 })
+			.build();
+
+		world.addSystem('cacheTest')
+			.withResources(['config'])
+			.processEach(
+				{ with: ['position'] },
+				({ resources }) => { observed.push(resources); },
+			);
+
+		world.spawn({ position: { x: 0, y: 0 } });
+		world.update(1 / 60);
+		world.update(1 / 60);
+		world.update(1 / 60);
+
+		expect(observed).toHaveLength(3);
+		expect(observed[0]).toBe(observed[1]);
+		expect(observed[1]).toBe(observed[2]);
+	});
+
+	test('composes with inPhase / setPriority / inGroup', () => {
+		const executionOrder: string[] = [];
+		const world = ECSpresso.create().withComponentTypes<TestComponents>().build();
+
+		world.addSystem('preUpdater')
+			.inPhase('preUpdate')
+			.setPriority(10)
+			.processEach(
+				{ with: ['position'] },
+				() => { executionOrder.push('pre'); },
+			);
+
+		world.addSystem('updater')
+			.inPhase('update')
+			.processEach(
+				{ with: ['position'] },
+				() => { executionOrder.push('upd'); },
+			);
+
+		world.spawn({ position: { x: 0, y: 0 } });
+		world.update(1 / 60);
+
+		expect(executionOrder).toEqual(['pre', 'upd']);
+	});
+
+	test('inGroup gates execution alongside processEach', () => {
+		let calls = 0;
+		const world = ECSpresso.create().withComponentTypes<TestComponents>().build();
+
+		world.addSystem('grouped')
+			.inGroup('myGroup')
+			.processEach(
+				{ with: ['position'] },
+				() => { calls++; },
+			);
+
+		world.spawn({ position: { x: 0, y: 0 } });
+		world.update(1 / 60);
+		expect(calls).toBe(1);
+
+		world.disableSystemGroup('myGroup');
+		world.update(1 / 60);
+		expect(calls).toBe(1);
+
+		world.enableSystemGroup('myGroup');
+		world.update(1 / 60);
+		expect(calls).toBe(2);
+	});
+
+	test('supports setOnInitialize / setOnDetach after processEach', async () => {
+		let initCalled = false;
+		let detachCalled = false;
+		const world = ECSpresso.create().withComponentTypes<TestComponents>().build();
+
+		world.addSystem('withLifecycle')
+			.processEach({ with: ['position'] }, () => {})
+			.setOnInitialize(() => { initCalled = true; })
+			.setOnDetach(() => { detachCalled = true; });
+
+		await world.initialize();
+		expect(initCalled).toBe(true);
+
+		world.removeSystem('withLifecycle');
+		expect(detachCalled).toBe(true);
+	});
+
+	test('runWhenEmpty does not invoke the per-entity callback when no entities match', () => {
+		let calls = 0;
+		const world = ECSpresso.create().withComponentTypes<TestComponents>().build();
+
+		world.addSystem('emptyRuns')
+			.runWhenEmpty()
+			.processEach(
+				{ with: ['position'] },
+				() => { calls++; },
+			);
+
+		world.update(1 / 60);
+		expect(calls).toBe(0);
+	});
+
+	test('runtime guard: calling processEach twice throws', () => {
+		const world = ECSpresso.create().withComponentTypes<TestComponents>().build();
+		const builder = world.addSystem('twice')
+			.processEach({ with: ['position'] }, () => {});
+
+		expect(() => {
+			// @ts-expect-error — processEach unavailable once __each is in Queries
+			builder.processEach({ with: ['position'] }, () => {});
+		}).toThrow();
+	});
+
+	test('runtime guard: processEach after addQuery throws', () => {
+		const world = ECSpresso.create().withComponentTypes<TestComponents>().build();
+		const builder = world.addSystem('afterAddQuery')
+			.addQuery('e', { with: ['position'] });
+
+		expect(() => {
+			// @ts-expect-error — processEach unavailable after addQuery
+			builder.processEach({ with: ['position'] }, () => {});
+		}).toThrow();
+	});
+
+	test('runtime guard: processEach after setProcess throws', () => {
+		const world = ECSpresso.create().withComponentTypes<TestComponents>().build();
+		const builder = world.addSystem('afterSetProcess')
+			.addQuery('e', { with: ['position'] })
+			.setProcess(() => {});
+
+		expect(() => {
+			// @ts-expect-error — processEach unavailable after addQuery/setProcess
+			builder.processEach({ with: ['position'] }, () => {});
+		}).toThrow();
+	});
+
+	test('entity type inference: with/optional/without narrow correctly', () => {
+		const world = ECSpresso.create().withComponentTypes<TestComponents>().build();
+
+		world.addSystem('typeCheck')
+			.processEach(
+				{ with: ['position'], optional: ['health'], without: ['marker'] },
+				({ entity }) => {
+					const x: number = entity.components.position.x;
+					const y: number = entity.components.position.y;
+					const health: { value: number } | undefined = entity.components.health;
+
+					expect(typeof x).toBe('number');
+					expect(typeof y).toBe('number');
+					if (health !== undefined) {
+						expect(typeof health.value).toBe('number');
+					}
+				},
+			);
+
+		world.spawn({ position: { x: 1, y: 2 } });
+		world.spawn({ position: { x: 3, y: 4 }, health: { value: 50 } });
+		world.update(1 / 60);
+	});
+
+	test('ecs is available in the callback context', () => {
+		let observedEcs: unknown;
+		const world = ECSpresso.create().withComponentTypes<TestComponents>().build();
+
+		world.addSystem('ecsCheck')
+			.processEach(
+				{ with: ['position'] },
+				({ ecs }) => { observedEcs = ecs; },
+			);
+
+		world.spawn({ position: { x: 0, y: 0 } });
+		world.update(1 / 60);
+
+		expect(observedEcs).toBe(world);
+	});
+});

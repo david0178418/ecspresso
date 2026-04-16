@@ -2,6 +2,9 @@ import type ECSpresso from "./ecspresso";
 import type { FilteredEntity, QueryDefinition, System, SystemPhase } from "./types";
 import type { WorldConfig, EmptyConfig } from "./type-utils";
 
+const PROCESS_EACH_QUERY = '__each' as const;
+type ProcessEachKey = typeof PROCESS_EACH_QUERY;
+
 /**
  * Builder class for creating type-safe ECS Systems with proper query inference.
  * Systems are automatically registered with their ECSpresso instance when
@@ -231,26 +234,121 @@ export class SystemBuilder<
 	setProcess(
 		process: ProcessFunction<Cfg, Queries, ResourceKeys>
 	): this {
-		if (this._resourceKeys?.length) {
-			const keys = this._resourceKeys;
-			const resolved: Record<string, unknown> = {};
-			let initialized = false;
-			this.processFunction = ((ctx) => {
-				for (const key of keys) {
-					if (!initialized || ctx.ecs.isResourceObserved(key as keyof Cfg['resources'] & string)) {
-						resolved[key] = ctx.ecs.getResource(key as keyof Cfg['resources'] & string);
-					}
-				}
-				initialized = true;
-				(ctx as Record<string, unknown>)['resources'] = resolved;
-				(process as Function)(ctx);
-			}) as InternalProcessFunction<Cfg, Queries>;
-		} else {
-			// When ResourceKeys is never, ProcessFunction collapses to InternalProcessFunction.
-			// TypeScript can't prove this while ResourceKeys is still generic, so cast through Function.
-			this.processFunction = process as unknown as InternalProcessFunction<Cfg, Queries>;
-		}
+		this.processFunction = this._wrapWithResources(process as (ctx: unknown) => void);
 		return this;
+	}
+
+	private _wrapWithResources(
+		process: (ctx: unknown) => void,
+	): InternalProcessFunction<Cfg, Queries> {
+		if (!this._resourceKeys?.length) {
+			return process as unknown as InternalProcessFunction<Cfg, Queries>;
+		}
+		const keys = this._resourceKeys;
+		const resolved: Record<string, unknown> = {};
+		let initialized = false;
+		return ((ctx) => {
+			for (const key of keys) {
+				if (!initialized || ctx.ecs.isResourceObserved(key as keyof Cfg['resources'] & string)) {
+					resolved[key] = ctx.ecs.getResource(key as keyof Cfg['resources'] & string);
+				}
+			}
+			initialized = true;
+			(ctx as Record<string, unknown>)['resources'] = resolved;
+			process(ctx);
+		}) as InternalProcessFunction<Cfg, Queries>;
+	}
+
+	/**
+	 * Inline-query terminator: define a single query and a per-entity callback
+	 * in one call. Collapses the common `addQuery` + `setProcess` + for-loop
+	 * pattern into a single chain step.
+	 *
+	 * Only valid on a builder with no prior queries or process function —
+	 * TypeScript narrows `this` to `never` otherwise, and a runtime guard
+	 * throws for untyped callers. For multi-query systems use
+	 * `addQuery` + `setProcess`.
+	 *
+	 * @param definition Inline query definition (with / without / optional / changed / parentHas)
+	 * @param process Callback invoked once per matching entity each frame
+	 */
+	processEach<
+		W extends keyof Cfg['components'],
+		WO extends keyof Cfg['components'] = never,
+		O extends keyof Cfg['components'] = never,
+	>(
+		this: [keyof Queries] extends [never] ? SystemBuilder<Cfg, Queries, Label, SysGroups, ResourceKeys> : never,
+		definition: {
+			with: ReadonlyArray<W>;
+			without?: ReadonlyArray<WO>;
+			optional?: ReadonlyArray<O>;
+			changed?: ReadonlyArray<W>;
+			parentHas?: ReadonlyArray<keyof Cfg['components']>;
+		},
+		process: (ctx: {
+			entity: FilteredEntity<Cfg['components'], W, WO, O>;
+			dt: number;
+			ecs: ECSpresso<Cfg>;
+		} & ([ResourceKeys] extends [never]
+			? {}
+			: { resources: { readonly [K in ResourceKeys]: Cfg['resources'][K] } })
+		) => void,
+	): SystemBuilder<
+		Cfg,
+		Queries & Record<ProcessEachKey, QueryDefinition<Cfg['components'], W, WO, O>>,
+		Label,
+		SysGroups,
+		ResourceKeys
+	> {
+		// The conditional `this:` parameter cannot be introspected in the body — cast to access private fields.
+		const self = this as unknown as {
+			queries: Record<string, unknown>;
+			processFunction?: unknown;
+			_wrapWithResources(fn: (ctx: unknown) => void): InternalProcessFunction<Cfg, Queries>;
+		};
+
+		if (Object.keys(self.queries).length > 0 || self.processFunction !== undefined) {
+			throw new Error(
+				'processEach requires a SystemBuilder with no prior queries or process function. ' +
+				'Use addQuery + setProcess for multi-query systems.',
+			);
+		}
+
+		self.queries[PROCESS_EACH_QUERY] = definition;
+
+		const perEntityCtx = {
+			entity: undefined as unknown,
+			dt: 0,
+			ecs: undefined as unknown,
+			resources: undefined as unknown,
+		};
+
+		const iterate = (ctx: unknown) => {
+			const frameCtx = ctx as {
+				queries: Record<string, ReadonlyArray<unknown>>;
+				dt: number;
+				ecs: unknown;
+				resources?: unknown;
+			};
+			const entities = frameCtx.queries[PROCESS_EACH_QUERY];
+			if (!entities) return;
+			perEntityCtx.dt = frameCtx.dt;
+			perEntityCtx.ecs = frameCtx.ecs;
+			perEntityCtx.resources = frameCtx.resources;
+			for (const entity of entities) {
+				perEntityCtx.entity = entity;
+				(process as (c: unknown) => void)(perEntityCtx);
+			}
+		};
+
+		self.processFunction = self._wrapWithResources(iterate);
+		return this as unknown as SystemBuilder<
+			Cfg,
+			Queries & Record<ProcessEachKey, QueryDefinition<Cfg['components'], W, WO, O>>,
+			Label,
+			SysGroups,
+			ResourceKeys
+		>;
 	}
 
 	/**
