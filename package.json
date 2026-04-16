@@ -40,6 +40,10 @@
 			"import": "./dist/plugins/spatial/spatial-index.js",
 			"types": "./dist/plugins/spatial/spatial-index.d.ts"
 		},
+		"./plugins/spatial/spatial-index3D": {
+			"import": "./dist/plugins/spatial/spatial-index3D.js",
+			"types": "./dist/plugins/spatial/spatial-index3D.d.ts"
+		},
 		"./plugins/physics/physics2D": {
 			"import": "./dist/plugins/physics/physics2D.js",
 			"types": "./dist/plugins/physics/physics2D.d.ts"
