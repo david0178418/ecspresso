@@ -197,3 +197,21 @@ export function gridQueryRadius3D(
 		}
 	}
 }
+
+// ==================== SpatialIndex3D Interface ====================
+
+/**
+ * High-level spatial index API for 3D broadphase queries.
+ *
+ * Defined here (the utility layer) so that narrowphase3D can accept it
+ * without importing the ECS plugin. The spatial-index3D plugin creates
+ * an object that implements this interface and registers it as a resource.
+ */
+export interface SpatialIndex3D {
+	readonly grid: SpatialHashGrid3D;
+	queryBox(minX: number, minY: number, minZ: number, maxX: number, maxY: number, maxZ: number): number[];
+	queryBoxInto(minX: number, minY: number, minZ: number, maxX: number, maxY: number, maxZ: number, result: Set<number>): void;
+	queryRadius(cx: number, cy: number, cz: number, radius: number): number[];
+	queryRadiusInto(cx: number, cy: number, cz: number, radius: number, result: Set<number>): void;
+	getEntry(entityId: number): SpatialEntry3D | undefined;
+}
