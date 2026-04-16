@@ -212,7 +212,7 @@ toggleBtn.addEventListener('click', () => {
 
 document.body.appendChild(toggleBtn);
 
-// -- Diagnostics overlay --
+// -- Stress test overlay --
 
 const cleanupOverlay = createDiagnosticsOverlay(ecs, {
 	position: 'top-right',

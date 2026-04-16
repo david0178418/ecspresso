@@ -13,8 +13,8 @@ import cameraZoom from './camera-zoom/camera-zoom.html';
 import stateMachine from './state-machine/state-machine.html';
 import tweens from './tweens/tweens.html';
 import screens from './screens/screens.html';
-import diagnostics from './diagnostics/diagnostics.html';
-import diagnostics3D from './diagnostics-3D/diagnostics-3D.html';
+import stressTest from './stress-test/stress-test.html';
+import stressTest3D from './stress-test-3D/stress-test-3D.html';
 import audio from './audio/audio.html';
 import coroutines from './coroutines/coroutines.html';
 import spriteAnimation from './sprite-animation/sprite-animation.html';
@@ -51,8 +51,8 @@ const server = serve({
 		'/state-machine/': stateMachine,
 		'/tweens/': tweens,
 		'/screens/': screens,
-		'/diagnostics/': diagnostics,
-		'/diagnostics-3D/': diagnostics3D,
+		'/stress-test/': stressTest,
+		'/stress-test-3D/': stressTest3D,
 		'/audio/': audio,
 		'/coroutines/': coroutines,
 		'/sprite-animation/': spriteAnimation,
