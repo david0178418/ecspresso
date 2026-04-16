@@ -8,6 +8,7 @@
 		"src/plugins/spatial/camera.ts",
 		"src/plugins/spatial/camera3D.ts",
 		"src/plugins/spatial/spatial-index.ts",
+		"src/plugins/spatial/spatial-index3D.ts",
 		"src/plugins/physics/physics2D.ts",
 		"src/plugins/physics/collision.ts",
 		"src/plugins/physics/collision3D.ts",

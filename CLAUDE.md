@@ -25,16 +25,22 @@ src/
 ├── index.ts           # Public API exports
 └── plugins/
     ├── spatial/
-    │   ├── transform.ts     # Hierarchical local/world transform propagation
-    │   ├── bounds.ts        # Screen bounds enforcement (destroy, clamp, wrap)
-    │   ├── camera.ts        # Viewport, follow, shake, zoom
-    │   └── spatial-index.ts # Uniform-grid spatial hash for broadphase/proximity queries
+    │   ├── transform.ts       # Hierarchical local/world transform propagation
+    │   ├── transform3D.ts     # Hierarchical 3D transform propagation with quaternion composition
+    │   ├── bounds.ts          # Screen bounds enforcement (destroy, clamp, wrap)
+    │   ├── camera.ts          # Viewport, follow, shake, zoom
+    │   ├── camera3D.ts        # Orbit/follow/shake controls for Three.js PerspectiveCamera
+    │   ├── spatial-index.ts   # Uniform-grid spatial hash for broadphase/proximity queries
+    │   └── spatial-index3D.ts # 3D uniform-grid spatial hash for broadphase/proximity queries
     ├── physics/
     │   ├── physics2D.ts     # ECS-native 2D arcade physics
+    │   ├── physics3D.ts     # Gravity, forces, drag, Euler integration, impulse-based collision response
     │   ├── collision.ts     # Layer-based collision detection + pair handler routing
+    │   ├── collision3D.ts   # Layer-based 3D collision detection with events (AABB3D + sphere)
     │   └── steering.ts      # Move-to-target with arrival detection
     ├── rendering/
     │   ├── renderer2D.ts    # PixiJS scene graph wiring
+    │   ├── renderer3D.ts    # Three.js scene graph wiring
     │   ├── particles.ts     # Pooled particle system with PixiJS ParticleContainer rendering
     │   └── sprite-animation.ts # Frame-based sprite animation
     ├── input/

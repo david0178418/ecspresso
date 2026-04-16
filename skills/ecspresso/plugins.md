@@ -116,6 +116,8 @@ All are created via factory functions (e.g., `createInputPlugin(options)`). Each
 | Spatial Index | `ecspresso/plugins/spatial-index` | `fixedUpdate + postUpdate` | Spatial hashing for efficient proximity queries |
 | Spatial Index 3D | `ecspresso/plugins/spatial/spatial-index3D` | `fixedUpdate + postUpdate` | 3D spatial hashing for efficient proximity queries and broadphase acceleration |
 | Camera | `ecspresso/plugins/camera` | `postUpdate` | Camera follow, shake, and bounds |
+| Camera 3D | `ecspresso/plugins/spatial/camera3D` | `postUpdate` | Orbit/follow/shake controls for Three.js PerspectiveCamera |
+| Physics 3D | `ecspresso/plugins/physics/physics3D` | `fixedUpdate` | Gravity, forces, drag, Euler integration, impulse-based collision response |
 | Particles | `ecspresso/plugins/particles` | `update + render` | Pooled particle system with PixiJS ParticleContainer |
 | Sprite Animation | `ecspresso/plugins/sprite-animation` | `update` | Frame-based sprite animation |
 | Audio | `ecspresso/plugins/audio` | `update` | Howler.js audio integration |
