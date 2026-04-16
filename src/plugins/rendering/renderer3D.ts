@@ -302,16 +302,23 @@ export function createObject3DComponents(
 
 /**
  * Apply worldTransform3D and visible3d to a Three.js Object3D.
+ *
+ * Managed objects have matrixAutoUpdate / matrixWorldAutoUpdate disabled
+ * (see addToScene), so we must recompose obj.matrix and refresh obj.matrixWorld
+ * ourselves. Because the plugin keeps a flat scene graph, world = scene.matrixWorld * local.
  */
 function syncObject3D(
 	obj: Object3D,
 	wt: WorldTransform3D,
 	vis: Visible3D,
+	scene: Scene,
 ): void {
 	obj.position.set(wt.x, wt.y, wt.z);
 	obj.rotation.set(wt.rx, wt.ry, wt.rz);
 	obj.scale.set(wt.sx, wt.sy, wt.sz);
 	obj.visible = vis.visible;
+	obj.updateMatrix();
+	obj.matrixWorld.multiplyMatrices(scene.matrixWorld, obj.matrix);
 }
 
 // ==================== Plugin Factory ====================
@@ -386,6 +393,7 @@ export function createRenderer3DPlugin<G extends string = 'renderer3d'>(
 
 					const rendererParams: WebGLRendererParameters = {
 						antialias,
+						powerPreference: 'high-performance',
 						...threeInit,
 					};
 
@@ -494,19 +502,22 @@ export function createRenderer3DPlugin<G extends string = 'renderer3d'>(
 					changed: ['worldTransform3D'],
 				})
 				.setProcess(({ queries }) => {
+					const scene = cachedScene;
+					if (!scene) return;
+
 					for (const entity of queries.meshes) {
 						const { mesh, worldTransform3D, visible3d } = entity.components;
-						syncObject3D(mesh, worldTransform3D, visible3d);
+						syncObject3D(mesh, worldTransform3D, visible3d, scene);
 					}
 
 					for (const entity of queries.groups) {
 						const { group, worldTransform3D, visible3d } = entity.components;
-						syncObject3D(group, worldTransform3D, visible3d);
+						syncObject3D(group, worldTransform3D, visible3d, scene);
 					}
 
 					for (const entity of queries.objects) {
 						const { object3d, worldTransform3D, visible3d } = entity.components;
-						syncObject3D(object3d, worldTransform3D, visible3d);
+						syncObject3D(object3d, worldTransform3D, visible3d, scene);
 					}
 				});
 
@@ -525,8 +536,13 @@ export function createRenderer3DPlugin<G extends string = 'renderer3d'>(
 					cachedScene = scene;
 					cachedCamera = camera;
 
-					// Helper to add a Three.js object to the scene
+					// Helper to add a Three.js object to the scene.
+					// Disable Three.js's per-frame matrix bookkeeping for managed objects:
+					// the sync system writes obj.matrix and obj.matrixWorld manually only when
+					// worldTransform3D actually changes, skipping the work for static frames.
 					function addToScene(entityId: number, obj: Object3D): void {
+						obj.matrixAutoUpdate = false;
+						obj.matrixWorldAutoUpdate = false;
 						entityToThreeObject.set(entityId, obj);
 						scene.add(obj);
 					}

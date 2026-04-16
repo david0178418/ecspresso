@@ -21,6 +21,7 @@ const examples = [
 	{ route: 'tweens', dir: 'tweens', html: 'tweens.html', entry: 'tweens.ts' },
 	{ route: 'screens', dir: 'screens', html: 'screens.html', entry: 'screens.ts' },
 	{ route: 'diagnostics', dir: 'diagnostics', html: 'diagnostics.html', entry: 'diagnostics.ts' },
+	{ route: 'diagnostics-3D', dir: 'diagnostics-3D', html: 'diagnostics-3D.html', entry: 'diagnostics-3D.ts' },
 	{ route: 'audio', dir: 'audio', html: 'audio.html', entry: 'audio.ts' },
 	{ route: 'coroutines', dir: 'coroutines', html: 'coroutines.html', entry: 'coroutines.ts' },
 	{ route: 'sprite-animation', dir: 'sprite-animation', html: 'sprite-animation.html', entry: 'sprite-animation.ts' },

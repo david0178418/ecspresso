@@ -14,6 +14,7 @@ import stateMachine from './state-machine/state-machine.html';
 import tweens from './tweens/tweens.html';
 import screens from './screens/screens.html';
 import diagnostics from './diagnostics/diagnostics.html';
+import diagnostics3D from './diagnostics-3D/diagnostics-3D.html';
 import audio from './audio/audio.html';
 import coroutines from './coroutines/coroutines.html';
 import spriteAnimation from './sprite-animation/sprite-animation.html';
@@ -51,6 +52,7 @@ const server = serve({
 		'/tweens/': tweens,
 		'/screens/': screens,
 		'/diagnostics/': diagnostics,
+		'/diagnostics-3D/': diagnostics3D,
 		'/audio/': audio,
 		'/coroutines/': coroutines,
 		'/sprite-animation/': spriteAnimation,
