@@ -112,7 +112,9 @@ All are created via factory functions (e.g., `createInputPlugin(options)`). Each
 | Transform 3D | `ecspresso/plugins/spatial/transform3D` | `postUpdate` | Hierarchical 3D transform propagation with quaternion composition |
 | Bounds | `ecspresso/plugins/bounds` | `postUpdate` | Screen bounds enforcement (destroy, clamp, wrap) |
 | Collision | `ecspresso/plugins/collision` | `postUpdate` | Layer-based AABB/circle collision detection with events |
+| Collision 3D | `ecspresso/plugins/physics/collision3D` | `postUpdate` | Layer-based AABB3D/sphere collision detection with events |
 | Spatial Index | `ecspresso/plugins/spatial-index` | `fixedUpdate + postUpdate` | Spatial hashing for efficient proximity queries |
+| Spatial Index 3D | `ecspresso/plugins/spatial/spatial-index3D` | `fixedUpdate + postUpdate` | 3D spatial hashing for efficient proximity queries and broadphase acceleration |
 | Camera | `ecspresso/plugins/camera` | `postUpdate` | Camera follow, shake, and bounds |
 | Particles | `ecspresso/plugins/particles` | `update + render` | Pooled particle system with PixiJS ParticleContainer |
 | Sprite Animation | `ecspresso/plugins/sprite-animation` | `update` | Frame-based sprite animation |

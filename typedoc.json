@@ -9,6 +9,7 @@
 		"src/plugins/spatial/spatial-index.ts",
 		"src/plugins/physics/physics2D.ts",
 		"src/plugins/physics/collision.ts",
+		"src/plugins/physics/collision3D.ts",
 		"src/plugins/physics/steering.ts",
 		"src/plugins/rendering/renderer2D.ts",
 		"src/plugins/rendering/renderer3D.ts",
