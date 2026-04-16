@@ -13,6 +13,7 @@ import type {
 	Scene,
 	Camera,
 	PerspectiveCamera,
+	OrthographicCamera,
 	Object3D,
 	Mesh,
 	Group,
@@ -125,14 +126,29 @@ export interface Renderer3DPluginPreInitOptions<G extends string = 'renderer3d'>
 
 /**
  * Camera configuration for managed mode.
+ *
+ * Discriminated on `projection`. Defaults to `'perspective'` when omitted.
+ * Orthographic cameras use `viewSize` (world-unit height at zoom=1) to define
+ * the base frustum; `zoom` maps directly to Three.js's `OrthographicCamera.zoom`.
  */
-export interface CameraOptions {
-	fov?: number;
-	near?: number;
-	far?: number;
-	position?: { x: number; y: number; z: number };
-	lookAt?: { x: number; y: number; z: number };
-}
+export type CameraOptions =
+	| {
+		projection?: 'perspective';
+		fov?: number;
+		near?: number;
+		far?: number;
+		position?: { x: number; y: number; z: number };
+		lookAt?: { x: number; y: number; z: number };
+	}
+	| {
+		projection: 'orthographic';
+		viewSize?: number;
+		zoom?: number;
+		near?: number;
+		far?: number;
+		position?: { x: number; y: number; z: number };
+		lookAt?: { x: number; y: number; z: number };
+	};
 
 /**
  * Options when letting the plugin create and manage Three.js objects.
@@ -432,12 +448,25 @@ export function createRenderer3DPlugin<G extends string = 'renderer3d'>(
 					dependsOn: ['threeRenderer'],
 					factory: async (ecs) => {
 						const renderer = ecs.getResource('threeRenderer');
-						const { PerspectiveCamera: PerspectiveCameraClass } = await import('three');
-						const fov = cameraOptions?.fov ?? 75;
+						const aspect = renderer.domElement.width / renderer.domElement.height;
 						const near = cameraOptions?.near ?? 0.1;
 						const far = cameraOptions?.far ?? 1000;
-						const aspect = renderer.domElement.width / renderer.domElement.height;
-						const cam = new PerspectiveCameraClass(fov, aspect, near, far);
+
+						let cam: Camera;
+						if (cameraOptions?.projection === 'orthographic') {
+							const { OrthographicCamera: OrthographicCameraClass } = await import('three');
+							const viewSize = cameraOptions.viewSize ?? 10;
+							const halfH = viewSize / 2;
+							const halfW = halfH * aspect;
+							const ortho = new OrthographicCameraClass(-halfW, halfW, halfH, -halfH, near, far);
+							ortho.zoom = cameraOptions.zoom ?? 1;
+							ortho.updateProjectionMatrix();
+							cam = ortho;
+						} else {
+							const { PerspectiveCamera: PerspectiveCameraClass } = await import('three');
+							const fov = cameraOptions?.fov ?? 75;
+							cam = new PerspectiveCameraClass(fov, aspect, near, far);
+						}
 
 						if (cameraOptions?.position) {
 							cam.position.set(
@@ -592,10 +621,19 @@ export function createRenderer3DPlugin<G extends string = 'renderer3d'>(
 						const w = threeRenderer.domElement.parentElement?.clientWidth ?? window.innerWidth;
 						const h = threeRenderer.domElement.parentElement?.clientHeight ?? window.innerHeight;
 						threeRenderer.setSize(w, h);
-						if ('aspect' in camera) {
+						if ((camera as PerspectiveCamera).isPerspectiveCamera) {
 							const perspCam = camera as PerspectiveCamera;
 							perspCam.aspect = w / h;
 							perspCam.updateProjectionMatrix();
+						} else if ((camera as OrthographicCamera).isOrthographicCamera) {
+							const orthoCam = camera as OrthographicCamera;
+							const halfH = (orthoCam.top - orthoCam.bottom) / 2;
+							const halfW = halfH * (w / h);
+							orthoCam.left = -halfW;
+							orthoCam.right = halfW;
+							orthoCam.top = halfH;
+							orthoCam.bottom = -halfH;
+							orthoCam.updateProjectionMatrix();
 						}
 					};
 					window.addEventListener('resize', resizeHandler);

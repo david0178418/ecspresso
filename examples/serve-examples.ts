@@ -25,6 +25,7 @@ import rtsMovement from './rts-movement/rts-movement.html';
 import turretDefense from './turret-defense/turret-defense.html';
 import isometric from './isometric/isometric.html';
 import isometricZoom from './isometric-zoom/isometric-zoom.html';
+import isometric3d from './isometric-3d/isometric-3d.html';
 import reactUI from './react-ui/react-ui.html';
 import patrolChase from './patrol-chase/patrol-chase.html';
 import flocking from './flocking/flocking.html';
@@ -63,6 +64,7 @@ const server = serve({
 		'/turret-defense/': turretDefense,
 		'/isometric/': isometric,
 		'/isometric-zoom/': isometricZoom,
+		'/isometric-3d/': isometric3d,
 		'/react-ui/': reactUI,
 		'/patrol-chase/': patrolChase,
 		'/flocking/': flocking,

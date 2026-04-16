@@ -6,6 +6,9 @@ import {
 	sphericalToCartesian,
 	type Camera3DResourceTypes,
 	type Camera3DPluginOptions,
+	type Camera3DState,
+	type PerspectiveCamera3DState,
+	type OrthographicCamera3DState,
 } from './camera3D';
 import {
 	createTransform3DPlugin,
@@ -18,12 +21,35 @@ import type { Renderer3DResourceTypes } from '../rendering/renderer3D';
 
 function createMockCamera() {
 	return {
+		isPerspectiveCamera: true as const,
 		position: { x: 0, y: 0, z: 0, set(x: number, y: number, z: number) { this.x = x; this.y = y; this.z = z; } },
 		lookAt(_x: number, _y: number, _z: number) {},
 		fov: 75,
 		aspect: 1,
 		updateProjectionMatrix() {},
 	};
+}
+
+function createMockOrthoCamera() {
+	return {
+		isOrthographicCamera: true as const,
+		position: { x: 0, y: 0, z: 0, set(x: number, y: number, z: number) { this.x = x; this.y = y; this.z = z; } },
+		lookAt(_x: number, _y: number, _z: number) {},
+		zoom: 1,
+		left: -5,
+		right: 5,
+		top: 5,
+		bottom: -5,
+		updateProjectionMatrix() {},
+	};
+}
+
+function assertPerspective(state: Camera3DState): asserts state is PerspectiveCamera3DState {
+	if (state.projection !== 'perspective') throw new Error(`expected perspective state, got ${state.projection}`);
+}
+
+function assertOrthographic(state: Camera3DState): asserts state is OrthographicCamera3DState {
+	if (state.projection !== 'orthographic') throw new Error(`expected orthographic state, got ${state.projection}`);
 }
 
 function createMockRenderer() {
@@ -58,19 +84,22 @@ interface TestResources extends Camera3DResourceTypes, Renderer3DResourceTypes {
 
 type TestConfig = WorldConfigFrom<TestComponents, {}, TestResources>;
 
-function buildEcs(options?: Camera3DPluginOptions) {
-	const mockCamera = createMockCamera();
-	const mockRenderer = createMockRenderer();
-
+function buildEcsWith(
+	cameraFactory: () => object,
+	options?: Camera3DPluginOptions,
+) {
 	return ECSpresso
 		.create<TestConfig>()
-		.withResource('threeRenderer', mockRenderer as unknown as TestResources['threeRenderer'])
+		.withResource('threeRenderer', createMockRenderer() as unknown as TestResources['threeRenderer'])
 		.withResource('scene', {} as TestResources['scene'])
-		.withResource('camera', mockCamera as unknown as TestResources['camera'])
+		.withResource('camera', cameraFactory() as unknown as TestResources['camera'])
 		.withPlugin(createTransform3DPlugin())
 		.withPlugin(createCamera3DPlugin(options))
 		.build();
 }
+
+const buildEcs = (options?: Camera3DPluginOptions) => buildEcsWith(createMockCamera, options);
+const buildOrthoEcs = (options?: Camera3DPluginOptions) => buildEcsWith(createMockOrthoCamera, options);
 
 // ==================== sphericalToCartesian ====================
 
@@ -283,6 +312,7 @@ describe('Resource mutation methods', () => {
 		await ecs.initialize();
 
 		const state = ecs.getResource('camera3DState');
+		assertPerspective(state);
 		state.setFov(90);
 
 		expect(state.fov).toBe(90);
@@ -555,6 +585,7 @@ describe('camera3d-sync system', () => {
 		await ecs.initialize();
 
 		const state = ecs.getResource('camera3DState');
+		assertPerspective(state);
 		state.setFov(90);
 
 		ecs.update(0.016);
@@ -638,5 +669,180 @@ describe('Camera 3D integration', () => {
 
 		// child world = parent(50,0,0) + local(10,0,0) = (60,0,0)
 		expect(state.targetX).toBeCloseTo(60, 0);
+	});
+});
+
+// ==================== Orthographic Projection ====================
+
+describe('Orthographic camera variant', () => {
+	test('projection defaults to perspective when option omitted', async () => {
+		const ecs = buildEcs();
+		await ecs.initialize();
+
+		const state = ecs.getResource('camera3DState');
+		expect(state.projection).toBe('perspective');
+	});
+
+	test('state.projection === "orthographic" when option set', async () => {
+		const ecs = buildOrthoEcs({ projection: 'orthographic' });
+		await ecs.initialize();
+
+		const state = ecs.getResource('camera3DState');
+		expect(state.projection).toBe('orthographic');
+	});
+
+	test('default zoom is 1', async () => {
+		const ecs = buildOrthoEcs({ projection: 'orthographic' });
+		await ecs.initialize();
+
+		const state = ecs.getResource('camera3DState');
+		assertOrthographic(state);
+		expect(state.zoom).toBe(1);
+	});
+
+	test('init reads zoom from the Three.js camera', async () => {
+		const mockCamera = createMockOrthoCamera();
+		mockCamera.zoom = 2.5;
+		const ecs = ECSpresso
+			.create<TestConfig>()
+			.withResource('threeRenderer', createMockRenderer() as unknown as TestResources['threeRenderer'])
+			.withResource('scene', {} as TestResources['scene'])
+			.withResource('camera', mockCamera as unknown as TestResources['camera'])
+			.withPlugin(createTransform3DPlugin())
+			.withPlugin(createCamera3DPlugin({ projection: 'orthographic' }))
+			.build();
+		await ecs.initialize();
+
+		const state = ecs.getResource('camera3DState');
+		assertOrthographic(state);
+		expect(state.zoom).toBe(2.5);
+	});
+
+	test('setZoom updates zoom', async () => {
+		const ecs = buildOrthoEcs({ projection: 'orthographic' });
+		await ecs.initialize();
+
+		const state = ecs.getResource('camera3DState');
+		assertOrthographic(state);
+		state.setZoom(4);
+
+		expect(state.zoom).toBe(4);
+	});
+
+	test('orthographic state has no setFov method', async () => {
+		const ecs = buildOrthoEcs({ projection: 'orthographic' });
+		await ecs.initialize();
+
+		const state = ecs.getResource('camera3DState');
+		assertOrthographic(state);
+		expect((state as unknown as { setFov?: unknown }).setFov).toBeUndefined();
+	});
+
+	test('perspective state has no setZoom method', async () => {
+		const ecs = buildEcs();
+		await ecs.initialize();
+
+		const state = ecs.getResource('camera3DState');
+		assertPerspective(state);
+		expect((state as unknown as { setZoom?: unknown }).setZoom).toBeUndefined();
+	});
+
+	test('zoom change triggers updateProjectionMatrix on camera', async () => {
+		let projectionUpdated = false;
+		const mockCamera = createMockOrthoCamera();
+		mockCamera.updateProjectionMatrix = () => { projectionUpdated = true; };
+
+		const ecs = ECSpresso
+			.create<TestConfig>()
+			.withResource('threeRenderer', createMockRenderer() as unknown as TestResources['threeRenderer'])
+			.withResource('scene', {} as TestResources['scene'])
+			.withResource('camera', mockCamera as unknown as TestResources['camera'])
+			.withPlugin(createTransform3DPlugin())
+			.withPlugin(createCamera3DPlugin({ projection: 'orthographic' }))
+			.build();
+		await ecs.initialize();
+
+		const state = ecs.getResource('camera3DState');
+		assertOrthographic(state);
+		state.setZoom(3);
+
+		ecs.update(0.016);
+
+		expect(projectionUpdated).toBe(true);
+		expect(mockCamera.zoom).toBe(3);
+	});
+
+	test('position computed from spherical coords identically to perspective', async () => {
+		const mockCamera = createMockOrthoCamera();
+		const ecs = ECSpresso
+			.create<TestConfig>()
+			.withResource('threeRenderer', createMockRenderer() as unknown as TestResources['threeRenderer'])
+			.withResource('scene', {} as TestResources['scene'])
+			.withResource('camera', mockCamera as unknown as TestResources['camera'])
+			.withPlugin(createTransform3DPlugin())
+			.withPlugin(createCamera3DPlugin({
+				projection: 'orthographic',
+				azimuth: 0,
+				elevation: 0,
+				distance: 10,
+				target: { x: 5, y: 0, z: 0 },
+			}))
+			.build();
+		await ecs.initialize();
+
+		ecs.update(0.016);
+
+		expect(mockCamera.position.x).toBeCloseTo(5);
+		expect(mockCamera.position.y).toBeCloseTo(0);
+		expect(mockCamera.position.z).toBeCloseTo(10);
+	});
+
+	test('init throws when plugin is orthographic but camera is perspective', async () => {
+		const ecs = ECSpresso
+			.create<TestConfig>()
+			.withResource('threeRenderer', createMockRenderer() as unknown as TestResources['threeRenderer'])
+			.withResource('scene', {} as TestResources['scene'])
+			.withResource('camera', createMockCamera() as unknown as TestResources['camera'])
+			.withPlugin(createTransform3DPlugin())
+			.withPlugin(createCamera3DPlugin({ projection: 'orthographic' }))
+			.build();
+
+		await expect(ecs.initialize()).rejects.toThrow(/orthographic/);
+	});
+
+	test('init throws when plugin is perspective but camera is orthographic', async () => {
+		const ecs = ECSpresso
+			.create<TestConfig>()
+			.withResource('threeRenderer', createMockRenderer() as unknown as TestResources['threeRenderer'])
+			.withResource('scene', {} as TestResources['scene'])
+			.withResource('camera', createMockOrthoCamera() as unknown as TestResources['camera'])
+			.withPlugin(createTransform3DPlugin())
+			.withPlugin(createCamera3DPlugin())
+			.build();
+
+		await expect(ecs.initialize()).rejects.toThrow(/perspective/);
+	});
+
+	test('follow + shake pipeline works for orthographic state', async () => {
+		const ecs = buildOrthoEcs({
+			projection: 'orthographic',
+			shake: { traumaDecay: 0, maxOffsetX: 1, maxOffsetY: 1, maxOffsetZ: 1 },
+			randomFn: () => 1,
+		});
+		await ecs.initialize();
+
+		const target = ecs.spawn({ ...createTransform3D(100, 0, 0) });
+		const state = ecs.getResource('camera3DState');
+		assertOrthographic(state);
+		state.follow(target.id, { smoothing: 100 });
+		state.addTrauma(0.5);
+
+		for (let i = 0; i < 20; i++) {
+			ecs.update(0.1);
+		}
+
+		expect(state.targetX).toBeCloseTo(100, 0);
+		const intensity = state.trauma * state.trauma;
+		expect(state.shakeOffsetX).toBeCloseTo(intensity);
 	});
 });
