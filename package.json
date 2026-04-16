@@ -56,6 +56,10 @@
 			"import": "./dist/plugins/physics/collision3D.js",
 			"types": "./dist/plugins/physics/collision3D.d.ts"
 		},
+		"./plugins/physics/physics3D": {
+			"import": "./dist/plugins/physics/physics3D.js",
+			"types": "./dist/plugins/physics/physics3D.d.ts"
+		},
 		"./plugins/physics/steering": {
 			"import": "./dist/plugins/physics/steering.js",
 			"types": "./dist/plugins/physics/steering.d.ts"
