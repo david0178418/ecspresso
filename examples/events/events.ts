@@ -25,7 +25,7 @@ const ecs = ECSpresso.create()
 
 // Movement (same as the movement example)
 ecs.addSystem('movement')
-	.processEach({ with: ['localTransform', 'velocity'] }, ({ entity, dt }) => {
+	.setProcessEach({ with: ['localTransform', 'velocity'] }, ({ entity, dt }) => {
 		const { localTransform, velocity } = entity.components;
 		localTransform.x += velocity.x * dt;
 		localTransform.y += velocity.y * dt;
@@ -35,7 +35,7 @@ ecs.addSystem('movement')
 // Events decouple the "what happened" from the "what should happen in response."
 ecs.addSystem('bounce')
 	.withResources(['bounds'])
-	.processEach({ with: ['localTransform', 'velocity', 'radius'] }, ({ entity, ecs, resources: { bounds } }) => {
+	.setProcessEach({ with: ['localTransform', 'velocity', 'radius'] }, ({ entity, ecs, resources: { bounds } }) => {
 		const { localTransform, velocity, radius } = entity.components;
 		if (localTransform.x > bounds.width - radius || localTransform.x < radius) {
 			velocity.x *= -1;

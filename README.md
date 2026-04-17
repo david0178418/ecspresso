@@ -45,7 +45,7 @@ const world = ECSpresso.create()
 
 // 3. Add a movement system
 world.addSystem('movement')
-  .processEach({ with: ['position', 'velocity'] }, ({ entity, dt }) => {
+  .setProcessEach({ with: ['position', 'velocity'] }, ({ entity, dt }) => {
     entity.components.position.x += entity.components.velocity.x * dt;
     entity.components.position.y += entity.components.velocity.y * dt;
   });

@@ -272,7 +272,7 @@ export class SystemBuilder<
 	 * @param definition Inline query definition (with / without / optional / changed / parentHas)
 	 * @param process Callback invoked once per matching entity each frame
 	 */
-	processEach<
+	setProcessEach<
 		W extends keyof Cfg['components'],
 		WO extends keyof Cfg['components'] = never,
 		O extends keyof Cfg['components'] = never,
@@ -309,7 +309,7 @@ export class SystemBuilder<
 
 		if (Object.keys(self.queries).length > 0 || self.processFunction !== undefined) {
 			throw new Error(
-				'processEach requires a SystemBuilder with no prior queries or process function. ' +
+				'setProcessEach requires a SystemBuilder with no prior queries or process function. ' +
 				'Use addQuery + setProcess for multi-query systems.',
 			);
 		}

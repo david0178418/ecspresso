@@ -186,7 +186,7 @@ ecs
 	.addSystem('player-input')
 	.inPhase('preUpdate')
 	.withResources(['inputState'])
-	.processEach({ with: ['player', 'velocity', 'speed'] }, ({ entity, ecs, resources: { inputState: input } }) => {
+	.setProcessEach({ with: ['player', 'velocity', 'speed'] }, ({ entity, ecs, resources: { inputState: input } }) => {
 		const { speed } = entity.components;
 		const vx = (input.actions.isActive('moveRight') ? 1 : 0) - (input.actions.isActive('moveLeft') ? 1 : 0);
 		const vy = (input.actions.isActive('moveDown') ? 1 : 0) - (input.actions.isActive('moveUp') ? 1 : 0);
@@ -202,7 +202,7 @@ ecs
 ecs
 	.addSystem('state-label')
 	.inPhase('render')
-	.processEach({ with: ['enemy', 'stateMachine', 'worldTransform', 'graphics'] }, ({ entity }) => {
+	.setProcessEachach({ with: ['enemy', 'stateMachine', 'worldTransform', 'graphics'] }, ({ entity }) => {
 		const state = getStateMachineState(ecs, entity.id);
 		const gfx = entity.components.graphics;
 

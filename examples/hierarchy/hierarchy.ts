@@ -110,7 +110,7 @@ type ECS = typeof ecs;
 // Updates localTransform based on orbital angle and radius
 ecs.addSystem('orbit')
 	.inPhase('fixedUpdate')
-	.processEach({ with: ['orbit', 'localTransform'] }, ({ entity, dt, ecs }) => {
+	.setProcessEach({ with: ['orbit', 'localTransform'] }, ({ entity, dt, ecs }) => {
 		const { orbit } = entity.components;
 
 		// Update orbital angle

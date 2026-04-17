@@ -55,7 +55,7 @@ const ecs = ECSpresso.create()
 ecs.addSystem('ground-reset')
 	.inPhase('fixedUpdate')
 	.setPriority(2000)
-	.processEach({ with: ['groundContact'] }, ({ entity, dt }) => {
+	.setProcessEach({ with: ['groundContact'] }, ({ entity, dt }) => {
 		const gc = entity.components.groundContact;
 		gc.coyoteTimer = Math.max(0, gc.coyoteTimer - dt);
 		gc.jumpBufferTimer = Math.max(0, gc.jumpBufferTimer - dt);
@@ -95,7 +95,7 @@ ecs.addSystem('ground-detect')
 ecs.addSystem('player-input')
 	.inPhase('preUpdate')
 	.withResources(['inputState'])
-	.processEach({ with: ['player', 'velocity', 'groundContact'] }, ({ entity, resources: { inputState: input } }) => {
+	.setProcessEachach({ with: ['player', 'velocity', 'groundContact'] }, ({ entity, resources: { inputState: input } }) => {
 		const { velocity, groundContact } = entity.components;
 
 		const left = input.actions.isActive('moveLeft') ? -MOVE_SPEED : 0;

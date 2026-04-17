@@ -86,7 +86,7 @@ export default function createAIPlugin() {
 			// Pending destroy system
 			world.addSystem('pending-destroy')
 				.inGroup('gameplay')
-				.processEach({ with: ['timer', 'pendingDestroy'] }, ({ entity, ecs }) => {
+				.setProcessEach({ with: ['timer', 'pendingDestroy'] }, ({ entity, ecs }) => {
 					if (entity.components.timer.justFinished) {
 						ecs.eventBus.publish('entityDestroyed', {
 							entityId: entity.id
@@ -99,7 +99,7 @@ export default function createAIPlugin() {
 				.inGroup('gameplay')
 				.inPhase('preUpdate')
 				.withResources(['waveManager', 'config', 'playerInitialRotation'])
-				.processEach({ with: ['timer', 'enemySpawner'] }, ({ entity: spawner, ecs, resources: { waveManager, config, playerInitialRotation } }) => {
+				.setProcessEachach({ with: ['timer', 'enemySpawner'] }, ({ entity: spawner, ecs, resources: { waveManager, config, playerInitialRotation } }) => {
 					if (!spawner.components.timer.justFinished) return;
 
 					if (waveManager.enemiesRemaining > 0) {

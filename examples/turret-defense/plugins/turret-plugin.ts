@@ -26,7 +26,7 @@ export default function createTurretPlugin() {
 				.addSystem('turret-aim')
 				.inGroup('gameplay')
 				.setPriority(600)
-				.processEach({ with: ['turret', 'localTransform', 'detectedEntities'] }, ({ entity, ecs }) => {
+				.setProcessEach({ with: ['turret', 'localTransform', 'detectedEntities'] }, ({ entity, ecs }) => {
 					const { localTransform, detectedEntities } = entity.components;
 					const target = findNearestLiveTarget(detectedEntities, ecs as World);
 					if (!target) return;
@@ -43,7 +43,7 @@ export default function createTurretPlugin() {
 				.addSystem('turret-fire')
 				.inGroup('gameplay')
 				.setPriority(700)
-				.processEach({ with: ['turret', 'localTransform', 'detectedEntities', 'timer'] }, ({ entity, ecs }) => {
+				.setProcessEachach({ with: ['turret', 'localTransform', 'detectedEntities', 'timer'] }, ({ entity, ecs }) => {
 					const { timer, localTransform, detectedEntities } = entity.components;
 					if (!timer.justFinished) return;
 

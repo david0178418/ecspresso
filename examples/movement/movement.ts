@@ -25,7 +25,7 @@ const ecs = ECSpresso.create()
 
 // Movement: applies velocity to position each frame
 ecs.addSystem('movement')
-	.processEach({ with: ['localTransform', 'velocity'] }, ({ entity, dt }) => {
+	.setProcessEach({ with: ['localTransform', 'velocity'] }, ({ entity, dt }) => {
 		const { localTransform, velocity } = entity.components;
 		localTransform.x += velocity.x * dt;
 		localTransform.y += velocity.y * dt;
@@ -34,7 +34,7 @@ ecs.addSystem('movement')
 // Bounce: reverses velocity when an entity hits a screen edge
 ecs.addSystem('bounce')
 	.withResources(['bounds'])
-	.processEach({ with: ['localTransform', 'velocity', 'radius'] }, ({ entity, resources: { bounds } }) => {
+	.setProcessEach({ with: ['localTransform', 'velocity', 'radius'] }, ({ entity, resources: { bounds } }) => {
 		const { localTransform, velocity, radius } = entity.components;
 		if (localTransform.x > bounds.width - radius || localTransform.x < radius) {
 			velocity.x *= -1;
