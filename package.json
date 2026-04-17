@@ -84,6 +84,10 @@
 			"import": "./dist/plugins/rendering/sprite-animation.js",
 			"types": "./dist/plugins/rendering/sprite-animation.d.ts"
 		},
+		"./plugins/rendering/tilemap": {
+			"import": "./dist/plugins/rendering/tilemap.js",
+			"types": "./dist/plugins/rendering/tilemap.d.ts"
+		},
 		"./plugins/input/input": {
 			"import": "./dist/plugins/input/input.js",
 			"types": "./dist/plugins/input/input.d.ts"

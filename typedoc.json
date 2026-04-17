@@ -18,6 +18,7 @@
 		"src/plugins/rendering/renderer3D.ts",
 		"src/plugins/rendering/particles.ts",
 		"src/plugins/rendering/sprite-animation.ts",
+		"src/plugins/rendering/tilemap.ts",
 		"src/plugins/input/input.ts",
 		"src/plugins/input/selection.ts",
 		"src/plugins/scripting/coroutine.ts",

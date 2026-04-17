@@ -42,7 +42,8 @@ src/
     │   ├── renderer2D.ts    # PixiJS scene graph wiring
     │   ├── renderer3D.ts    # Three.js scene graph wiring
     │   ├── particles.ts     # Pooled particle system with PixiJS ParticleContainer rendering
-    │   └── sprite-animation.ts # Frame-based sprite animation
+    │   ├── sprite-animation.ts # Frame-based sprite animation
+    │   └── tilemap.ts        # Tile-based world data, Tiled JSON / runtime ingestion, query API, opt-in collision strips
     ├── input/
     │   ├── input.ts         # Frame-accurate keyboard/pointer input with action mapping
     │   └── selection.ts     # Pointer-driven box/click selection with visual feedback

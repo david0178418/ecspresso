@@ -120,6 +120,7 @@ All are created via factory functions (e.g., `createInputPlugin(options)`). Each
 | Physics 3D | `ecspresso/plugins/physics/physics3D` | `fixedUpdate` | Gravity, forces, drag, Euler integration, impulse-based collision response |
 | Particles | `ecspresso/plugins/particles` | `update + render` | Pooled particle system with PixiJS ParticleContainer |
 | Sprite Animation | `ecspresso/plugins/sprite-animation` | `update` | Frame-based sprite animation |
+| Tilemap | `ecspresso/plugins/rendering/tilemap` | `render` | Tile-based world data with Tiled JSON loading, runtime construction, query API (`isSolid`/`isOpaque`/`isWalkable`/`buildNavGrid`), and opt-in collision strip generation |
 | Audio | `ecspresso/plugins/audio` | `update` | Howler.js audio integration |
 | Detection | `ecspresso/plugins/ai/detection` | `update` | Proximity detection with spatial-index, sorted by distance |
 | Flocking | `ecspresso/plugins/ai/flocking` | `update` | Boid flocking — separation, alignment, cohesion via force-based steering |
