@@ -40,7 +40,7 @@ function createBouncingPlugin() {
 				});
 			world.addSystem('bounce')
 				.withResources(['bounds'])
-				.setProcessEachach({ with: ['localTransform', 'velocity', 'radius'] }, ({ entity, ecs, resources: { bounds } }) => {
+				.setProcessEach({ with: ['localTransform', 'velocity', 'radius'] }, ({ entity, ecs, resources: { bounds } }) => {
 					const { localTransform, velocity, radius } = entity.components;
 					if (localTransform.x > bounds.width - radius || localTransform.x < radius) {
 						velocity.x *= -1;

@@ -43,7 +43,7 @@ export default function createTurretPlugin() {
 				.addSystem('turret-fire')
 				.inGroup('gameplay')
 				.setPriority(700)
-				.setProcessEachach({ with: ['turret', 'localTransform', 'detectedEntities', 'timer'] }, ({ entity, ecs }) => {
+				.setProcessEach({ with: ['turret', 'localTransform', 'detectedEntities', 'timer'] }, ({ entity, ecs }) => {
 					const { timer, localTransform, detectedEntities } = entity.components;
 					if (!timer.justFinished) return;
 

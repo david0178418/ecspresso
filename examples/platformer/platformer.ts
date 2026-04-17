@@ -95,7 +95,7 @@ ecs.addSystem('ground-detect')
 ecs.addSystem('player-input')
 	.inPhase('preUpdate')
 	.withResources(['inputState'])
-	.setProcessEachach({ with: ['player', 'velocity', 'groundContact'] }, ({ entity, resources: { inputState: input } }) => {
+	.setProcessEach({ with: ['player', 'velocity', 'groundContact'] }, ({ entity, resources: { inputState: input } }) => {
 		const { velocity, groundContact } = entity.components;
 
 		const left = input.actions.isActive('moveLeft') ? -MOVE_SPEED : 0;

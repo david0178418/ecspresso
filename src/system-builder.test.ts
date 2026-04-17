@@ -348,7 +348,7 @@ describe('setProcessEach', () => {
 		const world = ECSpresso.create().withComponentTypes<TestComponents>().build();
 
 		world.addSystem('iter')
-			.setProcessEachach(
+			.setProcessEach(
 				{ with: ['position', 'velocity'] },
 				({ entity, dt }) => {
 					seen.push({ id: entity.id, dt });
@@ -370,7 +370,7 @@ describe('setProcessEach', () => {
 		const world = ECSpresso.create().withComponentTypes<TestComponents>().build();
 
 		world.addSystem('movement')
-			.setProcessEachach(
+			.setProcessEach(
 				{ with: ['position', 'velocity'] },
 				({ entity, dt }) => {
 					entity.components.position.x += entity.components.velocity.x * dt;
@@ -390,7 +390,7 @@ describe('setProcessEach', () => {
 		const world = ECSpresso.create().withComponentTypes<TestComponents>().build();
 
 		world.addSystem('alive')
-			.setProcessEachach(
+			.setProcessEach(
 				{ with: ['position'], without: ['health'] },
 				({ entity }) => { seen.push(entity.id); },
 			);
@@ -407,7 +407,7 @@ describe('setProcessEach', () => {
 		const world = ECSpresso.create().withComponentTypes<TestComponents>().build();
 
 		world.addSystem('maybe')
-			.setProcessEachach(
+			.setProcessEach(
 				{ with: ['position'], optional: ['health'] },
 				({ entity }) => {
 					results.push({
@@ -431,7 +431,7 @@ describe('setProcessEach', () => {
 		const world = ECSpresso.create().withComponentTypes<TestComponents>().build();
 
 		world.addSystem('changedOnly')
-			.setProcessEachach(
+			.setProcessEach(
 				{ with: ['position'], changed: ['position'] },
 				({ entity }) => { seen.push(entity.id); },
 			);
@@ -457,7 +457,7 @@ describe('setProcessEach', () => {
 		const world = ECSpresso.create().withComponentTypes<TestComponents>().build();
 
 		world.addSystem('childrenOfHealthy')
-			.setProcessEachach(
+			.setProcessEach(
 				{ with: ['position'], parentHas: ['health'] },
 				({ entity }) => { seen.push(entity.id); },
 			);
@@ -489,7 +489,7 @@ describe('setProcessEach', () => {
 
 		world.addSystem('withRes')
 			.withResources(['config'])
-			.setProcessEachach(
+			.setProcessEach(
 				{ with: ['position'] },
 				({ resources: { config } }) => {
 					calls.push(config.speed);
@@ -511,7 +511,7 @@ describe('setProcessEach', () => {
 
 		world.addSystem('cacheTest')
 			.withResources(['config'])
-			.setProcessEachach(
+			.setProcessEach(
 				{ with: ['position'] },
 				({ resources }) => { observed.push(resources); },
 			);
@@ -533,14 +533,14 @@ describe('setProcessEach', () => {
 		world.addSystem('preUpdater')
 			.inPhase('preUpdate')
 			.setPriority(10)
-			.setProcessEachach(
+			.setProcessEach(
 				{ with: ['position'] },
 				() => { executionOrder.push('pre'); },
 			);
 
 		world.addSystem('updater')
 			.inPhase('update')
-			.setProcessEachach(
+			.setProcessEach(
 				{ with: ['position'] },
 				() => { executionOrder.push('upd'); },
 			);
@@ -551,13 +551,13 @@ describe('setProcessEach', () => {
 		expect(executionOrder).toEqual(['pre', 'upd']);
 	});
 
-	test('inGroup gates execution alongside setProcessEachach', () => {
+	test('inGroup gates execution alongside setProcessEach', () => {
 		let calls = 0;
 		const world = ECSpresso.create().withComponentTypes<TestComponents>().build();
 
 		world.addSystem('grouped')
 			.inGroup('myGroup')
-			.setProcessEachach(
+			.setProcessEach(
 				{ with: ['position'] },
 				() => { calls++; },
 			);
@@ -575,13 +575,13 @@ describe('setProcessEach', () => {
 		expect(calls).toBe(2);
 	});
 
-	test('supports setOnInitialize / setOnDetach after setProcessEachach', async () => {
+	test('supports setOnInitialize / setOnDetach after setProcessEach', async () => {
 		let initCalled = false;
 		let detachCalled = false;
 		const world = ECSpresso.create().withComponentTypes<TestComponents>().build();
 
 		world.addSystem('withLifecycle')
-			.setProcessEachach({ with: ['position'] }, () => {})
+			.setProcessEach({ with: ['position'] }, () => {})
 			.setOnInitialize(() => { initCalled = true; })
 			.setOnDetach(() => { detachCalled = true; });
 
@@ -598,7 +598,7 @@ describe('setProcessEach', () => {
 
 		world.addSystem('emptyRuns')
 			.runWhenEmpty()
-			.setProcessEachach(
+			.setProcessEach(
 				{ with: ['position'] },
 				() => { calls++; },
 			);
@@ -607,37 +607,37 @@ describe('setProcessEach', () => {
 		expect(calls).toBe(0);
 	});
 
-	test('runtime guard: calling setProcessEachach twice throws', () => {
+	test('runtime guard: calling setProcessEach twice throws', () => {
 		const world = ECSpresso.create().withComponentTypes<TestComponents>().build();
 		const builder = world.addSystem('twice')
-			.setProcessEachach({ with: ['position'] }, () => {});
+			.setProcessEach({ with: ['position'] }, () => {});
 
 		expect(() => {
-			// @ts-expect-error — setProcessEachach unavailable once __each is in Queries
-			builder.setProcessEachach({ with: ['position'] }, () => {});
+			// @ts-expect-error — setProcessEach unavailable once __each is in Queries
+			builder.setProcessEach({ with: ['position'] }, () => {});
 		}).toThrow();
 	});
 
-	test('runtime guard: setProcessEachach after addQuery throws', () => {
+	test('runtime guard: setProcessEach after addQuery throws', () => {
 		const world = ECSpresso.create().withComponentTypes<TestComponents>().build();
 		const builder = world.addSystem('afterAddQuery')
 			.addQuery('e', { with: ['position'] });
 
 		expect(() => {
-			// @ts-expect-error — setProcessEachach unavailable after addQuery
-			builder.setProcessEachach({ with: ['position'] }, () => {});
+			// @ts-expect-error — setProcessEach unavailable after addQuery
+			builder.setProcessEach({ with: ['position'] }, () => {});
 		}).toThrow();
 	});
 
-	test('runtime guard: setProcessEachach after setProcess throws', () => {
+	test('runtime guard: setProcessEach after setProcess throws', () => {
 		const world = ECSpresso.create().withComponentTypes<TestComponents>().build();
 		const builder = world.addSystem('afterSetProcess')
 			.addQuery('e', { with: ['position'] })
 			.setProcess(() => {});
 
 		expect(() => {
-			// @ts-expect-error — setProcessEachach unavailable after addQuery/setProcess
-			builder.setProcessEachach({ with: ['position'] }, () => {});
+			// @ts-expect-error — setProcessEach unavailable after addQuery/setProcess
+			builder.setProcessEach({ with: ['position'] }, () => {});
 		}).toThrow();
 	});
 
@@ -645,7 +645,7 @@ describe('setProcessEach', () => {
 		const world = ECSpresso.create().withComponentTypes<TestComponents>().build();
 
 		world.addSystem('typeCheck')
-			.setProcessEachach(
+			.setProcessEach(
 				{ with: ['position'], optional: ['health'], without: ['marker'] },
 				({ entity }) => {
 					const x: number = entity.components.position.x;
@@ -670,7 +670,7 @@ describe('setProcessEach', () => {
 		const world = ECSpresso.create().withComponentTypes<TestComponents>().build();
 
 		world.addSystem('ecsCheck')
-			.setProcessEachach(
+			.setProcessEach(
 				{ with: ['position'] },
 				({ ecs }) => { observedEcs = ecs; },
 			);

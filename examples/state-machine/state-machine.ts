@@ -202,7 +202,7 @@ ecs
 ecs
 	.addSystem('state-label')
 	.inPhase('render')
-	.setProcessEachach({ with: ['enemy', 'stateMachine', 'worldTransform', 'graphics'] }, ({ entity }) => {
+	.setProcessEach({ with: ['enemy', 'stateMachine', 'worldTransform', 'graphics'] }, ({ entity }) => {
 		const state = getStateMachineState(ecs, entity.id);
 		const gfx = entity.components.graphics;
 

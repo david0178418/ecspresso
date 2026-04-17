@@ -99,7 +99,7 @@ export default function createAIPlugin() {
 				.inGroup('gameplay')
 				.inPhase('preUpdate')
 				.withResources(['waveManager', 'config', 'playerInitialRotation'])
-				.setProcessEachach({ with: ['timer', 'enemySpawner'] }, ({ entity: spawner, ecs, resources: { waveManager, config, playerInitialRotation } }) => {
+				.setProcessEach({ with: ['timer', 'enemySpawner'] }, ({ entity: spawner, ecs, resources: { waveManager, config, playerInitialRotation } }) => {
 					if (!spawner.components.timer.justFinished) return;
 
 					if (waveManager.enemiesRemaining > 0) {
