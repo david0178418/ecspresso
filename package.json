@@ -186,13 +186,25 @@
 	"peerDependencies": {
 		"typescript": "^6.0.3",
 		"pixi.js": "^8.0.0",
-		"howler": "^2.2.0"
+		"howler": "^2.2.0",
+		"three": "^0.184.0",
+		"react": "^19.0.0",
+		"react-dom": "^19.0.0"
 	},
 	"peerDependenciesMeta": {
 		"pixi.js": {
 			"optional": true
 		},
 		"howler": {
+			"optional": true
+		},
+		"three": {
+			"optional": true
+		},
+		"react": {
+			"optional": true
+		},
+		"react-dom": {
 			"optional": true
 		}
 	},
