@@ -33,6 +33,7 @@ import flocking from './flocking/flocking.html';
 import behaviorTree from './behavior-tree/behavior-tree.html';
 import tilemap from './tilemap/tilemap.html';
 import ui from './ui/ui.html';
+import gamepadTester from './gamepad-tester/gamepad-tester.html';
 
 const examplesDir = import.meta.dir;
 
@@ -75,6 +76,7 @@ const server = serve({
 		'/behavior-tree/': behaviorTree,
 		'/tilemap/': tilemap,
 		'/ui/': ui,
+		'/gamepad-tester/': gamepadTester,
 	},
 	async fetch(request) {
 		// Serve static assets (e.g. .wav, .mp3) from example directories

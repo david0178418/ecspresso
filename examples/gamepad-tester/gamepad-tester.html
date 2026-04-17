@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Gamepad Tester</title>
+	<link rel="stylesheet" href="../styles.css">
+	<style>
+		body {
+			overflow: auto;
+			background: #0f0f1a;
+			color: #c8c8d4;
+			font-family: 'Courier New', monospace;
+			padding: 50px 20px 40px;
+			box-sizing: border-box;
+		}
+
+		h2 {
+			margin: 0 0 4px;
+			color: #a0a0c8;
+			font-size: 20px;
+		}
+
+		p.hint {
+			margin: 0 0 20px;
+			color: #555;
+			font-size: 13px;
+		}
+
+		#app {
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			gap: 16px;
+			max-width: 1080px;
+		}
+
+		@media (max-width: 700px) {
+			#app { grid-template-columns: 1fr; }
+		}
+
+		.pad-panel {
+			background: #16162a;
+			border: 1px solid #2a2a44;
+			border-radius: 10px;
+			padding: 16px;
+			display: flex;
+			flex-direction: column;
+			gap: 12px;
+		}
+
+		.pad-header {
+			display: flex;
+			align-items: center;
+			gap: 10px;
+			padding-bottom: 10px;
+			border-bottom: 1px solid #2a2a44;
+			min-width: 0;
+		}
+
+		.status-dot {
+			width: 11px;
+			height: 11px;
+			border-radius: 50%;
+			background: #333;
+			flex-shrink: 0;
+			transition: background 0.15s, box-shadow 0.15s;
+		}
+
+		.status-dot.connected {
+			background: #4caf50;
+			box-shadow: 0 0 7px #4caf5088;
+		}
+
+		.pad-id {
+			font-size: 11px;
+			color: #666;
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis;
+		}
+
+		.triggers-row {
+			display: flex;
+			gap: 16px;
+		}
+
+		.trigger-container {
+			flex: 1;
+			display: flex;
+			align-items: center;
+			gap: 7px;
+		}
+
+		.trigger-label {
+			font-size: 10px;
+			color: #555;
+			width: 18px;
+			text-align: right;
+			flex-shrink: 0;
+		}
+
+		.trigger-track {
+			flex: 1;
+			height: 8px;
+			background: #1a1a2e;
+			border-radius: 4px;
+			overflow: hidden;
+			border: 1px solid #2a2a44;
+		}
+
+		.trigger-fill {
+			height: 100%;
+			width: 0%;
+			background: linear-gradient(90deg, #546e7a, #90a4ae);
+			border-radius: 4px;
+		}
+
+		.buttons-grid {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 5px;
+		}
+
+		.btn-indicator {
+			width: 38px;
+			height: 38px;
+			border-radius: 6px;
+			border: 1px solid #2a2a44;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			font-size: 10px;
+			font-weight: bold;
+			color: #444;
+			background: #111;
+			user-select: none;
+		}
+
+		.sticks-row {
+			display: flex;
+			gap: 12px;
+			justify-content: space-around;
+		}
+
+		.stick-container {
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			gap: 5px;
+		}
+
+		.stick-label {
+			font-size: 10px;
+			color: #555;
+		}
+
+		.stick-zone {
+			width: 88px;
+			height: 88px;
+			border-radius: 50%;
+			border: 2px solid #2a2a44;
+			background: #0d0d1a;
+			position: relative;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+		}
+
+		.crosshair {
+			position: absolute;
+			background: #1e1e35;
+			pointer-events: none;
+		}
+
+		.crosshair-h { width: 100%; height: 1px; }
+		.crosshair-v { width: 1px; height: 100%; }
+
+		.stick-dot {
+			position: absolute;
+			width: 14px;
+			height: 14px;
+			border-radius: 50%;
+			background: #89b4fa;
+			box-shadow: 0 0 6px #89b4fa88;
+			pointer-events: none;
+		}
+	</style>
+</head>
+<body>
+	<a class="back" href="/">Back</a>
+	<h2>Gamepad Tester</h2>
+	<p class="hint">Connect a gamepad and press any button to activate it.</p>
+	<div id="app"></div>
+	<script src="./gamepad-tester.ts" type="module" defer></script>
+</body>
+</html>

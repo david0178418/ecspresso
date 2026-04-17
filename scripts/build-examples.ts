@@ -40,6 +40,7 @@ const examples = [
 	{ route: 'behavior-tree', dir: 'behavior-tree', html: 'behavior-tree.html', entry: 'behavior-tree.ts' },
 	{ route: 'tilemap', dir: 'tilemap', html: 'tilemap.html', entry: 'tilemap.ts' },
 	{ route: 'ui', dir: 'ui', html: 'ui.html', entry: 'ui.ts' },
+	{ route: 'gamepad-tester', dir: 'gamepad-tester', html: 'gamepad-tester.html', entry: 'gamepad-tester.ts' },
 ] as const;
 
 // Clean output
