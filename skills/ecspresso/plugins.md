@@ -124,6 +124,7 @@ All are created via factory functions (e.g., `createInputPlugin(options)`). Each
 | Detection | `ecspresso/plugins/ai/detection` | `update` | Proximity detection with spatial-index, sorted by distance |
 | Flocking | `ecspresso/plugins/ai/flocking` | `update` | Boid flocking — separation, alignment, cohesion via force-based steering |
 | Behavior Tree | `ecspresso/plugins/ai/behavior-tree` | `update` | Composable priority-driven AI via behavior trees with hybrid traversal |
+| Pathfinding | `ecspresso/plugins/ai/pathfinding` | `update` | A* on a weighted nav grid; produces waypoints consumed by steering |
 | Health | `ecspresso/plugins/combat/health` | (event-driven) | Health/damage/death lifecycle |
 | Projectile | `ecspresso/plugins/combat/projectile` | `update` | Homing + linear projectile movement, collision integration |
 | Iso Projection | `ecspresso/plugins/isometric/projection` | `render` | Cartesian→isometric coordinate projection, iso camera sync |

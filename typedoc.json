@@ -27,6 +27,7 @@
 		"src/plugins/ai/detection.ts",
 		"src/plugins/ai/flocking.ts",
 		"src/plugins/ai/behavior-tree.ts",
+		"src/plugins/ai/pathfinding.ts",
 		"src/plugins/combat/health.ts",
 		"src/plugins/combat/projectile.ts",
 		"src/plugins/audio/audio.ts",
