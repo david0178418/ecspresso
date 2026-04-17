@@ -38,6 +38,7 @@ const examples = [
 	{ route: 'patrol-chase', dir: 'patrol-chase', html: 'patrol-chase.html', entry: 'patrol-chase.ts' },
 	{ route: 'flocking', dir: 'flocking', html: 'flocking.html', entry: 'flocking.ts' },
 	{ route: 'behavior-tree', dir: 'behavior-tree', html: 'behavior-tree.html', entry: 'behavior-tree.ts' },
+	{ route: 'tilemap', dir: 'tilemap', html: 'tilemap.html', entry: 'tilemap.ts' },
 	{ route: 'ui', dir: 'ui', html: 'ui.html', entry: 'ui.ts' },
 ] as const;
 
@@ -100,7 +101,7 @@ const results = await Promise.all(
 
 		// Copy static assets (non-ts, non-html files) preserving directory structure
 		const staticFiles = Array.from(
-			new Glob('**/*.{wav,mp3,ogg,png,jpg,jpeg,webp,json,svg}').scanSync(exampleSrcDir),
+			new Glob('**/*.{wav,mp3,ogg,png,jpg,jpeg,webp,json,svg,txt}').scanSync(exampleSrcDir),
 		);
 
 		for (const file of staticFiles) {
