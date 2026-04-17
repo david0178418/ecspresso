@@ -156,7 +156,7 @@ export default function createGameLogicPlugin() {
 				.inGroup('gameplay')
 				.inPhase('preUpdate')
 				.withResources(['inputState', 'config'])
-				.processEach({ with: ['player', 'velocity'] }, ({ entity, resources: { inputState: input, config } }) => {
+				.setProcessEach({ with: ['player', 'velocity'] }, ({ entity, resources: { inputState: input, config } }) => {
 					entity.components.velocity.x = input.actions.isActive('moveLeft') ? -config.playerSpeed
 						: input.actions.isActive('moveRight') ? config.playerSpeed
 						: 0;

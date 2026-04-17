@@ -99,7 +99,7 @@ export default function createUIPlugin() {
 				.addSystem('enemy-health-bars')
 				.inPhase('render')
 				.setPriority(50)
-				.processEach({ with: ['enemy', 'health', 'worldTransform', 'sprite'] }, ({ entity }) => {
+				.setProcessEach({ with: ['enemy', 'health', 'worldTransform', 'sprite'] }, ({ entity }) => {
 					const { health, sprite } = entity.components;
 					// Tint enemies red as they take damage
 					const healthRatio = health.current / health.max;

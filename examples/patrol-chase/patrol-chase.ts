@@ -197,7 +197,7 @@ ecs
 	.inPhase('update')
 	.setPriority(900)
 	.withResources(['inputState'])
-	.processEach({ with: ['player', 'localTransform'] }, ({ entity, dt, ecs: world, resources: { inputState: input } }) => {
+	.setProcessEach({ with: ['player', 'localTransform'] }, ({ entity, dt, ecs: world, resources: { inputState: input } }) => {
 		const lt = entity.components.localTransform;
 		const vx = (input.actions.isActive('moveRight') ? 1 : 0)
 			- (input.actions.isActive('moveLeft') ? 1 : 0);

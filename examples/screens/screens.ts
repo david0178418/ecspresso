@@ -203,7 +203,7 @@ ecs.addSystem('dotSpawner')
 // Dot movement and expiry — only runs during 'playing' screen
 ecs.addSystem('dotLifecycle')
 	.inScreens(['playing'])
-	.processEach({ with: ['dot', 'localTransform'] }, ({ entity, dt, ecs }) => {
+	.setProcessEach({ with: ['dot', 'localTransform'] }, ({ entity, dt, ecs }) => {
 		const { dot } = entity.components;
 		dot.lifetime -= dt;
 		if (dot.lifetime <= 0) {

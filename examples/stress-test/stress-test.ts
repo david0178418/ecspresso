@@ -82,7 +82,7 @@ const ecs = ECSpresso.create()
 ecs
 	.addSystem('bounce')
 	.inPhase('postUpdate')
-	.processEach({ with: ['worldTransform', 'velocity', 'radius'] }, ({ entity }) => {
+	.setProcessEach({ with: ['worldTransform', 'velocity', 'radius'] }, ({ entity }) => {
 		const { worldTransform, velocity, radius } = entity.components;
 
 		if (worldTransform.x < radius) {

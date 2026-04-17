@@ -8,7 +8,7 @@ export default function createPhysicsPlugin() {
 			world.addSystem('movement')
 				.inGroup('gameplay')
 				.inPhase('fixedUpdate')
-				.processEach({ with: ['localTransform3D', 'velocity'] }, ({ entity, dt }) => {
+				.setProcessEach({ with: ['localTransform3D', 'velocity'] }, ({ entity, dt }) => {
 					const { localTransform3D, velocity } = entity.components;
 					localTransform3D.x += velocity.x * dt;
 					localTransform3D.y += velocity.y * dt;

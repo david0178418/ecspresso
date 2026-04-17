@@ -230,7 +230,7 @@ export default function createGameStatePlugin() {
 				// Message timer system - hides messages after their timer finishes
 				world.addSystem('message-timer')
 				.withResources(['uiElements'])
-				.processEach({ with: ['timer', 'messageTimer'] }, ({ entity, ecs, resources: { uiElements } }) => {
+				.setProcessEach({ with: ['timer', 'messageTimer'] }, ({ entity, ecs, resources: { uiElements } }) => {
 					if (entity.components.timer.justFinished) {
 						// Hide the message
 						if (uiElements.messageElement) {

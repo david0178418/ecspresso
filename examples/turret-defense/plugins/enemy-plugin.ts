@@ -111,7 +111,7 @@ export default function createEnemyPlugin() {
 				.addSystem('enemy-spawner')
 				.inGroup('gameplay')
 				.inPhase('preUpdate')
-				.processEach(
+				.setProcessEach(
 					{ with: ['timer'], without: ['turret', 'enemy', 'projectile', 'base'] },
 					({ entity, ecs }) => {
 						if (!entity.components.timer.justFinished) return;

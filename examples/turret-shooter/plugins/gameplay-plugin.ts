@@ -7,7 +7,7 @@ export default function createGameplayPlugin() {
 			// Lifetime system
 			world.addSystem('lifetime')
 				.inGroup('gameplay')
-				.processEach({ with: ['lifetime'] }, ({ entity, dt, ecs }) => {
+				.setProcessEach({ with: ['lifetime'] }, ({ entity, dt, ecs }) => {
 					entity.components.lifetime.remaining -= dt;
 
 					if (entity.components.lifetime.remaining <= 0) {
