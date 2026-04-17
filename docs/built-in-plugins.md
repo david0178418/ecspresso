@@ -23,21 +23,22 @@ Each plugin accepts a `phase` option to override its default.
 
 ## Input Plugin
 
-The input plugin provides frame-accurate keyboard, pointer (mouse + touch via PointerEvent), and named action mapping. It's a resource-only plugin — input is polled via the `inputState` resource. DOM events are accumulated between frames and snapshotted once per frame, so all systems see consistent state.
+The input plugin provides frame-accurate keyboard, pointer (mouse + touch via PointerEvent), gamepad, and named action mapping. It's a resource-only plugin — input is polled via the `inputState` resource. DOM events are accumulated between frames and snapshotted once per frame; gamepads are polled once per frame via `navigator.getGamepads()`. All systems see consistent state within a frame.
 
 ```typescript
 import {
   createInputPlugin,
+  gamepadButtonsOn, gamepadAxisOn,
   type InputResourceTypes, type KeyCode
 } from 'ecspresso/plugins/input';
 
 const world = ECSpresso.create()
   .withPlugin(createInputPlugin({
     actions: {
-      jump: { keys: [' ', 'ArrowUp'] },
-      shoot: { keys: ['z'], buttons: [0] },
-      moveLeft: { keys: ['a', 'ArrowLeft'] },
-      moveRight: { keys: ['d', 'ArrowRight'] },
+      jump: { keys: [' ', 'ArrowUp'], gamepadButtons: gamepadButtonsOn(0, 0) },
+      shoot: { keys: ['z'], pointerButtons: [0], gamepadButtons: gamepadButtonsOn(0, 7) },
+      moveLeft: { keys: ['a', 'ArrowLeft'], gamepadAxes: [gamepadAxisOn(0, 0, -1)] },
+      moveRight: { keys: ['d', 'ArrowRight'], gamepadAxes: [gamepadAxisOn(0, 0, 1)] },
     },
   }))
   .build();
@@ -47,11 +48,12 @@ const input = ecs.getResource('inputState');
 if (input.actions.justActivated('jump')) { /* ... */ }
 if (input.keyboard.isDown('ArrowRight')) { /* ... */ }
 if (input.pointer.justPressed(0)) { /* ... */ }
+if (input.gamepads[0].isDown(0)) { /* raw pad 0 A-button */ }
 
 // Runtime remapping — must include all configured actions
 input.setActionMap({
   jump: { keys: ['w'] },
-  shoot: { keys: ['z'], buttons: [0] },
+  shoot: { keys: ['z'], pointerButtons: [0] },
   moveLeft: { keys: ['a'] },
   moveRight: { keys: ['d'] },
 });
@@ -60,6 +62,61 @@ input.setActionMap({
 Action names are type-safe — `isActive`, `justActivated`, `justDeactivated`, `setActionMap`, and `getActionMap` only accept action names from the config. The type parameter `A` is inferred from the `actions` object keys passed to `createInputPlugin`. Defaults to `string` when no actions are configured.
 
 Key values use the `KeyCode` type — a union of all standard `KeyboardEvent.key` values — providing autocomplete and compile-time validation. Note that the space bar key is `' '` (a space character), not `'Space'`.
+
+### Gamepad
+
+`inputState.gamepads` is always length 4 (the standard Web Gamepad API slot count). Disconnected slots return `connected: false`, `id: null`, and zero for all reads — safe to read unconditionally. Button indices follow the standard mapping (0 = A/cross, 1 = B/circle, 7 = RT, etc). Axes 0,1 are the left stick; 2,3 are the right stick.
+
+Stick pairs get a radial deadzone (default 0.15) — tuple magnitude below the deadzone reads as (0, 0), preserving stick direction above it. Raw values are available via `rawAxis(i)`. Triggers are buttons with analog values accessible via `buttonValue(i)`.
+
+Actions bind to gamepad inputs via `gamepadButtons` (digital) and `gamepadAxes` (directional, threshold-based):
+
+```typescript
+actions: {
+  jump: { gamepadButtons: [{ pad: 0, button: 0 }] },
+  aim: { gamepadAxes: [{ pad: 0, axis: 2, direction: 1, threshold: 0.3 }] },
+}
+// Or via helpers:
+actions: {
+  jump: { gamepadButtons: gamepadButtonsOn(0, 0) },
+  aim: { gamepadAxes: [gamepadAxisOn(0, 2, 1, 0.3)] },
+}
+```
+
+To override the deadzone or inject a custom poll (for testing):
+
+```typescript
+createInputPlugin({
+  gamepad: { deadzone: 0.2, poll: () => myMockGamepads },
+})
+```
+
+### Multi-player action maps
+
+Unified `inputState.actions` fires when *any* bound source does — ideal for menus or single-player-with-optional-pad. For local co-op, register per-player action maps that compute independently:
+
+```typescript
+createInputPlugin({
+  actions: { pause: { keys: ['Escape'] } },        // unified — any source
+  players: {
+    p1: {
+      jump: { keys: [' '] },
+      shoot: { keys: ['z'] },
+    },
+    p2: {
+      jump: { gamepadButtons: gamepadButtonsOn(0, 0) },
+      shoot: { gamepadButtons: gamepadButtonsOn(0, 2) },
+    },
+  },
+})
+
+// In a system:
+if (input.actions.justActivated('pause')) { /* menu */ }
+if (input.player('p1')?.actions.isActive('jump')) { /* P1 jumps */ }
+if (input.player('p2')?.actions.isActive('jump')) { /* P2 jumps */ }
+```
+
+Register a player at runtime with `input.definePlayer(id, map)`; remove with `input.removePlayer(id)`. Each player has its own `setActionMap` / `getActionMap` via `input.player(id)`. Per-player action states are fully isolated from the unified `actions`.
 
 ### Pointer coordinate conversion
 

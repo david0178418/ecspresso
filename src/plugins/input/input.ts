@@ -1,22 +1,21 @@
 /**
  * Input Plugin for ECSpresso
  *
- * Provides frame-accurate keyboard, pointer (mouse + touch via PointerEvent),
- * and action mapping input. Resource-only plugin — input is polled via the
- * `inputState` resource. No ECS components or events.
+ * Resource-only plugin — input is polled via the `inputState` resource. Provides
+ * frame-accurate keyboard, pointer (mouse + touch via PointerEvent), up to 4
+ * gamepads, and unified + per-player action maps.
  *
- * DOM events are accumulated between frames and snapshotted once per frame
- * in the system's process step, so all systems see consistent state.
+ * Mutation model: DOM events accumulate into `raw` between frames and are
+ * flattened once per frame into a stable `frame` object whose Sets are cleared
+ * and refilled in place (no per-frame allocations). Gamepads are polled once
+ * per frame via `navigator.getGamepads()` (or an injected poll function).
+ * Unified and per-player action states ping-pong two Sets (`active` / `prev`)
+ * so edge detection costs nothing beyond one `.add()` per active action.
  */
 
-import { definePlugin, type BasePluginOptions } from 'ecspresso';
+import { definePlugin, type BasePluginOptions, type Vector2D } from 'ecspresso';
 
 // ==================== Public Types ====================
-
-export interface Vec2 {
-	x: number;
-	y: number;
-}
 
 // Key codes per the UI Events spec (KeyboardEvent.key values)
 // https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_key_values
@@ -153,11 +152,25 @@ export interface KeyboardState {
 }
 
 export interface PointerState {
-	readonly position: Readonly<Vec2>;
-	readonly delta: Readonly<Vec2>;
+	readonly position: Readonly<Vector2D>;
+	readonly delta: Readonly<Vector2D>;
 	isDown(button: number): boolean;
 	justPressed(button: number): boolean;
 	justReleased(button: number): boolean;
+}
+
+export interface GamepadState {
+	readonly connected: boolean;
+	readonly id: string | null;
+	isDown(button: number): boolean;
+	justPressed(button: number): boolean;
+	justReleased(button: number): boolean;
+	/** Analog button value in [0, 1]. Useful for triggers. Returns 0 when disconnected or out of range. */
+	buttonValue(button: number): number;
+	/** Deadzone-applied axis value in [-1, 1]. Sticks use radial deadzone on axis pairs (0,1) and (2,3). */
+	axis(index: number): number;
+	/** Raw axis value in [-1, 1] with no deadzone applied. */
+	rawAxis(index: number): number;
 }
 
 export interface ActionState<A extends string = string> {
@@ -166,17 +179,50 @@ export interface ActionState<A extends string = string> {
 	justDeactivated(action: A): boolean;
 }
 
+export interface PlayerInput<A extends string = string> {
+	readonly actions: ActionState<A>;
+	setActionMap(map: ActionMap<A>): void;
+	getActionMap(): Readonly<ActionMap<A>>;
+}
+
 export interface InputState<A extends string = string> {
 	readonly keyboard: KeyboardState;
 	readonly pointer: PointerState;
+	/** Always length 4 (standard web gamepad slot count). Disconnected slots return `connected: false`. */
+	readonly gamepads: ReadonlyArray<GamepadState>;
+	/** Unified action state — fires when any bound input (keyboard, pointer, any pad) is active. Intended for menu/shared input. */
 	readonly actions: ActionState<A>;
 	setActionMap(actions: ActionMap<A>): void;
 	getActionMap(): Readonly<ActionMap<A>>;
+	/** Register or replace a player's action map. Per-player states are isolated from the unified `actions`. */
+	definePlayer(id: string, map: ActionMap<A>): void;
+	/** Returns true if the player existed and was removed. */
+	removePlayer(id: string): boolean;
+	/** Returns a handle to a registered player's input, or undefined if no such player. */
+	player(id: string): PlayerInput<A> | undefined;
+	playerIds(): readonly string[];
+}
+
+export interface GamepadButtonRef {
+	pad: number;
+	button: number;
+}
+
+export interface GamepadAxisRef {
+	pad: number;
+	axis: number;
+	/** Which half of the axis counts as "active". */
+	direction: 1 | -1;
+	/** Magnitude at which the axis triggers the action. Applied to the deadzone-adjusted axis value. Default: 0.5. */
+	threshold?: number;
 }
 
 export interface ActionBinding {
 	keys?: KeyCode[];
-	buttons?: number[];
+	/** Pointer (mouse/touch) button indices — 0 = primary, 1 = auxiliary, 2 = secondary, etc. */
+	pointerButtons?: number[];
+	gamepadButtons?: GamepadButtonRef[];
+	gamepadAxes?: GamepadAxisRef[];
 }
 
 export type ActionMap<A extends string = string> = Record<A, ActionBinding>;
@@ -185,11 +231,37 @@ export interface InputResourceTypes<A extends string = string> {
 	inputState: InputState<A>;
 }
 
+/**
+ * Minimal gamepad shape required by the injectable poll function. A structural
+ * subset of the browser `Gamepad` interface — `navigator.getGamepads()` satisfies
+ * it directly, and test doubles can supply just these fields.
+ */
+export interface GamepadLike {
+	id: string;
+	connected: boolean;
+	buttons: ReadonlyArray<{ pressed: boolean; value: number }>;
+	axes: ReadonlyArray<number>;
+}
+
+export interface GamepadOptions {
+	/** Radial deadzone applied to stick pairs (axes 0,1 and 2,3). Value in [0, 1]. Default: 0.15. */
+	deadzone?: number;
+	/**
+	 * Custom poll function returning up to 4 gamepad slots. Defaults to `navigator.getGamepads()`.
+	 * Primarily an injection point for tests; in the browser the default is correct.
+	 */
+	poll?: () => ReadonlyArray<GamepadLike | null>;
+}
+
 export interface InputPluginOptions<A extends string = string, G extends string = 'input'> extends BasePluginOptions<G> {
-	/** Initial action mappings */
+	/** Initial unified action map. */
 	actions?: ActionMap<A>;
+	/** Initial per-player action maps, keyed by player id. */
+	players?: Record<string, ActionMap<A>>;
 	/** EventTarget to attach listeners to (default: globalThis). Pass a custom target for testability. */
 	target?: EventTarget;
+	/** Gamepad polling and deadzone configuration. */
+	gamepad?: GamepadOptions;
 	/**
 	 * Optional conversion from raw DOM client coordinates to the space `inputState.pointer.position` should report.
 	 * Renderer-agnostic: wire to `clientToLogical(...)` from renderer2D when using `screenScale`, or to a renderer-specific helper.
@@ -200,152 +272,305 @@ export interface InputPluginOptions<A extends string = string, G extends string 
 
 // ==================== Helper Functions ====================
 
-/**
- * Create a single action binding.
- *
- * @param binding The binding configuration
- * @returns The same binding object
- */
+/** Create a single action binding. Identity function that provides type inference for inline literals. */
 export function createActionBinding(binding: ActionBinding): ActionBinding {
 	return binding;
 }
 
+/** Build an array of gamepad button refs scoped to one pad — `gamepadButtonsOn(0, 0, 1, 9)` = pad 0's buttons 0, 1, 9. */
+export function gamepadButtonsOn(pad: number, ...buttons: number[]): GamepadButtonRef[] {
+	return buttons.map((button) => ({ pad, button }));
+}
+
+/** Build a gamepad axis ref. `threshold` defaults to 0.5 at activation time. */
+export function gamepadAxisOn(pad: number, axis: number, direction: 1 | -1, threshold?: number): GamepadAxisRef {
+	return threshold === undefined ? { pad, axis, direction } : { pad, axis, direction, threshold };
+}
+
 // ==================== Internal Types ====================
 
-interface RawInputState {
+interface RawKeyPointerState {
 	keysDown: Set<string>;
 	keysPressed: string[];
 	keysReleased: string[];
-	buttonsDown: Set<number>;
-	buttonsPressed: number[];
-	buttonsReleased: number[];
+	pointerButtonsDown: Set<number>;
+	pointerButtonsPressed: number[];
+	pointerButtonsReleased: number[];
 	pointerX: number;
 	pointerY: number;
-	pointerDeltaX: number;
-	pointerDeltaY: number;
 	lastPointerX: number;
 	lastPointerY: number;
 	pointerMoved: boolean;
 }
 
-interface FrameSnapshot {
-	keysDown: ReadonlySet<string>;
-	keysPressed: ReadonlySet<string>;
-	keysReleased: ReadonlySet<string>;
-	buttonsDown: ReadonlySet<number>;
-	buttonsPressed: ReadonlySet<number>;
-	buttonsReleased: ReadonlySet<number>;
+/**
+ * Stable per-frame view of keyboard + pointer input. Sets are mutated in place
+ * each frame (cleared and refilled from raw), so closures over this object see
+ * consistent state throughout a frame without per-frame Set allocation.
+ */
+interface FrameState {
+	keysDown: Set<string>;
+	keysPressed: Set<string>;
+	keysReleased: Set<string>;
+	pointerButtonsDown: Set<number>;
+	pointerButtonsPressed: Set<number>;
+	pointerButtonsReleased: Set<number>;
 	pointerX: number;
 	pointerY: number;
 	pointerDeltaX: number;
 	pointerDeltaY: number;
-	actionsActive: ReadonlySet<string>;
-	prevActionsActive: ReadonlySet<string>;
 }
 
-// ==================== Plugin Factory ====================
+interface PadRuntime {
+	connected: boolean;
+	id: string | null;
+	buttonsDown: Set<number>;
+	buttonsPrev: Set<number>;
+	buttonsPressed: Set<number>;
+	buttonsReleased: Set<number>;
+	buttonValues: number[];
+	axes: number[];
+	rawAxes: number[];
+}
 
-function createRawInputState(): RawInputState {
+/** Two ping-ponged Sets backing an ActionState. Each frame we swap `active` ↔ `prev`, clear the new `active`, and refill. */
+interface ActionSlot {
+	active: Set<string>;
+	prev: Set<string>;
+}
+
+// ==================== Helpers ====================
+
+const DEFAULT_AXIS_THRESHOLD = 0.5;
+const DEFAULT_DEADZONE = 0.15;
+const PAD_COUNT = 4;
+
+function createRawKeyPointerState(): RawKeyPointerState {
 	return {
 		keysDown: new Set(),
 		keysPressed: [],
 		keysReleased: [],
-		buttonsDown: new Set(),
-		buttonsPressed: [],
-		buttonsReleased: [],
+		pointerButtonsDown: new Set(),
+		pointerButtonsPressed: [],
+		pointerButtonsReleased: [],
 		pointerX: 0,
 		pointerY: 0,
-		pointerDeltaX: 0,
-		pointerDeltaY: 0,
 		lastPointerX: 0,
 		lastPointerY: 0,
 		pointerMoved: false,
 	};
 }
 
-const EMPTY_SET_STRING: ReadonlySet<string> = new Set<string>();
-const EMPTY_SET_NUMBER: ReadonlySet<number> = new Set<number>();
-
-function createEmptySnapshot(): FrameSnapshot {
+function createFrameState(): FrameState {
 	return {
-		keysDown: EMPTY_SET_STRING,
-		keysPressed: EMPTY_SET_STRING,
-		keysReleased: EMPTY_SET_STRING,
-		buttonsDown: EMPTY_SET_NUMBER,
-		buttonsPressed: EMPTY_SET_NUMBER,
-		buttonsReleased: EMPTY_SET_NUMBER,
+		keysDown: new Set(),
+		keysPressed: new Set(),
+		keysReleased: new Set(),
+		pointerButtonsDown: new Set(),
+		pointerButtonsPressed: new Set(),
+		pointerButtonsReleased: new Set(),
 		pointerX: 0,
 		pointerY: 0,
 		pointerDeltaX: 0,
 		pointerDeltaY: 0,
-		actionsActive: EMPTY_SET_STRING,
-		prevActionsActive: EMPTY_SET_STRING,
 	};
 }
 
-function computeActiveActions(
-	actionMap: ActionMap,
-	keysDown: ReadonlySet<string>,
-	buttonsDown: ReadonlySet<number>,
-): Set<string> {
-	const active = new Set<string>();
-	for (const [name, binding] of Object.entries(actionMap)) {
-		const keyActive = binding.keys?.some((k) => keysDown.has(k)) ?? false;
-		const buttonActive = binding.buttons?.some((b) => buttonsDown.has(b)) ?? false;
-		if (keyActive || buttonActive) {
-			active.add(name);
-		}
-	}
-	return active;
+function createPadRuntime(): PadRuntime {
+	return {
+		connected: false,
+		id: null,
+		buttonsDown: new Set(),
+		buttonsPrev: new Set(),
+		buttonsPressed: new Set(),
+		buttonsReleased: new Set(),
+		buttonValues: [],
+		axes: [],
+		rawAxes: [],
+	};
 }
 
-function snapshotRaw(raw: RawInputState, prevActionsActive: ReadonlySet<string>, actionMap: ActionMap): FrameSnapshot {
-	const keysDown = new Set(raw.keysDown);
-	const keysPressed = new Set(raw.keysPressed);
-	const keysReleased = new Set(raw.keysReleased);
-	const buttonsDown = new Set(raw.buttonsDown);
-	const buttonsPressed = new Set(raw.buttonsPressed);
-	const buttonsReleased = new Set(raw.buttonsReleased);
+function createActionSlot(): ActionSlot {
+	return { active: new Set(), prev: new Set() };
+}
 
-	const pointerDeltaX = raw.pointerMoved ? raw.pointerX - raw.lastPointerX : 0;
-	const pointerDeltaY = raw.pointerMoved ? raw.pointerY - raw.lastPointerY : 0;
+function refillSet<T>(dest: Set<T>, source: Iterable<T>): void {
+	dest.clear();
+	for (const item of source) dest.add(item);
+}
 
-	const actionsActive = computeActiveActions(actionMap, keysDown, buttonsDown);
+function updateFrameStateFromRaw(frame: FrameState, raw: RawKeyPointerState): void {
+	refillSet(frame.keysDown, raw.keysDown);
+	refillSet(frame.keysPressed, raw.keysPressed);
+	refillSet(frame.keysReleased, raw.keysReleased);
+	refillSet(frame.pointerButtonsDown, raw.pointerButtonsDown);
+	refillSet(frame.pointerButtonsPressed, raw.pointerButtonsPressed);
+	refillSet(frame.pointerButtonsReleased, raw.pointerButtonsReleased);
 
-	const snapshot: FrameSnapshot = {
-		keysDown,
-		keysPressed,
-		keysReleased,
-		buttonsDown,
-		buttonsPressed,
-		buttonsReleased,
-		pointerX: raw.pointerX,
-		pointerY: raw.pointerY,
-		pointerDeltaX,
-		pointerDeltaY,
-		actionsActive,
-		prevActionsActive,
-	};
+	frame.pointerDeltaX = raw.pointerMoved ? raw.pointerX - raw.lastPointerX : 0;
+	frame.pointerDeltaY = raw.pointerMoved ? raw.pointerY - raw.lastPointerY : 0;
+	frame.pointerX = raw.pointerX;
+	frame.pointerY = raw.pointerY;
 
-	// Clear accumulation buffers
-	raw.keysPressed = [];
-	raw.keysReleased = [];
-	raw.buttonsPressed = [];
-	raw.buttonsReleased = [];
+	raw.keysPressed.length = 0;
+	raw.keysReleased.length = 0;
+	raw.pointerButtonsPressed.length = 0;
+	raw.pointerButtonsReleased.length = 0;
 	raw.lastPointerX = raw.pointerX;
 	raw.lastPointerY = raw.pointerY;
 	raw.pointerMoved = false;
-
-	return snapshot;
 }
+
+function defaultPoll(out: Array<GamepadLike | null>): () => ReadonlyArray<GamepadLike | null> {
+	return () => {
+		if (typeof navigator === 'undefined' || typeof navigator.getGamepads !== 'function') {
+			for (let i = 0; i < out.length; i++) out[i] = null;
+			return out;
+		}
+		const pads = navigator.getGamepads();
+		for (let i = 0; i < out.length; i++) out[i] = pads[i] ?? null;
+		return out;
+	};
+}
+
+function applyStickDeadzone(x: number, y: number, deadzone: number, out: number[], baseIndex: number): void {
+	const mag = Math.sqrt(x * x + y * y);
+	if (mag < deadzone) {
+		out[baseIndex] = 0;
+		out[baseIndex + 1] = 0;
+		return;
+	}
+	const scaled = Math.min((mag - deadzone) / (1 - deadzone), 1);
+	out[baseIndex] = (x / mag) * scaled;
+	out[baseIndex + 1] = (y / mag) * scaled;
+}
+
+function applyAxisDeadzoning(rawAxes: number[], axes: number[], deadzone: number): void {
+	axes.length = rawAxes.length;
+	if (rawAxes.length >= 2) {
+		applyStickDeadzone(rawAxes[0] ?? 0, rawAxes[1] ?? 0, deadzone, axes, 0);
+	}
+	if (rawAxes.length >= 4) {
+		applyStickDeadzone(rawAxes[2] ?? 0, rawAxes[3] ?? 0, deadzone, axes, 2);
+	}
+	// Axes beyond the two standard sticks pass through with no deadzone (triggers, dpad-as-axis, etc.)
+	for (let i = 4; i < rawAxes.length; i++) {
+		axes[i] = rawAxes[i] ?? 0;
+	}
+}
+
+function pollGamepadsInto(pads: PadRuntime[], pollFn: () => ReadonlyArray<GamepadLike | null>, deadzone: number): void {
+	const polled = pollFn();
+	for (let i = 0; i < PAD_COUNT; i++) {
+		const pad = polled[i] ?? null;
+		const state = pads[i];
+		if (!state) continue;
+
+		// Rotate button sets using the existing `prev` set as scratch, then clear what we'll refill.
+		const reusedPrev = state.buttonsPrev;
+		refillSet(reusedPrev, state.buttonsDown);
+		state.buttonsDown.clear();
+		state.buttonsPressed.clear();
+		state.buttonsReleased.clear();
+
+		if (!pad || !pad.connected) {
+			if (state.connected) {
+				// Newly disconnected: synthesize justReleased for anything that was held, then clear values.
+				for (const b of reusedPrev) state.buttonsReleased.add(b);
+				state.connected = false;
+				state.id = null;
+				state.buttonValues.length = 0;
+				state.axes.length = 0;
+				state.rawAxes.length = 0;
+			}
+			continue;
+		}
+
+		state.connected = true;
+		state.id = pad.id;
+
+		state.buttonValues.length = pad.buttons.length;
+		for (let b = 0; b < pad.buttons.length; b++) {
+			const info = pad.buttons[b];
+			if (!info) {
+				state.buttonValues[b] = 0;
+				continue;
+			}
+			state.buttonValues[b] = info.value;
+			if (info.pressed) state.buttonsDown.add(b);
+		}
+
+		for (const b of state.buttonsDown) {
+			if (!reusedPrev.has(b)) state.buttonsPressed.add(b);
+		}
+		for (const b of reusedPrev) {
+			if (!state.buttonsDown.has(b)) state.buttonsReleased.add(b);
+		}
+
+		state.rawAxes.length = pad.axes.length;
+		for (let a = 0; a < pad.axes.length; a++) {
+			state.rawAxes[a] = pad.axes[a] ?? 0;
+		}
+		applyAxisDeadzoning(state.rawAxes, state.axes, deadzone);
+	}
+}
+
+function isBindingActive(
+	binding: ActionBinding,
+	keysDown: ReadonlySet<string>,
+	pointerButtonsDown: ReadonlySet<number>,
+	pads: ReadonlyArray<PadRuntime>,
+): boolean {
+	if (binding.keys?.some((k) => keysDown.has(k))) return true;
+	if (binding.pointerButtons?.some((b) => pointerButtonsDown.has(b))) return true;
+	if (binding.gamepadButtons?.some(({ pad, button }) => pads[pad]?.buttonsDown.has(button) ?? false)) return true;
+	if (binding.gamepadAxes?.some(({ pad, axis, direction, threshold = DEFAULT_AXIS_THRESHOLD }) => {
+		const value = pads[pad]?.axes[axis] ?? 0;
+		return direction > 0 ? value > threshold : value < -threshold;
+	})) return true;
+	return false;
+}
+
+/**
+ * Recompute the slot's `active` set in place from `map` against current input sources.
+ * Rotates `active` ↔ `prev` (reusing Set instances) so edge detection works with no allocations.
+ */
+function advanceActionSlot(
+	slot: ActionSlot,
+	map: ActionMap,
+	keysDown: ReadonlySet<string>,
+	pointerButtonsDown: ReadonlySet<number>,
+	pads: ReadonlyArray<PadRuntime>,
+): void {
+	const nextActive = slot.prev;
+	slot.prev = slot.active;
+	slot.active = nextActive;
+	nextActive.clear();
+
+	for (const [name, binding] of Object.entries(map)) {
+		if (isBindingActive(binding, keysDown, pointerButtonsDown, pads)) nextActive.add(name);
+	}
+}
+
+function makeActionState<A extends string>(slot: ActionSlot): ActionState<A> {
+	return {
+		isActive: (action) => slot.active.has(action),
+		justActivated: (action) => slot.active.has(action) && !slot.prev.has(action),
+		justDeactivated: (action) => !slot.active.has(action) && slot.prev.has(action),
+	};
+}
+
+// ==================== Plugin Factory ====================
 
 /**
  * Create an input plugin for ECSpresso.
  *
- * This plugin provides:
+ * Provides:
  * - Frame-accurate keyboard state (isDown, justPressed, justReleased)
  * - Pointer position/delta and button state (mouse + touch via PointerEvent)
- * - Named action mapping with runtime remapping
+ * - Up to 4 gamepads polled per frame, with radial deadzone on sticks and analog button values
+ * - Unified action mapping (keyboard + pointer + any pad)
+ * - Per-player action maps for local co-op (`definePlayer`, `player(id)`)
  * - Automatic listener cleanup on detach
  *
  * @example
@@ -353,16 +578,23 @@ function snapshotRaw(raw: RawInputState, prevActionsActive: ReadonlySet<string>,
  * const ecs = ECSpresso.create()
  *   .withPlugin(createInputPlugin({
  *     actions: {
- *       jump: { keys: [' ', 'ArrowUp'] },
- *       shoot: { keys: ['z'], buttons: [0] },
+ *       jump: { keys: [' ', 'ArrowUp'], gamepadButtons: [{ pad: 0, button: 0 }] },
+ *       shoot: { keys: ['z'], pointerButtons: [0] },
+ *     },
+ *     players: {
+ *       p1: { jump: { keys: [' '] }, shoot: { keys: ['z'] } },
+ *       p2: {
+ *         jump: { gamepadButtons: gamepadButtonsOn(0, 0) },
+ *         shoot: { gamepadButtons: gamepadButtonsOn(0, 2) },
+ *       },
  *     },
  *   }))
  *   .build();
  *
- * // In a system:
  * const input = ecs.getResource('inputState');
- * if (input.actions.justActivated('jump')) { ... }
- * if (input.keyboard.isDown('ArrowRight')) { ... }
+ * if (input.actions.justActivated('jump')) { ... }              // any source
+ * if (input.player('p1')?.actions.isActive('jump')) { ... }      // just player 1
+ * if (input.gamepads[0].isDown(0)) { ... }                       // raw pad 0 A-button
  * ```
  */
 export function createInputPlugin<A extends string = string, G extends string = 'input'>(
@@ -372,58 +604,125 @@ export function createInputPlugin<A extends string = string, G extends string = 
 		systemGroup = 'input',
 		priority = 100,
 		phase = 'preUpdate',
-		actions: initialActions = {},
 		target = globalThis,
+		gamepad: gamepadOpts = {},
 		coordinateTransform,
 	} = options ?? {};
 
-	// Closure state
-	const raw = createRawInputState();
-	let snapshot = createEmptySnapshot();
-	let actionMap: ActionMap = { ...initialActions };
+	// Construction-time casts: option defaults of `{}` don't structurally satisfy a narrow `ActionMap<A>`,
+	// but at this boundary we know the user either supplied a valid map or is using A = string.
+	const unifiedActionMap = { ...(options?.actions ?? {}) } as ActionMap<A>;
+	const playerMaps = new Map<string, ActionMap<A>>(
+		Object.entries(options?.players ?? {}) as Array<[string, ActionMap<A>]>,
+	);
+
+	const deadzone = gamepadOpts.deadzone ?? DEFAULT_DEADZONE;
+	const pollFn = gamepadOpts.poll ?? defaultPoll(new Array<GamepadLike | null>(PAD_COUNT).fill(null));
+
+	const raw = createRawKeyPointerState();
+	const frame = createFrameState();
+	const pads: PadRuntime[] = Array.from({ length: PAD_COUNT }, createPadRuntime);
+	const unifiedSlot = createActionSlot();
+	const playerSlots = new Map<string, ActionSlot>();
+	const playerHandles = new Map<string, PlayerInput<A>>();
 	const cleanupFns: Array<() => void> = [];
 
-	// The position/delta objects exposed via the resource.
-	// Updated in-place each frame to avoid allocations.
-	const position: Vec2 = { x: 0, y: 0 };
-	const delta: Vec2 = { x: 0, y: 0 };
+	// Vector2Ds exposed via the resource — updated in place each frame.
+	const position: Vector2D = { x: 0, y: 0 };
+	const delta: Vector2D = { x: 0, y: 0 };
 
-	// Build the InputState resource that closes over snapshot
+	let currentUnifiedMap = unifiedActionMap;
+
 	const keyboard: KeyboardState = {
-		isDown: (key) => snapshot.keysDown.has(key),
-		justPressed: (key) => snapshot.keysPressed.has(key),
-		justReleased: (key) => snapshot.keysReleased.has(key),
+		isDown: (key) => frame.keysDown.has(key),
+		justPressed: (key) => frame.keysPressed.has(key),
+		justReleased: (key) => frame.keysReleased.has(key),
 	};
 
 	const pointer: PointerState = {
 		position,
 		delta,
-		isDown: (button) => snapshot.buttonsDown.has(button),
-		justPressed: (button) => snapshot.buttonsPressed.has(button),
-		justReleased: (button) => snapshot.buttonsReleased.has(button),
+		isDown: (button) => frame.pointerButtonsDown.has(button),
+		justPressed: (button) => frame.pointerButtonsPressed.has(button),
+		justReleased: (button) => frame.pointerButtonsReleased.has(button),
 	};
 
-	const actionState: ActionState<A> = {
-		isActive: (action) => snapshot.actionsActive.has(action),
-		justActivated: (action) =>
-			snapshot.actionsActive.has(action) && !snapshot.prevActionsActive.has(action),
-		justDeactivated: (action) =>
-			!snapshot.actionsActive.has(action) && snapshot.prevActionsActive.has(action),
-	};
+	function makeGamepadState(index: number): GamepadState {
+		const state = pads[index];
+		if (!state) throw new Error(`Invalid gamepad index: ${index}`);
+		return {
+			get connected() { return state.connected; },
+			get id() { return state.id; },
+			isDown: (button) => state.buttonsDown.has(button),
+			justPressed: (button) => state.buttonsPressed.has(button),
+			justReleased: (button) => state.buttonsReleased.has(button),
+			buttonValue: (button) => state.buttonValues[button] ?? 0,
+			axis: (index) => state.axes[index] ?? 0,
+			rawAxis: (index) => state.rawAxes[index] ?? 0,
+		};
+	}
+
+	const gamepadStates: ReadonlyArray<GamepadState> = Array.from({ length: PAD_COUNT }, (_, i) => makeGamepadState(i));
+
+	const unifiedActions = makeActionState<A>(unifiedSlot);
+
+	function ensurePlayerSlot(id: string): ActionSlot {
+		const existing = playerSlots.get(id);
+		if (existing) return existing;
+		const slot = createActionSlot();
+		playerSlots.set(id, slot);
+		return slot;
+	}
+
+	function createPlayerHandle(id: string): PlayerInput<A> {
+		const slot = ensurePlayerSlot(id);
+		return {
+			actions: makeActionState<A>(slot),
+			setActionMap: (map) => {
+				if (!playerMaps.has(id)) throw new Error(`Player '${id}' was removed`);
+				playerMaps.set(id, { ...map });
+			},
+			getActionMap: () => {
+				const map = playerMaps.get(id);
+				if (!map) throw new Error(`Player '${id}' was removed`);
+				return { ...map };
+			},
+		};
+	}
+
+	for (const id of playerMaps.keys()) {
+		playerHandles.set(id, createPlayerHandle(id));
+	}
 
 	const inputState: InputState<A> = {
 		keyboard,
 		pointer,
-		actions: actionState,
+		gamepads: gamepadStates,
+		actions: unifiedActions,
 		setActionMap(newMap) {
-			actionMap = { ...newMap };
+			currentUnifiedMap = { ...newMap };
 		},
 		getActionMap() {
-			return { ...actionMap } as ActionMap<A>;
+			return { ...currentUnifiedMap };
+		},
+		definePlayer(id, map) {
+			playerMaps.set(id, { ...map });
+			if (!playerHandles.has(id)) playerHandles.set(id, createPlayerHandle(id));
+		},
+		removePlayer(id) {
+			const existed = playerMaps.delete(id);
+			playerHandles.delete(id);
+			playerSlots.delete(id);
+			return existed;
+		},
+		player(id) {
+			return playerHandles.get(id);
+		},
+		playerIds() {
+			return Array.from(playerMaps.keys());
 		},
 	};
 
-	// DOM event handlers
 	function onKeyDown(e: Event) {
 		const ke = e as KeyboardEvent;
 		if (ke.repeat) return;
@@ -439,8 +738,8 @@ export function createInputPlugin<A extends string = string, G extends string = 
 
 	function onPointerDown(e: Event) {
 		const pe = e as PointerEvent;
-		raw.buttonsDown.add(pe.button);
-		raw.buttonsPressed.push(pe.button);
+		raw.pointerButtonsDown.add(pe.button);
+		raw.pointerButtonsPressed.push(pe.button);
 	}
 
 	function onPointerMove(e: Event) {
@@ -458,8 +757,8 @@ export function createInputPlugin<A extends string = string, G extends string = 
 
 	function onPointerUp(e: Event) {
 		const pe = e as PointerEvent;
-		raw.buttonsDown.delete(pe.button);
-		raw.buttonsReleased.push(pe.button);
+		raw.pointerButtonsDown.delete(pe.button);
+		raw.pointerButtonsReleased.push(pe.button);
 	}
 
 	function addListener(type: string, handler: (e: Event) => void) {
@@ -487,20 +786,25 @@ export function createInputPlugin<A extends string = string, G extends string = 
 					addListener('pointerup', onPointerUp);
 				})
 				.setOnDetach(() => {
-					for (const cleanup of cleanupFns) {
-						cleanup();
-					}
+					for (const cleanup of cleanupFns) cleanup();
 					cleanupFns.length = 0;
 				})
 				.setProcess(() => {
-					const prevActionsActive = snapshot.actionsActive;
-					snapshot = snapshotRaw(raw, prevActionsActive, actionMap);
+					// Pads must be polled before action computation so a single frame reflects
+					// both DOM-driven (keyboard/pointer) and polled (gamepad) sources consistently.
+					pollGamepadsInto(pads, pollFn, deadzone);
+					updateFrameStateFromRaw(frame, raw);
 
-					// Update the exposed position/delta objects in-place
-					position.x = snapshot.pointerX;
-					position.y = snapshot.pointerY;
-					delta.x = snapshot.pointerDeltaX;
-					delta.y = snapshot.pointerDeltaY;
+					position.x = frame.pointerX;
+					position.y = frame.pointerY;
+					delta.x = frame.pointerDeltaX;
+					delta.y = frame.pointerDeltaY;
+
+					advanceActionSlot(unifiedSlot, currentUnifiedMap, frame.keysDown, frame.pointerButtonsDown, pads);
+					for (const [id, map] of playerMaps) {
+						const slot = ensurePlayerSlot(id);
+						advanceActionSlot(slot, map, frame.keysDown, frame.pointerButtonsDown, pads);
+					}
 				});
 		});
 }

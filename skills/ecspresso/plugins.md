@@ -102,7 +102,7 @@ All are created via factory functions (e.g., `createInputPlugin(options)`). Each
 
 | Plugin | Import Path | Default Phase | Description |
 |--------|-------------|---------------|-------------|
-| Input | `ecspresso/plugins/input` | `preUpdate` | Frame-accurate keyboard/pointer input with action mapping |
+| Input | `ecspresso/plugins/input` | `preUpdate` | Frame-accurate keyboard/pointer/gamepad input with action mapping; unified actions + per-player maps for local co-op |
 | Timers | `ecspresso/plugins/timers` | `preUpdate` | ECS-native timers with event-based completion |
 | Coroutine | `ecspresso/plugins/coroutine` | `update` | Generator-based coroutines for sequenced logic |
 | State Machine | `ecspresso/plugins/state-machine` | `update` | Per-entity finite state machines |
