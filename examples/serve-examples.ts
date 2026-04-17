@@ -21,6 +21,7 @@ import spriteAnimation from './sprite-animation/sprite-animation.html';
 import particles from './particles/particles.html';
 import viewportScaling from './viewport-scaling/viewport-scaling.html';
 import platformer from './platformer/platformer.html';
+import platformer3d from './platformer3d/platformer3d.html';
 import rtsMovement from './rts-movement/rts-movement.html';
 import turretDefense from './turret-defense/turret-defense.html';
 import isometric from './isometric/isometric.html';
@@ -60,6 +61,7 @@ const server = serve({
 		'/particles/': particles,
 		'/viewport-scaling/': viewportScaling,
 		'/platformer/': platformer,
+		'/platformer3d/': platformer3d,
 		'/rts-movement/': rtsMovement,
 		'/turret-defense/': turretDefense,
 		'/isometric/': isometric,

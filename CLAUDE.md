@@ -99,9 +99,10 @@ Prefer the builder chain (`.withPlugin()`, `.withComponentTypes<T>()`, `.withEve
 
 ## File Sync Requirements
 
-When adding or renaming examples, three files must stay in sync:
+When adding or renaming examples, these files must stay in sync:
 - `examples/serve-examples.ts` — dev server routes
 - `scripts/build-examples.ts` — the `examples` array (route, dir, html, entry)
+- `examples/index.html` — landing-page `<ul>` listing shown at `/`
 - Example dirs use flat names (e.g. `movement`, `camera-zoom`) — no numbered prefixes
 
 When adding, renaming, or moving plugin source files, update:

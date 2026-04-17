@@ -28,6 +28,7 @@ const examples = [
 	{ route: 'particles', dir: 'particles', html: 'particles.html', entry: 'particles.ts' },
 	{ route: 'viewport-scaling', dir: 'viewport-scaling', html: 'viewport-scaling.html', entry: 'viewport-scaling.ts' },
 	{ route: 'platformer', dir: 'platformer', html: 'platformer.html', entry: 'platformer.ts' },
+	{ route: 'platformer3d', dir: 'platformer3d', html: 'platformer3d.html', entry: 'platformer3d.ts' },
 	{ route: 'rts-movement', dir: 'rts-movement', html: 'rts-movement.html', entry: 'rts-movement.ts' },
 	{ route: 'turret-defense', dir: 'turret-defense', html: 'turret-defense.html', entry: 'index.ts' },
 	{ route: 'isometric', dir: 'isometric', html: 'isometric.html', entry: 'isometric.ts' },
