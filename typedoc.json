@@ -35,6 +35,7 @@
 		"src/plugins/debug/diagnostics.ts",
 		"src/plugins/isometric/projection.ts",
 		"src/plugins/isometric/depth-sort.ts",
+		"src/plugins/ui/ui.ts",
 		"src/bindings/react/index.ts"
 	],
 	"readme": "none",

@@ -64,8 +64,10 @@ src/
     │   └── projectile.ts    # Homing + linear projectile movement, collision integration
     ├── audio/
     │   └── audio.ts         # Howler.js audio integration
-    └── debug/
-        └── diagnostics.ts   # FPS, entity count, per-system timing overlay
+    ├── debug/
+    │   └── diagnostics.ts   # FPS, entity count, per-system timing overlay
+    └── ui/
+        └── ui.ts            # Screen-space HUD primitives — label, panel, progress bar, anchored positioning
 ```
 
 ## Core Concepts

@@ -133,5 +133,6 @@ All are created via factory functions (e.g., `createInputPlugin(options)`). Each
 | Diagnostics | `ecspresso/plugins/diagnostics` | `render` | Performance monitoring and debug overlay |
 | 2D Renderer | `ecspresso/plugins/renderers/renderer2D` | `render` | Automated PixiJS scene graph wiring |
 | 3D Renderer | `ecspresso/plugins/rendering/renderer3D` | `render` | Automated Three.js scene graph wiring |
+| UI / HUD | `ecspresso/plugins/ui/ui` | `preUpdate + render` | Screen-space HUD primitives — anchored `uiElement`, `uiLabel`, `uiPanel`, `uiProgressBar`. Requires `bounds` resource from renderer2D; place on a `screenSpaceLayers: ['ui']` layer |
 
 For plugin-specific options and API details, see `docs/built-in-plugins.md`.

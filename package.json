@@ -144,6 +144,10 @@
 			"import": "./dist/plugins/combat/projectile.js",
 			"types": "./dist/plugins/combat/projectile.d.ts"
 		},
+		"./plugins/ui/ui": {
+			"import": "./dist/plugins/ui/ui.js",
+			"types": "./dist/plugins/ui/ui.d.ts"
+		},
 		"./bindings/react": {
 			"import": "./dist/bindings/react/index.js",
 			"types": "./dist/bindings/react/index.d.ts"

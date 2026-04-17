@@ -38,6 +38,7 @@ const examples = [
 	{ route: 'patrol-chase', dir: 'patrol-chase', html: 'patrol-chase.html', entry: 'patrol-chase.ts' },
 	{ route: 'flocking', dir: 'flocking', html: 'flocking.html', entry: 'flocking.ts' },
 	{ route: 'behavior-tree', dir: 'behavior-tree', html: 'behavior-tree.html', entry: 'behavior-tree.ts' },
+	{ route: 'ui', dir: 'ui', html: 'ui.html', entry: 'ui.ts' },
 ] as const;
 
 // Clean output
