@@ -1,9 +1,9 @@
-import ECSpresso from "./ecspresso";
+import ECSpresso, { type InstallPluginParam, type PluginError } from "./ecspresso";
 import AssetManager, { AssetConfiguratorImpl, createAssetConfigurator } from "./asset-manager";
 import ScreenManager, { ScreenConfiguratorImpl, createScreenConfigurator } from "./screen-manager";
 import type { ResourceFactoryWithDeps, ResourceDirectValue } from "./resource-manager";
 import { definePlugin, type Plugin } from "./plugin";
-import type { WorldConfig, EmptyConfig, ConfigsAreCompatible, MergeConfigs, TypesAreCompatible, RequirementsSatisfied, WithComponents, WithEvents, WithResources } from "./type-utils";
+import type { WorldConfig, EmptyConfig, MergeConfigs, TypesAreCompatible, WithComponents, WithEvents, WithResources } from "./type-utils";
 import type { AssetConfigurator, AssetsResource } from "./asset-types";
 import type { ScreenDefinition, ScreenConfigurator, ScreenResource } from "./screen-types";
 
@@ -86,11 +86,7 @@ export class ECSpressoBuilder<
 		BAG extends string = never,
 		BRQ extends string = never,
 	>(
-		plugin: ConfigsAreCompatible<Cfg, PCfg> extends true
-			? RequirementsSatisfied<Cfg, PReq> extends true
-				? Plugin<PCfg, PReq, BL, BG, BAG, BRQ>
-				: never
-			: never
+		plugin: InstallPluginParam<Cfg, PCfg, PReq, BL, BG, BAG, BRQ>
 	): ECSpressoBuilder<MergeConfigs<Cfg, PCfg>, Labels | BL, Groups | BG, AssetGroupNames | BAG, ReactiveQueryNames | BRQ>;
 
 	/**
@@ -106,12 +102,12 @@ export class ECSpressoBuilder<
 		BAG extends string = never,
 		BRQ extends string = never,
 	>(
-		plugin: Plugin<PCfg, PReq, BL, BG, BAG, BRQ>
+		plugin: Plugin<PCfg, PReq, BL, BG, BAG, BRQ> | PluginError<string>
 	): ECSpressoBuilder<MergeConfigs<Cfg, PCfg>, Labels | BL, Groups | BG, AssetGroupNames | BAG, ReactiveQueryNames | BRQ> {
-		// Defer plugin installation to build time
-		this.pendingPlugins.push(plugin);
-
-		// Return a builder with the updated type parameters
+		// PluginError is uninhabitable at the value level — the second overload
+		// only resolves to it when the argument is rejected, so the runtime path
+		// always receives a real Plugin.
+		this.pendingPlugins.push(plugin as Plugin<PCfg, PReq, BL, BG, BAG, BRQ>);
 		return this as unknown as ECSpressoBuilder<MergeConfigs<Cfg, PCfg>, Labels | BL, Groups | BG, AssetGroupNames | BAG, ReactiveQueryNames | BRQ>;
 	}
 
@@ -333,9 +329,11 @@ export class ECSpressoBuilder<
 	> {
 		const ecspresso = new ECSpresso() as ECSpresso<Cfg>;
 
-		// Install all pending plugins
+		// Install all pending plugins. Compatibility was already enforced at
+		// withPlugin() time, so we skip the public installPlugin overload's
+		// constraint via the unchecked internal path.
 		for (const plugin of this.pendingPlugins) {
-			ecspresso.installPlugin(plugin);
+			ecspresso._installPluginUnchecked(plugin);
 		}
 
 		// Apply pending resources

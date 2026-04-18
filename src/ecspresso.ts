@@ -13,7 +13,7 @@ import { version } from "../package.json";
 import type { AssetDefinition, AssetHandle, AssetEvents } from "./asset-types";
 import type { ScreenDefinition, ScreenEvents } from "./screen-types";
 import { ECSpressoBuilder } from "./ecspresso-builder";
-import type { WorldConfig, EmptyConfig } from "./type-utils";
+import type { WorldConfig, EmptyConfig, ConflictingSlot, MissingRequirementSlot } from "./type-utils";
 
 /**
 	* Interface declaration for ECSpresso constructor to ensure type augmentation works properly.
@@ -35,6 +35,41 @@ export default interface ECSpresso<
 const PHASE_ORDER: readonly SystemPhase[] = [
 	'preUpdate', 'fixedUpdate', 'update', 'postUpdate', 'render',
 ];
+
+/**
+ * Branded sentinel used as the expected-parameter type when `installPlugin`
+ * detects an incompatible or unsatisfied plugin. The template-literal message
+ * surfaces in the TypeScript error, pointing at the failing WorldConfig slot.
+ * Uninhabitable at the value level (the symbol key is unreachable), so the
+ * argument is still rejected.
+ */
+declare const __pluginError: unique symbol;
+export type PluginError<M extends string> = { readonly [__pluginError]: M };
+
+/**
+ * Resolves to the expected parameter type for `installPlugin` given a world
+ * config and a plugin's generic parameters:
+ * - `Plugin<PCfg, PReq, ...>` when compatible and all requirements are met.
+ * - `PluginError<"Plugin's X conflict with this world...">` when any slot conflicts.
+ * - `PluginError<"Plugin requires X not provided by this world">` when a requirement is missing.
+ *
+ * Exported so tests can assert the exact parameter type `installPlugin`
+ * produces without duplicating the conditional logic.
+ */
+export type InstallPluginParam<
+	Cfg extends WorldConfig,
+	PCfg extends WorldConfig,
+	PReq extends WorldConfig,
+	BL extends string,
+	BG extends string,
+	BAG extends string,
+	BRQ extends string,
+> =
+	[ConflictingSlot<Cfg, PCfg>] extends [never]
+		? [MissingRequirementSlot<Cfg, PReq>] extends [never]
+			? Plugin<PCfg, PReq, BL, BG, BAG, BRQ>
+			: PluginError<`Plugin requires ${MissingRequirementSlot<Cfg, PReq>} not provided by this world`>
+		: PluginError<`Plugin's ${ConflictingSlot<Cfg, PCfg>} conflict with this world (same key, different type)`>;
 
 
 /**
@@ -1781,19 +1816,43 @@ export default class ECSpresso<
 	/**
 	 * Install a plugin into this ECSpresso instance.
 	 * Deduplicates by plugin ID. Composite plugins call this in their install function.
+	 *
+	 * The overload enforces that the plugin's provided config is compatible with
+	 * this world's accumulated config, and that its required config is satisfied.
+	 * When a check fails the parameter resolves to a `PluginError<...>` sentinel
+	 * whose template-literal message names the failing WorldConfig slot, making
+	 * the resulting "not assignable" error self-describing.
 	 */
-	installPlugin(plugin: Plugin<any, any, any, any, any, any>): this {
-		// Prevent duplicate installation of the same plugin
+	installPlugin<
+		PCfg extends WorldConfig,
+		PReq extends WorldConfig = EmptyConfig,
+		BL extends string = never,
+		BG extends string = never,
+		BAG extends string = never,
+		BRQ extends string = never,
+	>(
+		plugin: InstallPluginParam<Cfg, PCfg, PReq, BL, BG, BAG, BRQ>,
+	): this;
+	installPlugin(
+		plugin: Plugin<WorldConfig, WorldConfig, string, string, string, string> | PluginError<string>,
+	): this {
+		// PluginError is uninhabitable at the value level — the overload only
+		// resolves to it when the argument is rejected, so this runtime path
+		// always sees a real Plugin.
+		return this._installPluginUnchecked(plugin as Plugin<WorldConfig, WorldConfig, string, string, string, string>);
+	}
+
+	/**
+	 * Install a plugin without enforcing compatibility constraints.
+	 * @internal Used by the builder, which has already validated compatibility
+	 * at `withPlugin` time via the builder's own constrained overload.
+	 */
+	_installPluginUnchecked(plugin: Plugin<WorldConfig, WorldConfig, string, string, string, string>): this {
 		if (this._installedPlugins.has(plugin.id)) {
 			return this;
 		}
-
-		// Mark this plugin as installed
 		this._installedPlugins.add(plugin.id);
-
-		// Call the plugin's install function with this world
-		plugin.install(this as any);
-
+		plugin.install(this as unknown as ECSpresso<WorldConfig>);
 		return this;
 	}
 

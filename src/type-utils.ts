@@ -117,19 +117,36 @@ export type WithScreens<Cfg extends WorldConfig, T> = {
 // ==================== Config Compatibility ====================
 
 /**
+ * Union of WorldConfig slots where A and B have conflicting types for the
+ * same key. Empty (`never`) when the two configs are compatible.
+ */
+export type ConflictingSlot<A extends WorldConfig, B extends WorldConfig> =
+	| (TypesAreCompatible<A['components'], B['components']> extends true ? never : 'components')
+	| (TypesAreCompatible<A['events'], B['events']> extends true ? never : 'events')
+	| (TypesAreCompatible<A['resources'], B['resources']> extends true ? never : 'resources')
+	| (TypesAreCompatible<A['assets'], B['assets']> extends true ? never : 'assets')
+	| (TypesAreCompatible<A['screens'], B['screens']> extends true ? never : 'screens');
+
+/**
+ * Union of WorldConfig slots where Required has keys not present in
+ * Accumulated. Empty (`never`) when all requirements are satisfied.
+ */
+export type MissingRequirementSlot<
+	Accumulated extends WorldConfig,
+	Required extends WorldConfig,
+> =
+	| (keyof Required['components'] extends keyof Accumulated['components'] ? never : 'components')
+	| (keyof Required['events'] extends keyof Accumulated['events'] ? never : 'events')
+	| (keyof Required['resources'] extends keyof Accumulated['resources'] ? never : 'resources')
+	| (keyof Required['assets'] extends keyof Accumulated['assets'] ? never : 'assets')
+	| (keyof Required['screens'] extends keyof Accumulated['screens'] ? never : 'screens');
+
+/**
  * Check if two WorldConfig types are compatible (no conflicting keys
  * across any slot).
  */
 export type ConfigsAreCompatible<A extends WorldConfig, B extends WorldConfig> =
-	TypesAreCompatible<A['components'], B['components']> extends true
-		? TypesAreCompatible<A['events'], B['events']> extends true
-			? TypesAreCompatible<A['resources'], B['resources']> extends true
-				? TypesAreCompatible<A['assets'], B['assets']> extends true
-					? TypesAreCompatible<A['screens'], B['screens']>
-					: false
-				: false
-			: false
-		: false;
+	[ConflictingSlot<A, B>] extends [never] ? true : false;
 
 /**
  * Check if a Requires config is satisfied by an Accumulated config.
@@ -141,17 +158,7 @@ export type RequirementsSatisfied<
 	Accumulated extends WorldConfig,
 	Required extends WorldConfig,
 > =
-	keyof Required['components'] extends keyof Accumulated['components']
-		? keyof Required['events'] extends keyof Accumulated['events']
-			? keyof Required['resources'] extends keyof Accumulated['resources']
-				? keyof Required['assets'] extends keyof Accumulated['assets']
-					? keyof Required['screens'] extends keyof Accumulated['screens']
-						? true
-						: false
-					: false
-				: false
-			: false
-		: false;
+	[MissingRequirementSlot<Accumulated, Required>] extends [never] ? true : false;
 
 /**
  * Utility type for merging two types
