@@ -654,7 +654,7 @@ export function createRenderer3DPlugin<G extends string = 'renderer3d'>(
 			// ==================== Render System ====================
 			world
 				.addSystem('renderer3d-render')
-				.setPriority(9999)
+				.setPriority(0)
 				.inPhase('render')
 				.inGroup(systemGroup)
 				.setProcess(() => {
