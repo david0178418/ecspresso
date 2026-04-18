@@ -366,6 +366,11 @@ function broadphaseDetect<I extends BaseColliderInfo, C>(
 			_broadphaseCandidates,
 		);
 
+		// TODO(perf): mirrors narrowphase3D — dense grids add every candidate
+		// (including `a` itself and lower-ID entities) to the set before the
+		// filter below discards ~half of them. Emitting only pairs with larger
+		// IDs at query time would remove the post-hoc filter. Keep in sync with
+		// whatever fix lands in narrowphase3D.
 		for (const bId of _broadphaseCandidates) {
 			if (bId <= a.entityId) continue;
 

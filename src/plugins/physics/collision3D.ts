@@ -202,6 +202,11 @@ export function createCollision3DPlugin<L extends string, G extends string = 'ph
 				.setProcess(({ queries, ecs }) => {
 					let count = 0;
 
+					// TODO(perf): collider shape is discovered via two ecs.getComponent
+					// calls per entity per frame because the query can't express
+					// "aabb3DCollider OR sphereCollider". Splitting into two queries
+					// (aabb-bearing, sphere-bearing) would eliminate these lookups at
+					// the cost of two pool-fill passes. Keep in sync with physics3D.
 					for (const entity of queries.collidables) {
 						const { worldTransform3D, collisionLayer } = entity.components;
 						const aabb = ecs.getComponent(entity.id, 'aabb3DCollider');

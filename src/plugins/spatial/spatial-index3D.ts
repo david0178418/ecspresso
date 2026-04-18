@@ -175,38 +175,30 @@ export function createSpatialIndex3DPlugin<G extends string = 'spatialIndex3D'>(
 						for (const entity of queries.transforms) {
 							const transform = entity.components[transformComponent];
 							const aabb = ecs.getComponent(entity.id, 'aabb3DCollider');
-							const sphere = ecs.getComponent(entity.id, 'sphereCollider');
-
-							// Only insert entities that have a collider
-							if (!aabb && !sphere) continue;
-
-							let x = transform.x;
-							let y = transform.y;
-							let z = transform.z;
-							let halfW = 0;
-							let halfH = 0;
-							let halfD = 0;
+							// AABB wins when both are present, matching collision3D / physics3D.
+							const sphere = aabb ? undefined : ecs.getComponent(entity.id, 'sphereCollider');
 
 							if (aabb) {
-								x += aabb.offsetX ?? 0;
-								y += aabb.offsetY ?? 0;
-								z += aabb.offsetZ ?? 0;
-								halfW = aabb.width / 2;
-								halfH = aabb.height / 2;
-								halfD = aabb.depth / 2;
+								insertEntity3D(
+									grid, entity.id,
+									transform.x + (aabb.offsetX ?? 0),
+									transform.y + (aabb.offsetY ?? 0),
+									transform.z + (aabb.offsetZ ?? 0),
+									aabb.width / 2, aabb.height / 2, aabb.depth / 2,
+								);
+								continue;
 							}
 
 							if (sphere) {
-								x += sphere.offsetX ?? 0;
-								y += sphere.offsetY ?? 0;
-								z += sphere.offsetZ ?? 0;
-								// Sphere: use radius as half-extent in all three dimensions
-								halfW = Math.max(halfW, sphere.radius);
-								halfH = Math.max(halfH, sphere.radius);
-								halfD = Math.max(halfD, sphere.radius);
+								const r = sphere.radius;
+								insertEntity3D(
+									grid, entity.id,
+									transform.x + (sphere.offsetX ?? 0),
+									transform.y + (sphere.offsetY ?? 0),
+									transform.z + (sphere.offsetZ ?? 0),
+									r, r, r,
+								);
 							}
-
-							insertEntity3D(grid, entity.id, x, y, z, halfW, halfH, halfD);
 						}
 					});
 			}

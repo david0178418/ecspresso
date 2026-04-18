@@ -415,6 +415,12 @@ function broadphaseDetect<I extends BaseColliderInfo3D, C>(
 			_broadphaseCandidates,
 		);
 
+		// TODO(perf): dense grids add every candidate (including `a` itself and
+		// all lower-ID entities) to the set before the filter below discards ~half
+		// of them. Emitting only pairs with larger IDs at query time — e.g. cells
+		// as sorted arrays, or inserting entries in id-ascending order and having
+		// the grid skip entries with id <= query-entity-id — would remove the
+		// post-hoc filter and halve the Set churn for dense scenes.
 		for (const bId of _broadphaseCandidates) {
 			if (bId <= a.entityId) continue;
 

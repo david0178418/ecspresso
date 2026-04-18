@@ -250,18 +250,23 @@ function resolvePhysicsContact(
 		if (invMassA > 0) {
 			const ltA = ecs.getComponent(a.entityId, 'localTransform');
 			if (!ltA) return;
-			ltA.x -= correctionScale * invMassA * contact.normalX;
-			ltA.y -= correctionScale * invMassA * contact.normalY;
-			// Update cached position for subsequent pairs (collider offset already baked in)
+			const corrA = correctionScale * invMassA;
+			ltA.x -= corrA * contact.normalX;
+			ltA.y -= corrA * contact.normalY;
+			// Sync cached position so subsequent pairs in this frame use corrected values
 			a.x = ltA.x;
+			a.y = ltA.y;
 			ecs.markChanged(a.entityId, 'localTransform');
 		}
 
 		if (invMassB > 0) {
 			const ltB = ecs.getComponent(b.entityId, 'localTransform');
 			if (!ltB) return;
-			ltB.x += correctionScale * invMassB * contact.normalX;
-			ltB.y += correctionScale * invMassB * contact.normalY;
+			const corrB = correctionScale * invMassB;
+			ltB.x += corrB * contact.normalX;
+			ltB.y += corrB * contact.normalY;
+			b.x = ltB.x;
+			b.y = ltB.y;
 			ecs.markChanged(b.entityId, 'localTransform');
 		}
 
@@ -381,6 +386,12 @@ export function createPhysics2DPlugin<L extends string = never, G extends string
 					const gx = g.x;
 					const gy = g.y;
 
+					// TODO(perf): no early-out for "sleeping" dynamic bodies — a packed
+					// pile of resting entities still runs gravity/drag/force-clear/
+					// markChanged every step. A sleep flag on RigidBody that latches
+					// after N frames of near-zero velocity (and clears on impulse or
+					// applied force) would let most of a stabilized scene skip the
+					// full per-entity body of this loop. Keep in sync with physics3D.
 					for (const entity of queries.bodies) {
 						const { localTransform, velocity, rigidBody, force } = entity.components;
 
@@ -390,13 +401,16 @@ export function createPhysics2DPlugin<L extends string = never, G extends string
 						// Dynamic bodies: apply gravity, forces, drag
 						if (rigidBody.type === 'dynamic') {
 							// 1. Gravity
-							velocity.x += gx * rigidBody.gravityScale * dt;
-							velocity.y += gy * rigidBody.gravityScale * dt;
+							const gsdt = rigidBody.gravityScale * dt;
+							velocity.x += gx * gsdt;
+							velocity.y += gy * gsdt;
 
 							// 2. Forces (F = ma → a = F/m)
-							if (rigidBody.mass > 0 && rigidBody.mass !== Infinity) {
-								velocity.x += (force.x / rigidBody.mass) * dt;
-								velocity.y += (force.y / rigidBody.mass) * dt;
+							const mass = rigidBody.mass;
+							if (mass > 0 && mass !== Infinity) {
+								const invMassDt = dt / mass;
+								velocity.x += force.x * invMassDt;
+								velocity.y += force.y * invMassDt;
 							}
 
 							// 3. Drag
@@ -447,6 +461,11 @@ export function createPhysics2DPlugin<L extends string = never, G extends string
 				.setProcess(({ queries, ecs }) => {
 					let count = 0;
 
+					// TODO(perf): collider shape is discovered via two ecs.getComponent
+					// calls per entity per frame because the query can't express
+					// "aabbCollider OR circleCollider". Splitting into two queries
+					// (aabb-bearing, circle-bearing) would eliminate these lookups at
+					// the cost of two pool-fill passes. Keep in sync with physics3D.
 					for (const entity of queries.collidables) {
 						const { localTransform, rigidBody, velocity, collisionLayer } = entity.components;
 						const aabb = ecs.getComponent(entity.id, 'aabbCollider');

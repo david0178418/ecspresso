@@ -388,6 +388,13 @@ export function createPhysics3DPlugin<L extends string = never, G extends string
 					const gy = g.y;
 					const gz = g.z;
 
+					// TODO(perf): no early-out for "sleeping" dynamic bodies — a packed
+					// pile of resting entities still runs gravity/drag/force-clear/
+					// markChanged every step. A sleep flag on RigidBody that latches
+					// after N frames of near-zero velocity (and clears on impulse or
+					// applied force) would let most of a stabilized scene skip the
+					// full per-entity body of this loop. Needs collision response to
+					// wake sleepers back up; keep in sync with physics2D when landed.
 					for (const entity of queries.bodies) {
 						const { localTransform3D, velocity3D, rigidBody3D, force3D } = entity.components;
 
@@ -397,15 +404,18 @@ export function createPhysics3DPlugin<L extends string = never, G extends string
 						// Dynamic bodies: apply gravity, forces, drag
 						if (rigidBody3D.type === 'dynamic') {
 							// 1. Gravity
-							velocity3D.x += gx * rigidBody3D.gravityScale * dt;
-							velocity3D.y += gy * rigidBody3D.gravityScale * dt;
-							velocity3D.z += gz * rigidBody3D.gravityScale * dt;
+							const gsdt = rigidBody3D.gravityScale * dt;
+							velocity3D.x += gx * gsdt;
+							velocity3D.y += gy * gsdt;
+							velocity3D.z += gz * gsdt;
 
 							// 2. Forces (F = ma → a = F/m)
-							if (rigidBody3D.mass > 0 && rigidBody3D.mass !== Infinity) {
-								velocity3D.x += (force3D.x / rigidBody3D.mass) * dt;
-								velocity3D.y += (force3D.y / rigidBody3D.mass) * dt;
-								velocity3D.z += (force3D.z / rigidBody3D.mass) * dt;
+							const mass = rigidBody3D.mass;
+							if (mass > 0 && mass !== Infinity) {
+								const invMassDt = dt / mass;
+								velocity3D.x += force3D.x * invMassDt;
+								velocity3D.y += force3D.y * invMassDt;
+								velocity3D.z += force3D.z * invMassDt;
 							}
 
 							// 3. Drag
@@ -459,6 +469,12 @@ export function createPhysics3DPlugin<L extends string = never, G extends string
 				.setProcess(({ queries, ecs }) => {
 					let count = 0;
 
+					// TODO(perf): collider shape is discovered via two ecs.getComponent
+					// calls per entity per frame because the query can't express
+					// "aabb3DCollider OR sphereCollider". Splitting into two queries
+					// (aabb-bearing, sphere-bearing) would eliminate these lookups at
+					// the cost of two pool-fill passes. Revisit once the query API
+					// gains `anyOf`-style predicates.
 					for (const entity of queries.collidables) {
 						const { localTransform3D, rigidBody3D, velocity3D, collisionLayer } = entity.components;
 						const aabb = ecs.getComponent(entity.id, 'aabb3DCollider');
