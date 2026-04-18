@@ -419,12 +419,7 @@ export function createCameraPlugin<G extends string = 'camera'>(
 						const { camera, cameraFollow } = entity.components;
 						if (cameraFollow.target < 0) continue;
 
-						let targetWorld;
-						try {
-							targetWorld = ecs.getComponent(cameraFollow.target, 'worldTransform');
-						} catch {
-							continue;
-						}
+						const targetWorld = ecs.getComponent(cameraFollow.target, 'worldTransform');
 						if (!targetWorld) continue;
 
 						const goalX = targetWorld.x + cameraFollow.offsetX;

@@ -435,14 +435,12 @@ export function createCamera3DPlugin<G extends string = 'camera3d'>(
 				.setProcess(({ ecs, dt }) => {
 					if (state.followTarget < 0) return;
 
-					let worldTransform;
-					try {
-						worldTransform = ecs.getComponent(state.followTarget, 'worldTransform3D');
-					} catch {
-						// Entity was destroyed — auto-unfollow to avoid repeated throws
+					if (!ecs.getEntity(state.followTarget)) {
 						state.followTarget = -1;
 						return;
 					}
+
+					const worldTransform = ecs.getComponent(state.followTarget, 'worldTransform3D');
 					if (!worldTransform) return;
 
 					const goalX = worldTransform.x + state.followOffsetX;

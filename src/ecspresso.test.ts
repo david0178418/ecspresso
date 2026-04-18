@@ -1790,10 +1790,10 @@ describe('ECSpresso', () => {
 			expect(velocity).toBeUndefined();
 		});
 
-		test('getComponent throws for a non-existent entity', () => {
+		test('getComponent returns undefined for a non-existent entity', () => {
 			const world = new ECSpresso<WorldConfigFrom<TestComponents, TestEvents, TestResources>>();
 
-			expect(() => world.getComponent(999, 'position')).toThrow();
+			expect(world.getComponent(999, 'position')).toBeUndefined();
 		});
 
 		test('getComponent return type is T | undefined', () => {
