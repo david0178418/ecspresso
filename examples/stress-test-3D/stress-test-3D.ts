@@ -1,6 +1,6 @@
 import {
 	SphereGeometry,
-	MeshStandardMaterial,
+	MeshLambertMaterial,
 	Mesh,
 	AmbientLight,
 	DirectionalLight,
@@ -50,7 +50,7 @@ const layers = defineCollisionLayers({
 const ecs = ECSpresso.create()
 	.withPlugin(createRenderer3DPlugin({
 		background: 0x1a1a2e,
-		antialias: true,
+		antialias: false,
 		cameraOptions: { fov: 60, near: 0.1, far: 700 },
 	}))
 	.withPlugin(createSpatialIndex3DPlugin({ cellSize: 4, phases: ['fixedUpdate'] }))
@@ -145,7 +145,7 @@ scene.add(boxLines);
 
 // Pre-create one shared SphereGeometry and per-color materials so Three.js can batch draw calls.
 const sphereGeometry = new SphereGeometry(BALL_RADIUS, 12, 8);
-const ballMaterials = COLORS.map(color => new MeshStandardMaterial({ color, roughness: 0.5, metalness: 0.1 }));
+const ballMaterials = COLORS.map(color => new MeshLambertMaterial({ color }));
 
 // -- Ball spawning --
 

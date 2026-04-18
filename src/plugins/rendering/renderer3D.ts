@@ -18,6 +18,9 @@ import type {
 	Mesh,
 	Group,
 	ColorRepresentation,
+	Vector3,
+	Euler,
+	Quaternion,
 } from 'three';
 import { definePlugin, type Plugin } from 'ecspresso';
 import type { WorldConfigFrom, EmptyConfig } from '../../type-utils';
@@ -320,21 +323,29 @@ export function createObject3DComponents(
  * Apply worldTransform3D and visible3d to a Three.js Object3D.
  *
  * Managed objects have matrixAutoUpdate / matrixWorldAutoUpdate disabled
- * (see addToScene), so we must recompose obj.matrix and refresh obj.matrixWorld
- * ourselves. Because the plugin keeps a flat scene graph, world = scene.matrixWorld * local.
+ * (see addToScene), so we recompose obj.matrix and refresh obj.matrixWorld
+ * ourselves. Because the plugin keeps a flat scene graph AND assumes the scene
+ * root stays at identity, world = local — so we skip a 4x4 matmul and copy.
+ *
+ * Note: obj.position / obj.rotation / obj.scale are NOT kept in sync — read
+ * worldTransform3D from the ECS component if you need current values.
  */
 function syncObject3D(
 	obj: Object3D,
 	wt: WorldTransform3D,
 	vis: Visible3D,
-	scene: Scene,
+	pos: Vector3,
+	euler: Euler,
+	quat: Quaternion,
+	scale: Vector3,
 ): void {
-	obj.position.set(wt.x, wt.y, wt.z);
-	obj.rotation.set(wt.rx, wt.ry, wt.rz);
-	obj.scale.set(wt.sx, wt.sy, wt.sz);
+	pos.set(wt.x, wt.y, wt.z);
+	euler.set(wt.rx, wt.ry, wt.rz, 'XYZ');
+	quat.setFromEuler(euler);
+	scale.set(wt.sx, wt.sy, wt.sz);
+	obj.matrix.compose(pos, quat, scale);
+	obj.matrixWorld.copy(obj.matrix);
 	obj.visible = vis.visible;
-	obj.updateMatrix();
-	obj.matrixWorld.multiplyMatrices(scene.matrixWorld, obj.matrix);
 }
 
 // ==================== Plugin Factory ====================
@@ -369,6 +380,12 @@ export function createRenderer3DPlugin<G extends string = 'renderer3d'>(
 	let cachedRenderer: WebGLRenderer | null = null;
 	let cachedScene: Scene | null = null;
 	let cachedCamera: Camera | null = null;
+
+	// Preallocated math temporaries for syncObject3D, allocated during scene-graph init.
+	let tmpPos: Vector3 | null = null;
+	let tmpEuler: Euler | null = null;
+	let tmpQuat: Quaternion | null = null;
+	let tmpScale: Vector3 | null = null;
 
 	// Determine mode: pre-initialized if renderer was provided
 	const isManaged = !('renderer' in options && options.renderer !== undefined);
@@ -531,22 +548,25 @@ export function createRenderer3DPlugin<G extends string = 'renderer3d'>(
 					changed: ['worldTransform3D'],
 				})
 				.setProcess(({ queries }) => {
-					const scene = cachedScene;
-					if (!scene) return;
+					const pos = tmpPos;
+					const euler = tmpEuler;
+					const quat = tmpQuat;
+					const scale = tmpScale;
+					if (!pos || !euler || !quat || !scale) return;
 
 					for (const entity of queries.meshes) {
 						const { mesh, worldTransform3D, visible3d } = entity.components;
-						syncObject3D(mesh, worldTransform3D, visible3d, scene);
+						syncObject3D(mesh, worldTransform3D, visible3d, pos, euler, quat, scale);
 					}
 
 					for (const entity of queries.groups) {
 						const { group, worldTransform3D, visible3d } = entity.components;
-						syncObject3D(group, worldTransform3D, visible3d, scene);
+						syncObject3D(group, worldTransform3D, visible3d, pos, euler, quat, scale);
 					}
 
 					for (const entity of queries.objects) {
 						const { object3d, worldTransform3D, visible3d } = entity.components;
-						syncObject3D(object3d, worldTransform3D, visible3d, scene);
+						syncObject3D(object3d, worldTransform3D, visible3d, pos, euler, quat, scale);
 					}
 				});
 
@@ -556,6 +576,12 @@ export function createRenderer3DPlugin<G extends string = 'renderer3d'>(
 				.setPriority(9999)
 				.inGroup(systemGroup)
 				.setOnInitialize(async (ecs: PluginECS) => {
+					const { Vector3: Vector3Class, Euler: EulerClass, Quaternion: QuaternionClass } = await import('three');
+					tmpPos = new Vector3Class();
+					tmpEuler = new EulerClass();
+					tmpQuat = new QuaternionClass();
+					tmpScale = new Vector3Class();
+
 					const scene = ecs.getResource('scene');
 					const threeRenderer = ecs.getResource('threeRenderer');
 					const camera = ecs.getResource('camera');
