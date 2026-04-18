@@ -118,6 +118,9 @@ export interface Camera3DBasePluginOptions<G extends string = 'camera3d'> {
 	orbitSensitivity?: number;
 	dollySensitivity?: number;
 
+	// Disable pointer-drag orbit (zoom/dolly via wheel is unaffected)
+	enableOrbit?: boolean;
+
 	// Follow
 	follow?: Camera3DFollowOptions;
 
@@ -215,6 +218,7 @@ export function createCamera3DPlugin<G extends string = 'camera3d'>(
 		maxElevation = HALF_PI - ELEVATION_EPSILON,
 		orbitSensitivity = 0.003,
 		dollySensitivity = 1.1,
+		enableOrbit = true,
 		follow: followConfig,
 		shake: shakeConfig,
 		randomFn = Math.random,
@@ -391,9 +395,11 @@ export function createCamera3DPlugin<G extends string = 'camera3d'>(
 
 					// Attach DOM listeners
 					drag.el = threeRenderer.domElement;
-					drag.el.addEventListener('pointerdown', onPointerDown);
-					drag.el.addEventListener('pointermove', onPointerMove);
-					drag.el.addEventListener('pointerup', onPointerUp);
+					if (enableOrbit) {
+						drag.el.addEventListener('pointerdown', onPointerDown);
+						drag.el.addEventListener('pointermove', onPointerMove);
+						drag.el.addEventListener('pointerup', onPointerUp);
+					}
 					drag.el.addEventListener('wheel', onWheel as EventListener, { passive: false });
 
 					// Initial camera position sync
@@ -407,9 +413,11 @@ export function createCamera3DPlugin<G extends string = 'camera3d'>(
 				})
 				.setOnDetach(() => {
 					if (!drag.el) return;
-					drag.el.removeEventListener('pointerdown', onPointerDown);
-					drag.el.removeEventListener('pointermove', onPointerMove);
-					drag.el.removeEventListener('pointerup', onPointerUp);
+					if (enableOrbit) {
+						drag.el.removeEventListener('pointerdown', onPointerDown);
+						drag.el.removeEventListener('pointermove', onPointerMove);
+						drag.el.removeEventListener('pointerup', onPointerUp);
+					}
 					drag.el.removeEventListener('wheel', onWheel as EventListener);
 					drag.el = null;
 					cachedCamera = null;
