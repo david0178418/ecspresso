@@ -1000,7 +1000,7 @@ export default class ECSpresso<
 		WithoutComponents extends keyof Cfg['components'] = never
 	>(
 		withComponents: ReadonlyArray<WithComponents>,
-		withoutComponents: ReadonlyArray<WithoutComponents> = [] as unknown as ReadonlyArray<WithoutComponents>,
+		withoutComponents: ReadonlyArray<WithoutComponents> = [],
 	): FilteredEntity<Cfg['components'], WithComponents, WithoutComponents> {
 		const results = this._entityManager.getEntitiesWithQuery(withComponents, withoutComponents);
 		if (results.length === 0) {
@@ -1027,7 +1027,7 @@ export default class ECSpresso<
 		WithoutComponents extends keyof Cfg['components'] = never
 	>(
 		withComponents: ReadonlyArray<WithComponents>,
-		withoutComponents: ReadonlyArray<WithoutComponents> = [] as unknown as ReadonlyArray<WithoutComponents>,
+		withoutComponents: ReadonlyArray<WithoutComponents> = [],
 	): FilteredEntity<Cfg['components'], WithComponents, WithoutComponents> | undefined {
 		const results = this._entityManager.getEntitiesWithQuery(withComponents, withoutComponents);
 		if (results.length === 0) return undefined;
