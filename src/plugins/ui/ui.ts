@@ -1,16 +1,23 @@
 /**
- * UI / HUD Plugin for ECSpresso — Phase 1.
+ * UI / HUD Plugin for ECSpresso.
  *
- * Provides non-interactive screen-space primitives:
+ * Screen-space primitives:
  * - `uiElement` — anchor/pivot/offset positioning resolved against the `bounds` resource
  * - `uiLabel` — PixiJS Text
  * - `uiPanel` — PixiJS Graphics rectangle with optional border
  * - `uiProgressBar` — PixiJS Graphics value indicator with four fill directions
  *
- * Depends on `renderer2D` (for the `bounds` resource + scene graph + screen-space layer)
- * and the transform plugin (bundled by renderer2D).
+ * Pointer interaction (buttons):
+ * - `uiInteractive` (marker) opts an entity into hit-testing
+ * - `uiInteraction.state` — `'none' | 'hover' | 'pressed'` (Bevy-style single enum)
+ * - `uiButton` marker composes `uiInteractive` + `uiInteraction`
+ * - `uiDisabled` skips hit-testing entirely
+ * - Emits `uiButtonPressed` (confirmed down→up on same widget) and `uiButtonHovered`
  *
- * Future phases will add button interaction (Phase 2) and message log (Phase 3).
+ * Depends on `renderer2D` (for the `bounds` resource + scene graph + screen-space layer),
+ * the transform plugin (bundled by renderer2D), and the input plugin.
+ *
+ * Future phases will add the message log (Phase 3).
  */
 
 import type { Container, Graphics, Text } from 'pixi.js';
@@ -24,6 +31,7 @@ import {
 	type WorldTransform,
 } from '../spatial/transform';
 import type { BoundsResourceTypes } from '../spatial/bounds';
+import type { InputResourceTypes } from '../input/input';
 
 // ==================== Anchor Presets ====================
 
@@ -148,11 +156,37 @@ export interface UIProgressBar {
 	direction: ProgressDirection;
 }
 
+export type UIInteractionState = 'none' | 'hover' | 'pressed';
+
+export interface UIInteraction {
+	state: UIInteractionState;
+}
+
 export interface UIComponentTypes {
 	uiElement: UIElement;
 	uiLabel: UILabel;
 	uiPanel: UIPanel;
 	uiProgressBar: UIProgressBar;
+	uiButton: {};
+	uiInteractive: {};
+	uiInteraction: UIInteraction;
+	uiDisabled: {};
+}
+
+// ==================== Event Types ====================
+
+export interface UIButtonPressedEvent {
+	entityId: number;
+}
+
+export interface UIButtonHoveredEvent {
+	entityId: number;
+	entered: boolean;
+}
+
+export interface UIEventTypes {
+	uiButtonPressed: UIButtonPressedEvent;
+	uiButtonHovered: UIButtonHoveredEvent;
 }
 
 // ==================== Component Factories ====================
@@ -235,6 +269,18 @@ export function createUIProgressBar(input: CreateUIProgressBarInput): Pick<UICom
 	};
 }
 
+export function createUIInteractive(): Pick<UIComponentTypes, 'uiInteractive'> {
+	return { uiInteractive: {} };
+}
+
+export function createUIButton(): Pick<UIComponentTypes, 'uiButton'> {
+	return { uiButton: {} };
+}
+
+export function createUIDisabled(): Pick<UIComponentTypes, 'uiDisabled'> {
+	return { uiDisabled: {} };
+}
+
 // ==================== Runtime Data (Side Storage) ====================
 
 interface UILabelRuntime {
@@ -268,10 +314,15 @@ interface UIProgressRuntime {
 
 // ==================== Plugin Factory ====================
 
-type UIRequires = WorldConfigFrom<TransformComponentTypes, {}, BoundsResourceTypes>;
+type UIRequires = WorldConfigFrom<
+	TransformComponentTypes,
+	{},
+	BoundsResourceTypes & InputResourceTypes
+>;
 
 type UILabels =
 	| 'ui-anchor-resolve'
+	| 'ui-interaction'
 	| 'ui-label-sync'
 	| 'ui-panel-sync'
 	| 'ui-progress-sync';
@@ -279,6 +330,8 @@ type UILabels =
 export interface UIPluginOptions<G extends string = 'ui'> extends BasePluginOptions<G> {
 	/** Priority for the anchor-resolve system in preUpdate (default: 0). */
 	anchorPriority?: number;
+	/** Priority for the pointer hit-test system in preUpdate (default: 200, after input's 100). */
+	interactionPriority?: number;
 	/** Priority for render-sync systems (default: 480, just before renderer2D's 500). */
 	renderSyncPriority?: number;
 }
@@ -289,6 +342,7 @@ export function createUIPlugin<G extends string = 'ui'>(
 	const {
 		systemGroup = 'ui' as G,
 		anchorPriority = 0,
+		interactionPriority = 200,
 		renderSyncPriority = 480,
 	} = options ?? {};
 
@@ -300,6 +354,7 @@ export function createUIPlugin<G extends string = 'ui'>(
 
 	return definePlugin('ui')
 		.withComponentTypes<UIComponentTypes>()
+		.withEventTypes<UIEventTypes>()
 		.withLabels<UILabels>()
 		.withGroups<G>()
 		.withReactiveQueryNames<'ui-labels' | 'ui-panels' | 'ui-progress-bars'>()
@@ -312,6 +367,8 @@ export function createUIPlugin<G extends string = 'ui'>(
 				scaleX: DEFAULT_LOCAL_TRANSFORM.scaleX,
 				scaleY: DEFAULT_LOCAL_TRANSFORM.scaleY,
 			}));
+			world.registerRequired('uiButton', 'uiInteractive', () => ({}));
+			world.registerRequired('uiInteractive', 'uiInteraction', (): UIInteraction => ({ state: 'none' }));
 
 			// Anchor resolve: writes localTransform.{x,y} from uiElement + bounds.
 			world
@@ -342,58 +399,54 @@ export function createUIPlugin<G extends string = 'ui'>(
 					}
 				});
 
-			// Label sync: lazy-initialize PixiJS Text on entity enter, then sync style/text.
+			// Pointer hit-test: reads inputState.pointer, updates uiInteraction.state, emits events.
 			world
-				.addSystem('ui-label-sync')
-				.setPriority(renderSyncPriority)
-				.inPhase('render')
+				.addSystem('ui-interaction')
+				.setPriority(interactionPriority)
+				.inPhase('preUpdate')
 				.inGroup(systemGroup)
-				.setOnInitialize(async (ecs) => {
-					const pixi = await import('pixi.js');
-					const rootContainer = ecs.tryGetResource<Container>('rootContainer');
-					ecs.addReactiveQuery('ui-labels', {
-						with: ['uiLabel'],
-						onEnter: (entity) => {
-							const label = entity.components.uiLabel;
-							const text = new pixi.Text({
-								text: label.text,
-								style: {
-									fontFamily: label.style.fontFamily,
-									fontSize: label.style.fontSize,
-									fill: label.style.fill,
-									align: label.style.align,
-								},
-							});
-							labelPool.set(entity.id, {
-								pixiText: text,
-								lastText: label.text,
-								lastFontSize: label.style.fontSize,
-								lastFill: label.style.fill,
-								lastAlign: label.style.align,
-								lastFontFamily: label.style.fontFamily,
-							});
-							if (rootContainer) rootContainer.addChild(text);
-						},
-						onExit: (entityId) => {
-							const runtime = labelPool.get(entityId);
-							if (runtime) {
-								runtime.pixiText.removeFromParent();
-								runtime.pixiText.destroy();
-								labelPool.delete(entityId);
-							}
-						},
-					});
+				.addQuery('interactables', {
+					with: ['uiInteractive', 'uiInteraction', 'uiElement', 'worldTransform'],
+					without: ['uiDisabled'],
 				})
-				.setProcess(({ ecs }) => {
-					for (const [entityId, runtime] of labelPool) {
-						const label = ecs.getComponent(entityId, 'uiLabel');
-						if (!label) continue;
-						syncLabelRuntime(runtime, label);
-						applyTransform(runtime.pixiText, ecs.getComponent(entityId, 'worldTransform'));
+				.setProcess(({ queries, ecs }) => {
+					const pointer = ecs.getResource('inputState').pointer;
+					const px = pointer.position.x;
+					const py = pointer.position.y;
+					const down = pointer.isDown(0);
+					const justReleased = pointer.justReleased(0);
+					for (const entity of queries.interactables) {
+						const { uiElement, worldTransform, uiInteraction } = entity.components;
+						const hit =
+							px >= worldTransform.x &&
+							px < worldTransform.x + uiElement.width &&
+							py >= worldTransform.y &&
+							py < worldTransform.y + uiElement.height;
+						const prev = uiInteraction.state;
+						const next: UIInteractionState =
+							!hit ? 'none'
+							: down ? (prev === 'none' ? 'hover' : 'pressed')
+							: 'hover';
+
+						if (prev === 'pressed' && next === 'hover' && justReleased && hit) {
+							ecs.eventBus.publish('uiButtonPressed', { entityId: entity.id });
+						}
+						if (prev === 'none' && next !== 'none') {
+							ecs.eventBus.publish('uiButtonHovered', { entityId: entity.id, entered: true });
+						}
+						if (prev !== 'none' && next === 'none') {
+							ecs.eventBus.publish('uiButtonHovered', { entityId: entity.id, entered: false });
+						}
+						if (prev !== next) {
+							uiInteraction.state = next;
+							ecs.markChanged(entity.id, 'uiInteraction');
+						}
 					}
 				});
 
 			// Panel sync: lazy-initialize PixiJS Graphics, redraw when panel or size changes.
+			// Registered before labels/progress so panel Graphics sits BEHIND text/fill when an
+			// entity carries multiple visual components (e.g. a button with uiPanel + uiLabel).
 			world
 				.addSystem('ui-panel-sync')
 				.setPriority(renderSyncPriority)
@@ -478,6 +531,58 @@ export function createUIPlugin<G extends string = 'ui'>(
 						if (!bar || !element) continue;
 						syncProgressRuntime(runtime, bar, element, scratchFill);
 						applyTransform(runtime.pixiGraphics, ecs.getComponent(entityId, 'worldTransform'));
+					}
+				});
+
+			// Label sync: registered last so Text sits ON TOP of panels and progress bars when an
+			// entity carries multiple visual components.
+			world
+				.addSystem('ui-label-sync')
+				.setPriority(renderSyncPriority)
+				.inPhase('render')
+				.inGroup(systemGroup)
+				.setOnInitialize(async (ecs) => {
+					const pixi = await import('pixi.js');
+					const rootContainer = ecs.tryGetResource<Container>('rootContainer');
+					ecs.addReactiveQuery('ui-labels', {
+						with: ['uiLabel'],
+						onEnter: (entity) => {
+							const label = entity.components.uiLabel;
+							const text = new pixi.Text({
+								text: label.text,
+								style: {
+									fontFamily: label.style.fontFamily,
+									fontSize: label.style.fontSize,
+									fill: label.style.fill,
+									align: label.style.align,
+								},
+							});
+							labelPool.set(entity.id, {
+								pixiText: text,
+								lastText: label.text,
+								lastFontSize: label.style.fontSize,
+								lastFill: label.style.fill,
+								lastAlign: label.style.align,
+								lastFontFamily: label.style.fontFamily,
+							});
+							if (rootContainer) rootContainer.addChild(text);
+						},
+						onExit: (entityId) => {
+							const runtime = labelPool.get(entityId);
+							if (runtime) {
+								runtime.pixiText.removeFromParent();
+								runtime.pixiText.destroy();
+								labelPool.delete(entityId);
+							}
+						},
+					});
+				})
+				.setProcess(({ ecs }) => {
+					for (const [entityId, runtime] of labelPool) {
+						const label = ecs.getComponent(entityId, 'uiLabel');
+						if (!label) continue;
+						syncLabelRuntime(runtime, label);
+						applyTransform(runtime.pixiText, ecs.getComponent(entityId, 'worldTransform'));
 					}
 				});
 		});

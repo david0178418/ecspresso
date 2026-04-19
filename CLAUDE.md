@@ -67,7 +67,7 @@ src/
     ├── debug/
     │   └── diagnostics.ts   # FPS, entity count, per-system timing overlay
     └── ui/
-        └── ui.ts            # Screen-space HUD primitives — label, panel, progress bar, anchored positioning
+        └── ui.ts            # Screen-space HUD primitives — label, panel, progress bar, anchored positioning, button hit-testing + hover/press events
 ```
 
 ## Core Concepts

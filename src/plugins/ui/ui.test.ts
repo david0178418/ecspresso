@@ -6,6 +6,7 @@ import {
 	type TransformComponentTypes,
 } from '../spatial/transform';
 import type { BoundsResourceTypes } from '../spatial/bounds';
+import type { InputResourceTypes, InputState, PointerState } from '../input/input';
 import {
 	ANCHOR_PRESETS,
 	resolveAnchorPreset,
@@ -17,8 +18,60 @@ import {
 	createUIPanel,
 	createUIProgressBar,
 	createUIPlugin,
+	createUIButton,
+	createUIDisabled,
 	type UIComponentTypes,
 } from './ui';
+
+// ==================== Test stub for inputState ====================
+
+interface StubPointer extends PointerState {
+	_setPosition: (x: number, y: number) => void;
+	_setDown: (button: number, isDown: boolean) => void;
+	_advance: () => void;
+}
+
+function createStubInputState(): { inputState: InputState; pointer: StubPointer } {
+	const position = { x: 0, y: 0 };
+	const delta = { x: 0, y: 0 };
+	const down = new Set<number>();
+	const pressed = new Set<number>();
+	const released = new Set<number>();
+
+	const pointer: StubPointer = {
+		position,
+		delta,
+		isDown: (b) => down.has(b),
+		justPressed: (b) => pressed.has(b),
+		justReleased: (b) => released.has(b),
+		_setPosition: (x, y) => { position.x = x; position.y = y; },
+		_setDown: (b, isDown) => {
+			const wasDown = down.has(b);
+			if (isDown && !wasDown) { down.add(b); pressed.add(b); }
+			else if (!isDown && wasDown) { down.delete(b); released.add(b); }
+		},
+		_advance: () => { pressed.clear(); released.clear(); },
+	};
+
+	const noopAction = {
+		isActive: () => false,
+		justActivated: () => false,
+		justDeactivated: () => false,
+	};
+	const inputState: InputState = {
+		keyboard: { isDown: () => false, justPressed: () => false, justReleased: () => false },
+		pointer,
+		gamepads: [],
+		actions: noopAction,
+		setActionMap: () => {},
+		getActionMap: () => ({}),
+		definePlayer: () => {},
+		removePlayer: () => false,
+		player: () => undefined,
+		playerIds: () => [],
+	};
+	return { inputState, pointer };
+}
 
 // ==================== Pure Anchor Math ====================
 
@@ -229,11 +282,12 @@ interface TestComponents extends UIComponentTypes, TransformComponentTypes {
 	renderLayer: string;
 }
 
-interface TestResources extends BoundsResourceTypes {}
+interface TestResources extends BoundsResourceTypes, InputResourceTypes {}
 
 const stubRenderer = definePlugin('renderer2d').install(() => {});
 
 const createTestEcs = (bounds?: { width: number; height: number }) => {
+	const stub = createStubInputState();
 	const ecs = ECSpresso.create()
 		.withComponentTypes<TestComponents>()
 		.withResourceTypes<TestResources>()
@@ -242,7 +296,8 @@ const createTestEcs = (bounds?: { width: number; height: number }) => {
 		.withPlugin(createUIPlugin())
 		.build();
 	ecs.addResource('bounds', { width: bounds?.width ?? 800, height: bounds?.height ?? 600 });
-	return ecs;
+	ecs.addResource('inputState', stub.inputState);
+	return { ecs, pointer: stub.pointer };
 };
 
 describe('createUIPlugin installation', () => {
@@ -251,7 +306,7 @@ describe('createUIPlugin installation', () => {
 	});
 
 	test('spawning uiElement auto-adds localTransform and worldTransform', () => {
-		const ecs = createTestEcs();
+		const { ecs } = createTestEcs();
 		const entity = ecs.spawn({
 			...createUIElement({ anchor: 'center', width: 100, height: 40 }),
 		});
@@ -262,7 +317,7 @@ describe('createUIPlugin installation', () => {
 
 describe('ui-anchor-resolve system', () => {
 	test('top-center with y offset writes correct localTransform position', () => {
-		const ecs = createTestEcs({ width: 800, height: 600 });
+		const { ecs } = createTestEcs({ width: 800, height: 600 });
 		const entity = ecs.spawn({
 			...createUIElement({
 				anchor: 'top-center',
@@ -279,7 +334,7 @@ describe('ui-anchor-resolve system', () => {
 	});
 
 	test('bottom-right pivoted to corner anchors flush to bottom-right', () => {
-		const ecs = createTestEcs({ width: 800, height: 600 });
+		const { ecs } = createTestEcs({ width: 800, height: 600 });
 		const entity = ecs.spawn({
 			...createUIElement({
 				anchor: 'bottom-right',
@@ -295,7 +350,7 @@ describe('ui-anchor-resolve system', () => {
 	});
 
 	test('bounds resize reflects on next update', () => {
-		const ecs = createTestEcs({ width: 800, height: 600 });
+		const { ecs } = createTestEcs({ width: 800, height: 600 });
 		const entity = ecs.spawn({
 			...createUIElement({
 				anchor: 'bottom-right',
@@ -317,7 +372,7 @@ describe('ui-anchor-resolve system', () => {
 	});
 
 	test('off-grid anchor resolves correctly', () => {
-		const ecs = createTestEcs({ width: 800, height: 600 });
+		const { ecs } = createTestEcs({ width: 800, height: 600 });
 		const entity = ecs.spawn({
 			...createUIElement({
 				anchor: { x: 0.25, y: 0.5 },
@@ -331,5 +386,117 @@ describe('ui-anchor-resolve system', () => {
 		if (!lt) throw new Error('Expected localTransform');
 		expect(lt.x).toBe(200);
 		expect(lt.y).toBe(280);
+	});
+});
+
+describe('ui-interaction system', () => {
+	const spawnButton = (ecs: ReturnType<typeof createTestEcs>['ecs']) =>
+		ecs.spawn({
+			...createUIElement({ anchor: 'top-left', width: 100, height: 40 }),
+			...createUIButton(),
+		});
+
+	const tickFrame = (ecs: ReturnType<typeof createTestEcs>['ecs'], pointer: ReturnType<typeof createTestEcs>['pointer']) => {
+		ecs.update(0.016);
+		pointer._advance();
+	};
+
+	test('createUIButton auto-registers uiInteractive and uiInteraction', () => {
+		const { ecs } = createTestEcs();
+		const entity = ecs.spawn({
+			...createUIElement({ anchor: 'top-left', width: 100, height: 40 }),
+			...createUIButton(),
+		});
+		expect(ecs.entityManager.getComponent(entity.id, 'uiInteractive')).toBeDefined();
+		expect(ecs.entityManager.getComponent(entity.id, 'uiInteraction')).toEqual({ state: 'none' });
+	});
+
+	test('pointer enters bounds → state transitions none → hover and emits hovered', () => {
+		const { ecs, pointer } = createTestEcs();
+		const entity = spawnButton(ecs);
+		const events: Array<{ entityId: number; entered: boolean }> = [];
+		ecs.eventBus.subscribe('uiButtonHovered', (e) => events.push(e));
+
+		pointer._setPosition(50, 20);
+		tickFrame(ecs, pointer);
+		expect(ecs.entityManager.getComponent(entity.id, 'uiInteraction')?.state).toBe('hover');
+		expect(events).toEqual([{ entityId: entity.id, entered: true }]);
+	});
+
+	test('full click cycle: hover → pressed → release fires uiButtonPressed', () => {
+		const { ecs, pointer } = createTestEcs();
+		const entity = spawnButton(ecs);
+		const pressedEvents: Array<{ entityId: number }> = [];
+		ecs.eventBus.subscribe('uiButtonPressed', (e) => pressedEvents.push(e));
+
+		pointer._setPosition(50, 20);
+		tickFrame(ecs, pointer);
+		expect(ecs.entityManager.getComponent(entity.id, 'uiInteraction')?.state).toBe('hover');
+
+		pointer._setDown(0, true);
+		tickFrame(ecs, pointer);
+		expect(ecs.entityManager.getComponent(entity.id, 'uiInteraction')?.state).toBe('pressed');
+
+		pointer._setDown(0, false);
+		tickFrame(ecs, pointer);
+		expect(ecs.entityManager.getComponent(entity.id, 'uiInteraction')?.state).toBe('hover');
+		expect(pressedEvents).toEqual([{ entityId: entity.id }]);
+	});
+
+	test('press then drag off and release does not fire uiButtonPressed (upOut)', () => {
+		const { ecs, pointer } = createTestEcs();
+		const entity = spawnButton(ecs);
+		const pressedEvents: Array<{ entityId: number }> = [];
+		ecs.eventBus.subscribe('uiButtonPressed', (e) => pressedEvents.push(e));
+
+		pointer._setPosition(50, 20);
+		tickFrame(ecs, pointer);
+		pointer._setDown(0, true);
+		tickFrame(ecs, pointer);
+		expect(ecs.entityManager.getComponent(entity.id, 'uiInteraction')?.state).toBe('pressed');
+
+		pointer._setPosition(500, 500);
+		tickFrame(ecs, pointer);
+		expect(ecs.entityManager.getComponent(entity.id, 'uiInteraction')?.state).toBe('none');
+
+		pointer._setDown(0, false);
+		tickFrame(ecs, pointer);
+		expect(pressedEvents).toEqual([]);
+	});
+
+	test('pointer held outside then dragged onto widget stays hover, not pressed', () => {
+		const { ecs, pointer } = createTestEcs();
+		const entity = spawnButton(ecs);
+		const pressedEvents: Array<{ entityId: number }> = [];
+		ecs.eventBus.subscribe('uiButtonPressed', (e) => pressedEvents.push(e));
+
+		pointer._setPosition(500, 500);
+		pointer._setDown(0, true);
+		tickFrame(ecs, pointer);
+		expect(ecs.entityManager.getComponent(entity.id, 'uiInteraction')?.state).toBe('none');
+
+		pointer._setPosition(50, 20);
+		tickFrame(ecs, pointer);
+		expect(ecs.entityManager.getComponent(entity.id, 'uiInteraction')?.state).toBe('hover');
+
+		pointer._setDown(0, false);
+		tickFrame(ecs, pointer);
+		expect(pressedEvents).toEqual([]);
+	});
+
+	test('uiDisabled excludes entity from hit-testing', () => {
+		const { ecs, pointer } = createTestEcs();
+		const entity = ecs.spawn({
+			...createUIElement({ anchor: 'top-left', width: 100, height: 40 }),
+			...createUIButton(),
+			...createUIDisabled(),
+		});
+		const hoverEvents: Array<{ entityId: number; entered: boolean }> = [];
+		ecs.eventBus.subscribe('uiButtonHovered', (e) => hoverEvents.push(e));
+
+		pointer._setPosition(50, 20);
+		tickFrame(ecs, pointer);
+		expect(ecs.entityManager.getComponent(entity.id, 'uiInteraction')?.state).toBe('none');
+		expect(hoverEvents).toEqual([]);
 	});
 });

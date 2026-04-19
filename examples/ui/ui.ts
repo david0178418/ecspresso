@@ -1,12 +1,16 @@
 import ECSpresso from '../../src';
 import { createRenderer2DPlugin } from '../../src/plugins/rendering/renderer2D';
+import { createInputPlugin } from '../../src/plugins/input/input';
 import {
 	createUIPlugin,
 	createUIElement,
 	createUILabel,
 	createUIPanel,
 	createUIProgressBar,
+	createUIButton,
+	createUIDisabled,
 	type AnchorPreset,
+	type UIInteractionState,
 } from '../../src/plugins/ui/ui';
 
 const SCREEN_W = 900;
@@ -20,6 +24,7 @@ const ecs = ECSpresso.create()
 		renderLayers: ['ui'],
 		screenSpaceLayers: ['ui'],
 	}))
+	.withPlugin(createInputPlugin())
 	.withPlugin(createUIPlugin())
 	.build();
 
@@ -76,7 +81,7 @@ for (const preset of presets) {
 	});
 }
 
-// ---- Health & mana progress bars driven by HTML sliders ----
+// ---- Health & mana progress bars driven by on-screen buttons ----
 
 const healthBar = ecs.spawn({
 	...createUIElement({
@@ -106,22 +111,66 @@ const manaBar = ecs.spawn({
 	renderLayer: 'ui',
 });
 
-const wireSlider = (inputId: string, valId: string, entityId: number) => {
-	const input = document.getElementById(inputId) as HTMLInputElement | null;
-	const valSpan = document.getElementById(valId);
-	if (!input || !valSpan) return;
-	const apply = () => {
-		const v = Number(input.value);
-		valSpan.textContent = String(v);
-		const bar = ecs.getComponent(entityId, 'uiProgressBar');
-		if (bar) bar.value = v;
-	};
-	input.addEventListener('input', apply);
-	apply();
+// ---- Buttons: Health −/+, Mana −/+, plus a disabled button ----
+
+const clamp = (v: number) => Math.max(0, Math.min(100, v));
+
+const adjustBarValue = (barId: number, delta: number) => {
+	const bar = ecs.getComponent(barId, 'uiProgressBar');
+	if (bar) bar.value = clamp(bar.value + delta);
 };
 
-wireSlider('health', 'health-val', healthBar.id);
-wireSlider('mana', 'mana-val', manaBar.id);
+const handlers = new Map<number, () => void>();
+
+const spawnButton = (label: string, offsetX: number, opts: { disabled?: boolean; onPress?: () => void } = {}) => {
+	const button = ecs.spawn({
+		...createUIElement({ anchor: 'top-left', offset: { x: offsetX, y: 120 }, width: 44, height: 28 }),
+		...createUIPanel({ fillColor: 0x374151, borderColor: 0x6b7280, borderWidth: 1 }),
+		...createUILabel(label, { fontSize: 14, fill: 0xe5e7eb, align: 'center' }),
+		...createUIButton(),
+		...(opts.disabled ? createUIDisabled() : {}),
+		renderLayer: 'ui',
+	});
+	if (opts.onPress) handlers.set(button.id, opts.onPress);
+	return button.id;
+};
+
+spawnButton('−', 20,  { onPress: () => adjustBarValue(healthBar.id, -10) });
+spawnButton('+', 68,  { onPress: () => adjustBarValue(healthBar.id, +10) });
+spawnButton('−', 128, { onPress: () => adjustBarValue(manaBar.id, -10) });
+spawnButton('+', 176, { onPress: () => adjustBarValue(manaBar.id, +10) });
+spawnButton('X', 236, { disabled: true });
+
+ecs.eventBus.subscribe('uiButtonPressed', ({ entityId }) => {
+	handlers.get(entityId)?.();
+});
+
+// ---- Consumer-side system: retint button panels by interaction state ----
+
+const PANEL_COLORS_NORMAL = {
+	none:    { fill: 0x374151, border: 0x6b7280 },
+	hover:   { fill: 0x4b5563, border: 0x9ca3af },
+	pressed: { fill: 0x1f2937, border: 0x6b7280 },
+} as const satisfies Record<UIInteractionState, { fill: number; border: number }>;
+
+const DISABLED_COLORS = { fill: 0x1f2937, border: 0x374151 };
+
+ecs.addSystem('button-panel-tint')
+	.inPhase('update')
+	.addQuery('buttons', { with: ['uiButton', 'uiPanel', 'uiInteraction'] })
+	.setProcess(({ queries, ecs }) => {
+		for (const entity of queries.buttons) {
+			const panel = entity.components.uiPanel;
+			const isDisabled = ecs.getComponent(entity.id, 'uiDisabled') !== undefined;
+			const colors = isDisabled
+				? DISABLED_COLORS
+				: PANEL_COLORS_NORMAL[entity.components.uiInteraction.state];
+			if (panel.fillColor !== colors.fill || panel.borderColor !== colors.border) {
+				panel.fillColor = colors.fill;
+				panel.borderColor = colors.border;
+			}
+		}
+	});
 
 // ---- Vertical progress bar to demonstrate direction: 'btt' ----
 
