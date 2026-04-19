@@ -9,6 +9,8 @@ import {
 	createUIProgressBar,
 	createUIButton,
 	createUIDisabled,
+	createUIMessageLog,
+	appendLogLine,
 	type AnchorPreset,
 	type UIInteractionState,
 } from '../../src/plugins/ui/ui';
@@ -122,9 +124,9 @@ const adjustBarValue = (barId: number, delta: number) => {
 
 const handlers = new Map<number, () => void>();
 
-const spawnButton = (label: string, offsetX: number, opts: { disabled?: boolean; onPress?: () => void } = {}) => {
+const spawnButton = (label: string, offsetX: number, opts: { disabled?: boolean; onPress?: () => void; y?: number } = {}) => {
 	const button = ecs.spawn({
-		...createUIElement({ anchor: 'top-left', offset: { x: offsetX, y: 120 }, width: 44, height: 28 }),
+		...createUIElement({ anchor: 'top-left', offset: { x: offsetX, y: opts.y ?? 120 }, width: 44, height: 28 }),
 		...createUIPanel({ fillColor: 0x374151, borderColor: 0x6b7280, borderWidth: 1 }),
 		...createUILabel(label, { fontSize: 14, fill: 0xe5e7eb, align: 'center' }),
 		...createUIButton(),
@@ -199,4 +201,72 @@ ecs.spawn({
 	}),
 	...createUILabel('70%', { fontSize: 13, fill: 0xe5e7eb, align: 'center' }),
 	renderLayer: 'ui',
+});
+
+// ---- Message log + buttons that append mixed-color lines ----
+
+const LOG_WIDTH = 360;
+const LOG_LINE_HEIGHT = 16;
+const LOG_VISIBLE = 6;
+const LOG_HEIGHT = LOG_LINE_HEIGHT * LOG_VISIBLE + 8;
+
+ecs.spawn({
+	...createUIElement({
+		anchor: 'bottom-left',
+		pivot: 'bottom-left',
+		offset: { x: 20, y: -20 },
+		width: LOG_WIDTH,
+		height: LOG_HEIGHT,
+	}),
+	...createUIPanel({ fillColor: 0x0b1120, borderColor: 0x374151, borderWidth: 1 }),
+	renderLayer: 'ui',
+});
+
+const messageLog = ecs.spawn({
+	...createUIElement({
+		anchor: 'bottom-left',
+		pivot: 'bottom-left',
+		offset: { x: 24, y: -24 },
+		width: LOG_WIDTH - 8,
+		height: LOG_HEIGHT - 8,
+	}),
+	...createUIMessageLog({
+		maxLines: 50,
+		visibleLines: LOG_VISIBLE,
+		lineHeight: LOG_LINE_HEIGHT,
+		style: { fontSize: 13, fontFamily: 'monospace', fill: 0xe5e7eb, align: 'left' },
+		initialLines: [
+			[{ text: 'Welcome, ', color: 0xe5e7eb }, { text: 'adventurer', color: 0xfbbf24 }, { text: '.', color: 0xe5e7eb }],
+			[{ text: 'Click the buttons below to log events.', color: 0x9ca3af }],
+		],
+	}),
+	renderLayer: 'ui',
+});
+
+const LOG_BUTTON_Y = 160;
+spawnButton('Hit', 20, {
+	y: LOG_BUTTON_Y,
+	onPress: () => appendLogLine(ecs, messageLog.id, [
+		{ text: 'You hit ',     color: 0xe5e7eb },
+		{ text: 'the goblin',   color: 0xef4444 },
+		{ text: ' for 5 dmg.',  color: 0xe5e7eb },
+	]),
+});
+spawnButton('Heal', 68, {
+	y: LOG_BUTTON_Y,
+	onPress: () => appendLogLine(ecs, messageLog.id, [
+		{ text: 'You drink a ',  color: 0xe5e7eb },
+		{ text: 'potion',        color: 0x10b981 },
+		{ text: ' (+10 HP).',    color: 0xe5e7eb },
+	]),
+});
+spawnButton('Miss', 128, {
+	y: LOG_BUTTON_Y,
+	onPress: () => appendLogLine(ecs, messageLog.id, [
+		{ text: 'A breeze passes.', color: 0x6b7280 },
+	]),
+});
+
+ecs.eventBus.subscribe('uiLogAppended', (payload) => {
+	console.log('[uiLogAppended]', payload);
 });

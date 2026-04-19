@@ -20,7 +20,11 @@ import {
 	createUIPlugin,
 	createUIButton,
 	createUIDisabled,
+	createUIMessageLog,
+	appendLogLine,
 	type UIComponentTypes,
+	type LogFragment,
+	type UIMessageLogAppendedEvent,
 } from './ui';
 
 // ==================== Test stub for inputState ====================
@@ -498,5 +502,93 @@ describe('ui-interaction system', () => {
 		tickFrame(ecs, pointer);
 		expect(ecs.entityManager.getComponent(entity.id, 'uiInteraction')?.state).toBe('none');
 		expect(hoverEvents).toEqual([]);
+	});
+});
+
+// ==================== Message Log ====================
+
+describe('createUIMessageLog', () => {
+	test('seeds empty lines and applies style defaults when omitted', () => {
+		const c = createUIMessageLog({ maxLines: 10, visibleLines: 4, lineHeight: 16 });
+		expect(c.uiMessageLog.lines).toEqual([]);
+		expect(c.uiMessageLog.maxLines).toBe(10);
+		expect(c.uiMessageLog.visibleLines).toBe(4);
+		expect(c.uiMessageLog.lineHeight).toBe(16);
+		expect(c.uiMessageLog.style.fontFamily).toBe('sans-serif');
+	});
+
+	test('initialLines are copied (not aliased)', () => {
+		const initial: LogFragment[][] = [[{ text: 'hi', color: 0xffffff }]];
+		const c = createUIMessageLog({ maxLines: 10, visibleLines: 4, lineHeight: 16, initialLines: initial });
+		expect(c.uiMessageLog.lines).not.toBe(initial);
+		expect(c.uiMessageLog.lines).toEqual(initial);
+	});
+});
+
+describe('appendLogLine', () => {
+	const spawnLog = (ecs: ReturnType<typeof createTestEcs>['ecs'], maxLines: number) =>
+		ecs.spawn({
+			...createUIElement({ anchor: 'top-left', width: 200, height: 100 }),
+			...createUIMessageLog({ maxLines, visibleLines: maxLines, lineHeight: 16 }),
+		});
+
+	const frag = (text: string, color = 0xffffff): LogFragment => ({ text, color });
+
+	test('appends a line and replaces the lines array reference (identity changes)', () => {
+		const { ecs } = createTestEcs();
+		const entity = spawnLog(ecs, 10);
+		const before = ecs.entityManager.getComponent(entity.id, 'uiMessageLog');
+		if (!before) throw new Error('Expected uiMessageLog');
+		const beforeRef = before.lines;
+
+		appendLogLine(ecs, entity.id, [frag('hello')]);
+		ecs.update(0.016);
+
+		const after = ecs.entityManager.getComponent(entity.id, 'uiMessageLog');
+		if (!after) throw new Error('Expected uiMessageLog');
+		expect(after.lines).not.toBe(beforeRef);
+		expect(after.lines).toEqual([[frag('hello')]]);
+	});
+
+	test('FIFO truncation drops oldest when exceeding maxLines', () => {
+		const { ecs } = createTestEcs();
+		const entity = spawnLog(ecs, 3);
+
+		[1, 2, 3, 4, 5].forEach((n) => appendLogLine(ecs, entity.id, [frag(`line ${n}`)]));
+		ecs.update(0.016);
+
+		const log = ecs.entityManager.getComponent(entity.id, 'uiMessageLog');
+		if (!log) throw new Error('Expected uiMessageLog');
+		expect(log.lines.length).toBe(3);
+		expect(log.lines.map((line) => line[0]?.text)).toEqual(['line 3', 'line 4', 'line 5']);
+	});
+
+	test('publishes uiLogAppended exactly once per call with the same line reference', () => {
+		const { ecs } = createTestEcs();
+		const entity = spawnLog(ecs, 10);
+		const events: UIMessageLogAppendedEvent[] = [];
+		ecs.eventBus.subscribe('uiLogAppended', (e) => events.push(e));
+
+		const line = [frag('You hit ', 0xffffff), frag('goblin', 0xef4444)];
+		appendLogLine(ecs, entity.id, line);
+
+		expect(events.length).toBe(1);
+		expect(events[0]?.entityId).toBe(entity.id);
+		expect(events[0]?.line).toBe(line);
+	});
+
+	test('mixed-color fragments are preserved per line', () => {
+		const { ecs } = createTestEcs();
+		const entity = spawnLog(ecs, 10);
+		appendLogLine(ecs, entity.id, [frag('a', 0x111111), frag('b', 0x222222), frag('c', 0x333333)]);
+		ecs.update(0.016);
+
+		const log = ecs.entityManager.getComponent(entity.id, 'uiMessageLog');
+		if (!log) throw new Error('Expected uiMessageLog');
+		expect(log.lines[0]).toEqual([
+			{ text: 'a', color: 0x111111 },
+			{ text: 'b', color: 0x222222 },
+			{ text: 'c', color: 0x333333 },
+		]);
 	});
 });

@@ -162,6 +162,19 @@ export interface UIInteraction {
 	state: UIInteractionState;
 }
 
+export interface LogFragment {
+	text: string;
+	color: number;
+}
+
+export interface UIMessageLog {
+	lines: LogFragment[][];
+	maxLines: number;
+	visibleLines: number;
+	lineHeight: number;
+	style: UITextStyle;
+}
+
 export interface UIComponentTypes {
 	uiElement: UIElement;
 	uiLabel: UILabel;
@@ -171,6 +184,7 @@ export interface UIComponentTypes {
 	uiInteractive: {};
 	uiInteraction: UIInteraction;
 	uiDisabled: {};
+	uiMessageLog: UIMessageLog;
 }
 
 // ==================== Event Types ====================
@@ -184,9 +198,15 @@ export interface UIButtonHoveredEvent {
 	entered: boolean;
 }
 
+export interface UIMessageLogAppendedEvent {
+	entityId: number;
+	line: LogFragment[];
+}
+
 export interface UIEventTypes {
 	uiButtonPressed: UIButtonPressedEvent;
 	uiButtonHovered: UIButtonHoveredEvent;
+	uiLogAppended: UIMessageLogAppendedEvent;
 }
 
 // ==================== Component Factories ====================
@@ -269,6 +289,26 @@ export function createUIProgressBar(input: CreateUIProgressBarInput): Pick<UICom
 	};
 }
 
+export interface CreateUIMessageLogInput {
+	maxLines: number;
+	visibleLines: number;
+	lineHeight: number;
+	style?: Partial<UITextStyle>;
+	initialLines?: LogFragment[][];
+}
+
+export function createUIMessageLog(input: CreateUIMessageLogInput): Pick<UIComponentTypes, 'uiMessageLog'> {
+	return {
+		uiMessageLog: {
+			lines: input.initialLines === undefined ? [] : [...input.initialLines],
+			maxLines: input.maxLines,
+			visibleLines: input.visibleLines,
+			lineHeight: input.lineHeight,
+			style: { ...DEFAULT_TEXT_STYLE, ...input.style },
+		},
+	};
+}
+
 export function createUIInteractive(): Pick<UIComponentTypes, 'uiInteractive'> {
 	return { uiInteractive: {} };
 }
@@ -279,6 +319,43 @@ export function createUIButton(): Pick<UIComponentTypes, 'uiButton'> {
 
 export function createUIDisabled(): Pick<UIComponentTypes, 'uiDisabled'> {
 	return { uiDisabled: {} };
+}
+
+// ==================== Message Log Helper ====================
+
+/** Structural ECS surface for `appendLogLine`; mirrors the `CoroutineWorld` pattern. */
+export interface MessageLogWorld {
+	commands: {
+		mutateComponent(
+			entityId: number,
+			componentName: 'uiMessageLog',
+			mutator: (value: UIMessageLog) => void,
+		): void;
+	};
+	eventBus: {
+		publish(event: 'uiLogAppended', payload: UIMessageLogAppendedEvent): void;
+	};
+}
+
+/**
+ * Append a line (vector of fragments) to a `uiMessageLog` entity.
+ *
+ * Queues a buffered mutation that swaps `lines` for a fresh array (FIFO-truncated to
+ * `maxLines`) — the array-identity change is the sync system's redraw signal — and
+ * synchronously publishes `uiLogAppended` carrying the line for entry-animation
+ * listeners. Safe to call from inside a system process callback.
+ */
+export function appendLogLine(
+	ecs: MessageLogWorld,
+	entityId: number,
+	line: LogFragment[],
+): void {
+	ecs.commands.mutateComponent(entityId, 'uiMessageLog', (log) => {
+		const cap = Math.max(0, log.maxLines);
+		const next = [...log.lines, line];
+		log.lines = next.length > cap ? next.slice(next.length - cap) : next;
+	});
+	ecs.eventBus.publish('uiLogAppended', { entityId, line });
 }
 
 // ==================== Runtime Data (Side Storage) ====================
@@ -312,6 +389,22 @@ interface UIProgressRuntime {
 	lastHeight: number;
 }
 
+interface UIMessageLogLineRuntime {
+	container: Container;
+	texts: Text[];
+}
+
+interface UIMessageLogRuntime {
+	rootContainer: Container;
+	lines: UIMessageLogLineRuntime[];
+	lastLinesRef: LogFragment[][] | null;
+	lastVisibleLines: number;
+	lastLineHeight: number;
+	lastFontFamily: string;
+	lastFontSize: number;
+	lastAlign: string;
+}
+
 // ==================== Plugin Factory ====================
 
 type UIRequires = WorldConfigFrom<
@@ -325,7 +418,8 @@ type UILabels =
 	| 'ui-interaction'
 	| 'ui-label-sync'
 	| 'ui-panel-sync'
-	| 'ui-progress-sync';
+	| 'ui-progress-sync'
+	| 'ui-message-log-sync';
 
 export interface UIPluginOptions<G extends string = 'ui'> extends BasePluginOptions<G> {
 	/** Priority for the anchor-resolve system in preUpdate (default: 0). */
@@ -349,15 +443,19 @@ export function createUIPlugin<G extends string = 'ui'>(
 	const labelPool = new Map<number, UILabelRuntime>();
 	const panelPool = new Map<number, UIPanelRuntime>();
 	const progressPool = new Map<number, UIProgressRuntime>();
+	const messageLogPool = new Map<number, UIMessageLogRuntime>();
 	const scratchPos: Vector2D = { x: 0, y: 0 };
 	const scratchFill: FillRect = { x: 0, y: 0, width: 0, height: 0 };
+	// Captured at init for the message-log sync, which (unlike other sync systems) must create
+	// new Text/Container nodes during process() as fragments grow via appendLogLine.
+	let pixiModuleForMessageLog: typeof import('pixi.js') | null = null;
 
 	return definePlugin('ui')
 		.withComponentTypes<UIComponentTypes>()
 		.withEventTypes<UIEventTypes>()
 		.withLabels<UILabels>()
 		.withGroups<G>()
-		.withReactiveQueryNames<'ui-labels' | 'ui-panels' | 'ui-progress-bars'>()
+		.withReactiveQueryNames<'ui-labels' | 'ui-panels' | 'ui-progress-bars' | 'ui-message-logs'>()
 		.requires<UIRequires>()
 		.install((world) => {
 			world.registerRequired('uiElement', 'localTransform', (): LocalTransform => ({
@@ -534,6 +632,53 @@ export function createUIPlugin<G extends string = 'ui'>(
 					}
 				});
 
+			// Message log sync: registered between progress and label so log text sits over panels
+			// but under foreground labels when widgets overlap.
+			world
+				.addSystem('ui-message-log-sync')
+				.setPriority(renderSyncPriority)
+				.inPhase('render')
+				.inGroup(systemGroup)
+				.setOnInitialize(async (ecs) => {
+					const pixi = await import('pixi.js');
+					pixiModuleForMessageLog = pixi;
+					const rootContainer = ecs.tryGetResource<Container>('rootContainer');
+					ecs.addReactiveQuery('ui-message-logs', {
+						with: ['uiMessageLog', 'uiElement'],
+						onEnter: (entity) => {
+							const root = new pixi.Container();
+							messageLogPool.set(entity.id, {
+								rootContainer: root,
+								lines: [],
+								lastLinesRef: null,
+								lastVisibleLines: -1,
+								lastLineHeight: Number.NaN,
+								lastFontFamily: '',
+								lastFontSize: Number.NaN,
+								lastAlign: '',
+							});
+							if (rootContainer) rootContainer.addChild(root);
+						},
+						onExit: (entityId) => {
+							const runtime = messageLogPool.get(entityId);
+							if (runtime) {
+								runtime.rootContainer.removeFromParent();
+								runtime.rootContainer.destroy({ children: true });
+								messageLogPool.delete(entityId);
+							}
+						},
+					});
+				})
+				.setProcess(({ ecs }) => {
+					if (!pixiModuleForMessageLog) return;
+					for (const [entityId, runtime] of messageLogPool) {
+						const log = ecs.getComponent(entityId, 'uiMessageLog');
+						if (!log) continue;
+						syncMessageLogRuntime(runtime, log, pixiModuleForMessageLog);
+						applyTransform(runtime.rootContainer, ecs.getComponent(entityId, 'worldTransform'));
+					}
+				});
+
 			// Label sync: registered last so Text sits ON TOP of panels and progress bars when an
 			// entity carries multiple visual components.
 			world
@@ -682,4 +827,86 @@ function syncProgressRuntime(
 	runtime.lastDirection = bar.direction;
 	runtime.lastWidth = element.width;
 	runtime.lastHeight = element.height;
+}
+
+function syncMessageLogRuntime(
+	runtime: UIMessageLogRuntime,
+	log: UIMessageLog,
+	pixi: typeof import('pixi.js'),
+): void {
+	const styleChanged =
+		runtime.lastFontFamily !== log.style.fontFamily ||
+		runtime.lastFontSize !== log.style.fontSize ||
+		runtime.lastAlign !== log.style.align;
+	const linesChanged = runtime.lastLinesRef !== log.lines;
+	const layoutChanged =
+		runtime.lastVisibleLines !== log.visibleLines ||
+		runtime.lastLineHeight !== log.lineHeight;
+	if (!linesChanged && !layoutChanged && !styleChanged) return;
+
+	const visible = log.lines.slice(-log.visibleLines);
+
+	while (runtime.lines.length < visible.length) {
+		const container = new pixi.Container();
+		runtime.rootContainer.addChild(container);
+		runtime.lines.push({ container, texts: [] });
+	}
+	runtime.lines.forEach((line, index) => {
+		if (index >= visible.length) line.container.visible = false;
+	});
+
+	visible.forEach((fragments, lineIndex) => {
+		const line = runtime.lines[lineIndex];
+		if (!line) return;
+		line.container.visible = true;
+		line.container.position.y = lineIndex * log.lineHeight;
+
+		while (line.texts.length < fragments.length) {
+			const t = new pixi.Text({
+				text: '',
+				style: {
+					fontFamily: log.style.fontFamily,
+					fontSize: log.style.fontSize,
+					fill: 0xffffff,
+					align: log.style.align,
+				},
+			});
+			line.container.addChild(t);
+			line.texts.push(t);
+		}
+
+		let cursorX = 0;
+		line.texts.forEach((t, j) => {
+			const frag = fragments[j];
+			if (!frag) {
+				t.visible = false;
+				return;
+			}
+			t.visible = true;
+			if (t.text !== frag.text) t.text = frag.text;
+			if (t.style.fill !== frag.color) t.style.fill = frag.color;
+			t.position.x = cursorX;
+			cursorX += t.width;
+		});
+	});
+
+	// Style fields are shared across all fragments — apply once per Text when they change,
+	// keeping the per-fragment loop above limited to per-fragment text + color writes.
+	if (styleChanged) {
+		runtime.lines.forEach((line) => {
+			line.texts.forEach((t) => {
+				const s = t.style;
+				if (s.fontFamily !== log.style.fontFamily) s.fontFamily = log.style.fontFamily;
+				if (s.fontSize !== log.style.fontSize) s.fontSize = log.style.fontSize;
+				if (s.align !== log.style.align) s.align = log.style.align;
+			});
+		});
+	}
+
+	runtime.lastLinesRef = log.lines;
+	runtime.lastVisibleLines = log.visibleLines;
+	runtime.lastLineHeight = log.lineHeight;
+	runtime.lastFontFamily = log.style.fontFamily;
+	runtime.lastFontSize = log.style.fontSize;
+	runtime.lastAlign = log.style.align;
 }
