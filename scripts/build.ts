@@ -11,7 +11,7 @@ const result = await Bun.build({
 	target: 'browser',
 	sourcemap: 'linked',
 	minify: true,
-	external: ['pixi.js', 'howler', 'ecspresso'],
+	external: ['pixi.js', 'howler', 'three', 'react', 'react-dom', 'ecspresso'],
 });
 
 if (!result.success) {
