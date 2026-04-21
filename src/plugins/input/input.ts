@@ -636,7 +636,7 @@ export function createInputPlugin<A extends string = string, G extends string = 
 			if (shouldPreventDefault(e)) e.preventDefault();
 			return;
 		}
-		if (e instanceof KeyboardEvent) {
+		if ('key' in e) {
 			if (preventKeySet.has(e.key)) e.preventDefault();
 		} else {
 			if (preventPointerSet.has(e.button)) e.preventDefault();
