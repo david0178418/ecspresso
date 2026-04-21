@@ -153,6 +153,32 @@ viewport = ecs.getResource('viewportScale');
 
 After this wiring, `inputState.pointer.position` reports logical design-space coordinates, so gameplay code can ignore window size and viewport layout entirely.
 
+### Suppressing browser defaults
+
+Some keys and pointer buttons trigger browser behaviour that interferes with games — `Tab` moves focus, `Space` scrolls the page, right-click opens a context menu, left-click causes text selection. Pass `preventDefaultKeys` and/or `preventDefaultPointerButtons` to suppress these:
+
+```typescript
+createInputPlugin({
+  preventDefaultKeys: ['Tab', ' ', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'],
+  preventDefaultPointerButtons: [0, 2], // left and right mouse buttons
+})
+```
+
+For full control, supply a `shouldPreventDefault` predicate instead. When provided it replaces the array logic entirely — the arrays are ignored:
+
+```typescript
+createInputPlugin({
+  shouldPreventDefault: (e) => {
+    // Suppress Tab everywhere; suppress left-click only outside form elements
+    if (e instanceof KeyboardEvent) return e.key === 'Tab';
+    const target = e.target as Element;
+    return e.button === 0 && target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA';
+  },
+})
+```
+
+`preventDefault` is called on both the down and up events for the matched key or button.
+
 ## 2D Renderer Plugin
 
 The 2D renderer plugin wires a PixiJS `Application` to the ECS scene graph: transforms propagate from ECS components to PixiJS display objects, entity hierarchy mirrors into the scene graph, and a render sync system updates visuals each frame. Full option surface lives in `src/plugins/renderers/renderer2D.ts`; this section covers screen scaling, which is what most examples need to opt into a fixed design resolution.

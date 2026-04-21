@@ -268,6 +268,22 @@ export interface InputPluginOptions<A extends string = string, G extends string 
 	 * When omitted, pointer coords remain raw `clientX`/`clientY` (not canvas-relative).
 	 */
 	coordinateTransform?: (clientX: number, clientY: number) => { x: number; y: number };
+	/**
+	 * Keys whose browser default behaviour should be suppressed (e.g. `['Tab', ' ', 'ArrowDown']`).
+	 * Ignored when `shouldPreventDefault` is provided.
+	 */
+	preventDefaultKeys?: KeyCode[];
+	/**
+	 * Pointer button indices whose browser default behaviour should be suppressed (e.g. `[0, 2]`).
+	 * Ignored when `shouldPreventDefault` is provided.
+	 */
+	preventDefaultPointerButtons?: number[];
+	/**
+	 * Custom predicate for full control over `preventDefault`. Receives the raw DOM event and returns
+	 * `true` to suppress its default behaviour. When provided, `preventDefaultKeys` and
+	 * `preventDefaultPointerButtons` are ignored.
+	 */
+	shouldPreventDefault?: (event: KeyboardEvent | PointerEvent) => boolean;
 }
 
 // ==================== Helper Functions ====================
@@ -607,7 +623,25 @@ export function createInputPlugin<A extends string = string, G extends string = 
 		target = globalThis,
 		gamepad: gamepadOpts = {},
 		coordinateTransform,
+		shouldPreventDefault,
+		preventDefaultKeys,
+		preventDefaultPointerButtons,
 	} = options ?? {};
+
+	const preventKeySet = new Set<string>(preventDefaultKeys ?? []);
+	const preventPointerSet = new Set<number>(preventDefaultPointerButtons ?? []);
+
+	function checkPreventDefault(e: KeyboardEvent | PointerEvent): void {
+		if (shouldPreventDefault) {
+			if (shouldPreventDefault(e)) e.preventDefault();
+			return;
+		}
+		if (e instanceof KeyboardEvent) {
+			if (preventKeySet.has(e.key)) e.preventDefault();
+		} else {
+			if (preventPointerSet.has(e.button)) e.preventDefault();
+		}
+	}
 
 	// Construction-time casts: option defaults of `{}` don't structurally satisfy a narrow `ActionMap<A>`,
 	// but at this boundary we know the user either supplied a valid map or is using A = string.
@@ -726,18 +760,21 @@ export function createInputPlugin<A extends string = string, G extends string = 
 	function onKeyDown(e: Event) {
 		const ke = e as KeyboardEvent;
 		if (ke.repeat) return;
+		checkPreventDefault(ke);
 		raw.keysDown.add(ke.key);
 		raw.keysPressed.push(ke.key);
 	}
 
 	function onKeyUp(e: Event) {
 		const ke = e as KeyboardEvent;
+		checkPreventDefault(ke);
 		raw.keysDown.delete(ke.key);
 		raw.keysReleased.push(ke.key);
 	}
 
 	function onPointerDown(e: Event) {
 		const pe = e as PointerEvent;
+		checkPreventDefault(pe);
 		raw.pointerButtonsDown.add(pe.button);
 		raw.pointerButtonsPressed.push(pe.button);
 	}
@@ -757,6 +794,7 @@ export function createInputPlugin<A extends string = string, G extends string = 
 
 	function onPointerUp(e: Event) {
 		const pe = e as PointerEvent;
+		checkPreventDefault(pe);
 		raw.pointerButtonsDown.delete(pe.button);
 		raw.pointerButtonsReleased.push(pe.button);
 	}
