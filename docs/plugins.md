@@ -45,6 +45,31 @@ const game = ECSpresso.create()
   .build();
 ```
 
+## Plugin Cleanup
+
+The `install` function receives a second argument, `onCleanup`, for registering disposers that run when the plugin is uninstalled or the world is torn down. Use it to remove event listeners, cancel timers, or release any external resources the plugin acquired.
+
+```typescript
+const inputPlugin = definePlugin('input')
+  .install((world, onCleanup) => {
+    const handler = (e: KeyboardEvent) => { /* ... */ };
+    window.addEventListener('keydown', handler);
+    onCleanup(() => window.removeEventListener('keydown', handler));
+
+    const off = world.on('someEvent', () => { /* ... */ });
+    onCleanup(off);
+  });
+```
+
+Disposers run in reverse registration order. A failing disposer does not prevent later ones from running.
+
+### Uninstalling plugins at runtime
+
+```typescript
+world.uninstallPlugin('input');  // runs cleanup disposers, returns true if found
+world.dispose();                 // uninstalls all plugins, then cleans up world state
+```
+
 ## Plugin Factory
 
 When multiple plugins share the same types (common in application code), use `pluginFactory()` on the builder or built world to capture types automatically:
