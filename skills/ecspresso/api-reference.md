@@ -6,8 +6,12 @@
 // Spawn with components
 const entity = ecs.spawn({ position: { x: 0, y: 0 }, health: 100 });
 
+// Spawn scoped to a screen — removed automatically on that screen's exit
+const enemy = ecs.spawn({ enemy: { hp: 10 } }, { scope: 'playing' });
+
 // Spawn as child
 const child = ecs.spawnChild(parentId, { position: { x: 10, y: 0 } });
+const scopedChild = ecs.spawnChild(parentId, { enemy: { hp: 3 } }, { scope: 'playing' });
 
 // Modify components
 ecs.addComponent(entityId, 'velocity', { x: 5, y: 0 });
@@ -50,7 +54,9 @@ Use inside `setProcess` to defer structural changes (safe during iteration):
 
 ```typescript
 ecs.commands.spawn({ position: { x: 0, y: 0 } });
+ecs.commands.spawn({ enemy: { hp: 1 } }, { scope: 'playing' });
 ecs.commands.spawnChild(parentId, { ... });
+ecs.commands.spawnChild(parentId, { ... }, { scope: 'playing' });
 ecs.commands.removeEntity(entityId);
 ecs.commands.removeEntity(entityId, { cascade: false });
 ecs.commands.addComponent(entityId, 'tag', true);
@@ -233,3 +239,44 @@ ecs.updateScreenState({ score: 100 });
 Screen-scoped systems: `.inScreens(['gameplay'])` or `.excludeScreens(['pause'])`.
 
 Access via `$screen` resource: `ecs.getResource('$screen')` with `.current`, `.config`, `.state`, `.isOverlay`, `.stackDepth`, `.isCurrent(name)`, `.isActive(name)`.
+
+### Screen Hooks
+
+Multi-handler lifecycle hooks per screen name. Return a disposer.
+
+```typescript
+const off = ecs.onScreenEnter('playing', ({ config, ecs }) => { /* ... */ });
+ecs.onScreenExit('playing', ({ ecs }) => { /* ... */ });
+off();  // unsubscribe
+```
+
+`onScreenEnter` fires for both `setScreen` and `pushScreen`. `onScreenExit` fires for both `setScreen`-away and `popScreen`.
+
+### Screen-Scoped Entity Lifetimes
+
+Pass `{ scope: screenName }` on `spawn` / `spawnChild` / `commands.spawn` / `commands.spawnChild`. The entity is removed automatically when that screen exits.
+
+```typescript
+ecs.spawn({ enemy: { hp: 10 } }, { scope: 'playing' });
+ecs.commands.spawn({ projectile: {...} }, { scope: 'playing' });
+```
+
+Manually removing a scoped entity drains the tracking set (no zombie ids).
+
+## Plugin Lifecycle
+
+`install` receives `(world, onCleanup)` — register disposers that run on uninstall or dispose.
+
+```typescript
+definePlugin('legend').install((world, onCleanup) => {
+  onCleanup(world.onScreenEnter('title', (...) => { ... }));
+  const onKey = (e: KeyboardEvent) => { ... };
+  window.addEventListener('keydown', onKey);
+  onCleanup(() => window.removeEventListener('keydown', onKey));
+});
+
+ecs.uninstallPlugin('legend');  // runs registered cleanups in reverse order
+ecs.dispose();                   // uninstalls every plugin in reverse install order
+```
+
+`dispose()` does not call `disposeResources()` — resource teardown is async and handled separately.

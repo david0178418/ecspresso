@@ -21,8 +21,12 @@ interface MyResources {
 const physicsPlugin = definePlugin('physics')
   .withComponentTypes<MyComponents>()
   .withResourceTypes<MyResources>()
-  .install((world) => {
+  .install((world, onCleanup) => {
     world.addResource('gravity', { value: 9.8 });
+
+    // Register any long-lived subscriptions or listeners with onCleanup so
+    // they tear down when the plugin is uninstalled or the world disposed.
+    onCleanup(world.onScreenExit('playing', ({ ecs }) => { /* ... */ }));
 
     world.addSystem('applyVelocity')
       .addQuery('moving', { with: ['position', 'velocity'] })
@@ -34,6 +38,8 @@ const physicsPlugin = definePlugin('physics')
       });
   });
 ```
+
+`install` receives `(world, onCleanup)`. `onCleanup(fn)` registers a disposer that runs (in reverse order) when `world.uninstallPlugin(id)` or `world.dispose()` is called. Declaring just `(world) => { ... }` is still valid — the second parameter is optional.
 
 The builder mirrors `ECSpresso.create()`:
 - `.withComponentTypes<T>()`, `.withEventTypes<T>()`, `.withResourceTypes<T>()`, `.withAssetTypes<T>()`, `.withScreenTypes<T>()` — declare types this plugin provides

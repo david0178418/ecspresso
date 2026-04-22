@@ -193,6 +193,44 @@ function loop(time: number) {
 requestAnimationFrame(loop);
 ```
 
+## Lifecycle Hooks
+
+### Screens
+
+```typescript
+ecs.onScreenEnter('playing', ({ config, ecs }) => { ... });  // multi-handler; fires on setScreen + pushScreen
+ecs.onScreenExit('playing', ({ ecs }) => { ... });           // fires on setScreen-away + popScreen
+const off = ecs.onScreenEnter('title', () => { ... });
+off();  // returned disposer unregisters the handler
+```
+
+Prefer these over `eventBus.subscribe('screenEnter', ...)` + a manual `if (screen !== 'x') return` filter.
+
+### Screen-Scoped Entities
+
+```typescript
+ecs.spawn({ enemy: { hp: 10 } }, { scope: 'playing' });
+// ↑ removed automatically when 'playing' exits
+```
+
+Also available on `spawnChild`, `commands.spawn`, `commands.spawnChild`. Replaces hand-maintained teardown lists.
+
+### Plugin Cleanup
+
+`install` receives `(world, onCleanup)`. Register disposers; they run when the plugin is uninstalled.
+
+```typescript
+definePlugin('legend').install((world, onCleanup) => {
+  onCleanup(world.onScreenEnter('title', () => { ... }));
+  const onKey = (e: KeyboardEvent) => { ... };
+  window.addEventListener('keydown', onKey);
+  onCleanup(() => window.removeEventListener('keydown', onKey));
+});
+
+ecs.uninstallPlugin('legend');  // reverse-order cleanup
+ecs.dispose();                   // uninstalls all plugins
+```
+
 ## Common Mistakes
 
 1. **Old positional callback style.** Always use `({ queries, dt, ecs })`, not `(queries, dt, ecs)`.

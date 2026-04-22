@@ -70,10 +70,11 @@ export default class CommandBuffer<
 	 * @returns void (entity ID not available until playback)
 	 */
 	spawn<T extends { [K in keyof Cfg['components']]?: Cfg['components'][K] }>(
-		components: T & Record<Exclude<keyof T, keyof Cfg['components']>, never>
+		components: T & Record<Exclude<keyof T, keyof Cfg['components']>, never>,
+		options?: { scope?: keyof Cfg['screens'] & string }
 	): void {
 		this.commands.push((ecs) => {
-			ecs.spawn(components);
+			ecs.spawn(components, options);
 		});
 	}
 
@@ -84,10 +85,11 @@ export default class CommandBuffer<
 	 */
 	spawnChild<T extends { [K in keyof Cfg['components']]?: Cfg['components'][K] }>(
 		parentId: number,
-		components: T & Record<Exclude<keyof T, keyof Cfg['components']>, never>
+		components: T & Record<Exclude<keyof T, keyof Cfg['components']>, never>,
+		options?: { scope?: keyof Cfg['screens'] & string }
 	): void {
 		this.commands.push((ecs) => {
-			ecs.spawnChild(parentId, components);
+			ecs.spawnChild(parentId, components, options);
 		});
 	}
 

@@ -106,6 +106,12 @@ export default class ECSpresso<
 	};
 	/** Track installed plugins to prevent duplicates*/
 	private _installedPlugins: Set<string> = new Set();
+	/** Per-plugin disposers registered via the install function's second arg */
+	private _pluginCleanups: Map<string, Array<() => void>> = new Map();
+	/** Entity IDs scoped to a specific screen — removed on that screen's exit */
+	private _screenScopedEntities: Map<string, Set<number>> = new Map();
+	/** Reverse index: entity ID -> scope screen name, for O(1) cleanup on remove */
+	private _entityScreenScope: Map<number, string> = new Map();
 	/** Disabled system groups */
 	private _disabledGroups: Set<string> = new Set();
 	/** Asset manager for loading and accessing assets */
@@ -211,9 +217,14 @@ export default class ECSpresso<
 			}
 		});
 
-		// beforeEntityRemoved → notify reactive query manager
+		// beforeEntityRemoved → notify reactive query manager + drain screen-scope tracking
 		this._entityManager.onBeforeEntityRemoved((entityId) => {
 			this._reactiveQueryManager.onEntityRemoved(entityId);
+			const scope = this._entityScreenScope.get(entityId);
+			if (scope !== undefined) {
+				this._entityScreenScope.delete(entityId);
+				this._screenScopedEntities.get(scope)?.delete(entityId);
+			}
 		});
 
 		// afterParentChanged → recheck child entity for parentHas queries
@@ -540,12 +551,24 @@ export default class ECSpresso<
 
 		// Set up screen manager if present
 		if (this._screenManager) {
+			const screenBus = this._eventBus as unknown as EventBus<ScreenEvents<keyof Cfg['screens'] & string>>;
 			this._screenManager.setDependencies(
-				this._eventBus as unknown as EventBus<ScreenEvents<keyof Cfg['screens'] & string>>,
+				screenBus,
 				this._assetManager,
 				this
 			);
 			this._resourceManager.add('$screen' as keyof Cfg['resources'], this._screenManager.createResource() as unknown as Cfg['resources'][keyof Cfg['resources']]);
+			// Drain screen-scoped entities on screen exit. Copy the set first
+			// because `removeEntity` fires `beforeEntityRemoved` → mutates the set.
+			screenBus.subscribe('screenExit', ({ screen }) => {
+				const set = this._screenScopedEntities.get(screen);
+				if (!set || set.size === 0) return;
+				this._screenScopedEntities.delete(screen);
+				for (const id of Array.from(set)) {
+					this._entityScreenScope.delete(id);
+					this.removeEntity(id);
+				}
+			});
 		}
 
 		for (const system of this._systems) {
@@ -995,11 +1018,31 @@ export default class ECSpresso<
 		* @returns The created entity with all components added
 		*/
 	spawn<T extends { [K in keyof Cfg['components']]?: Cfg['components'][K] }>(
-		components: T & Record<Exclude<keyof T, keyof Cfg['components']>, never>
+		components: T & Record<Exclude<keyof T, keyof Cfg['components']>, never>,
+		options?: { scope?: keyof Cfg['screens'] & string }
 	): FilteredEntity<Cfg['components'], keyof T & keyof Cfg['components']> {
 		const entity = this._entityManager.createEntity();
 		this._entityManager.addComponents(entity.id, components);
+		this._applyScreenScope(entity.id, options);
 		return entity as FilteredEntity<Cfg['components'], keyof T & keyof Cfg['components']>;
+	}
+
+	/**
+	 * Tag an entity as scoped to a screen if `options.scope` is provided.
+	 * The entity is removed when that screen exits (via `setScreen` away, or
+	 * `popScreen` if it was on the stack). No-op when `options` or `scope` is
+	 * undefined.
+	 */
+	private _applyScreenScope(
+		entityId: number,
+		options: { scope?: keyof Cfg['screens'] & string } | undefined,
+	): void {
+		const screen = options?.scope;
+		if (screen === undefined) return;
+		const set = this._screenScopedEntities.get(screen) ?? new Set<number>();
+		set.add(entityId);
+		this._screenScopedEntities.set(screen, set);
+		this._entityScreenScope.set(entityId, screen);
 	}
 
 	/**
@@ -1092,10 +1135,12 @@ export default class ECSpresso<
 	 */
 	spawnChild<T extends { [K in keyof Cfg['components']]?: Cfg['components'][K] }>(
 		parentId: number,
-		components: T & Record<Exclude<keyof T, keyof Cfg['components']>, never>
+		components: T & Record<Exclude<keyof T, keyof Cfg['components']>, never>,
+		options?: { scope?: keyof Cfg['screens'] & string }
 	): FilteredEntity<Cfg['components'], keyof T & keyof Cfg['components']> {
 		const entity = this._entityManager.spawnChild(parentId, components);
 		this._emitHierarchyChanged(entity.id, null, parentId);
+		this._applyScreenScope(entity.id, options);
 		return entity;
 	}
 
@@ -1753,6 +1798,56 @@ export default class ECSpresso<
 		return this._screenManager?.getStackDepth() ?? 0;
 	}
 
+	/**
+	 * Subscribe to the `screenEnter` event for a specific screen. The handler
+	 * fires only when that named screen becomes active (via `setScreen` or
+	 * `pushScreen`). Multiple handlers can be registered for the same screen
+	 * and fire in registration order.
+	 *
+	 * @returns A disposer function that unregisters the handler.
+	 */
+	onScreenEnter<K extends keyof Cfg['screens'] & string>(
+		name: K,
+		handler: (ctx: {
+			config: Cfg['screens'][K] extends ScreenDefinition<infer C, any> ? C : never;
+			ecs: ECSpresso<Cfg>;
+		}) => void,
+	): () => void {
+		const bus = this._eventBus as unknown as EventBus<ScreenEvents<keyof Cfg['screens'] & string>>;
+		const onEvent = (data: { screen: keyof Cfg['screens'] & string; config: unknown }) => {
+			if (data.screen !== name) return;
+			handler({
+				config: data.config as Cfg['screens'][K] extends ScreenDefinition<infer C, any> ? C : never,
+				ecs: this,
+			});
+		};
+		const offEnter = bus.subscribe('screenEnter', onEvent);
+		const offPush = bus.subscribe('screenPush', onEvent);
+		return () => {
+			offEnter();
+			offPush();
+		};
+	}
+
+	/**
+	 * Subscribe to the `screenExit` event for a specific screen. The handler
+	 * fires only when that named screen exits (via `setScreen` away, or
+	 * `popScreen` if it was on the stack). Multiple handlers can be registered
+	 * for the same screen and fire in registration order.
+	 *
+	 * @returns A disposer function that unregisters the handler.
+	 */
+	onScreenExit<K extends keyof Cfg['screens'] & string>(
+		name: K,
+		handler: (ctx: { ecs: ECSpresso<Cfg> }) => void,
+	): () => void {
+		const bus = this._eventBus as unknown as EventBus<ScreenEvents<keyof Cfg['screens'] & string>>;
+		return bus.subscribe('screenExit', (data) => {
+			if (data.screen !== name) return;
+			handler({ ecs: this });
+		});
+	}
+
 	// ==================== Internal Methods ====================
 
 	/**
@@ -1852,8 +1947,59 @@ export default class ECSpresso<
 			return this;
 		}
 		this._installedPlugins.add(plugin.id);
-		plugin.install(this as unknown as ECSpresso<WorldConfig>);
+		const disposers: Array<() => void> = [];
+		this._pluginCleanups.set(plugin.id, disposers);
+		const onCleanup = (fn: () => void) => {
+			disposers.push(fn);
+		};
+		plugin.install(this as unknown as ECSpresso<WorldConfig>, onCleanup);
 		return this;
+	}
+
+	/**
+	 * Uninstall a previously installed plugin by id. Runs registered cleanup
+	 * disposers in reverse order and removes the plugin from `installedPlugins`.
+	 * Returns `true` if the plugin was installed (and has now been removed),
+	 * `false` if no plugin with that id was installed.
+	 *
+	 * Disposers that throw are caught and logged via `console.warn` so a single
+	 * failing disposer does not prevent later ones from running.
+	 */
+	uninstallPlugin(id: string): boolean {
+		if (!this._installedPlugins.has(id)) {
+			return false;
+		}
+		const disposers = this._pluginCleanups.get(id);
+		this._pluginCleanups.delete(id);
+		this._installedPlugins.delete(id);
+		if (disposers) {
+			for (let i = disposers.length - 1; i >= 0; i--) {
+				const fn = disposers[i];
+				if (!fn) continue;
+				try {
+					fn();
+				} catch (error) {
+					console.warn(`Plugin '${id}' cleanup threw:`, error);
+				}
+			}
+		}
+		return true;
+	}
+
+	/**
+	 * Uninstall every installed plugin, running their cleanup disposers.
+	 * Plugins are uninstalled in reverse install order so a plugin that depends
+	 * on another is torn down before its dependency.
+	 *
+	 * Does not touch resource disposal — callers that need async resource
+	 * teardown should `await world.disposeResources()` separately.
+	 */
+	dispose(): void {
+		const ids = Array.from(this._installedPlugins);
+		for (let i = ids.length - 1; i >= 0; i--) {
+			const id = ids[i];
+			if (id !== undefined) this.uninstallPlugin(id);
+		}
 	}
 
 	/**
