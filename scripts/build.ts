@@ -4,8 +4,12 @@ const pluginEntryPoints = Array.from(
 	new Glob('src/plugins/**/*.ts').scanSync('.')
 ).filter((f) => !f.includes('.test.'));
 
+const bindingEntryPoints = Array.from(
+	new Glob('src/bindings/**/*.ts').scanSync('.')
+).filter((f) => !f.includes('.test.'));
+
 const result = await Bun.build({
-	entrypoints: ['src/index.ts', ...pluginEntryPoints],
+	entrypoints: ['src/index.ts', ...pluginEntryPoints, ...bindingEntryPoints],
 	outdir: 'dist',
 	root: 'src',
 	target: 'browser',
