@@ -19,6 +19,18 @@ import type {
 export type PluginCleanupRegistrar = (fn: () => void) => void;
 
 /**
+ * Defaults applied to every system created via `world.addSystem(...)` inside
+ * a plugin's install function. Per-system builder calls (`.inPhase(...)`,
+ * `.inScreens([...])`, `.setPriority(...)`) always override the default.
+ */
+export interface SystemDefaults<Cfg extends WorldConfig = EmptyConfig> {
+	inScreens?: ReadonlyArray<keyof Cfg['screens'] & string>;
+	excludeScreens?: ReadonlyArray<keyof Cfg['screens'] & string>;
+	phase?: SystemPhase;
+	priority?: number;
+}
+
+/**
  * Plugin interface for ECSpresso. A plugin is a plain object with an `install`
  * function that configures a world directly, plus phantom properties for
  * compile-time type extraction.
@@ -36,6 +48,12 @@ export interface Plugin<
 > {
 	readonly id: string;
 	readonly install: (world: ECSpresso<MergeConfigs<Cfg, Requires>>, onCleanup: PluginCleanupRegistrar) => void;
+	/**
+	 * Default system configuration applied to every `world.addSystem(...)` call
+	 * made inside the plugin's install function. Explicit per-system calls
+	 * override. Set via `PluginBuilder.setSystemDefaults(...)`.
+	 */
+	readonly systemDefaults?: SystemDefaults<MergeConfigs<Cfg, Requires>>;
 	// Phantom type for structural extraction (never set at runtime)
 	readonly _cfg?: Cfg;
 	readonly _requires?: Requires;
@@ -86,6 +104,21 @@ export class PluginBuilder<
 	ReactiveQueryNames extends string = never,
 > {
 	constructor(private readonly _id: string) {}
+
+	private _systemDefaults?: SystemDefaults<MergeConfigs<Cfg, Requires>>;
+
+	/**
+	 * Set defaults applied to every system created via `world.addSystem(...)`
+	 * inside this plugin's install function. Calling again replaces the
+	 * previous defaults wholesale (not merge). Per-system builder calls
+	 * override defaults.
+	 */
+	setSystemDefaults(
+		defaults: SystemDefaults<MergeConfigs<Cfg, Requires>>,
+	): this {
+		this._systemDefaults = defaults;
+		return this;
+	}
 
 	/**
 	 * Declare component types this plugin provides.
@@ -322,6 +355,7 @@ export class PluginBuilder<
 		return {
 			id: this._id,
 			install,
+			...(this._systemDefaults ? { systemDefaults: this._systemDefaults } : {}),
 		} as Plugin<Cfg, Requires, Labels, Groups, AssetGroupNames, ReactiveQueryNames>;
 	}
 }

@@ -45,7 +45,30 @@ The builder mirrors `ECSpresso.create()`:
 - `.withComponentTypes<T>()`, `.withEventTypes<T>()`, `.withResourceTypes<T>()`, `.withAssetTypes<T>()`, `.withScreenTypes<T>()` — declare types this plugin provides
 - `.withLabels<L>()`, `.withGroups<G>()`, `.withReactiveQueryNames<N>()` — declare system labels, groups, and reactive query names
 - `.requires<W>()` — declare dependency on another plugin's `WorldConfig` type (e.g., `TransformWorldConfig`)
+- `.setSystemDefaults({ phase?, priority?, inScreens?, excludeScreens? })` — defaults applied to every `world.addSystem(...)` called inside `install`. Per-system builder calls (`.inPhase`, `.setPriority`, `.inScreens`, `.excludeScreens`) override. Calling again replaces wholesale.
 - `.install(fn)` — terminal, returns the finalized `Plugin` object
+
+### Plugin-level system defaults
+
+When every system in a plugin shares the same gating, hoist it onto the plugin instead of repeating it per system:
+
+```typescript
+const combat = definePlugin('combat')
+  .withScreenTypes<{ playing: { initialState: () => {} } }>()
+  .setSystemDefaults({ inScreens: ['playing'], phase: 'update' })
+  .install((world) => {
+    // Both systems inherit inScreens: ['playing'] and phase: 'update'
+    world.addSystem('projectile-integrate').setPriority(300)
+      .addQuery('projectiles', { with: ['projectile'] })
+      .setProcess(() => { /* ... */ });
+
+    // Per-system calls override the default for that system only
+    world.addSystem('damage-numbers-hud').inPhase('render')
+      .setProcess(() => { /* runs in render phase, still gated to 'playing' */ });
+  });
+```
+
+To *opt out* of a default screen gate on a single system, pass an empty array: `.inScreens([])` runs the system regardless of active screen.
 
 ### 2. Plugin Factory (no type params)
 

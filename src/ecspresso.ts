@@ -6,7 +6,7 @@ import ScreenManager from "./screen-manager";
 import ReactiveQueryManager, { type ReactiveQueryDefinition } from "./reactive-query-manager";
 import CommandBuffer from "./command-buffer";
 import type { System, SystemPhase, FilteredEntity, Entity, RemoveEntityOptions, HierarchyEntry, HierarchyIteratorOptions } from "./types";
-import { definePlugin, type Plugin } from "./plugin";
+import { definePlugin, type Plugin, type SystemDefaults } from "./plugin";
 import { SystemBuilder } from "./system-builder";
 import { checkRequiredCycle } from "./utils/check-required-cycle";
 import { version } from "../package.json";
@@ -108,6 +108,8 @@ export default class ECSpresso<
 	private _installedPlugins: Set<string> = new Set();
 	/** Per-plugin disposers registered via the install function's second arg */
 	private _pluginCleanups: Map<string, Array<() => void>> = new Map();
+	/** Defaults applied to systems created via addSystem during a plugin's install */
+	private _currentSystemDefaults: SystemDefaults<Cfg> | undefined;
 	/** Entity IDs scoped to a specific screen — removed on that screen's exit */
 	private _screenScopedEntities: Map<string, Set<number>> = new Map();
 	/** Reverse index: entity ID -> scope screen name, for O(1) cleanup on remove */
@@ -273,7 +275,7 @@ export default class ECSpresso<
 		* @returns A SystemBuilder instance for method chaining
 	*/
 	addSystem(label: string): SystemBuilder<Cfg> {
-		const builder = new SystemBuilder<Cfg>(label);
+		const builder = new SystemBuilder<Cfg>(label, this._currentSystemDefaults);
 		this._pendingFinalizers.push(() => {
 			this._registerSystem(builder._createSystemObject());
 		});
@@ -1981,7 +1983,13 @@ export default class ECSpresso<
 		const onCleanup = (fn: () => void) => {
 			disposers.push(fn);
 		};
-		plugin.install(this as unknown as ECSpresso<WorldConfig>, onCleanup);
+		const previousDefaults = this._currentSystemDefaults;
+		this._currentSystemDefaults = plugin.systemDefaults as SystemDefaults<Cfg> | undefined;
+		try {
+			plugin.install(this as unknown as ECSpresso<WorldConfig>, onCleanup);
+		} finally {
+			this._currentSystemDefaults = previousDefaults;
+		}
 		return this;
 	}
 
