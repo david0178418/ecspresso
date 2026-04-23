@@ -468,3 +468,409 @@ describe('parentHas Relationship Queries', () => {
 		});
 	});
 });
+
+// ==================== Query mutates ====================
+//
+// Verification strategy: downstream systems with `changed: [...]` filters are
+// the realistic way to observe auto-marks. Direct `world.getEntitiesWithQuery`
+// calls use the *instance* change threshold which advances past all marks at
+// end of update, so post-update queries see nothing by design.
+
+describe('query mutates', () => {
+	test('auto-marks every iterated entity after process()', () => {
+		const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
+		const e1 = world.spawn({ position: { x: 0, y: 0 } });
+		const e2 = world.spawn({ position: { x: 1, y: 1 } });
+		const consumerSeen: number[] = [];
+
+		world.addSystem('producer')
+			.setPriority(10)
+			.addQuery('entities', {
+				with: ['position'],
+				mutates: ['position'],
+			})
+			.setProcess(() => {});
+
+		world.addSystem('consumer')
+			.setPriority(0)
+			.addQuery('entities', {
+				with: ['position'],
+				changed: ['position'],
+			})
+			.setProcess(({ queries }) => {
+				for (const entity of queries.entities) consumerSeen.push(entity.id);
+			});
+
+		world.update(0);
+
+		expect(consumerSeen.sort()).toEqual([e1.id, e2.id].sort());
+	});
+
+	test('absence of mutates preserves current behavior (no auto-mark)', () => {
+		const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
+		world.spawn({ position: { x: 0, y: 0 } });
+		const consumerSeenPerTick: number[] = [];
+
+		world.addSystem('noop')
+			.setPriority(10)
+			.addQuery('entities', {
+				with: ['position'],
+			})
+			.setProcess(() => {});
+
+		world.addSystem('consumer')
+			.setPriority(0)
+			.addQuery('entities', {
+				with: ['position'],
+				changed: ['position'],
+			})
+			.runWhenEmpty()
+			.setProcess(({ queries }) => {
+				consumerSeenPerTick.push(queries.entities.length);
+			});
+
+		// Tick 1: spawn marks visible. Consumer sees 1.
+		world.update(0);
+		// Tick 2: spawn mark was consumed; producer did NOT auto-mark → consumer sees 0.
+		world.update(0);
+
+		expect(consumerSeenPerTick).toEqual([1, 0]);
+	});
+
+	test('empty query with mutates is a no-op', () => {
+		const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
+
+		world.addSystem('empty')
+			.addQuery('entities', {
+				with: ['position'],
+				mutates: ['position'],
+			})
+			.setProcess(() => {});
+
+		expect(() => world.update(0)).not.toThrow();
+	});
+
+	test('multi-component mutates stamps all listed components', () => {
+		const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
+		const e1 = world.spawn({ position: { x: 0, y: 0 }, velocity: { x: 0, y: 0 } });
+		const posSeen: number[] = [];
+		const velSeen: number[] = [];
+
+		world.addSystem('producer')
+			.setPriority(10)
+			.addQuery('entities', {
+				with: ['position', 'velocity'],
+				mutates: ['position', 'velocity'],
+			})
+			.setProcess(() => {});
+
+		world.addSystem('pos-consumer')
+			.setPriority(1)
+			.addQuery('entities', { with: ['position'], changed: ['position'] })
+			.setProcess(({ queries }) => {
+				for (const entity of queries.entities) posSeen.push(entity.id);
+			});
+
+		world.addSystem('vel-consumer')
+			.setPriority(0)
+			.addQuery('entities', { with: ['velocity'], changed: ['velocity'] })
+			.setProcess(({ queries }) => {
+				for (const entity of queries.entities) velSeen.push(entity.id);
+			});
+
+		world.update(0);
+
+		expect(posSeen).toEqual([e1.id]);
+		expect(velSeen).toEqual([e1.id]);
+	});
+
+	test('singleton with mutates stamps the resolved entity', () => {
+		const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
+		const e1 = world.spawn({ position: { x: 0, y: 0 }, tag: 'player' });
+		const consumerSeen: number[] = [];
+
+		world.addSystem('producer')
+			.setPriority(10)
+			.addSingleton('player', {
+				with: ['position', 'tag'],
+				mutates: ['position'],
+			})
+			.setProcess(() => {});
+
+		world.addSystem('consumer')
+			.setPriority(0)
+			.addQuery('entities', { with: ['position'], changed: ['position'] })
+			.setProcess(({ queries }) => {
+				for (const entity of queries.entities) consumerSeen.push(entity.id);
+			});
+
+		world.update(0);
+
+		expect(consumerSeen).toEqual([e1.id]);
+	});
+
+	test('absent singleton with mutates is a no-op', () => {
+		const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
+
+		world.addSystem('single')
+			.addSingleton('player', {
+				with: ['position', 'tag'],
+				mutates: ['position'],
+			})
+			.setProcess(() => {});
+
+		expect(() => world.update(0)).not.toThrow();
+	});
+
+	test('mixed queries: only the mutating one auto-marks', () => {
+		const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
+		const posOnly = world.spawn({ position: { x: 0, y: 0 } });
+		world.spawn({ velocity: { x: 0, y: 0 } });
+
+		const posSeenPerTick: number[] = [];
+		const velSeenPerTick: number[] = [];
+
+		world.addSystem('producer')
+			.setPriority(10)
+			.addQuery('mutators', {
+				with: ['position'],
+				mutates: ['position'],
+			})
+			.addQuery('readers', {
+				with: ['velocity'],
+			})
+			.setProcess(() => {});
+
+		world.addSystem('pos-consumer')
+			.setPriority(1)
+			.addQuery('entities', { with: ['position'], changed: ['position'] })
+			.runWhenEmpty()
+			.setProcess(({ queries }) => {
+				posSeenPerTick.push(queries.entities[0]?.id ?? -1);
+			});
+
+		world.addSystem('vel-consumer')
+			.setPriority(0)
+			.addQuery('entities', { with: ['velocity'], changed: ['velocity'] })
+			.runWhenEmpty()
+			.setProcess(({ queries }) => {
+				velSeenPerTick.push(queries.entities.length);
+			});
+
+		// Tick 1: spawn marks visible. Not a clean signal for auto-mark.
+		world.update(0);
+		// Tick 2: spawn marks consumed. Only auto-marks from producer visible.
+		world.update(0);
+
+		expect(posSeenPerTick[1]).toBe(posOnly.id);
+		expect(velSeenPerTick[1]).toBe(0);
+	});
+
+	test('downstream system with changed filter sees auto-marked entities', () => {
+		const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
+		const e1 = world.spawn({ position: { x: 0, y: 0 } });
+		const consumerSeen: number[] = [];
+
+		world.addSystem('producer')
+			.setPriority(10)
+			.addQuery('entities', {
+				with: ['position'],
+				mutates: ['position'],
+			})
+			.setProcess(() => {});
+
+		world.addSystem('consumer')
+			.setPriority(0)
+			.addQuery('entities', {
+				with: ['position'],
+				changed: ['position'],
+			})
+			.setProcess(({ queries }) => {
+				for (const entity of queries.entities) {
+					consumerSeen.push(entity.id);
+				}
+			});
+
+		world.update(0);
+
+		expect(consumerSeen).toEqual([e1.id]);
+	});
+
+	test('system does not re-fire on its own auto-marks (no feedback loop)', () => {
+		const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
+		world.spawn({ position: { x: 0, y: 0 } });
+		const seenPerTick: number[] = [];
+
+		world.addSystem('feedback')
+			.addQuery('entities', {
+				with: ['position'],
+				changed: ['position'],
+				mutates: ['position'],
+			})
+			.runWhenEmpty()
+			.setProcess(({ queries }) => {
+				seenPerTick.push(queries.entities.length);
+			});
+
+		// Tick 1: spawn mark visible → fires with 1 result. Auto-marks the entity.
+		world.update(0);
+		// Tick 2: threshold advanced past tick 1's marks (including the system's
+		// own auto-marks) → query empty.
+		world.update(0);
+		// Tick 3: still empty.
+		world.update(0);
+
+		expect(seenPerTick).toEqual([1, 0, 0]);
+	});
+
+	test('setProcessEach + mutates stamps every iterated entity by default', () => {
+		const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
+		const e1 = world.spawn({ position: { x: 0, y: 0 } });
+		const e2 = world.spawn({ position: { x: 1, y: 1 } });
+		const consumerSeen: number[] = [];
+
+		world.addSystem('producer')
+			.setPriority(10)
+			.setProcessEach(
+				{ with: ['position'], mutates: ['position'] },
+				() => {},
+			);
+
+		world.addSystem('consumer')
+			.setPriority(0)
+			.addQuery('entities', { with: ['position'], changed: ['position'] })
+			.setProcess(({ queries }) => {
+				for (const entity of queries.entities) consumerSeen.push(entity.id);
+			});
+
+		world.update(0);
+
+		expect(consumerSeen.sort()).toEqual([e1.id, e2.id].sort());
+	});
+
+	test('setProcessEach + mutates + return false skips auto-mark for that entity', () => {
+		const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
+		const stays = world.spawn({ position: { x: 0, y: 0 } });
+		const skipped = world.spawn({ position: { x: 999, y: 999 } });
+		const consumerSeenPerTick: Array<number[]> = [];
+
+		world.addSystem('producer')
+			.setPriority(10)
+			.setProcessEach(
+				{ with: ['position'], mutates: ['position'] },
+				({ entity }) => {
+					if (entity.id === skipped.id) return false;
+					return true;
+				},
+			);
+
+		world.addSystem('consumer')
+			.setPriority(0)
+			.addQuery('entities', { with: ['position'], changed: ['position'] })
+			.runWhenEmpty()
+			.setProcess(({ queries }) => {
+				consumerSeenPerTick.push(queries.entities.map(e => e.id));
+			});
+
+		// Tick 1: spawn marks; consumer sees both.
+		world.update(0);
+		// Tick 2: producer's auto-mark skipped `skipped` → consumer sees only stays.
+		world.update(0);
+
+		expect(consumerSeenPerTick[1]).toEqual([stays.id]);
+	});
+
+	test('setProcessEach + mutates + return true stamps the entity', () => {
+		const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
+		const e1 = world.spawn({ position: { x: 0, y: 0 } });
+		const consumerSeen: number[] = [];
+
+		world.addSystem('producer')
+			.setPriority(10)
+			.setProcessEach(
+				{ with: ['position'], mutates: ['position'] },
+				() => true,
+			);
+
+		world.addSystem('consumer')
+			.setPriority(0)
+			.addQuery('entities', { with: ['position'], changed: ['position'] })
+			.setProcess(({ queries }) => {
+				for (const entity of queries.entities) consumerSeen.push(entity.id);
+			});
+
+		world.update(0);
+
+		expect(consumerSeen).toEqual([e1.id]);
+	});
+
+	test('setProcessEach without mutates ignores return value', () => {
+		const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
+		world.spawn({ position: { x: 0, y: 0 } });
+		const consumerSeenPerTick: number[] = [];
+
+		world.addSystem('producer')
+			.setPriority(10)
+			.setProcessEach(
+				{ with: ['position'] },
+				() => false,
+			);
+
+		world.addSystem('consumer')
+			.setPriority(0)
+			.addQuery('entities', { with: ['position'], changed: ['position'] })
+			.runWhenEmpty()
+			.setProcess(({ queries }) => {
+				consumerSeenPerTick.push(queries.entities.length);
+			});
+
+		// Tick 1: spawn marks visible.
+		world.update(0);
+		// Tick 2: return-false was ignored because mutates wasn't declared — no auto-mark.
+		world.update(0);
+
+		expect(consumerSeenPerTick).toEqual([1, 0]);
+	});
+
+	test('readonly type narrowing: mutating a non-listed with-component is a type error', () => {
+		const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
+
+		world.addSystem('readonly-narrowing')
+			.addQuery('entities', {
+				with: ['position', 'velocity'],
+				mutates: ['position'],
+			})
+			.setProcess(({ queries }) => {
+				for (const entity of queries.entities) {
+					// position is in mutates → writable
+					entity.components.position.x = 0;
+					// velocity is in with but not mutates → readonly
+					// @ts-expect-error velocity should be Readonly when not in mutates
+					entity.components.velocity.x = 0;
+				}
+			});
+
+		// No spawns; just verify the type-level assertion compiles under @ts-expect-error
+		expect(() => world.update(0)).not.toThrow();
+	});
+
+	test('createQueryDefinition + mutates narrows correctly via QueryResultEntity', () => {
+		const _query = createQueryDefinition({
+			with: ['position', 'velocity'],
+			mutates: ['position'],
+		});
+
+		type Entity = QueryResultEntity<TestComponents, typeof _query>;
+
+		function process(entity: Entity) {
+			// position is writable
+			entity.components.position.x = 1;
+			// velocity is readonly
+			// @ts-expect-error velocity should be Readonly when not in mutates
+			entity.components.velocity.x = 2;
+			return entity.components.position.x;
+		}
+
+		expect(typeof process).toBe('function');
+	});
+});

@@ -3,7 +3,7 @@ import type { SystemDefaults } from "./plugin";
 import type { FilteredEntity, QueryDefinition, System, SystemPhase } from "./types";
 import type { WorldConfig, EmptyConfig } from "./type-utils";
 
-const PROCESS_EACH_QUERY = '__each' as const;
+export const PROCESS_EACH_QUERY = '__each' as const;
 type ProcessEachKey = typeof PROCESS_EACH_QUERY;
 
 /**
@@ -209,15 +209,21 @@ export class SystemBuilder<
 	}
 
 	/**
-	 * Add a query definition to the system
+	 * Add a query definition to the system.
+	 *
+	 * When `mutates` is declared, every iterated entity is automatically
+	 * `markChanged`'d for each listed component after the system's
+	 * `process()` returns. Components in `with` but absent from `mutates`
+	 * are narrowed to `Readonly<T>` in the iteration entity type.
 	 */
 	addQuery<
 		QueryName extends string,
 		WithComponents extends keyof Cfg['components'],
 		WithoutComponents extends keyof Cfg['components'] = never,
 		OptionalComponents extends keyof Cfg['components'] = never,
-		NewQueries extends Queries & Record<QueryName, QueryDefinition<Cfg['components'], WithComponents, WithoutComponents, OptionalComponents>> =
-			Queries & Record<QueryName, QueryDefinition<Cfg['components'], WithComponents, WithoutComponents, OptionalComponents>>
+		MutatesComponents extends WithComponents = WithComponents,
+		NewQueries extends Queries & Record<QueryName, QueryDefinition<Cfg['components'], WithComponents, WithoutComponents, OptionalComponents, MutatesComponents>> =
+			Queries & Record<QueryName, QueryDefinition<Cfg['components'], WithComponents, WithoutComponents, OptionalComponents, MutatesComponents>>
 	>(
 		name: QueryName,
 		definition: {
@@ -226,6 +232,7 @@ export class SystemBuilder<
 			changed?: ReadonlyArray<WithComponents>;
 			optional?: ReadonlyArray<OptionalComponents>;
 			parentHas?: ReadonlyArray<keyof Cfg['components']>;
+			mutates?: ReadonlyArray<MutatesComponents>;
 		}
 	): SystemBuilder<Cfg, NewQueries, Label, SysGroups, ResourceKeys, Singletons> {
 		// Cast is needed because TypeScript can't preserve the type information
@@ -246,14 +253,20 @@ export class SystemBuilder<
 	 * When multiple entities match, the first is returned (no error). Use
 	 * the instance-level `getSingleton` / `tryGetSingleton` helpers on
 	 * `ECSpresso` if you need strictness guarantees.
+	 *
+	 * When `mutates` is declared, the resolved entity is automatically
+	 * `markChanged`'d for each listed component after the system's
+	 * `process()` returns. Components in `with` but absent from `mutates`
+	 * are narrowed to `Readonly<T>` in the iteration entity type.
 	 */
 	addSingleton<
 		SingletonName extends string,
 		WithComponents extends keyof Cfg['components'],
 		WithoutComponents extends keyof Cfg['components'] = never,
 		OptionalComponents extends keyof Cfg['components'] = never,
-		NewSingletons extends Singletons & Record<SingletonName, QueryDefinition<Cfg['components'], WithComponents, WithoutComponents, OptionalComponents>> =
-			Singletons & Record<SingletonName, QueryDefinition<Cfg['components'], WithComponents, WithoutComponents, OptionalComponents>>
+		MutatesComponents extends WithComponents = WithComponents,
+		NewSingletons extends Singletons & Record<SingletonName, QueryDefinition<Cfg['components'], WithComponents, WithoutComponents, OptionalComponents, MutatesComponents>> =
+			Singletons & Record<SingletonName, QueryDefinition<Cfg['components'], WithComponents, WithoutComponents, OptionalComponents, MutatesComponents>>
 	>(
 		name: SingletonName,
 		definition: {
@@ -262,6 +275,7 @@ export class SystemBuilder<
 			changed?: ReadonlyArray<WithComponents>;
 			optional?: ReadonlyArray<OptionalComponents>;
 			parentHas?: ReadonlyArray<keyof Cfg['components']>;
+			mutates?: ReadonlyArray<MutatesComponents>;
 		}
 	): SystemBuilder<Cfg, Queries, Label, SysGroups, ResourceKeys, NewSingletons> {
 		const newBuilder = this as any;
@@ -317,13 +331,20 @@ export class SystemBuilder<
 	 * throws for untyped callers. For multi-query systems use
 	 * `addQuery` + `setProcess`.
 	 *
-	 * @param definition Inline query definition (with / without / optional / changed / parentHas)
+	 * When `mutates` is declared, the callback may `return false` to skip the
+	 * auto-mark for that specific entity. Returning `true`, `undefined`, or
+	 * any other value stamps all components listed in `mutates`. Components
+	 * in `with` but absent from `mutates` are narrowed to `Readonly<T>` on
+	 * the per-entity iteration type.
+	 *
+	 * @param definition Inline query definition (with / without / optional / changed / parentHas / mutates)
 	 * @param process Callback invoked once per matching entity each frame
 	 */
 	setProcessEach<
 		W extends keyof Cfg['components'],
 		WO extends keyof Cfg['components'] = never,
 		O extends keyof Cfg['components'] = never,
+		M extends W = W,
 	>(
 		this: [keyof Queries] extends [never]
 			? [keyof Singletons] extends [never]
@@ -336,18 +357,19 @@ export class SystemBuilder<
 			optional?: ReadonlyArray<O>;
 			changed?: ReadonlyArray<W>;
 			parentHas?: ReadonlyArray<keyof Cfg['components']>;
+			mutates?: ReadonlyArray<M>;
 		},
 		process: (ctx: {
-			entity: FilteredEntity<Cfg['components'], W, WO, O>;
+			entity: FilteredEntity<Cfg['components'], W, WO, O, M>;
 			dt: number;
 			ecs: ECSpresso<Cfg>;
 		} & ([ResourceKeys] extends [never]
 			? {}
 			: { resources: { readonly [K in ResourceKeys]: Cfg['resources'][K] } })
-		) => void,
+		) => boolean | void,
 	): SystemBuilder<
 		Cfg,
-		Queries & Record<ProcessEachKey, QueryDefinition<Cfg['components'], W, WO, O>>,
+		Queries & Record<ProcessEachKey, QueryDefinition<Cfg['components'], W, WO, O, M>>,
 		Label,
 		SysGroups,
 		ResourceKeys,
@@ -377,11 +399,15 @@ export class SystemBuilder<
 			resources: undefined as unknown,
 		};
 
+		const mutates = definition.mutates && definition.mutates.length > 0
+			? definition.mutates as ReadonlyArray<keyof Cfg['components']>
+			: undefined;
+
 		const iterate = (ctx: unknown) => {
 			const frameCtx = ctx as {
-				queries: Record<string, ReadonlyArray<unknown>>;
+				queries: Record<string, ReadonlyArray<{ id: number }>>;
 				dt: number;
-				ecs: unknown;
+				ecs: { markChanged: (id: number, name: keyof Cfg['components']) => void };
 				resources?: unknown;
 			};
 			const entities = frameCtx.queries[PROCESS_EACH_QUERY];
@@ -389,16 +415,23 @@ export class SystemBuilder<
 			perEntityCtx.dt = frameCtx.dt;
 			perEntityCtx.ecs = frameCtx.ecs;
 			perEntityCtx.resources = frameCtx.resources;
-			for (const entity of entities) {
+			for (let i = 0; i < entities.length; i++) {
+				const entity = entities[i];
+				if (!entity) continue;
 				perEntityCtx.entity = entity;
-				(process as (c: unknown) => void)(perEntityCtx);
+				const result = (process as (c: unknown) => boolean | void)(perEntityCtx);
+				if (mutates === undefined || result === false) continue;
+				for (let j = 0; j < mutates.length; j++) {
+					const name = mutates[j];
+					if (name !== undefined) frameCtx.ecs.markChanged(entity.id, name);
+				}
 			}
 		};
 
 		self.processFunction = self._wrapWithResources(iterate);
 		return this as unknown as SystemBuilder<
 			Cfg,
-			Queries & Record<ProcessEachKey, QueryDefinition<Cfg['components'], W, WO, O>>,
+			Queries & Record<ProcessEachKey, QueryDefinition<Cfg['components'], W, WO, O, M>>,
 			Label,
 			SysGroups,
 			ResourceKeys,
@@ -487,7 +520,12 @@ type QueryResults<
 			ComponentTypes,
 			Queries[QueryName] extends QueryDefinition<ComponentTypes, infer W> ? W : never,
 			Queries[QueryName] extends QueryDefinition<ComponentTypes, any, infer WO> ? WO : never,
-			Queries[QueryName] extends QueryDefinition<ComponentTypes, any, any, infer O> ? O : never
+			Queries[QueryName] extends QueryDefinition<ComponentTypes, any, any, infer O> ? O : never,
+			// Fallback: if M isn't inferable, use W so everything in `with`
+			// stays writable (matches pre-mutates behavior).
+			Queries[QueryName] extends QueryDefinition<ComponentTypes, infer W2, any, any, infer M>
+				? (unknown extends M ? W2 : M)
+				: never
 		>[]
 		: never;
 } & {
@@ -496,7 +534,10 @@ type QueryResults<
 			ComponentTypes,
 			Singletons[SingletonName] extends QueryDefinition<ComponentTypes, infer W> ? W : never,
 			Singletons[SingletonName] extends QueryDefinition<ComponentTypes, any, infer WO> ? WO : never,
-			Singletons[SingletonName] extends QueryDefinition<ComponentTypes, any, any, infer O> ? O : never
+			Singletons[SingletonName] extends QueryDefinition<ComponentTypes, any, any, infer O> ? O : never,
+			Singletons[SingletonName] extends QueryDefinition<ComponentTypes, infer W2, any, any, infer M>
+				? (unknown extends M ? W2 : M)
+				: never
 		> | undefined
 		: never;
 };

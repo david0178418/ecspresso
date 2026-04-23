@@ -46,6 +46,51 @@ Use `changed` in query definitions to only process entities whose specified comp
 
 Each mark is processed exactly once per system, then expires. Marks from earlier phases are visible to later phases within the same frame.
 
+#### Declarative marking via `mutates`
+
+Declare which components the system writes on the query itself. After `process()` returns, every iterated entity gets `markChanged(id, comp)` called automatically for each listed component, so you don't need `ecs.markChanged(...)` in the loop body. Components in `with` but absent from `mutates` are also narrowed to `Readonly<T>` in the iteration entity, catching accidental writes at compile time.
+
+```typescript
+// Before — manual marking
+ecs.addSystem('movement')
+  .addQuery('movers', { with: ['position', 'velocity'] })
+  .setProcess(({ queries, dt, ecs }) => {
+    for (const entity of queries.movers) {
+      entity.components.position.x += entity.components.velocity.x * dt;
+      ecs.markChanged(entity.id, 'position');
+    }
+  });
+
+// After — declarative
+ecs.addSystem('movement')
+  .addQuery('movers', {
+    with: ['position', 'velocity'],
+    mutates: ['position'],
+  })
+  .setProcess(({ queries, dt }) => {
+    for (const entity of queries.movers) {
+      entity.components.position.x += entity.components.velocity.x * dt;
+      // no markChanged — auto-stamped after process()
+    }
+  });
+```
+
+Default semantics are over-marking: all iterated entities get stamped regardless of whether the body actually mutated them. For per-entity precision, use `setProcessEach` — the callback may `return false` to skip the auto-mark for a specific entity:
+
+```typescript
+ecs.addSystem('propagate')
+  .setProcessEach(
+    { with: ['localTransform', 'worldTransform'], mutates: ['worldTransform'] },
+    ({ entity }) => {
+      // `copyTransform` returns true iff dest actually changed —
+      // stationary entities return false and skip the stamp.
+      return copyTransform(entity.components.localTransform, entity.components.worldTransform);
+    },
+  );
+```
+
+`mutates` is opt-in; systems that don't declare it keep the existing manual-mark contract. Auto-mark runs before the per-system threshold advance, so a system does not re-fire on its own auto-marks.
+
 For details, see `docs/change-detection.md`.
 
 ## Command Buffer
@@ -191,7 +236,7 @@ ecs.addSystem('hud')
   });
 ```
 
-Definition shape matches `addQuery` (`with` / `without` / `changed` / `optional` / `parentHas`). Returns the first match silently if multiple exist. `queries[name]` is typed as `FilteredEntity<...> | undefined`. Regular `addQuery` names still return arrays on the same `queries` object.
+Definition shape matches `addQuery` (`with` / `without` / `changed` / `optional` / `parentHas` / `mutates`). Returns the first match silently if multiple exist. `queries[name]` is typed as `FilteredEntity<...> | undefined`. Regular `addQuery` names still return arrays on the same `queries` object.
 
 ### Instance helpers
 

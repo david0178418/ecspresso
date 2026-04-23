@@ -122,7 +122,20 @@ ecs.addSystem('bounce')
   );
 ```
 
-`setProcessEach` accepts the full query shape (`with`, `without`, `optional`, `changed`, `parentHas`). It's valid only on a builder with no prior `addQuery` / `setProcess` / `setProcessEach` call — TypeScript blocks the misuse and a runtime guard backs it up. For multi-query systems, keep using `addQuery` + `setProcess`.
+`setProcessEach` accepts the full query shape (`with`, `without`, `optional`, `changed`, `parentHas`, `mutates`). It's valid only on a builder with no prior `addQuery` / `setProcess` / `setProcessEach` call — TypeScript blocks the misuse and a runtime guard backs it up. For multi-query systems, keep using `addQuery` + `setProcess`.
+
+When the query declares `mutates`, the callback may `return false` to skip the auto-mark for a specific entity (useful when the iteration body decides mid-flight that nothing changed). Returning `true`, `undefined`, or any other value stamps all components listed in `mutates`. Example:
+
+```typescript
+ecs.addSystem('propagate-transforms')
+  .setProcessEach(
+    { with: ['localTransform', 'worldTransform'], mutates: ['worldTransform'] },
+    ({ entity }) => {
+      // copyTransform returns true iff the destination actually changed
+      return copyTransform(entity.components.localTransform, entity.components.worldTransform);
+    },
+  );
+```
 
 ### Query Definitions
 
@@ -133,10 +146,35 @@ ecs.addSystem('bounce')
   changed: ['comp1'],             // only entities where comp1 changed this tick
   optional: ['comp4'],            // included if present, not guaranteed
   parentHas: ['parentComp'],      // filter by parent's components
+  mutates: ['comp1'],             // auto-markChanged these on every iterated entity
 })
 ```
 
 Entities in query results have their `with` components guaranteed on `entity.components`. Other components on the entity are `Partial`.
+
+#### `mutates` — auto-mark + readonly narrowing
+
+`mutates` declares which components the system writes to. It does two things:
+
+1. **Runtime**: after `process()` returns, every iterated entity gets `markChanged(id, comp)` called automatically for each listed component. Eliminates repeated `ecs.markChanged(entity.id, 'localTransform')` boilerplate.
+2. **Types**: components in `with` but absent from `mutates` are narrowed to `Readonly<T>` on the iteration entity. Accidentally mutating an undeclared component is a compile error.
+
+```typescript
+ecs.addSystem('movement')
+  .addQuery('movers', {
+    with: ['position', 'velocity'],
+    mutates: ['position'],         // declares: this system writes position
+  })
+  .setProcess(({ queries, dt }) => {
+    for (const entity of queries.movers) {
+      entity.components.position.x += entity.components.velocity.x * dt;
+      entity.components.velocity.x  *= 0.99;  // Type error — velocity is Readonly
+      // No ecs.markChanged needed — position gets auto-stamped.
+    }
+  });
+```
+
+Over-marking semantics: all iterated entities get stamped regardless of whether the body actually mutated them. For most producers (e.g., physics integration feeding transform propagation) this is fine — downstream value-diff checks absorb the false positives. For producers feeding a bare `changed:` consumer where per-entity precision matters, use `setProcessEach` with a boolean return (see above) or skip `mutates` and keep manual `ecs.markChanged` calls.
 
 ### Singleton Queries
 
@@ -255,7 +293,7 @@ ecs.dispose();                   // uninstalls all plugins
 
 2. **Mutating entities during iteration without command buffer.** Use `ecs.commands.spawn()` / `ecs.commands.removeEntity()` inside `setProcess`, not `ecs.spawn()` / `ecs.removeEntity()` directly.
 
-3. **Forgetting `markChanged` after in-place mutation.** If you mutate a component's properties directly, call `ecs.markChanged(entityId, 'componentName')` so downstream `changed` queries detect it.
+3. **Forgetting `markChanged` after in-place mutation.** If you mutate a component's properties directly, call `ecs.markChanged(entityId, 'componentName')` so downstream `changed` queries detect it — or declare `mutates: [...]` on the query to auto-stamp every iterated entity.
 
 4. **Adding explicit type parameters when the builder infers them.** The builder chain accumulates types automatically. Derive the world type with `type ECS = typeof ecs`.
 

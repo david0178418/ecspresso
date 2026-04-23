@@ -7,7 +7,7 @@ import ReactiveQueryManager, { type ReactiveQueryDefinition } from "./reactive-q
 import CommandBuffer from "./command-buffer";
 import type { System, SystemPhase, FilteredEntity, Entity, RemoveEntityOptions, HierarchyEntry, HierarchyIteratorOptions } from "./types";
 import { definePlugin, type Plugin, type SystemDefaults } from "./plugin";
-import { SystemBuilder } from "./system-builder";
+import { SystemBuilder, PROCESS_EACH_QUERY } from "./system-builder";
 import { checkRequiredCycle } from "./utils/check-required-cycle";
 import { version } from "../package.json";
 import type { AssetDefinition, AssetHandle, AssetEvents } from "./asset-types";
@@ -529,6 +529,39 @@ export default class ECSpresso<
 				}
 			}
 
+			// Auto-mark iterated entities for queries that declared `mutates`.
+			// Runs after process() and before the threshold advance so the
+			// system's own threshold captures its auto-marks (no feedback loop).
+			const autoMarkPairs = system._autoMarkPairs;
+			if (autoMarkPairs) {
+				const em = this._entityManager;
+				for (let p = 0; p < autoMarkPairs.length; p++) {
+					const pair = autoMarkPairs[p];
+					if (!pair) continue;
+					const mutates = pair.mutates;
+					const mutatesLen = mutates.length;
+					if (pair.kind === 'list') {
+						const results = queryResults[pair.queryName] as Array<FilteredEntity<Cfg['components']>> | undefined;
+						if (!results) continue;
+						for (let i = 0; i < results.length; i++) {
+							const entity = results[i];
+							if (!entity) continue;
+							for (let j = 0; j < mutatesLen; j++) {
+								const name = mutates[j];
+								if (name !== undefined) em.markChanged(entity.id, name);
+							}
+						}
+					} else {
+						const entity = queryResults[pair.queryName] as FilteredEntity<Cfg['components']> | undefined;
+						if (!entity) continue;
+						for (let j = 0; j < mutatesLen; j++) {
+							const name = mutates[j];
+							if (name !== undefined) em.markChanged(entity.id, name);
+						}
+					}
+				}
+			}
+
 			// Record this system's last-seen sequence so it won't re-process these marks
 			this._systemLastSeqs.set(system, this._entityManager.changeSeq);
 		}
@@ -778,6 +811,37 @@ export default class ECSpresso<
 		if (!this._batchingRegistrations) {
 			this._rebuildPhaseSystems();
 		}
+
+		// Precompute auto-mark pairs for `mutates`-declaring queries so the
+		// post-process walk in _executePhase is a single pointer check away
+		// from zero cost for systems that don't use the feature.
+		const autoMarkPairs: Array<{
+			queryName: string;
+			mutates: ReadonlyArray<keyof Cfg['components']>;
+			kind: 'list' | 'singleton';
+		}> = [];
+		if (system.entityQueries) {
+			for (const queryName in system.entityQueries) {
+				// setProcessEach handles its own per-entity marking inline to
+				// preserve return-value precision; skip its query here.
+				if (queryName === PROCESS_EACH_QUERY) continue;
+				const query = system.entityQueries[queryName];
+				const mutates = (query as { mutates?: ReadonlyArray<keyof Cfg['components']> } | undefined)?.mutates;
+				if (mutates && mutates.length > 0) {
+					autoMarkPairs.push({ queryName, mutates, kind: 'list' });
+				}
+			}
+		}
+		if (system.entitySingletons) {
+			for (const queryName in system.entitySingletons) {
+				const query = system.entitySingletons[queryName];
+				const mutates = (query as { mutates?: ReadonlyArray<keyof Cfg['components']> } | undefined)?.mutates;
+				if (mutates && mutates.length > 0) {
+					autoMarkPairs.push({ queryName, mutates, kind: 'singleton' });
+				}
+			}
+		}
+		system._autoMarkPairs = autoMarkPairs.length > 0 ? autoMarkPairs : null;
 
 		// Set up entity enter tracking if the system has onEntityEnter handlers
 		if (system.onEntityEnter) {

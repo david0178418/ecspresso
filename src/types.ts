@@ -53,10 +53,17 @@ interface FilteredEntity<
 	WithComponents extends keyof ComponentTypes = never,
 	WithoutComponents extends keyof ComponentTypes = never,
 	OptionalComponents extends keyof ComponentTypes = never,
+	// Default = keyof ComponentTypes so callers that don't thread M get every
+	// `with` component as writable (K extends keyof ComponentTypes is always
+	// true). Narrowing kicks in only when M is explicitly a strict subset of
+	// WithComponents.
+	MutatesComponents extends keyof ComponentTypes = keyof ComponentTypes,
 > {
 	id: number;
-	components: Omit<Partial<ComponentTypes>, WithoutComponents | OptionalComponents> & {
-		[K in WithComponents]: ComponentTypes[K]
+	// Omit `with` keys from the Partial portion so the readonly narrowing in
+	// the next term is not collapsed back to writable by the intersection.
+	components: Omit<Partial<ComponentTypes>, WithComponents | WithoutComponents | OptionalComponents> & {
+		[K in WithComponents]: K extends MutatesComponents ? ComponentTypes[K] : Readonly<ComponentTypes[K]>
 	} & {
 		[K in OptionalComponents]: ComponentTypes[K] | undefined
 	};
@@ -68,12 +75,21 @@ interface QueryConfig<
 	WithComponents extends keyof ComponentTypes,
 	WithoutComponents extends keyof ComponentTypes,
 	OptionalComponents extends keyof ComponentTypes = WithComponents,
+	MutatesComponents extends keyof ComponentTypes = keyof ComponentTypes,
 > {
 	with: ReadonlyArray<WithComponents>;
 	without?: ReadonlyArray<WithoutComponents>;
 	changed?: ReadonlyArray<WithComponents>;
 	optional?: ReadonlyArray<OptionalComponents>;
 	parentHas?: ReadonlyArray<keyof ComponentTypes>;
+	/**
+	 * Components to auto-mark as changed on every iterated entity after
+	 * `process()` returns. Eliminates repeated `ecs.markChanged(id, name)`
+	 * boilerplate inside iteration loops. Components listed in `with` but
+	 * absent from `mutates` are narrowed to `Readonly<T>` on the iteration
+	 * entity, catching accidental writes at compile time.
+	 */
+	mutates?: ReadonlyArray<MutatesComponents>;
 }
 
 /**
@@ -105,12 +121,17 @@ export type QueryResultEntity<
 		changed?: ReadonlyArray<keyof ComponentTypes>;
 		optional?: ReadonlyArray<keyof ComponentTypes>;
 		parentHas?: ReadonlyArray<keyof ComponentTypes>;
+		mutates?: ReadonlyArray<keyof ComponentTypes>;
 	}
 > = FilteredEntity<
 	ComponentTypes,
 	QueryDef['with'][number],
 	QueryDef['without'] extends ReadonlyArray<any> ? QueryDef['without'][number] : never,
-	QueryDef['optional'] extends ReadonlyArray<any> ? QueryDef['optional'][number] : never
+	QueryDef['optional'] extends ReadonlyArray<any> ? QueryDef['optional'][number] : never,
+	// When mutates is absent, fall back to WithComponents so every listed
+	// component stays writable (K extends WithComponents is true for all).
+	// Narrowing applies only when mutates is explicitly a strict subset.
+	QueryDef['mutates'] extends ReadonlyArray<any> ? QueryDef['mutates'][number] : QueryDef['with'][number]
 >;
 
 /**
@@ -121,12 +142,19 @@ export type QueryDefinition<
 	WithComponents extends keyof ComponentTypes = keyof ComponentTypes,
 	WithoutComponents extends keyof ComponentTypes = keyof ComponentTypes,
 	OptionalComponents extends keyof ComponentTypes = keyof ComponentTypes,
+	MutatesComponents extends keyof ComponentTypes = keyof ComponentTypes,
 > = {
 	with: ReadonlyArray<WithComponents>;
 	without?: ReadonlyArray<WithoutComponents>;
 	changed?: ReadonlyArray<WithComponents>;
 	optional?: ReadonlyArray<OptionalComponents>;
 	parentHas?: ReadonlyArray<keyof ComponentTypes>;
+	/**
+	 * Components to auto-mark as changed on every iterated entity after
+	 * `process()` returns. Components in `with` but absent from `mutates`
+	 * are narrowed to `Readonly<T>` on the iteration entity type.
+	 */
+	mutates?: ReadonlyArray<MutatesComponents>;
 };
 
 /**
@@ -164,6 +192,7 @@ export function createQueryDefinition<
 		changed?: ReadonlyArray<keyof ComponentTypes>;
 		optional?: ReadonlyArray<keyof ComponentTypes>;
 		parentHas?: ReadonlyArray<keyof ComponentTypes>;
+		mutates?: ReadonlyArray<keyof ComponentTypes>;
 	}
 >(queryDef: QueryDef): QueryDef {
 	return queryDef;
@@ -270,6 +299,19 @@ interface System<
 			ecs: ECSpresso<Cfg>;
 		}) => void;
 	};
+
+	/**
+	 * @internal Precomputed pairs of (queryName, mutates, kind) derived at
+	 * system registration from queries/singletons declaring `mutates`. Null
+	 * when no query on the system declares `mutates`, so the post-process
+	 * auto-mark walk is a single pointer check away from zero cost for
+	 * non-users.
+	 */
+	_autoMarkPairs?: ReadonlyArray<{
+		queryName: string;
+		mutates: ReadonlyArray<keyof Cfg['components']>;
+		kind: 'list' | 'singleton';
+	}> | null;
 }
 
 // ==================== Base World ====================
