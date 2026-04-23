@@ -216,6 +216,14 @@ interface System<
 		[queryName: string]: QueryConfig<Cfg['components'], WithComponents, WithoutComponents>;
 	};
 	/**
+	 * Singleton queries that yield a single entity (or undefined) rather than
+	 * an array. Resolved into the process context's `queries` object under
+	 * the registered name.
+	 */
+	entitySingletons?: {
+		[singletonName: string]: QueryConfig<Cfg['components'], WithComponents, WithoutComponents>;
+	};
+	/**
 	 * Process method that runs during each update cycle.
 	 * Receives a single context object with queries, dt, and ecs.
 	 */

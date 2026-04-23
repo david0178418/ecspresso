@@ -681,3 +681,163 @@ describe('setProcessEach', () => {
 		expect(observedEcs).toBe(world);
 	});
 });
+
+describe('SystemBuilder singletons', () => {
+	test('yields undefined when no entity matches (process skipped by default)', () => {
+		let processCalls = 0;
+
+		const world = ECSpresso.create().withComponentTypes<TestComponents>().build();
+
+		world.addSystem('flagshipSystem')
+			.addSingleton('flagship', { with: ['marker'] })
+			.setProcess(() => {
+				processCalls++;
+			});
+
+		world.update(1 / 60);
+
+		expect(processCalls).toBe(0);
+	});
+
+	test('runWhenEmpty runs process with undefined singleton', () => {
+		const observed: Array<unknown> = [];
+
+		const world = ECSpresso.create().withComponentTypes<TestComponents>().build();
+
+		world.addSystem('flagshipSystem')
+			.addSingleton('flagship', { with: ['marker'] })
+			.runWhenEmpty()
+			.setProcess(({ queries }) => {
+				observed.push(queries.flagship);
+			});
+
+		world.update(1 / 60);
+
+		expect(observed).toHaveLength(1);
+		expect(observed[0]).toBeUndefined();
+	});
+
+	test('yields the entity when exactly one matches', () => {
+		const observedIds: number[] = [];
+		let observedMarker: string | undefined;
+
+		const world = ECSpresso.create().withComponentTypes<TestComponents>().build();
+
+		world.addSystem('flagshipSystem')
+			.addSingleton('flagship', { with: ['marker'] })
+			.setProcess(({ queries }) => {
+				if (!queries.flagship) return;
+				observedIds.push(queries.flagship.id);
+				observedMarker = queries.flagship.components.marker.id;
+			});
+
+		const only = world.spawn({ marker: { id: 'alpha' } });
+
+		world.update(1 / 60);
+
+		expect(observedIds).toEqual([only.id]);
+		expect(observedMarker).toBe('alpha');
+	});
+
+	test('yields the first matching entity when multiple exist', () => {
+		const observedIds: number[] = [];
+
+		const world = ECSpresso.create().withComponentTypes<TestComponents>().build();
+
+		world.addSystem('flagshipSystem')
+			.addSingleton('flagship', { with: ['marker'] })
+			.setProcess(({ queries }) => {
+				if (!queries.flagship) return;
+				observedIds.push(queries.flagship.id);
+			});
+
+		const first = world.spawn({ marker: { id: 'a' } });
+		world.spawn({ marker: { id: 'b' } });
+
+		world.update(1 / 60);
+
+		expect(observedIds).toEqual([first.id]);
+	});
+
+	test('coexists with addQuery on the same system', () => {
+		const observedSingletonIds: number[] = [];
+		const observedQueryCounts: number[] = [];
+
+		const world = ECSpresso.create().withComponentTypes<TestComponents>().build();
+
+		world.addSystem('mixedSystem')
+			.addSingleton('flagship', { with: ['marker'] })
+			.addQuery('healthy', { with: ['health'] })
+			.setProcess(({ queries }) => {
+				if (!queries.flagship) return;
+				observedSingletonIds.push(queries.flagship.id);
+				observedQueryCounts.push(queries.healthy.length);
+			});
+
+		const flagship = world.spawn({ marker: { id: 'flag' } });
+		world.spawn({ health: { value: 100 } });
+		world.spawn({ health: { value: 50 } });
+
+		world.update(1 / 60);
+
+		expect(observedSingletonIds).toEqual([flagship.id]);
+		expect(observedQueryCounts).toEqual([2]);
+	});
+
+	test('honors without filter on singleton', () => {
+		const observedIds: number[] = [];
+
+		const world = ECSpresso.create().withComponentTypes<TestComponents>().build();
+
+		world.addSystem('filteredSingleton')
+			.addSingleton('flagship', { with: ['marker'], without: ['health'] })
+			.setProcess(({ queries }) => {
+				if (!queries.flagship) return;
+				observedIds.push(queries.flagship.id);
+			});
+
+		world.spawn({ marker: { id: 'has-health' }, health: { value: 1 } });
+		const noHealth = world.spawn({ marker: { id: 'no-health' } });
+
+		world.update(1 / 60);
+
+		expect(observedIds).toEqual([noHealth.id]);
+	});
+
+	test('singleton-only system skips process when singleton absent without runWhenEmpty', () => {
+		let processCalls = 0;
+
+		const world = ECSpresso.create().withComponentTypes<TestComponents>().build();
+
+		world.addSystem('singletonOnly')
+			.addSingleton('flagship', { with: ['marker'] })
+			.setProcess(() => {
+				processCalls++;
+			});
+
+		world.update(1 / 60);
+		expect(processCalls).toBe(0);
+
+		world.spawn({ marker: { id: 'now-present' } });
+		world.update(1 / 60);
+		expect(processCalls).toBe(1);
+	});
+
+	test('singleton presence counts toward hasResults alongside empty query', () => {
+		let processCalls = 0;
+
+		const world = ECSpresso.create().withComponentTypes<TestComponents>().build();
+
+		world.addSystem('mixedGating')
+			.addSingleton('flagship', { with: ['marker'] })
+			.addQuery('healthy', { with: ['health'] })
+			.setProcess(() => {
+				processCalls++;
+			});
+
+		world.spawn({ marker: { id: 'flag' } });
+
+		world.update(1 / 60);
+		expect(processCalls).toBe(1);
+	});
+});

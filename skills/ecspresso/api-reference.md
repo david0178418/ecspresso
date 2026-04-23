@@ -176,6 +176,32 @@ ecs.addReactiveQuery('enemies', {
 ecs.removeReactiveQuery('enemies');
 ```
 
+## Singletons
+
+Two ways to express "one matching entity" — system-builder style and instance style.
+
+### System-builder: `addSingleton`
+
+```typescript
+ecs.addSystem('hud')
+  .addSingleton('flagship', { with: ['commandVessel', 'kinematic'] })
+  .setProcess(({ queries }) => {
+    if (!queries.flagship) return;                 // FilteredEntity | undefined
+    const { kinematic } = queries.flagship.components;
+  });
+```
+
+Definition shape matches `addQuery` (`with` / `without` / `changed` / `optional` / `parentHas`). Returns the first match silently if multiple exist. `queries[name]` is typed as `FilteredEntity<...> | undefined`. Regular `addQuery` names still return arrays on the same `queries` object.
+
+### Instance helpers
+
+```typescript
+ecs.getSingleton(['player']);                      // throws if 0 or >1 matches
+ecs.tryGetSingleton(['player']);                   // undefined on 0, throws on >1
+```
+
+Both accept an optional `withoutComponents` array as the second argument. Use these when you need strict enforcement; use `addSingleton` when the zero-match case is expected (e.g., flagship destroyed mid-game).
+
 ## System Groups
 
 ```typescript

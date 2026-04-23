@@ -157,6 +157,9 @@ export default class ECSpresso<
 	/** Pre-allocated process context per system (avoids per-frame allocation) */
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any -- cascades from System<Cfg, any, any>; can't remove without existential types
 	private _systemContexts: WeakMap<object, { queries: Record<string, any>; dt: number; ecs: ECSpresso<Cfg> }> = new WeakMap();
+	/** Shared scratch array for singleton query resolution (cleared and reused each resolution) */
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any -- matches EntityManager output-array shape
+	private _singletonScratch: any[] = [];
 	/** Pending system builder finalizers to run before next update/initialize */
 	private _pendingFinalizers: Array<() => void> = [];
 	private _batchingRegistrations = false;
@@ -443,6 +446,32 @@ export default class ECSpresso<
 						);
 
 						if (output.length) {
+							hasResults = true;
+						}
+					}
+				}
+			}
+
+			if (system.entitySingletons) {
+				const scratch = this._singletonScratch;
+				for (const singletonName in system.entitySingletons) {
+					hasQueries = true;
+
+					const query = system.entitySingletons[singletonName];
+
+					if (query) {
+						this._entityManager.getEntitiesWithQueryInto(
+							scratch,
+							query.with,
+							query.without || [],
+							query.changed,
+							query.changed ? this._changeThreshold : undefined,
+							query.parentHas,
+						);
+
+						queryResults[singletonName] = scratch[0];
+
+						if (scratch.length) {
 							hasResults = true;
 						}
 					}

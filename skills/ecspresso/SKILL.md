@@ -138,11 +138,29 @@ ecs.addSystem('bounce')
 
 Entities in query results have their `with` components guaranteed on `entity.components`. Other components on the entity are `Partial`.
 
+### Singleton Queries
+
+`addSingleton(name, definition)` is a named query that yields a single `FilteredEntity | undefined` instead of an array. Definition shape is identical to `addQuery`; the result surfaces on `queries[name]` alongside regular queries.
+
+```typescript
+ecs.addSystem('hud')
+  .addSingleton('flagship', { with: ['commandVessel', 'kinematic'] })
+  .addQuery('ships', { with: ['ship'] })
+  .setProcess(({ queries }) => {
+    if (!queries.flagship) return;            // FilteredEntity | undefined
+    const { kinematic } = queries.flagship.components;
+    for (const ship of queries.ships) { /* ... */ }
+  });
+```
+
+When multiple entities match, the first is returned (no error). Use the instance-level `ecs.getSingleton(...)` / `ecs.tryGetSingleton(...)` if you need strict enforcement. A singleton-only system is skipped when the singleton is absent unless `.runWhenEmpty()` is set, matching regular query gating.
+
 ### System Builder Chain
 
 ```typescript
 ecs.addSystem('label')
-  .addQuery('name', { with: [...] })         // add named query
+  .addQuery('name', { with: [...] })         // add named query (array result)
+  .addSingleton('name', { with: [...] })     // add singleton query (entity | undefined)
   .withResources(['key1', 'key2'])           // declare resource dependencies
   .inPhase('fixedUpdate')                    // default: 'update'
   .setPriority(100)                          // higher runs first within phase

@@ -16,9 +16,11 @@ export class SystemBuilder<
 	Label extends string = string,
 	SysGroups extends string = never,
 	ResourceKeys extends keyof Cfg['resources'] = never,
+	Singletons extends Record<string, QueryDefinition<Cfg['components']>> = {},
 > {
 	private queries: Queries = {} as Queries;
-	private processFunction?: InternalProcessFunction<Cfg, Queries>;
+	private singletons: Singletons = {} as Singletons;
+	private processFunction?: InternalProcessFunction<Cfg, Queries, Singletons>;
 	private detachFunction?: LifecycleFunction<Cfg>;
 	private initializeFunction?: LifecycleFunction<Cfg>;
 	private eventHandlers?: {
@@ -54,6 +56,10 @@ export class SystemBuilder<
 			priority: this._priority,
 			phase: this._phase,
 		};
+
+		if (Object.keys(this.singletons).length > 0) {
+			system.entitySingletons = this.singletons as Record<string, QueryDefinition<Cfg['components']>>;
+		}
 
 		if (this.processFunction) {
 			system.process = this.processFunction;
@@ -128,7 +134,7 @@ export class SystemBuilder<
 	 * @param groupName The name of the group to add the system to
 	 * @returns This SystemBuilder instance for method chaining
 	 */
-	inGroup<G extends string>(groupName: G): SystemBuilder<Cfg, Queries, Label, SysGroups | G, ResourceKeys> {
+	inGroup<G extends string>(groupName: G): SystemBuilder<Cfg, Queries, Label, SysGroups | G, ResourceKeys, Singletons> {
 		if (!this._groups.includes(groupName)) {
 			this._groups.push(groupName);
 		}
@@ -189,7 +195,7 @@ export class SystemBuilder<
 	 */
 	withResources<RK extends keyof Cfg['resources'] & string>(
 		keys: readonly RK[]
-	): SystemBuilder<Cfg, Queries, Label, SysGroups, RK> {
+	): SystemBuilder<Cfg, Queries, Label, SysGroups, RK, Singletons> {
 		(this as any)._resourceKeys = [...keys];
 		return this as any;
 	}
@@ -213,12 +219,46 @@ export class SystemBuilder<
 			optional?: ReadonlyArray<OptionalComponents>;
 			parentHas?: ReadonlyArray<keyof Cfg['components']>;
 		}
-	): SystemBuilder<Cfg, NewQueries, Label, SysGroups, ResourceKeys> {
+	): SystemBuilder<Cfg, NewQueries, Label, SysGroups, ResourceKeys, Singletons> {
 		// Cast is needed because TypeScript can't preserve the type information
 		// when modifying an object property
 		const newBuilder = this as any;
 		newBuilder.queries = {
 			...this.queries,
+			[name]: definition,
+		};
+		return newBuilder;
+	}
+
+	/**
+	 * Add a singleton query — a named query that yields a single
+	 * `FilteredEntity | undefined` instead of an array. Surfaces on the
+	 * process context's `queries` object alongside regular queries.
+	 *
+	 * When multiple entities match, the first is returned (no error). Use
+	 * the instance-level `getSingleton` / `tryGetSingleton` helpers on
+	 * `ECSpresso` if you need strictness guarantees.
+	 */
+	addSingleton<
+		SingletonName extends string,
+		WithComponents extends keyof Cfg['components'],
+		WithoutComponents extends keyof Cfg['components'] = never,
+		OptionalComponents extends keyof Cfg['components'] = never,
+		NewSingletons extends Singletons & Record<SingletonName, QueryDefinition<Cfg['components'], WithComponents, WithoutComponents, OptionalComponents>> =
+			Singletons & Record<SingletonName, QueryDefinition<Cfg['components'], WithComponents, WithoutComponents, OptionalComponents>>
+	>(
+		name: SingletonName,
+		definition: {
+			with: ReadonlyArray<WithComponents>;
+			without?: ReadonlyArray<WithoutComponents>;
+			changed?: ReadonlyArray<WithComponents>;
+			optional?: ReadonlyArray<OptionalComponents>;
+			parentHas?: ReadonlyArray<keyof Cfg['components']>;
+		}
+	): SystemBuilder<Cfg, Queries, Label, SysGroups, ResourceKeys, NewSingletons> {
+		const newBuilder = this as any;
+		newBuilder.singletons = {
+			...this.singletons,
 			[name]: definition,
 		};
 		return newBuilder;
@@ -232,7 +272,7 @@ export class SystemBuilder<
 	 * @returns This SystemBuilder instance for method chaining
 	 */
 	setProcess(
-		process: ProcessFunction<Cfg, Queries, ResourceKeys>
+		process: ProcessFunction<Cfg, Queries, ResourceKeys, Singletons>
 	): this {
 		this.processFunction = this._wrapWithResources(process as (ctx: unknown) => void);
 		return this;
@@ -240,9 +280,9 @@ export class SystemBuilder<
 
 	private _wrapWithResources(
 		process: (ctx: unknown) => void,
-	): InternalProcessFunction<Cfg, Queries> {
+	): InternalProcessFunction<Cfg, Queries, Singletons> {
 		if (!this._resourceKeys?.length) {
-			return process as unknown as InternalProcessFunction<Cfg, Queries>;
+			return process as unknown as InternalProcessFunction<Cfg, Queries, Singletons>;
 		}
 		const keys = this._resourceKeys;
 		const resolved: Record<string, unknown> = {};
@@ -256,7 +296,7 @@ export class SystemBuilder<
 			initialized = true;
 			(ctx as Record<string, unknown>)['resources'] = resolved;
 			process(ctx);
-		}) as InternalProcessFunction<Cfg, Queries>;
+		}) as InternalProcessFunction<Cfg, Queries, Singletons>;
 	}
 
 	/**
@@ -277,7 +317,11 @@ export class SystemBuilder<
 		WO extends keyof Cfg['components'] = never,
 		O extends keyof Cfg['components'] = never,
 	>(
-		this: [keyof Queries] extends [never] ? SystemBuilder<Cfg, Queries, Label, SysGroups, ResourceKeys> : never,
+		this: [keyof Queries] extends [never]
+			? [keyof Singletons] extends [never]
+				? SystemBuilder<Cfg, Queries, Label, SysGroups, ResourceKeys, Singletons>
+				: never
+			: never,
 		definition: {
 			with: ReadonlyArray<W>;
 			without?: ReadonlyArray<WO>;
@@ -298,18 +342,20 @@ export class SystemBuilder<
 		Queries & Record<ProcessEachKey, QueryDefinition<Cfg['components'], W, WO, O>>,
 		Label,
 		SysGroups,
-		ResourceKeys
+		ResourceKeys,
+		Singletons
 	> {
 		// The conditional `this:` parameter cannot be introspected in the body — cast to access private fields.
 		const self = this as unknown as {
 			queries: Record<string, unknown>;
+			singletons: Record<string, unknown>;
 			processFunction?: unknown;
-			_wrapWithResources(fn: (ctx: unknown) => void): InternalProcessFunction<Cfg, Queries>;
+			_wrapWithResources(fn: (ctx: unknown) => void): InternalProcessFunction<Cfg, Queries, Singletons>;
 		};
 
-		if (Object.keys(self.queries).length > 0 || self.processFunction !== undefined) {
+		if (Object.keys(self.queries).length > 0 || Object.keys(self.singletons).length > 0 || self.processFunction !== undefined) {
 			throw new Error(
-				'setProcessEach requires a SystemBuilder with no prior queries or process function. ' +
+				'setProcessEach requires a SystemBuilder with no prior queries, singletons, or process function. ' +
 				'Use addQuery + setProcess for multi-query systems.',
 			);
 		}
@@ -347,7 +393,8 @@ export class SystemBuilder<
 			Queries & Record<ProcessEachKey, QueryDefinition<Cfg['components'], W, WO, O>>,
 			Label,
 			SysGroups,
-			ResourceKeys
+			ResourceKeys,
+			Singletons
 		>;
 	}
 
@@ -425,6 +472,7 @@ export class SystemBuilder<
 type QueryResults<
 	ComponentTypes extends Record<string, any>,
 	Queries extends Record<string, QueryDefinition<ComponentTypes>>,
+	Singletons extends Record<string, QueryDefinition<ComponentTypes>> = {},
 > = {
 	[QueryName in keyof Queries]: QueryName extends string
 		? FilteredEntity<
@@ -433,6 +481,15 @@ type QueryResults<
 			Queries[QueryName] extends QueryDefinition<ComponentTypes, any, infer WO> ? WO : never,
 			Queries[QueryName] extends QueryDefinition<ComponentTypes, any, any, infer O> ? O : never
 		>[]
+		: never;
+} & {
+	[SingletonName in keyof Singletons]: SingletonName extends string
+		? FilteredEntity<
+			ComponentTypes,
+			Singletons[SingletonName] extends QueryDefinition<ComponentTypes, infer W> ? W : never,
+			Singletons[SingletonName] extends QueryDefinition<ComponentTypes, any, infer WO> ? WO : never,
+			Singletons[SingletonName] extends QueryDefinition<ComponentTypes, any, any, infer O> ? O : never
+		> | undefined
 		: never;
 };
 
@@ -446,8 +503,9 @@ export type ProcessContext<
 	Cfg extends WorldConfig,
 	Queries extends Record<string, QueryDefinition<Cfg['components']>>,
 	ResourceKeys extends keyof Cfg['resources'] = never,
+	Singletons extends Record<string, QueryDefinition<Cfg['components']>> = {},
 > = {
-	queries: QueryResults<Cfg['components'], Queries>;
+	queries: QueryResults<Cfg['components'], Queries, Singletons>;
 	dt: number;
 	ecs: ECSpresso<Cfg>;
 } & ([ResourceKeys] extends [never]
@@ -462,7 +520,8 @@ type ProcessFunction<
 	Cfg extends WorldConfig,
 	Queries extends Record<string, QueryDefinition<Cfg['components']>>,
 	ResourceKeys extends keyof Cfg['resources'] = never,
-> = (ctx: ProcessContext<Cfg, Queries, ResourceKeys>) => void;
+	Singletons extends Record<string, QueryDefinition<Cfg['components']>> = {},
+> = (ctx: ProcessContext<Cfg, Queries, ResourceKeys, Singletons>) => void;
 
 /**
  * Internal process function used for storage on System objects.
@@ -472,7 +531,8 @@ type ProcessFunction<
 type InternalProcessFunction<
 	Cfg extends WorldConfig,
 	Queries extends Record<string, QueryDefinition<Cfg['components']>>,
-> = (ctx: ProcessContext<Cfg, Queries, never>) => void;
+	Singletons extends Record<string, QueryDefinition<Cfg['components']>> = {},
+> = (ctx: ProcessContext<Cfg, Queries, never, Singletons>) => void;
 
 /**
  * Type for system lifecycle functions
