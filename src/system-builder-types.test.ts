@@ -239,4 +239,27 @@ describe('SystemBuilder Type Safety for AssetTypes and ScreenStates', () => {
 
 		expect(true).toBe(true);
 	});
+
+	test('addSingleton types queries[name] as entity-or-undefined; regular queries stay arrays', () => {
+		const ecs = createTestWorld();
+
+		ecs.addSystem('singletonTypes')
+			.addSingleton('boss', { with: ['health'] })
+			.addQuery('mobs', { with: ['position'] })
+			.setProcess(({ queries }) => {
+				const bossHealth: number | undefined = queries.boss?.components.health;
+				// @ts-expect-error — singleton is Entity | undefined, not Entity (no .components without narrowing)
+				const directAccess = queries.boss.components.health;
+				void directAccess;
+				const firstMobX: number | undefined = queries.mobs[0]?.components.position.x;
+				// @ts-expect-error — regular queries remain arrays, not a single entity
+				const mobsAsEntity = queries.mobs.components;
+				void mobsAsEntity;
+
+				void bossHealth;
+				void firstMobX;
+			});
+
+		expect(true).toBe(true);
+	});
 });

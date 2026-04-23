@@ -12,6 +12,13 @@ import type {
 } from './type-utils';
 
 /**
+ * Registrar passed as the second argument to a plugin's `install` function.
+ * Each registered disposer runs (in reverse order) when the plugin is
+ * uninstalled via `world.uninstallPlugin(id)` or when `world.dispose()` is called.
+ */
+export type PluginCleanupRegistrar = (fn: () => void) => void;
+
+/**
  * Plugin interface for ECSpresso. A plugin is a plain object with an `install`
  * function that configures a world directly, plus phantom properties for
  * compile-time type extraction.
@@ -28,7 +35,7 @@ export interface Plugin<
 	ReactiveQueryNames extends string = never,
 > {
 	readonly id: string;
-	readonly install: (world: ECSpresso<MergeConfigs<Cfg, Requires>>) => void;
+	readonly install: (world: ECSpresso<MergeConfigs<Cfg, Requires>>, onCleanup: PluginCleanupRegistrar) => void;
 	// Phantom type for structural extraction (never set at runtime)
 	readonly _cfg?: Cfg;
 	readonly _requires?: Requires;
@@ -310,7 +317,7 @@ export class PluginBuilder<
 	 * types this plugin provides and the types it declared via `.requires<>()`.
 	 */
 	install(
-		install: (world: ECSpresso<MergeConfigs<Cfg, Requires>>) => void
+		install: (world: ECSpresso<MergeConfigs<Cfg, Requires>>, onCleanup: PluginCleanupRegistrar) => void
 	): Plugin<Cfg, Requires, Labels, Groups, AssetGroupNames, ReactiveQueryNames> {
 		return {
 			id: this._id,

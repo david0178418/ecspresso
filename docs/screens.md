@@ -51,6 +51,41 @@ const state = game.getScreenState();                  // { score: 0, isPaused: f
 game.updateScreenState({ score: 100 });
 ```
 
+## Screen Hooks
+
+Subscribe to a specific screen entering or exiting without writing inline `screenEnter` / `screenExit` event guards. Multiple handlers can be registered for the same screen and fire in registration order. Each returns a disposer.
+
+```typescript
+const offEnter = game.onScreenEnter('gameplay', ({ config, ecs }) => {
+  // Fires on setScreen('gameplay', ...) and pushScreen('gameplay', ...)
+  console.log(`Starting level ${config.level}`);
+  ecs.spawn({ player: true });
+});
+
+const offExit = game.onScreenExit('gameplay', ({ ecs }) => {
+  // Fires when leaving 'gameplay' via setScreen away or popScreen
+  console.log('Gameplay ended');
+});
+
+// Later, if needed:
+offEnter();
+offExit();
+```
+
+## Screen-Scoped Entities
+
+Pass `{ scope: screenName }` to `spawn` or `spawnChild` to have the entity automatically removed when that screen exits. This replaces hand-maintained per-component teardown lists.
+
+```typescript
+await game.setScreen('gameplay', { level: 1 });
+
+// Removed automatically when 'gameplay' exits
+game.spawn({ enemy: { hp: 10 } }, { scope: 'gameplay' });
+game.spawnChild(parentId, { projectile: { speed: 5 } }, { scope: 'gameplay' });
+```
+
+The screen name is type-checked against your declared screens.
+
 ## Screen-Scoped Systems
 
 ```typescript
