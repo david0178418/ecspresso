@@ -11,6 +11,7 @@
 
 import { definePlugin, type BasePluginOptions } from 'ecspresso';
 import type { BaseWorld } from 'ecspresso';
+import type { Spritesheet, SpritesheetData, Texture, TextureSource } from 'pixi.js';
 
 /** BaseWorld narrowed to sprite-animation components for typed access in helpers. */
 type SpriteAnimationWorld = BaseWorld<SpriteAnimationComponentTypes>;
@@ -452,4 +453,237 @@ function syncSpriteTexture(
 	if (sprite && typeof sprite === 'object' && 'texture' in sprite) {
 		(sprite as { texture: unknown }).texture = clip.frames[anim.currentFrame];
 	}
+}
+
+// ==================== Spritesheet Helpers ====================
+
+/**
+ * Per-clip timing/loop overrides keyed by animation name. Each entry tweaks
+ * a single clip; omitted entries fall back to the top-level defaults.
+ */
+export type SheetClipOverrides<A extends string> = {
+	readonly [K in A]?: Omit<SpriteAnimationClipInput, 'frames'>;
+};
+
+/**
+ * Extract the animation-name union from a typed SpritesheetData. Falls back
+ * to `string` for untyped sheets.
+ */
+export type SheetAnimationKeys<S extends SpritesheetData> =
+	S extends { animations: infer A }
+		? A extends Record<infer K, unknown>
+			? K extends string ? K : never
+			: string
+		: string;
+
+/**
+ * Build a clip from a named animation in a loaded PixiJS Spritesheet.
+ *
+ * @example
+ *   const sheet = await Assets.load<Spritesheet>('/hero.json');
+ *   const idle = clipFromSheet(sheet, 'idle', { frameDuration: 1 / 12 });
+ */
+export function clipFromSheet(
+	sheet: Spritesheet,
+	animationName: string,
+	options?: Omit<SpriteAnimationClipInput, 'frames'>,
+): SpriteAnimationClip {
+	const frames = sheet.animations[animationName];
+	if (!frames || frames.length === 0) {
+		const available = Object.keys(sheet.animations).join(', ') || '(none)';
+		throw new Error(
+			`clipFromSheet: animation "${animationName}" not found on sheet (or has no frames). Available: ${available}`,
+		);
+	}
+	return buildClip({ ...options, frames });
+}
+
+/**
+ * Build an animation set from every named animation in a PixiJS Spritesheet.
+ * When the sheet is typed as `Spritesheet<MyData>`, animation names and
+ * `defaultClip` / `perClip` keys are inferred at compile time.
+ *
+ * @example
+ *   const sheet = ecs.assets.get('hero'); // Spritesheet<HeroData>
+ *   const set = animationSetFromSheet('hero', sheet, {
+ *     defaultClip: 'idle',
+ *     frameDuration: 1 / 12,
+ *     perClip: { attack: { loop: 'once' } },
+ *   });
+ */
+export function animationSetFromSheet<S extends SpritesheetData = SpritesheetData>(
+	id: string,
+	sheet: Spritesheet<S>,
+	options?: {
+		defaultClip?: SheetAnimationKeys<S>;
+		frameDuration?: number;
+		loop?: AnimationLoopMode;
+		perClip?: SheetClipOverrides<SheetAnimationKeys<S>>;
+	},
+): SpriteAnimationSet<SheetAnimationKeys<S>> {
+	type A = SheetAnimationKeys<S>;
+	const entries = Object.entries(sheet.animations) as unknown as [A, readonly unknown[]][];
+	const firstEntry = entries[0];
+	if (!firstEntry) {
+		throw new Error(`animationSetFromSheet: sheet "${id}" has no animations defined`);
+	}
+
+	const clips = entries.reduce((acc, [name, sheetFrames]) => {
+		if (sheetFrames.length === 0) {
+			throw new Error(`animationSetFromSheet: animation "${String(name)}" on sheet "${id}" has no frames`);
+		}
+		const override = options?.perClip?.[name];
+		acc[name] = buildClip({
+			frames: sheetFrames,
+			frameDuration: override?.frameDuration ?? options?.frameDuration,
+			frameDurations: override?.frameDurations,
+			loop: override?.loop ?? options?.loop,
+		});
+		return acc;
+	}, {} as Record<A, SpriteAnimationClip>);
+
+	return Object.freeze({
+		id,
+		clips: Object.freeze(clips),
+		defaultClip: options?.defaultClip ?? firstEntry[0],
+	});
+}
+
+/**
+ * Slice a grid-arranged sprite sheet into a clip. Use when you don't have a
+ * TexturePacker JSON — just an image and uniform cell dimensions. Cells are
+ * walked row-major.
+ *
+ * Specify exactly one of `rows`, `count`, or `indices` to define the cell set
+ * (along with `columns`). Combining `count` and `indices` is rejected.
+ *
+ * Returns a `Promise` because pixi.js is imported lazily — keeps the static
+ * module graph free of a runtime pixi dependency for consumers who only use
+ * the sheet-based helpers.
+ *
+ * @example
+ *   const tex = await Assets.load<Texture>('/coin.png');
+ *   const clip = await clipFromGrid({
+ *     source: tex.source,
+ *     frameWidth: 16, frameHeight: 16,
+ *     columns: 8, count: 8,
+ *     frameDuration: 1 / 10,
+ *   });
+ */
+export async function clipFromGrid(input: {
+	source: TextureSource;
+	frameWidth: number;
+	frameHeight: number;
+	columns: number;
+	rows?: number;
+	/** Explicit row-major, 0-based cell indices. Mutually exclusive with `count`. */
+	indices?: readonly number[];
+	/** Number of cells to use, walked row-major. Mutually exclusive with `indices`. */
+	count?: number;
+	/** Pixels between cells. */
+	spacing?: number;
+	/** Pixels around the sheet edge. */
+	margin?: number;
+	frameDuration?: number;
+	frameDurations?: readonly number[];
+	loop?: AnimationLoopMode;
+}): Promise<SpriteAnimationClip> {
+	const { source, frameWidth, frameHeight, columns, rows, indices, count, spacing = 0, margin = 0 } = input;
+
+	if (!source) {
+		throw new Error(`clipFromGrid: source is required`);
+	}
+	if (columns <= 0 || !Number.isFinite(columns)) {
+		throw new Error(`clipFromGrid: columns must be a positive number, got ${columns}`);
+	}
+	if (rows !== undefined && (rows <= 0 || !Number.isFinite(rows))) {
+		throw new Error(`clipFromGrid: rows must be a positive number, got ${rows}`);
+	}
+	if (indices !== undefined && count !== undefined) {
+		throw new Error(`clipFromGrid: pass either 'indices' or 'count', not both`);
+	}
+	if (indices === undefined && count === undefined && rows === undefined) {
+		throw new Error(`clipFromGrid: specify 'rows', 'count', or 'indices' to define the cell set (only 'columns' is ambiguous)`);
+	}
+
+	const gridTotal = rows !== undefined ? columns * rows : undefined;
+	const chosen: readonly number[] = indices ?? Array.from(
+		{ length: gridTotal !== undefined && count !== undefined ? Math.min(count, gridTotal) : (count ?? gridTotal ?? 0) },
+		(_, i) => i,
+	);
+
+	if (chosen.length === 0) {
+		throw new Error(`clipFromGrid: resolved to zero cells (empty indices array or count: 0)`);
+	}
+
+	const upperBound = gridTotal ?? Infinity;
+	const invalid = chosen.find(idx => !Number.isInteger(idx) || idx < 0 || idx >= upperBound);
+	if (invalid !== undefined) {
+		const bounds = gridTotal !== undefined ? `[0, ${gridTotal})` : `[0, ∞) — pass 'rows' to enable upper-bound checking`;
+		throw new Error(`clipFromGrid: invalid cell index ${invalid}; expected integer in ${bounds}`);
+	}
+
+	const { Texture, Rectangle } = await import('pixi.js');
+
+	const frames: Texture[] = chosen.map(idx => {
+		const col = idx % columns;
+		const row = Math.floor(idx / columns);
+		const x = margin + col * (frameWidth + spacing);
+		const y = margin + row * (frameHeight + spacing);
+		return new Texture({
+			source,
+			frame: new Rectangle(x, y, frameWidth, frameHeight),
+		});
+	});
+
+	return buildClip({
+		frames,
+		frameDuration: input.frameDuration,
+		frameDurations: input.frameDurations,
+		loop: input.loop,
+	});
+}
+
+/**
+ * Build an asset-manager-compatible loader for a PixiJS spritesheet atlas
+ * (TexturePacker JSON, etc.). Returns the fully-parsed `Spritesheet` object
+ * with `.animations` and `.textures` populated.
+ *
+ * The loader performs a runtime shape check on the resolved value — `Assets.load<T>`
+ * is purely nominal in PixiJS, so pointing this at a non-atlas URL would
+ * otherwise surface as a misleading 'animation not found' error deep in
+ * `clipFromSheet`/`animationSetFromSheet`. The shape check turns that into a
+ * load-time error with a clear message.
+ *
+ * To get literal animation-name inference, declare `S` as an
+ * `interface ... extends SpritesheetData` (a `type` alias re-widens via
+ * `SpritesheetData.animations`'s `Dict<string[]>` string index signature).
+ *
+ * @example
+ *   interface HeroData extends SpritesheetData {
+ *     animations: { idle: string[]; walk: string[]; attack: string[] };
+ *   }
+ *
+ *   ecs.builder.withAssets(a => a
+ *     .add('hero', spritesheetLoader<HeroData>('/hero.json'))
+ *   );
+ *
+ *   // Later:
+ *   const sheet = ecs.assets.get('hero');           // Spritesheet<HeroData>
+ *   const set = animationSetFromSheet('hero', sheet); // names inferred
+ */
+export function spritesheetLoader<S extends SpritesheetData = SpritesheetData>(
+	url: string,
+): () => Promise<Spritesheet<S>> {
+	return async () => {
+		const { Assets } = await import('pixi.js');
+		const result = await Assets.load<Spritesheet<S>>(url);
+		if (!result || typeof result !== 'object' || !('animations' in result) || !('textures' in result)) {
+			throw new Error(
+				`spritesheetLoader: resource at "${url}" did not resolve to a Spritesheet ` +
+				`(missing 'animations'/'textures'). Check that the URL points to a TexturePacker-style JSON atlas, not a raw image.`,
+			);
+		}
+		return result;
+	};
 }

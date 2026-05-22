@@ -9,11 +9,15 @@ import {
 	playAnimation,
 	stopAnimation,
 	resumeAnimation,
+	clipFromSheet,
+	animationSetFromSheet,
+	clipFromGrid,
 	type SpriteAnimation,
 	type SpriteAnimationComponentTypes,
 	type SpriteAnimationEventData,
 	type AnimationLoopMode,
 } from './sprite-animation';
+import type { Spritesheet, SpritesheetData, TextureSource } from 'pixi.js';
 
 // ==================== Test Helpers ====================
 
@@ -1141,6 +1145,312 @@ describe('Sprite Animation Plugin', () => {
 					received.push({ entityId, animation });
 				},
 			});
+		});
+	});
+
+	// ==================== clipFromSheet ====================
+
+	describe('clipFromSheet', () => {
+		/** Build a structural Spritesheet stub — only `animations` is read. */
+		function makeSheet(animations: Record<string, object[]>): Spritesheet {
+			return { animations } as unknown as Spritesheet;
+		}
+
+		test('extracts named animation as a clip', () => {
+			const idleFrames = makeFrames(4);
+			const sheet = makeSheet({ idle: idleFrames, walk: makeFrames(6) });
+
+			const clip = clipFromSheet(sheet, 'idle', { frameDuration: 0.05, loop: 'pingPong' });
+
+			expect(clip.frames).toEqual(idleFrames);
+			expect(clip.frameDuration).toBe(0.05);
+			expect(clip.loop).toBe('pingPong');
+		});
+
+		test('applies default frameDuration and loop when options omitted', () => {
+			const sheet = makeSheet({ spin: makeFrames(3) });
+
+			const clip = clipFromSheet(sheet, 'spin');
+
+			expect(clip.frameDuration).toBe(1 / 10);
+			expect(clip.loop).toBe('loop');
+			expect(clip.frameDurations).toBeNull();
+		});
+
+		test('passes through per-frame durations', () => {
+			const sheet = makeSheet({ attack: makeFrames(3) });
+
+			const clip = clipFromSheet(sheet, 'attack', { frameDurations: [0.1, 0.2, 0.3] });
+
+			expect(clip.frameDurations).toEqual([0.1, 0.2, 0.3]);
+		});
+
+		test('throws with available names when animation is missing', () => {
+			const sheet = makeSheet({ idle: makeFrames(2), walk: makeFrames(2) });
+
+			expect(() => clipFromSheet(sheet, 'jump')).toThrow(/Available: idle, walk/);
+		});
+
+		test('throws when animation is empty', () => {
+			const sheet = makeSheet({ idle: [] });
+
+			expect(() => clipFromSheet(sheet, 'idle')).toThrow(/no frames/);
+		});
+	});
+
+	// ==================== animationSetFromSheet ====================
+
+	describe('animationSetFromSheet', () => {
+		// Concrete data types let SheetAnimationKeys<S> narrow to the literal
+		// key union, which makes set.clips.<name> a mapped lookup (not an
+		// index signature). Intersecting with SpritesheetData['animations']
+		// would re-widen via Dict<string[]>'s string index signature.
+		interface HeroData extends SpritesheetData {
+			animations: { idle: string[]; walk: string[]; attack: string[] };
+		}
+		interface IdleWalkData extends SpritesheetData {
+			animations: { idle: string[]; walk: string[] };
+		}
+		interface AbData extends SpritesheetData {
+			animations: { a: string[]; b: string[] };
+		}
+		interface IdleAttackData extends SpritesheetData {
+			animations: { idle: string[]; attack: string[] };
+		}
+		interface EmptyData extends SpritesheetData {
+			animations: Record<string, never>;
+		}
+
+		function makeSheet<S extends SpritesheetData>(
+			animations: Record<keyof NonNullable<S['animations']>, object[]>,
+		): Spritesheet<S> {
+			return { animations } as unknown as Spritesheet<S>;
+		}
+
+		test('builds a set with every named animation', () => {
+			const sheet = makeSheet<HeroData>({
+				idle: makeFrames(2),
+				walk: makeFrames(4),
+				attack: makeFrames(3),
+			});
+
+			const set = animationSetFromSheet('hero', sheet);
+
+			expect(set.id).toBe('hero');
+			expect(Object.keys(set.clips)).toEqual(['idle', 'walk', 'attack']);
+			expect(set.clips.idle.frames.length).toBe(2);
+			expect(set.clips.walk.frames.length).toBe(4);
+			expect(set.clips.attack.frames.length).toBe(3);
+		});
+
+		test('defaultClip falls back to first animation key', () => {
+			const sheet = makeSheet<AbData>({ a: makeFrames(1), b: makeFrames(1) });
+
+			const set = animationSetFromSheet('x', sheet);
+
+			expect(set.defaultClip).toBe('a');
+		});
+
+		test('respects explicit defaultClip', () => {
+			const sheet = makeSheet<IdleWalkData>({ idle: makeFrames(1), walk: makeFrames(1) });
+
+			const set = animationSetFromSheet('hero', sheet, { defaultClip: 'walk' });
+
+			expect(set.defaultClip).toBe('walk');
+		});
+
+		test('applies top-level frameDuration and loop to every clip', () => {
+			const sheet = makeSheet<IdleWalkData>({ idle: makeFrames(2), walk: makeFrames(2) });
+
+			const set = animationSetFromSheet('hero', sheet, { frameDuration: 0.25, loop: 'once' });
+
+			expect(set.clips.idle.frameDuration).toBe(0.25);
+			expect(set.clips.idle.loop).toBe('once');
+			expect(set.clips.walk.frameDuration).toBe(0.25);
+			expect(set.clips.walk.loop).toBe('once');
+		});
+
+		test('perClip overrides win over top-level defaults', () => {
+			const sheet = makeSheet<IdleAttackData>({ idle: makeFrames(2), attack: makeFrames(3) });
+
+			const set = animationSetFromSheet('hero', sheet, {
+				frameDuration: 0.1,
+				loop: 'loop',
+				perClip: { attack: { frameDuration: 0.05, loop: 'once' } },
+			});
+
+			expect(set.clips.idle.frameDuration).toBe(0.1);
+			expect(set.clips.idle.loop).toBe('loop');
+			expect(set.clips.attack.frameDuration).toBe(0.05);
+			expect(set.clips.attack.loop).toBe('once');
+		});
+
+		test('throws when sheet has no animations', () => {
+			const sheet = makeSheet<EmptyData>({});
+
+			expect(() => animationSetFromSheet('empty', sheet)).toThrow(/no animations/);
+		});
+
+		test('throws when any animation has zero frames (matches clipFromSheet guard)', () => {
+			const sheet = makeSheet<IdleWalkData>({ idle: makeFrames(2), walk: [] });
+
+			expect(() => animationSetFromSheet('hero', sheet)).toThrow(/animation "walk" on sheet "hero" has no frames/);
+		});
+	});
+
+	// ==================== clipFromGrid ====================
+
+	describe('clipFromGrid', () => {
+		/** Minimal TextureSource stub — pixi.Texture only reads .source through on these tests. */
+		const stubSource = {} as TextureSource;
+
+		test('slices cells row-major and sets frame rectangles', async () => {
+			const clip = await clipFromGrid({
+				source: stubSource,
+				frameWidth: 16,
+				frameHeight: 16,
+				columns: 4,
+				rows: 2,
+				frameDuration: 0.1,
+			});
+
+			expect(clip.frames.length).toBe(8);
+			// First frame: top-left
+			const f0 = clip.frames[0] as { frame: { x: number; y: number; width: number; height: number } };
+			expect(f0.frame.x).toBe(0);
+			expect(f0.frame.y).toBe(0);
+			expect(f0.frame.width).toBe(16);
+			expect(f0.frame.height).toBe(16);
+			// Frame 5: col=1, row=1 → x=16, y=16
+			const f5 = clip.frames[5] as { frame: { x: number; y: number } };
+			expect(f5.frame.x).toBe(16);
+			expect(f5.frame.y).toBe(16);
+			// Last frame: col=3, row=1 → x=48, y=16
+			const f7 = clip.frames[7] as { frame: { x: number; y: number } };
+			expect(f7.frame.x).toBe(48);
+			expect(f7.frame.y).toBe(16);
+		});
+
+		test('respects count when smaller than grid total', async () => {
+			const clip = await clipFromGrid({
+				source: stubSource,
+				frameWidth: 8,
+				frameHeight: 8,
+				columns: 4,
+				rows: 4,
+				count: 6,
+			});
+
+			expect(clip.frames.length).toBe(6);
+		});
+
+		test('respects explicit indices', async () => {
+			const clip = await clipFromGrid({
+				source: stubSource,
+				frameWidth: 16,
+				frameHeight: 16,
+				columns: 4,
+				rows: 2,
+				indices: [7, 3, 0],
+			});
+
+			expect(clip.frames.length).toBe(3);
+			const [a, b, c] = clip.frames as Array<{ frame: { x: number; y: number } }>;
+			expect(a!.frame).toMatchObject({ x: 48, y: 16 }); // idx 7
+			expect(b!.frame).toMatchObject({ x: 48, y: 0 });  // idx 3
+			expect(c!.frame).toMatchObject({ x: 0, y: 0 });   // idx 0
+		});
+
+		test('applies margin and spacing to cell offsets', async () => {
+			const clip = await clipFromGrid({
+				source: stubSource,
+				frameWidth: 10,
+				frameHeight: 10,
+				columns: 2,
+				rows: 2,
+				margin: 4,
+				spacing: 2,
+			});
+
+			const [f0, f1, f2] = clip.frames as Array<{ frame: { x: number; y: number } }>;
+			// f0: margin only
+			expect(f0!.frame).toMatchObject({ x: 4, y: 4 });
+			// f1: margin + 1*(width+spacing) on x
+			expect(f1!.frame).toMatchObject({ x: 4 + 10 + 2, y: 4 });
+			// f2: new row → x back to margin, y advances
+			expect(f2!.frame).toMatchObject({ x: 4, y: 4 + 10 + 2 });
+		});
+
+		test('forwards loop and per-frame durations to the clip', async () => {
+			const clip = await clipFromGrid({
+				source: stubSource,
+				frameWidth: 8,
+				frameHeight: 8,
+				columns: 2,
+				count: 2,
+				frameDurations: [0.05, 0.15],
+				loop: 'pingPong',
+			});
+
+			expect(clip.loop).toBe('pingPong');
+			expect(clip.frameDurations).toEqual([0.05, 0.15]);
+		});
+
+		// ---------- Validation ----------
+
+		test('rejects missing source', async () => {
+			await expect(
+				clipFromGrid({ source: undefined as unknown as TextureSource, frameWidth: 8, frameHeight: 8, columns: 2, rows: 2 }),
+			).rejects.toThrow(/source is required/);
+		});
+
+		test('rejects non-positive columns', async () => {
+			await expect(
+				clipFromGrid({ source: stubSource, frameWidth: 8, frameHeight: 8, columns: 0, rows: 2 }),
+			).rejects.toThrow(/columns must be a positive number/);
+		});
+
+		test('rejects ambiguous input (no rows, no count, no indices)', async () => {
+			await expect(
+				clipFromGrid({ source: stubSource, frameWidth: 8, frameHeight: 8, columns: 4 }),
+			).rejects.toThrow(/specify 'rows', 'count', or 'indices'/);
+		});
+
+		test('rejects both count and indices', async () => {
+			await expect(
+				clipFromGrid({ source: stubSource, frameWidth: 8, frameHeight: 8, columns: 4, count: 3, indices: [0, 1] }),
+			).rejects.toThrow(/either 'indices' or 'count', not both/);
+		});
+
+		test('rejects empty indices array', async () => {
+			await expect(
+				clipFromGrid({ source: stubSource, frameWidth: 8, frameHeight: 8, columns: 4, indices: [] }),
+			).rejects.toThrow(/zero cells/);
+		});
+
+		test('rejects negative indices', async () => {
+			await expect(
+				clipFromGrid({ source: stubSource, frameWidth: 8, frameHeight: 8, columns: 4, rows: 2, indices: [-1, 3] }),
+			).rejects.toThrow(/invalid cell index -1/);
+		});
+
+		test('rejects indices >= gridTotal when rows is known', async () => {
+			await expect(
+				clipFromGrid({ source: stubSource, frameWidth: 8, frameHeight: 8, columns: 4, rows: 2, indices: [3, 8] }),
+			).rejects.toThrow(/invalid cell index 8/);
+		});
+
+		test('rejects non-integer indices', async () => {
+			await expect(
+				clipFromGrid({ source: stubSource, frameWidth: 8, frameHeight: 8, columns: 4, rows: 2, indices: [1.5] }),
+			).rejects.toThrow(/invalid cell index 1\.5/);
+		});
+
+		test('clamps count to gridTotal when count exceeds rows*columns', async () => {
+			const clip = await clipFromGrid({
+				source: stubSource, frameWidth: 8, frameHeight: 8, columns: 4, rows: 2, count: 99,
+			});
+			expect(clip.frames.length).toBe(8);
 		});
 	});
 });
