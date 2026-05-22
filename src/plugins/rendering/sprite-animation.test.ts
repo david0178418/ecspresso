@@ -1296,6 +1296,13 @@ describe('Sprite Animation Plugin', () => {
 
 			expect(() => animationSetFromSheet('hero', sheet)).toThrow(/animation "walk" on sheet "hero" has no frames/);
 		});
+
+		test('throws a typed error when an animation value is null (not an array)', () => {
+			// Bypass TypeScript to simulate a malformed atlas entry.
+			const sheet = { animations: { idle: makeFrames(2), walk: null } } as unknown as Spritesheet<IdleWalkData>;
+
+			expect(() => animationSetFromSheet('hero', sheet)).toThrow(/animation "walk" on sheet "hero" has no frames \(got null\)/);
+		});
 	});
 
 	// ==================== clipFromGrid ====================
@@ -1407,7 +1414,31 @@ describe('Sprite Animation Plugin', () => {
 		test('rejects non-positive columns', async () => {
 			await expect(
 				clipFromGrid({ source: stubSource, frameWidth: 8, frameHeight: 8, columns: 0, rows: 2 }),
-			).rejects.toThrow(/columns must be a positive number/);
+			).rejects.toThrow(/columns must be a positive integer/);
+		});
+
+		test('rejects fractional columns', async () => {
+			await expect(
+				clipFromGrid({ source: stubSource, frameWidth: 8, frameHeight: 8, columns: 2.5, rows: 2 }),
+			).rejects.toThrow(/columns must be a positive integer, got 2\.5/);
+		});
+
+		test('rejects fractional rows', async () => {
+			await expect(
+				clipFromGrid({ source: stubSource, frameWidth: 8, frameHeight: 8, columns: 4, rows: 1.5 }),
+			).rejects.toThrow(/rows must be a positive integer, got 1\.5/);
+		});
+
+		test('rejects negative count with a precise message', async () => {
+			await expect(
+				clipFromGrid({ source: stubSource, frameWidth: 8, frameHeight: 8, columns: 4, count: -3 }),
+			).rejects.toThrow(/count must be a non-negative integer, got -3/);
+		});
+
+		test('rejects fractional count', async () => {
+			await expect(
+				clipFromGrid({ source: stubSource, frameWidth: 8, frameHeight: 8, columns: 4, count: 2.5 }),
+			).rejects.toThrow(/count must be a non-negative integer, got 2\.5/);
 		});
 
 		test('rejects ambiguous input (no rows, no count, no indices)', async () => {

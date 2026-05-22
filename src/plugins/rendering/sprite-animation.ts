@@ -529,8 +529,8 @@ export function animationSetFromSheet<S extends SpritesheetData = SpritesheetDat
 	}
 
 	const clips = entries.reduce((acc, [name, sheetFrames]) => {
-		if (sheetFrames.length === 0) {
-			throw new Error(`animationSetFromSheet: animation "${String(name)}" on sheet "${id}" has no frames`);
+		if (!Array.isArray(sheetFrames) || sheetFrames.length === 0) {
+			throw new Error(`animationSetFromSheet: animation "${String(name)}" on sheet "${id}" has no frames (got ${sheetFrames === null ? 'null' : Array.isArray(sheetFrames) ? 'empty array' : typeof sheetFrames})`);
 		}
 		const override = options?.perClip?.[name];
 		acc[name] = buildClip({
@@ -593,11 +593,14 @@ export async function clipFromGrid(input: {
 	if (!source) {
 		throw new Error(`clipFromGrid: source is required`);
 	}
-	if (columns <= 0 || !Number.isFinite(columns)) {
-		throw new Error(`clipFromGrid: columns must be a positive number, got ${columns}`);
+	if (!Number.isInteger(columns) || columns <= 0) {
+		throw new Error(`clipFromGrid: columns must be a positive integer, got ${columns}`);
 	}
-	if (rows !== undefined && (rows <= 0 || !Number.isFinite(rows))) {
-		throw new Error(`clipFromGrid: rows must be a positive number, got ${rows}`);
+	if (rows !== undefined && (!Number.isInteger(rows) || rows <= 0)) {
+		throw new Error(`clipFromGrid: rows must be a positive integer, got ${rows}`);
+	}
+	if (count !== undefined && (!Number.isInteger(count) || count < 0)) {
+		throw new Error(`clipFromGrid: count must be a non-negative integer, got ${count}`);
 	}
 	if (indices !== undefined && count !== undefined) {
 		throw new Error(`clipFromGrid: pass either 'indices' or 'count', not both`);
@@ -678,10 +681,18 @@ export function spritesheetLoader<S extends SpritesheetData = SpritesheetData>(
 	return async () => {
 		const { Assets } = await import('pixi.js');
 		const result = await Assets.load<Spritesheet<S>>(url);
-		if (!result || typeof result !== 'object' || !('animations' in result) || !('textures' in result)) {
+		// Verify properties exist AND are non-null objects — `'animations' in result`
+		// alone would pass for { animations: undefined }, defeating the load-time guard.
+		if (
+			!result || typeof result !== 'object'
+			|| typeof (result as { animations?: unknown }).animations !== 'object'
+			|| (result as { animations: unknown }).animations === null
+			|| typeof (result as { textures?: unknown }).textures !== 'object'
+			|| (result as { textures: unknown }).textures === null
+		) {
 			throw new Error(
 				`spritesheetLoader: resource at "${url}" did not resolve to a Spritesheet ` +
-				`(missing 'animations'/'textures'). Check that the URL points to a TexturePacker-style JSON atlas, not a raw image.`,
+				`(expected non-null 'animations' and 'textures' objects). Check that the URL points to a TexturePacker-style JSON atlas, not a raw image.`,
 			);
 		}
 		return result;
