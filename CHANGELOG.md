@@ -2,6 +2,16 @@
 
 All notable changes to ECSpresso are documented here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## Unreleased
+
+### Added
+
+- **Spritesheet helpers in `ecspresso/plugins/rendering/sprite-animation`** for PixiJS atlases:
+  - `spritesheetLoader<S>(url)` — `AssetConfigurator`-compatible loader; lazy-loads `pixi.js` and runtime-shape-checks the resolved value so non-atlas URLs error at load time instead of deep in the play loop.
+  - `clipFromSheet(sheet, name, options?)` and `animationSetFromSheet(id, sheet, options?)` — build clips/sets from a loaded `Spritesheet<S>`. Animation-name union is inferred when `S` is declared as an `interface ... extends SpritesheetData`. Both throw on zero-frame animations.
+  - `clipFromGrid({ source, frameWidth, frameHeight, columns, rows?, count?, indices?, ... })` — slice a grid-arranged image without atlas JSON. **Async** (lazy-loads pixi) and validates inputs: exactly one of `rows`/`count`/`indices` is required, indices are integer- and bounds-checked when `rows` is given.
+  - New exported types: `SheetClipOverrides<A>`, `SheetAnimationKeys<S>`.
+
 ## 0.17.0
 
 No breaking changes from 0.16.3.

@@ -14,7 +14,7 @@
 | **Spatial Index** | `ecspresso/plugins/spatial-index` | `fixedUpdate + postUpdate` | Spatial hashing for efficient proximity queries |
 | **Camera** | `ecspresso/plugins/camera` | `postUpdate` | Camera follow, shake, and bounds |
 | **Particles** | `ecspresso/plugins/particles` | `update + render` | Pooled particle system with PixiJS ParticleContainer rendering |
-| **Sprite Animation** | `ecspresso/plugins/sprite-animation` | `update` | Frame-based sprite animation |
+| **Sprite Animation** | `ecspresso/plugins/rendering/sprite-animation` | `update` | Frame-based sprite animation with spritesheet helpers (`spritesheetLoader`, `clipFromSheet`, `animationSetFromSheet`, `clipFromGrid`) for PixiJS atlases |
 | **Audio** | `ecspresso/plugins/audio` | `update` | Howler.js audio integration |
 | **Diagnostics** | `ecspresso/plugins/diagnostics` | `render` | Performance monitoring and debug overlay |
 | **2D Renderer** | `ecspresso/plugins/renderers/renderer2D` | `render` | Automated PixiJS scene graph wiring |
