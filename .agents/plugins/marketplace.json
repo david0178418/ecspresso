@@ -8,7 +8,7 @@
 			"name": "ecspresso",
 			"source": {
 				"source": "local",
-				"path": "./"
+				"path": "./plugins/ecspresso"
 			},
 			"policy": {
 				"installation": "AVAILABLE",
