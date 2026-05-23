@@ -1,0 +1,30 @@
+{
+	"name": "ecspresso",
+	"version": "0.17.1",
+	"description": "ECSpresso ECS library skill for AI-assisted development",
+	"author": {
+		"name": "David Granado"
+	},
+	"homepage": "https://DeeGeeGames.github.io/ecspresso/",
+	"repository": "https://github.com/DeeGeeGames/ecspresso",
+	"keywords": [
+		"ecs",
+		"ecspresso",
+		"game development",
+		"typescript"
+	],
+	"skills": "./skills/",
+	"interface": {
+		"displayName": "ECSpresso",
+		"shortDescription": "Use ECSpresso correctly in TypeScript game projects.",
+		"longDescription": "Adds ECSpresso-specific guidance for the builder API, system callbacks, resources, events, plugins, and built-in plugin imports.",
+		"developerName": "David Granado",
+		"category": "Productivity",
+		"capabilities": [
+			"Write",
+			"Review"
+		],
+		"websiteURL": "https://DeeGeeGames.github.io/ecspresso/",
+		"defaultPrompt": "Help me build an ECSpresso game feature."
+	}
+}

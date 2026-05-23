@@ -1,0 +1,20 @@
+{
+	"name": "ecspresso",
+	"interface": {
+		"displayName": "ECSpresso"
+	},
+	"plugins": [
+		{
+			"name": "ecspresso",
+			"source": {
+				"source": "local",
+				"path": "./"
+			},
+			"policy": {
+				"installation": "AVAILABLE",
+				"authentication": "ON_INSTALL"
+			},
+			"category": "Productivity"
+		}
+	]
+}
