@@ -2,7 +2,23 @@
 
 All notable changes to ECSpresso are documented here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
-## Unreleased
+## 0.18.0
+
+### Breaking
+
+ScreenDefinition<Config> now defaults State to Config instead of Record<string, never>.
+
+That means code like this may now fail typecheck:
+
+type Screens = {
+playing: ScreenDefinition<{ level: number }>;
+};
+
+const playing: Screens['playing'] = {
+initialState: () => ({}),
+};
+
+Before, omitted State meant empty state. Now omitted State means state mirrors config, so initialState must return { level: number }.
 
 ### Added
 
