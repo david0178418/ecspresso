@@ -9,11 +9,21 @@ All notable changes to ECSpresso are documented here. Format loosely follows [Ke
 - **System callback helper types** for extracted system callbacks:
   - `SystemProcessFn<Cfg, Queries, ResourceKeys?, Singletons?>` names the `.setProcess(...)` callback shape.
   - `SystemLifecycleFn<Cfg>` names the `.setOnInitialize(...)` / `.setOnDetach(...)` callback shape.
+- **Configurator callback helper types** for extracting builder callbacks:
+  - `AssetConfiguratorFn<Assets, AssetGroups?>` names the `.withAssets(...)` callback shape.
+  - `ScreenConfiguratorFn<Screens>` names the `.withScreens(...)` callback shape.
+- **Slot-specific `WorldConfig` helper types** for plugin requirements:
+  - `ComponentsConfig<T>`, `EventsConfig<T>`, `ResourcesConfig<T>`, `AssetsConfig<T>`, and `ScreensConfig<T>` build single-slot configs without spelling empty `WorldConfigFrom` parameters.
+- **Screen definitions now default state to config** when the state type parameter is omitted, reducing boilerplate for screens whose mutable state mirrors the entry config.
 - **Spritesheet helpers in `ecspresso/plugins/rendering/sprite-animation`** for PixiJS atlases:
   - `spritesheetLoader<S>(url)` — `AssetConfigurator`-compatible loader; lazy-loads `pixi.js` and runtime-shape-checks the resolved value so non-atlas URLs error at load time instead of deep in the play loop.
   - `clipFromSheet(sheet, name, options?)` and `animationSetFromSheet(id, sheet, options?)` — build clips/sets from a loaded `Spritesheet<S>`. Animation-name union is inferred when `S` is declared as an `interface ... extends SpritesheetData`. Both throw on zero-frame animations.
   - `clipFromGrid({ source, frameWidth, frameHeight, columns, rows?, count?, indices?, ... })` — slice a grid-arranged image without atlas JSON. **Async** (lazy-loads pixi) and validates inputs: exactly one of `rows`/`count`/`indices` is required, indices are integer- and bounds-checked when `rows` is given.
   - New exported types: `SheetClipOverrides<A>`, `SheetAnimationKeys<S>`.
+
+### Internal
+
+- Materialized the Codex plugin wrapper files in-repo and included their plugin manifests in version sync.
 
 ## 0.17.0
 
