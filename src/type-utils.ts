@@ -62,6 +62,11 @@ export type WorldConfigFrom<
 export type EmptyConfig = WorldConfigFrom;
 
 /**
+ * Construct a WorldConfig containing only screen requirements.
+ */
+export type ScreensConfig<S extends WorldConfig['screens']> = WorldConfigFrom<{}, {}, {}, {}, S>;
+
+/**
  * Merge two WorldConfig types by intersecting each slot.
  */
 export type MergeConfigs<A extends WorldConfig, B extends WorldConfig> = {

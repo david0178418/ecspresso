@@ -1,7 +1,8 @@
 import { test, expect } from 'bun:test';
 import ECSpresso, { type InstallPluginParam, type PluginError } from './ecspresso';
 import { definePlugin, type Plugin } from './plugin';
-import type { EmptyConfig, WorldConfigFrom } from './type-utils';
+import type { ScreenDefinition } from './screen-types';
+import type { EmptyConfig, ScreensConfig, WorldConfigFrom } from './type-utils';
 
 // ==================== Type-level assertion helpers ====================
 
@@ -28,6 +29,7 @@ type RequiresMissingComponent = WorldConfigFrom<{ missing: number }>;
 type RequiresMissingEvent = WorldConfigFrom<{}, { missingEvent: true }>;
 type RequiresMissingResource = WorldConfigFrom<{}, {}, { missingResource: object }>;
 type RequiresMissingAsset = WorldConfigFrom<{}, {}, {}, { missingAsset: string }>;
+type RequiresMissingScreen = ScreensConfig<{ playing: ScreenDefinition<{ level: number }> }>;
 
 // ==================== Type-level tests: failure messages ====================
 
@@ -88,6 +90,12 @@ test('type-level: missing required asset produces named error', () => {
 	assertType<IsEqual<Actual, Expected>>();
 });
 
+test('type-level: missing required screen produces named error', () => {
+	type Actual = InstallPluginParam<WorldCfg, EmptyConfig, RequiresMissingScreen, never, never, never, never>;
+	type Expected = PluginError<'Plugin requires screens not provided by this world'>;
+	assertType<IsEqual<Actual, Expected>>();
+});
+
 test('type-level: multi-slot missing requirements produce union of named errors', () => {
 	type MultiMissing = WorldConfigFrom<{ missing: number }, { missingEvent: true }>;
 	type Actual = InstallPluginParam<WorldCfg, EmptyConfig, MultiMissing, never, never, never, never>;
@@ -104,6 +112,13 @@ test('type-level: compatible plugin with satisfied requirements resolves to Plug
 	type SatisfiedRequires = WorldConfigFrom<{ pos: { x: number; y: number } }>;
 	type Actual = InstallPluginParam<WorldCfg, CompatibleProvide, SatisfiedRequires, 'label', 'group', 'ag', 'rq'>;
 	type Expected = Plugin<CompatibleProvide, SatisfiedRequires, 'label', 'group', 'ag', 'rq'>;
+	assertType<IsEqual<Actual, Expected>>();
+});
+
+test('type-level: ScreensConfig creates a screen-only WorldConfig', () => {
+	type Screens = { playing: ScreenDefinition<{ level: number }> };
+	type Actual = ScreensConfig<Screens>;
+	type Expected = WorldConfigFrom<{}, {}, {}, {}, Screens>;
 	assertType<IsEqual<Actual, Expected>>();
 });
 
