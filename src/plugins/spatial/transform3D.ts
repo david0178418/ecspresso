@@ -11,7 +11,7 @@
 
 import { definePlugin, type BasePluginOptions } from 'ecspresso';
 import type ECSpresso from 'ecspresso';
-import type { WorldConfigFrom } from '../../type-utils';
+import type { ComponentsConfig } from '../../type-utils';
 
 // ==================== Component Types ====================
 
@@ -62,7 +62,7 @@ export interface Transform3DComponentTypes {
  * WorldConfig representing the 3D transform plugin's provided components.
  * Used as the `Requires` type parameter by plugins that depend on transform3D.
  */
-export type Transform3DWorldConfig = WorldConfigFrom<Transform3DComponentTypes>;
+export type Transform3DWorldConfig = ComponentsConfig<Transform3DComponentTypes>;
 
 // ==================== Plugin Options ====================
 
@@ -348,7 +348,7 @@ export function createTransform3DPlugin<G extends string = 'transform3d'>(
  * Parent-first traversal ensures parents are computed before children.
  */
 function propagateTransforms3D(
-	ecs: ECSpresso<WorldConfigFrom<Transform3DComponentTypes>>,
+	ecs: ECSpresso<ComponentsConfig<Transform3DComponentTypes>>,
 	orphanBuffer: Array<import('../../types').FilteredEntity<Transform3DComponentTypes, 'localTransform3D' | 'worldTransform3D'>>,
 	hierarchyVisited: Set<number>,
 ): void {

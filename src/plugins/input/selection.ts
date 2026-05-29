@@ -16,7 +16,7 @@
 
 import { Graphics } from 'pixi.js';
 import { definePlugin, type BasePluginOptions } from 'ecspresso';
-import type { WorldConfigFrom } from 'ecspresso';
+import type { ComponentsConfig, ResourcesConfig, WorldConfigFrom } from 'ecspresso';
 import type { InputResourceTypes } from './input';
 import type { Renderer2DComponentTypes, Renderer2DResourceTypes } from '../rendering/renderer2D';
 import type { CameraState } from '../spatial/camera';
@@ -60,7 +60,9 @@ export type SelectionWorldConfig = WorldConfigFrom<SelectionComponentTypes, {}, 
 
 // ==================== Dependency Types ====================
 
-type SelectionRequires = WorldConfigFrom<Renderer2DComponentTypes, {}, InputResourceTypes & Renderer2DResourceTypes>;
+type SelectionRequires =
+	ComponentsConfig<Renderer2DComponentTypes>
+	& ResourcesConfig<InputResourceTypes & Renderer2DResourceTypes>;
 
 // ==================== Plugin Options ====================
 

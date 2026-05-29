@@ -11,7 +11,7 @@
 
 import { definePlugin } from 'ecspresso';
 import type { BasePluginOptions } from 'ecspresso';
-import type { WorldConfigFrom } from '../../type-utils';
+import type { ComponentsConfig, ResourcesConfig } from '../../type-utils';
 import type { TransformComponentTypes } from '../spatial/transform';
 import type { Renderer2DComponentTypes, Renderer2DResourceTypes } from '../rendering/renderer2D';
 
@@ -26,11 +26,9 @@ export interface IsoDepthSortComponentTypes {
 	depthOffset: number;
 }
 
-type IsoDepthSortRequires = WorldConfigFrom<
-	TransformComponentTypes & Pick<Renderer2DComponentTypes, 'sprite' | 'graphics' | 'container'>,
-	{},
-	Renderer2DResourceTypes
->;
+type IsoDepthSortRequires =
+	ComponentsConfig<TransformComponentTypes & Pick<Renderer2DComponentTypes, 'sprite' | 'graphics' | 'container'>>
+	& ResourcesConfig<Renderer2DResourceTypes>;
 
 // ==================== Plugin Options ====================
 

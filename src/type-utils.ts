@@ -62,6 +62,26 @@ export type WorldConfigFrom<
 export type EmptyConfig = WorldConfigFrom;
 
 /**
+ * Construct a WorldConfig containing only component requirements.
+ */
+export type ComponentsConfig<C extends WorldConfig['components']> = WorldConfigFrom<C>;
+
+/**
+ * Construct a WorldConfig containing only event requirements.
+ */
+export type EventsConfig<E extends WorldConfig['events']> = WorldConfigFrom<{}, E>;
+
+/**
+ * Construct a WorldConfig containing only resource requirements.
+ */
+export type ResourcesConfig<R extends WorldConfig['resources']> = WorldConfigFrom<{}, {}, R>;
+
+/**
+ * Construct a WorldConfig containing only asset requirements.
+ */
+export type AssetsConfig<A extends WorldConfig['assets']> = WorldConfigFrom<{}, {}, {}, A>;
+
+/**
  * Construct a WorldConfig containing only screen requirements.
  */
 export type ScreensConfig<S extends WorldConfig['screens']> = WorldConfigFrom<{}, {}, {}, {}, S>;

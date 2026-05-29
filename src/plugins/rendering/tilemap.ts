@@ -11,7 +11,7 @@
 
 import { definePlugin, type BasePluginOptions } from 'ecspresso';
 import type ECSpresso from 'ecspresso';
-import type { WorldConfigFrom, EmptyConfig } from '../../type-utils';
+import type { AssetsConfig, ComponentsConfig, WorldConfigFrom } from '../../type-utils';
 import { createNavGrid, type NavGrid } from '../ai/pathfinding';
 import type { Vector2D } from '../../utils/math';
 import type { LocalTransform, WorldTransform } from '../spatial/transform';
@@ -231,7 +231,7 @@ export interface TilemapResourceTypes {
 	tilemaps: TilemapRegistry;
 }
 
-export type TilemapWorldConfig = WorldConfigFrom<TilemapComponentTypes, EmptyConfig['events'], TilemapResourceTypes>;
+export type TilemapWorldConfig = WorldConfigFrom<TilemapComponentTypes, {}, TilemapResourceTypes>;
 
 export interface TilemapPluginOptions<G extends string = 'rendering'> extends BasePluginOptions<G> {
 	/** Optional collision layer name. When set, solid tiles auto-spawn `aabbCollider` strips. */
@@ -562,7 +562,7 @@ export function createTilemapPlugin<G extends string = 'rendering'>(
 						localTransform: { x: cx, y: cy, rotation: 0, scaleX: 1, scaleY: 1 },
 						worldTransform: { x: cx, y: cy, rotation: 0, scaleX: 1, scaleY: 1 },
 					};
-					const entity = (world as unknown as ECSpresso<WorldConfigFrom<CollisionSpawnShape>>).spawn(components);
+					const entity = (world as unknown as ECSpresso<ComponentsConfig<CollisionSpawnShape>>).spawn(components);
 					ids.push(entity.id);
 				}
 				if (ids.length > 0) colliderEntitiesByKey.set(dataKey, ids);
@@ -581,7 +581,7 @@ export function createTilemapPlugin<G extends string = 'rendering'>(
 					return ingest(dataKey, createLoadedTilemap(data));
 				},
 				async registerAsset(dataKey, assetKey, parseOptions) {
-					const raw = await (world as unknown as ECSpresso<WorldConfigFrom<EmptyConfig['components'], EmptyConfig['events'], EmptyConfig['resources'], { [k: string]: TiledMap }>>).loadAsset(assetKey) as TiledMap;
+					const raw = await (world as unknown as ECSpresso<AssetsConfig<{ [k: string]: TiledMap }>>).loadAsset(assetKey) as TiledMap;
 					return ingest(dataKey, parseTiledJSON(raw, parseOptions ?? { tilesetTextures: {} }));
 				},
 				get: (dataKey) => entries.get(dataKey),

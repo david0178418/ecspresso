@@ -9,7 +9,7 @@
  */
 
 import { definePlugin, type BasePluginOptions } from 'ecspresso';
-import type { WorldConfigFrom } from 'ecspresso';
+import type { EventsConfig, WorldConfigFrom } from 'ecspresso';
 import type { TransformWorldConfig } from '../spatial/transform';
 import type { CollisionEventTypes } from '../physics/collision';
 import type { DamageEvent } from './health';
@@ -166,7 +166,7 @@ export function createProjectilePlugin<G extends string = 'combat'>(
 		.withGroups<G>()
 		.requires<
 			TransformWorldConfig &
-			WorldConfigFrom<{}, CollisionEventTypes<string>>
+			EventsConfig<CollisionEventTypes<string>>
 		>()
 		.install((world) => {
 			// Homing projectiles — track target position each frame

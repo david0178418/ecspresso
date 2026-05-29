@@ -16,18 +16,16 @@
 
 import { definePlugin } from 'ecspresso';
 import type { SystemPhase } from 'ecspresso';
-import type { WorldConfigFrom } from '../../type-utils';
+import type { ComponentsConfig, ResourcesConfig } from '../../type-utils';
 import type { Transform3DComponentTypes } from './transform3D';
 import type { Renderer3DResourceTypes } from '../rendering/renderer3D';
 import type { OrthographicCamera, PerspectiveCamera } from 'three';
 
 // ==================== Dependency Types ====================
 
-type Camera3DRequiredConfig = WorldConfigFrom<
-	Transform3DComponentTypes,
-	{},
-	Renderer3DResourceTypes
->;
+type Camera3DRequiredConfig =
+	ComponentsConfig<Transform3DComponentTypes>
+	& ResourcesConfig<Renderer3DResourceTypes>;
 
 // ==================== Resource Types ====================
 
@@ -94,7 +92,7 @@ export interface Camera3DResourceTypes {
 	camera3DState: Camera3DState;
 }
 
-export type Camera3DWorldConfig = WorldConfigFrom<{}, {}, Camera3DResourceTypes>;
+export type Camera3DWorldConfig = ResourcesConfig<Camera3DResourceTypes>;
 
 // ==================== Plugin Options ====================
 

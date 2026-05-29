@@ -12,7 +12,7 @@
 
 import { definePlugin, type BasePluginOptions } from 'ecspresso';
 import type { BaseWorld } from 'ecspresso';
-import type { WorldConfigFrom } from '../../type-utils';
+import type { ComponentsConfig } from '../../type-utils';
 import type { TransformComponentTypes, LocalTransform } from 'ecspresso/plugins/spatial/transform';
 
 /** BaseWorld narrowed to particle components for typed access in helpers. */
@@ -579,7 +579,7 @@ export const particlePresets = {
 
 type ParticleLabels = 'particle-update' | 'particle-render-sync';
 
-type ParticleRequires = WorldConfigFrom<TransformComponentTypes & { renderLayer: string }>;
+type ParticleRequires = ComponentsConfig<TransformComponentTypes & { renderLayer: string }>;
 
 /**
  * Create a particle system plugin for ECSpresso.

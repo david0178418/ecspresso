@@ -14,7 +14,7 @@
  */
 
 import { definePlugin, type BasePluginOptions } from 'ecspresso';
-import type { WorldConfigFrom } from 'ecspresso';
+import type { ComponentsConfig, ResourcesConfig } from 'ecspresso';
 import type { TransformWorldConfig } from '../spatial/transform';
 import type { Physics2DOwnComponentTypes } from '../physics/physics2D';
 import { applyForce } from '../physics/physics2D';
@@ -59,7 +59,7 @@ export interface FlockingComponentTypes {
 /**
  * WorldConfig representing the flocking plugin's provided types.
  */
-export type FlockingWorldConfig = WorldConfigFrom<FlockingComponentTypes>;
+export type FlockingWorldConfig = ComponentsConfig<FlockingComponentTypes>;
 
 // ==================== Plugin Options ====================
 
@@ -146,8 +146,8 @@ export function createFlockingPlugin<G extends string = 'ai'>(
 		.withGroups<G>()
 		.requires<
 			TransformWorldConfig &
-			WorldConfigFrom<Pick<Physics2DOwnComponentTypes, 'velocity' | 'force'>> &
-			WorldConfigFrom<{}, {}, SpatialIndexResourceTypes>
+			ComponentsConfig<Pick<Physics2DOwnComponentTypes, 'velocity' | 'force'>> &
+			ResourcesConfig<SpatialIndexResourceTypes>
 		>()
 		.install((world) => {
 			// --- System 1: Compute and apply flocking forces ---

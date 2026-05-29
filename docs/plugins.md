@@ -97,6 +97,50 @@ export const movementPlugin = definePlugin({
 });
 ```
 
+## Plugin Requirements
+
+Use slot-specific config helpers when a plugin requires existing world types but does not provide them itself. This avoids spelling empty `WorldConfigFrom` slots just to reach resources, assets, events, or screens.
+
+```typescript
+import {
+  definePlugin,
+  type ComponentsConfig,
+  type ResourcesConfig,
+  type ScreensConfig,
+  type ScreenDefinition,
+} from 'ecspresso';
+
+type TransformComponents = {
+  worldTransform: { x: number; y: number };
+};
+
+type InputResources = {
+  input: { isPressed(action: string): boolean };
+};
+
+type RequiredScreens = {
+  playing: ScreenDefinition<{ level: number }>;
+};
+
+type MovementRequires =
+  ComponentsConfig<TransformComponents>
+  & ResourcesConfig<InputResources>
+  & ScreensConfig<RequiredScreens>;
+
+export const movementPlugin = definePlugin('movement')
+  .requires<MovementRequires>()
+  .install((world) => {
+    world.addSystem('movement')
+      .inScreens(['playing'])
+      .setProcess(({ ecs }) => {
+        const input = ecs.getResource('input');
+        if (!input.isPressed('right')) return;
+      });
+  });
+```
+
+Available helpers are `ComponentsConfig<T>`, `EventsConfig<T>`, `ResourcesConfig<T>`, `AssetsConfig<T>`, and `ScreensConfig<T>`. Use `WorldConfigFrom` directly when a type naturally spans several slots and the positional form is still clearer.
+
 ## Required Components
 
 Plugins can declare that certain components depend on others. When an entity gains a trigger component, any required components that aren't already present are auto-added with default values:

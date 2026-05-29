@@ -9,7 +9,7 @@
 
 import { definePlugin, type BasePluginOptions } from 'ecspresso';
 import type ECSpresso from 'ecspresso';
-import type { WorldConfigFrom } from '../../type-utils';
+import type { ComponentsConfig } from '../../type-utils';
 
 // ==================== Component Types ====================
 
@@ -58,7 +58,7 @@ export interface TransformComponentTypes {
  * WorldConfig representing the transform plugin's provided components.
  * Used as the `Requires` type parameter by plugins that depend on transform.
  */
-export type TransformWorldConfig = WorldConfigFrom<TransformComponentTypes>;
+export type TransformWorldConfig = ComponentsConfig<TransformComponentTypes>;
 
 // ==================== Plugin Options ====================
 
@@ -266,7 +266,7 @@ export function createTransformPlugin<G extends string = 'transform'>(
  * so downstream systems (e.g. renderer sync) can skip static entities.
  */
 function propagateTransforms(
-	ecs: ECSpresso<WorldConfigFrom<TransformComponentTypes>>,
+	ecs: ECSpresso<ComponentsConfig<TransformComponentTypes>>,
 	orphanBuffer: Array<import('../../types').FilteredEntity<TransformComponentTypes, 'localTransform' | 'worldTransform'>>,
 	hierarchyVisited: Set<number>,
 ): void {

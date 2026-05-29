@@ -10,7 +10,7 @@
  */
 
 import { definePlugin, type BasePluginOptions } from 'ecspresso';
-import type { WorldConfigFrom } from 'ecspresso';
+import type { ComponentsConfig, ResourcesConfig, WorldConfigFrom } from 'ecspresso';
 import type { TransformWorldConfig } from '../spatial/transform';
 import type { SpatialIndexResourceTypes } from '../spatial/spatial-index';
 import type { CollisionComponentTypes } from '../physics/collision';
@@ -193,8 +193,8 @@ export function createDetectionPlugin<G extends string = 'ai'>(
 		.withGroups<G>()
 		.requires<
 			TransformWorldConfig &
-			WorldConfigFrom<Pick<CollisionComponentTypes<string>, 'collisionLayer'>> &
-			WorldConfigFrom<{}, {}, SpatialIndexResourceTypes>
+			ComponentsConfig<Pick<CollisionComponentTypes<string>, 'collisionLayer'>> &
+			ResourcesConfig<SpatialIndexResourceTypes>
 		>()
 		.install((world) => {
 			world.registerDispose('detector', ({ entityId }) => {

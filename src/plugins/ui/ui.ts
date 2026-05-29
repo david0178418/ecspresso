@@ -22,7 +22,7 @@
 
 import type { Container, Graphics, Text } from 'pixi.js';
 import { definePlugin, type BasePluginOptions } from 'ecspresso';
-import type { WorldConfigFrom } from '../../type-utils';
+import type { ComponentsConfig, ResourcesConfig } from '../../type-utils';
 import type { Vector2D } from '../../utils/math';
 import {
 	DEFAULT_LOCAL_TRANSFORM,
@@ -407,11 +407,9 @@ interface UIMessageLogRuntime {
 
 // ==================== Plugin Factory ====================
 
-type UIRequires = WorldConfigFrom<
-	TransformComponentTypes,
-	{},
-	BoundsResourceTypes & InputResourceTypes
->;
+type UIRequires =
+	ComponentsConfig<TransformComponentTypes>
+	& ResourcesConfig<BoundsResourceTypes & InputResourceTypes>;
 
 type UILabels =
 	| 'ui-anchor-resolve'

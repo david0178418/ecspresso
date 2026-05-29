@@ -2,7 +2,7 @@ import { test, expect } from 'bun:test';
 import ECSpresso, { type InstallPluginParam, type PluginError } from './ecspresso';
 import { definePlugin, type Plugin } from './plugin';
 import type { ScreenDefinition } from './screen-types';
-import type { EmptyConfig, ScreensConfig, WorldConfigFrom } from './type-utils';
+import type { AssetsConfig, ComponentsConfig, EmptyConfig, EventsConfig, ResourcesConfig, ScreensConfig, WorldConfigFrom } from './type-utils';
 
 // ==================== Type-level assertion helpers ====================
 
@@ -20,15 +20,15 @@ type WorldCfg = WorldConfigFrom<
 	{}
 >;
 
-type ConflictingComponents = WorldConfigFrom<{ pos: { a: string } }>;
-type ConflictingEvents = WorldConfigFrom<{}, { click: { mouseButton: number } }>;
-type ConflictingResources = WorldConfigFrom<{}, {}, { db: string }>;
-type ConflictingAssets = WorldConfigFrom<{}, {}, {}, { img: number }>;
+type ConflictingComponents = ComponentsConfig<{ pos: { a: string } }>;
+type ConflictingEvents = EventsConfig<{ click: { mouseButton: number } }>;
+type ConflictingResources = ResourcesConfig<{ db: string }>;
+type ConflictingAssets = AssetsConfig<{ img: number }>;
 
-type RequiresMissingComponent = WorldConfigFrom<{ missing: number }>;
-type RequiresMissingEvent = WorldConfigFrom<{}, { missingEvent: true }>;
-type RequiresMissingResource = WorldConfigFrom<{}, {}, { missingResource: object }>;
-type RequiresMissingAsset = WorldConfigFrom<{}, {}, {}, { missingAsset: string }>;
+type RequiresMissingComponent = ComponentsConfig<{ missing: number }>;
+type RequiresMissingEvent = EventsConfig<{ missingEvent: true }>;
+type RequiresMissingResource = ResourcesConfig<{ missingResource: object }>;
+type RequiresMissingAsset = AssetsConfig<{ missingAsset: string }>;
 type RequiresMissingScreen = ScreensConfig<{ playing: ScreenDefinition<{ level: number }> }>;
 
 // ==================== Type-level tests: failure messages ====================
@@ -108,8 +108,8 @@ test('type-level: multi-slot missing requirements produce union of named errors'
 // ==================== Type-level tests: happy path ====================
 
 test('type-level: compatible plugin with satisfied requirements resolves to Plugin', () => {
-	type CompatibleProvide = WorldConfigFrom<{ vel: { x: number; y: number } }>;
-	type SatisfiedRequires = WorldConfigFrom<{ pos: { x: number; y: number } }>;
+	type CompatibleProvide = ComponentsConfig<{ vel: { x: number; y: number } }>;
+	type SatisfiedRequires = ComponentsConfig<{ pos: { x: number; y: number } }>;
 	type Actual = InstallPluginParam<WorldCfg, CompatibleProvide, SatisfiedRequires, 'label', 'group', 'ag', 'rq'>;
 	type Expected = Plugin<CompatibleProvide, SatisfiedRequires, 'label', 'group', 'ag', 'rq'>;
 	assertType<IsEqual<Actual, Expected>>();
@@ -120,6 +120,18 @@ test('type-level: ScreensConfig creates a screen-only WorldConfig', () => {
 	type Actual = ScreensConfig<Screens>;
 	type Expected = WorldConfigFrom<{}, {}, {}, {}, Screens>;
 	assertType<IsEqual<Actual, Expected>>();
+});
+
+test('type-level: slot-specific config helpers create single-slot WorldConfigs', () => {
+	type Components = { position: { x: number; y: number } };
+	type Events = { damaged: { amount: number } };
+	type Resources = { score: { value: number } };
+	type Assets = { sprite: HTMLImageElement };
+
+	assertType<IsEqual<ComponentsConfig<Components>, WorldConfigFrom<Components>>>();
+	assertType<IsEqual<EventsConfig<Events>, WorldConfigFrom<{}, Events>>>();
+	assertType<IsEqual<ResourcesConfig<Resources>, WorldConfigFrom<{}, {}, Resources>>>();
+	assertType<IsEqual<AssetsConfig<Assets>, WorldConfigFrom<{}, {}, {}, Assets>>>();
 });
 
 // ==================== Runtime smoke test ====================
@@ -151,7 +163,7 @@ test('wiring: installPlugin rejects incompatible plugin at call site', () => {
 	world.installPlugin(conflictingPlugin);
 
 	const needyPlugin = definePlugin('needy')
-		.requires<WorldConfigFrom<{ missing: number }>>()
+		.requires<ComponentsConfig<{ missing: number }>>()
 		.install(() => {});
 	// @ts-expect-error - missing required component should be rejected
 	world.installPlugin(needyPlugin);
