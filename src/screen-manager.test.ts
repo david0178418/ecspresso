@@ -1,7 +1,11 @@
 import { expect, describe, test, beforeEach } from 'bun:test';
 import ScreenManager, { createScreenConfigurator } from './screen-manager';
 import EventBus from './event-bus';
-import type { ScreenEvents, ScreenDefinition } from './screen-types';
+import type { ScreenEvents, ScreenDefinition, ScreenState } from './screen-types';
+
+function assertType<_Condition extends true>() {}
+
+type IsEqual<Actual, Expected> = [Actual] extends [Expected] ? [Expected] extends [Actual] ? true : false : false;
 
 type TestScreens = {
 	loading: ScreenDefinition<Record<string, never>, { progress: number }>;
@@ -399,6 +403,15 @@ describe('ScreenManager', () => {
 
 			expect(manager.getState()).toEqual({ score: 999, lives: 5 });
 		});
+	});
+});
+
+describe('ScreenDefinition type defaults', () => {
+	test('single generic uses config as state', () => {
+		type ScreenConfig = { level: number };
+		type Screen = ScreenDefinition<ScreenConfig>;
+
+		assertType<IsEqual<ScreenState<Screen>, ScreenConfig>>();
 	});
 });
 

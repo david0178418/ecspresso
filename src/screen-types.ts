@@ -9,8 +9,8 @@ import type ECSpresso from './ecspresso';
  */
 export interface ScreenDefinition<
 	Config extends Record<string, unknown> = Record<string, never>,
-	State extends Record<string, unknown> = Record<string, never>,
-	W = ECSpresso<any>,
+	State extends Record<string, unknown> = Config,
+	World = ECSpresso<any>,
 > {
 	/**
 	 * Function to create initial state from config
@@ -19,11 +19,11 @@ export interface ScreenDefinition<
 	/**
 	 * Lifecycle hook called when entering this screen
 	 */
-	readonly onEnter?: (ctx: { config: Config; ecs: W }) => void | Promise<void>;
+	readonly onEnter?: (ctx: { config: Config; ecs: World }) => void | Promise<void>;
 	/**
 	 * Lifecycle hook called when exiting this screen
 	 */
-	readonly onExit?: (ecs: W) => void | Promise<void>;
+	readonly onExit?: (ecs: World) => void | Promise<void>;
 	/**
 	 * Asset keys that must be loaded before entering this screen
 	 */
