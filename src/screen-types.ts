@@ -122,6 +122,15 @@ export interface ScreenConfigurator<Screens extends Record<string, ScreenDefinit
 }
 
 /**
+ * Callback shape for extracted screen configurator helpers.
+ */
+export type ScreenConfiguratorFn<
+	Screens extends Record<string, ScreenDefinition<any, any>>,
+> = <World>(
+	screens: ScreenConfigurator<{}, World>,
+) => ScreenConfigurator<Screens, World>;
+
+/**
  * Type-safe screen state getter result
  */
 export type CurrentScreenState<

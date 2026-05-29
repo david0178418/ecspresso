@@ -4,6 +4,7 @@ import { createTimerPlugin } from './plugins/scripting/timers';
 import { createTransformPlugin, createLocalTransform, type TransformComponentTypes } from './plugins/spatial/transform';
 import type { ComponentsOf, EventsOf, ResourcesOf } from './types';
 import type { AssetsResource } from './asset-types';
+import type { ScreenConfiguratorFn, ScreenDefinition } from './screen-types';
 import { definePlugin } from './plugin';
 import type { WorldConfigFrom } from './type-utils';
 
@@ -358,6 +359,34 @@ describe('Built-in Resource Typing ($assets / $screen)', () => {
 			const _check: boolean = screen.isCurrent('menu');
 			const _check2: boolean = screen.isCurrent('gameplay');
 			return { _check, _check2 };
+		}
+		void _typeCheck;
+	});
+
+	test('withScreens accepts extracted ScreenConfiguratorFn helpers', () => {
+		type PlayingScreenConfig = { level: number };
+		type AppScreens = {
+			playing: ScreenDefinition<PlayingScreenConfig>;
+			pause: ScreenDefinition;
+		};
+
+		const configureScreens: ScreenConfiguratorFn<AppScreens> = function configureScreens(screens) {
+			return screens
+				.add('playing', { initialState: config => config })
+				.add('pause', { initialState: () => ({}) });
+		};
+
+		const ecs = ECSpresso.create()
+			.withScreens(configureScreens)
+			.build();
+
+		function _typeCheck(world: typeof ecs) {
+			const screen = world.getResource('$screen');
+			const _playing: boolean = screen.isCurrent('playing');
+			const _pause: boolean = screen.isCurrent('pause');
+			// @ts-expect-error - 'missing' is not a configured screen
+			screen.isCurrent('missing');
+			return { _playing, _pause };
 		}
 		void _typeCheck;
 	});

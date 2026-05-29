@@ -51,6 +51,29 @@ const state = game.getScreenState();                  // { score: 0, isPaused: f
 game.updateScreenState({ score: 100 });
 ```
 
+## Extracted Screen Configurators
+
+Use `ScreenConfiguratorFn` when a `.withScreens(...)` callback is extracted into a named helper:
+
+```typescript
+import type { ScreenConfiguratorFn, ScreenDefinition } from 'ecspresso';
+
+type AppScreens = {
+  playing: ScreenDefinition<{ level: number }>;
+  pause: ScreenDefinition;
+};
+
+export const configureScreens: ScreenConfiguratorFn<AppScreens> = function configureScreens(screens) {
+  return screens
+    .add('playing', { initialState: config => config })
+    .add('pause', { initialState: () => ({}) });
+};
+
+const game = ECSpresso.create()
+  .withScreens(configureScreens)
+  .build();
+```
+
 ## Screen Hooks
 
 Subscribe to a specific screen entering or exiting without writing inline `screenEnter` / `screenExit` event guards. Multiple handlers can be registered for the same screen and fire in registration order. Each returns a disposer.
