@@ -337,33 +337,36 @@ export default class AssetManager<AssetTypes extends Record<string, unknown> = R
 /**
  * Implementation of AssetConfigurator for builder pattern
  */
-export class AssetConfiguratorImpl<A extends Record<string, unknown>, G extends string = never> implements AssetConfigurator<A, G> {
-	private readonly manager: AssetManager<A, G>;
+export class AssetConfiguratorImpl<
+	Assets extends Record<string, unknown> = {},
+	AssetGroups extends string = never,
+> implements AssetConfigurator<Assets, AssetGroups> {
+	private readonly manager: AssetManager<Assets, AssetGroups>;
 
-	constructor(manager: AssetManager<A, G>) {
+	constructor(manager: AssetManager<Assets, AssetGroups>) {
 		this.manager = manager;
 	}
 
 	add<K extends string, T>(
 		key: K,
 		loader: () => Promise<T>
-	): AssetConfigurator<A & Record<K, T>, G> {
+	): AssetConfigurator<Assets & Record<K, T>, AssetGroups> {
 		this.manager.register(key, { loader, eager: true });
-		return this as unknown as AssetConfigurator<A & Record<K, T>, G>;
+		return this as unknown as AssetConfigurator<Assets & Record<K, T>, AssetGroups>;
 	}
 
 	addWithConfig<K extends string, T>(
 		key: K,
 		definition: AssetDefinition<T>
-	): AssetConfigurator<A & Record<K, T>, G> {
+	): AssetConfigurator<Assets & Record<K, T>, AssetGroups> {
 		this.manager.register(key, definition);
-		return this as unknown as AssetConfigurator<A & Record<K, T>, G>;
+		return this as unknown as AssetConfigurator<Assets & Record<K, T>, AssetGroups>;
 	}
 
 	addGroup<GN extends string, T extends Record<string, () => Promise<unknown>>>(
 		groupName: GN,
 		assets: T
-	): AssetConfigurator<A & { [K in keyof T]: Awaited<ReturnType<T[K]>> }, G | GN> {
+	): AssetConfigurator<Assets & { [K in keyof T]: Awaited<ReturnType<T[K]>> }, AssetGroups | GN> {
 		for (const [key, loader] of Object.entries(assets)) {
 			this.manager.register(key, {
 				loader: loader as () => Promise<unknown>,
@@ -371,14 +374,14 @@ export class AssetConfiguratorImpl<A extends Record<string, unknown>, G extends 
 				group: groupName,
 			});
 		}
-		return this as unknown as AssetConfigurator<A & { [K in keyof T]: Awaited<ReturnType<T[K]>> }, G | GN>;
+		return this as unknown as AssetConfigurator<Assets & { [K in keyof T]: Awaited<ReturnType<T[K]>> }, AssetGroups | GN>;
 	}
 
 	/**
 	 * Get the underlying manager
 	 * @internal
 	 */
-	getManager(): AssetManager<A, G> {
+	getManager(): AssetManager<Assets, AssetGroups> {
 		return this.manager;
 	}
 }
@@ -386,8 +389,11 @@ export class AssetConfiguratorImpl<A extends Record<string, unknown>, G extends 
 /**
  * Create a new AssetConfigurator for builder pattern usage
  */
-export function createAssetConfigurator<A extends Record<string, unknown> = Record<string, never>, G extends string = never>(
-	manager?: AssetManager<A, G>
-): AssetConfiguratorImpl<A, G> {
-	return new AssetConfiguratorImpl(manager ?? new AssetManager<A, G>());
+export function createAssetConfigurator<
+	Assets extends Record<string, unknown> = {},
+	AssetGroups extends string = never,
+>(
+	manager?: AssetManager<Assets, AssetGroups>
+): AssetConfiguratorImpl<Assets, AssetGroups> {
+	return new AssetConfiguratorImpl(manager ?? new AssetManager<Assets, AssetGroups>());
 }

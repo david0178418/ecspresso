@@ -1,7 +1,7 @@
 import { expect, describe, test, beforeEach } from 'bun:test';
 import AssetManager, { createAssetConfigurator } from './asset-manager';
 import EventBus from './event-bus';
-import type { AssetEvents } from './asset-types';
+import type { AssetConfiguratorFn, AssetEvents } from './asset-types';
 
 type TestAssets = {
 	texture: { width: number; height: number; data: Uint8Array };
@@ -259,6 +259,28 @@ describe('AssetManager', () => {
 });
 
 describe('AssetConfigurator', () => {
+	test('supports extracted configurators with the public callback alias', () => {
+		type ConfiguredAssets = {
+			readonly texture: { readonly width: number; readonly height: number };
+			readonly background: { readonly width: number; readonly height: number };
+			readonly music: { readonly duration: number };
+		};
+
+		type AssetGroups = 'level1';
+
+		const configureAssets: AssetConfiguratorFn<ConfiguredAssets, AssetGroups> = assets => assets
+			.add('texture', async () => ({ width: 100, height: 100 }))
+			.addGroup('level1', {
+				background: async () => ({ width: 800, height: 600 }),
+				music: async () => ({ duration: 180 }),
+			});
+
+		const configurator = createAssetConfigurator();
+		const configured = configureAssets(configurator);
+
+		expect(configured).toBeDefined();
+	});
+
 	test('should add assets via configurator', () => {
 		const configurator = createAssetConfigurator<Record<string, unknown>>();
 

@@ -82,14 +82,17 @@ export interface AssetEvents<K extends string = string, G extends string = strin
 /**
  * Configuration for asset definitions during builder setup
  */
-export interface AssetConfigurator<A extends Record<string, unknown>, G extends string = never> {
+export interface AssetConfigurator<
+	Assets extends Record<string, unknown> = {},
+	AssetGroups extends string = never,
+> {
 	/**
 	 * Add a single eager asset
 	 */
 	add<K extends string, T>(
 		key: K,
 		loader: () => Promise<T>
-	): AssetConfigurator<A & Record<K, T>, G>;
+	): AssetConfigurator<Assets & Record<K, T>, AssetGroups>;
 
 	/**
 	 * Add a single asset with full configuration
@@ -97,7 +100,7 @@ export interface AssetConfigurator<A extends Record<string, unknown>, G extends 
 	addWithConfig<K extends string, T>(
 		key: K,
 		definition: AssetDefinition<T>
-	): AssetConfigurator<A & Record<K, T>, G>;
+	): AssetConfigurator<Assets & Record<K, T>, AssetGroups>;
 
 	/**
 	 * Add a group of assets that can be loaded together
@@ -105,5 +108,13 @@ export interface AssetConfigurator<A extends Record<string, unknown>, G extends 
 	addGroup<GN extends string, T extends Record<string, () => Promise<unknown>>>(
 		groupName: GN,
 		assets: T
-	): AssetConfigurator<A & { [K in keyof T]: Awaited<ReturnType<T[K]>> }, G | GN>;
+	): AssetConfigurator<Assets & { [K in keyof T]: Awaited<ReturnType<T[K]>> }, AssetGroups | GN>;
 }
+
+/**
+ * Callback shape for extracted asset configurator helpers.
+ */
+export type AssetConfiguratorFn<
+	Assets extends Record<string, unknown>,
+	AssetGroups extends string = never,
+> = (assets: AssetConfigurator) => AssetConfigurator<Assets, AssetGroups>;

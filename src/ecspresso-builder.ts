@@ -4,7 +4,7 @@ import ScreenManager, { ScreenConfiguratorImpl, createScreenConfigurator } from 
 import type { ResourceFactoryWithDeps, ResourceDirectValue } from "./resource-manager";
 import { definePlugin, type Plugin } from "./plugin";
 import type { WorldConfig, EmptyConfig, MergeConfigs, TypesAreCompatible, WithComponents, WithEvents, WithResources } from "./type-utils";
-import type { AssetConfigurator, AssetsResource } from "./asset-types";
+import type { AssetConfiguratorFn, AssetsResource } from "./asset-types";
 import type { ScreenDefinition, ScreenConfigurator, ScreenResource } from "./screen-types";
 
 /**
@@ -228,25 +228,28 @@ export class ECSpressoBuilder<
 	 * @param configurator Function that receives an AssetConfigurator and returns it after adding assets
 	 * @returns This builder with updated asset types
 	 */
-	withAssets<NewA extends Record<string, unknown>, NewG extends string = never>(
-		configurator: (assets: AssetConfigurator<{}, never>) => AssetConfigurator<NewA, NewG>
+	withAssets<
+		NewAssets extends Record<string, unknown>,
+		NewAssetGroups extends string = never,
+	>(
+		configurator: AssetConfiguratorFn<NewAssets, NewAssetGroups>
 	): ECSpressoBuilder<{
 		readonly components: Cfg['components'];
 		readonly events: Cfg['events'];
-		readonly resources: Cfg['resources'] & { $assets: AssetsResource<Cfg['assets'] & NewA, string> };
-		readonly assets: Cfg['assets'] & NewA;
+		readonly resources: Cfg['resources'] & { $assets: AssetsResource<Cfg['assets'] & NewAssets, string> };
+		readonly assets: Cfg['assets'] & NewAssets;
 		readonly screens: Cfg['screens'];
-	}, Labels, Groups, AssetGroupNames | NewG, ReactiveQueryNames> {
-		const assetConfig = createAssetConfigurator<{}, never>();
+	}, Labels, Groups, AssetGroupNames | NewAssetGroups, ReactiveQueryNames> {
+		const assetConfig = createAssetConfigurator();
 		configurator(assetConfig);
 		this.assetConfigurator = assetConfig as unknown as AssetConfiguratorImpl<Cfg['assets']>;
 		return this as unknown as ECSpressoBuilder<{
 			readonly components: Cfg['components'];
 			readonly events: Cfg['events'];
-			readonly resources: Cfg['resources'] & { $assets: AssetsResource<Cfg['assets'] & NewA, string> };
-			readonly assets: Cfg['assets'] & NewA;
+			readonly resources: Cfg['resources'] & { $assets: AssetsResource<Cfg['assets'] & NewAssets, string> };
+			readonly assets: Cfg['assets'] & NewAssets;
 			readonly screens: Cfg['screens'];
-		}, Labels, Groups, AssetGroupNames | NewG, ReactiveQueryNames>;
+		}, Labels, Groups, AssetGroupNames | NewAssetGroups, ReactiveQueryNames>;
 	}
 
 	/**
