@@ -1,6 +1,7 @@
 const pluginPaths = [
 	'.claude-plugin/plugin.json',
 	'.codex-plugin/plugin.json',
+	'plugins/ecspresso/.codex-plugin/plugin.json',
 ] as const;
 
 const isJsonObject = function (value: unknown): value is Record<string, unknown> {
