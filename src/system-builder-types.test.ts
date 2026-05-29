@@ -2,6 +2,9 @@ import { expect, describe, test } from 'bun:test';
 import ECSpresso from './ecspresso';
 import { definePlugin } from './plugin';
 import type { ScreenDefinition } from './screen-types';
+import type { SystemLifecycleFn, SystemProcessFn } from './system-builder';
+import type { QueryDefinition } from './types';
+import type { ConfigOf } from './type-utils';
 
 type TestComponents = {
 	position: { x: number; y: number };
@@ -52,6 +55,59 @@ function createTestWorld() {
 }
 
 describe('SystemBuilder Type Safety for AssetTypes and ScreenStates', () => {
+	test('setProcess accepts extracted SystemProcessFn helpers', () => {
+		const ecs = createTestWorld();
+		type Cfg = ConfigOf<typeof ecs>;
+		type Queries = {
+			damaged: QueryDefinition<Cfg['components'], 'health'>;
+		};
+
+		const processDamage: SystemProcessFn<Cfg, Queries, 'score'> = function processDamage({ queries, resources, ecs: world }) {
+			const health = queries.damaged[0]?.components.health;
+			const score = resources.score.value;
+			const screen = world.getCurrentScreen();
+
+			void health;
+			void score;
+			void screen;
+		};
+
+		ecs.addSystem('extractedProcess')
+			.withResources(['score'])
+			.addQuery('damaged', { with: ['health'] })
+			.setProcess(processDamage);
+
+		expect(true).toBe(true);
+	});
+
+	test('lifecycle hooks accept extracted SystemLifecycleFn helpers', () => {
+		const ecs = createTestWorld();
+		type Cfg = ConfigOf<typeof ecs>;
+
+		const initialize: SystemLifecycleFn<Cfg> = function initialize(world) {
+			const loaded = world.isAssetLoaded('playerTexture');
+			const screen = world.getCurrentScreen();
+
+			void loaded;
+			void screen;
+		};
+
+		const detach: SystemLifecycleFn<Cfg> = function detach(world) {
+			const loaded = world.isAssetLoaded('enemyTexture');
+			const score = world.getResource('score');
+
+			void loaded;
+			void score;
+		};
+
+		ecs.addSystem('extractedLifecycle')
+			.setOnInitialize(initialize)
+			.setOnDetach(detach)
+			.setProcess(() => {});
+
+		expect(true).toBe(true);
+	});
+
 	test('inScreens accepts valid screen names', () => {
 		const ecs = createTestWorld();
 

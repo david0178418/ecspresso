@@ -6,6 +6,9 @@ All notable changes to ECSpresso are documented here. Format loosely follows [Ke
 
 ### Added
 
+- **System callback helper types** for extracted system callbacks:
+  - `SystemProcessFn<Cfg, Queries, ResourceKeys?, Singletons?>` names the `.setProcess(...)` callback shape.
+  - `SystemLifecycleFn<Cfg>` names the `.setOnInitialize(...)` / `.setOnDetach(...)` callback shape.
 - **Spritesheet helpers in `ecspresso/plugins/rendering/sprite-animation`** for PixiJS atlases:
   - `spritesheetLoader<S>(url)` — `AssetConfigurator`-compatible loader; lazy-loads `pixi.js` and runtime-shape-checks the resolved value so non-atlas URLs error at load time instead of deep in the play loop.
   - `clipFromSheet(sheet, name, options?)` and `animationSetFromSheet(id, sheet, options?)` — build clips/sets from a loaded `Spritesheet<S>`. Animation-name union is inferred when `S` is declared as an `interface ... extends SpritesheetData`. Both throw on zero-frame animations.

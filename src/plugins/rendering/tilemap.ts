@@ -11,7 +11,7 @@
 
 import { definePlugin, type BasePluginOptions } from 'ecspresso';
 import type ECSpresso from 'ecspresso';
-import type { AssetsConfig, ComponentsConfig, WorldConfigFrom } from '../../type-utils';
+import type { AssetsConfig, ComponentsConfig, ResourcesConfig } from '../../type-utils';
 import { createNavGrid, type NavGrid } from '../ai/pathfinding';
 import type { Vector2D } from '../../utils/math';
 import type { LocalTransform, WorldTransform } from '../spatial/transform';
@@ -231,7 +231,9 @@ export interface TilemapResourceTypes {
 	tilemaps: TilemapRegistry;
 }
 
-export type TilemapWorldConfig = WorldConfigFrom<TilemapComponentTypes, {}, TilemapResourceTypes>;
+export type TilemapWorldConfig =
+	ComponentsConfig<TilemapComponentTypes>
+	& ResourcesConfig<TilemapResourceTypes>;
 
 export interface TilemapPluginOptions<G extends string = 'rendering'> extends BasePluginOptions<G> {
 	/** Optional collision layer name. When set, solid tiles auto-spawn `aabbCollider` strips. */

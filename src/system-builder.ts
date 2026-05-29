@@ -22,8 +22,8 @@ export class SystemBuilder<
 	private queries: Queries = {} as Queries;
 	private singletons: Singletons = {} as Singletons;
 	private processFunction?: InternalProcessFunction<Cfg, Queries, Singletons>;
-	private detachFunction?: LifecycleFunction<Cfg>;
-	private initializeFunction?: LifecycleFunction<Cfg>;
+	private detachFunction?: SystemLifecycleFn<Cfg>;
+	private initializeFunction?: SystemLifecycleFn<Cfg>;
 	private eventHandlers?: {
 		[EventName in keyof Cfg['events']]?: (ctx: {
 			data: Cfg['events'][EventName];
@@ -294,7 +294,7 @@ export class SystemBuilder<
 	 * @returns This SystemBuilder instance for method chaining
 	 */
 	setProcess(
-		process: ProcessFunction<Cfg, Queries, ResourceKeys, Singletons>
+		process: SystemProcessFn<Cfg, Queries, ResourceKeys, Singletons>
 	): this {
 		this.processFunction = this._wrapWithResources(process as (ctx: unknown) => void);
 		return this;
@@ -469,7 +469,7 @@ export class SystemBuilder<
 	 * @returns This SystemBuilder instance for method chaining
 	 */
 	setOnDetach(
-		onDetach: LifecycleFunction<Cfg>
+		onDetach: SystemLifecycleFn<Cfg>
 	): this {
 		this.detachFunction = onDetach;
 		return this;
@@ -488,7 +488,7 @@ export class SystemBuilder<
 	 * @returns This SystemBuilder instance for method chaining
 	 */
 	setOnInitialize(
-		onInitialize: LifecycleFunction<Cfg>
+		onInitialize: SystemLifecycleFn<Cfg>
 	): this {
 		this.initializeFunction = onInitialize;
 		return this;
@@ -570,7 +570,7 @@ export type ProcessContext<
  * Function signature for system process methods.
  * Receives a single context object with queries, dt, ecs, and optionally resources.
  */
-type ProcessFunction<
+export type SystemProcessFn<
 	Cfg extends WorldConfig,
 	Queries extends Record<string, QueryDefinition<Cfg['components']>>,
 	ResourceKeys extends keyof Cfg['resources'] = never,
@@ -592,6 +592,6 @@ type InternalProcessFunction<
  * Type for system lifecycle functions
  * These can be asynchronous
  */
-type LifecycleFunction<Cfg extends WorldConfig> = (
+export type SystemLifecycleFn<Cfg extends WorldConfig> = (
 	ecs: ECSpresso<Cfg>,
 ) => void | Promise<void>;

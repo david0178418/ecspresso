@@ -9,7 +9,7 @@
  */
 
 import { definePlugin, type BasePluginOptions } from 'ecspresso';
-import type { WorldConfigFrom } from 'ecspresso';
+import type { ComponentsConfig, EventsConfig } from 'ecspresso';
 
 // ==================== Component Types ====================
 
@@ -61,7 +61,9 @@ export interface HealthEventTypes {
  * WorldConfig representing the health plugin's provided types.
  * Used as the `Requires` type parameter by plugins that depend on health.
  */
-export type HealthWorldConfig = WorldConfigFrom<HealthComponentTypes, HealthEventTypes>;
+export type HealthWorldConfig =
+	ComponentsConfig<HealthComponentTypes>
+	& EventsConfig<HealthEventTypes>;
 
 // ==================== Plugin Options ====================
 

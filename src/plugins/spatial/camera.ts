@@ -15,7 +15,7 @@
 import { definePlugin } from 'ecspresso';
 import type { SystemPhase } from 'ecspresso';
 import type ECSpresso from 'ecspresso';
-import type { WorldConfigFrom } from '../../type-utils';
+import type { ComponentsConfig, ResourcesConfig } from '../../type-utils';
 import type { TransformWorldConfig } from './transform';
 
 // ==================== Component Types ====================
@@ -230,7 +230,9 @@ function resolveFollowOptions(options?: FollowOptions): Omit<CameraFollow, 'targ
 
 // ==================== Plugin Factory ====================
 
-type CameraWorldConfig = WorldConfigFrom<CameraComponentTypes, {}, CameraResourceTypes>;
+type CameraWorldConfig =
+	ComponentsConfig<CameraComponentTypes>
+	& ResourcesConfig<CameraResourceTypes>;
 
 type CameraLabels =
 	| 'camera-init'

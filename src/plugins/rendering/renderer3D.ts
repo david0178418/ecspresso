@@ -23,7 +23,7 @@ import type {
 	Quaternion,
 } from 'three';
 import { definePlugin, type Plugin } from 'ecspresso';
-import type { WorldConfigFrom, EmptyConfig } from '../../type-utils';
+import type { ComponentsConfig, EmptyConfig, EventsConfig, ResourcesConfig } from '../../type-utils';
 import type ECSpresso from 'ecspresso';
 import {
 	createTransform3DPlugin,
@@ -352,6 +352,10 @@ function syncObject3D(
 
 type Renderer3DLabels = 'renderer3d-sync' | 'renderer3d-scene-graph' | 'renderer3d-render' | 'transform3d-propagation';
 type Renderer3DReactiveQueryNames = 'renderer3d-meshes' | 'renderer3d-groups' | 'renderer3d-objects';
+type Renderer3DWorldConfig =
+	ComponentsConfig<Renderer3DComponentTypes>
+	& EventsConfig<Renderer3DEventTypes>
+	& ResourcesConfig<Renderer3DResourceTypes>;
 
 /**
  * Create a 3D rendering plugin for ECSpresso.
@@ -365,7 +369,7 @@ type Renderer3DReactiveQueryNames = 'renderer3d-meshes' | 'renderer3d-groups' | 
  */
 export function createRenderer3DPlugin<G extends string = 'renderer3d'>(
 	options: Renderer3DPluginOptions<G>,
-): Plugin<WorldConfigFrom<Renderer3DComponentTypes, Renderer3DEventTypes, Renderer3DResourceTypes>, EmptyConfig, Renderer3DLabels, G, never, Renderer3DReactiveQueryNames> {
+): Plugin<Renderer3DWorldConfig, EmptyConfig, Renderer3DLabels, G, never, Renderer3DReactiveQueryNames> {
 	const {
 		systemGroup = 'renderer3d',
 		renderSyncPriority = 500,
@@ -390,7 +394,7 @@ export function createRenderer3DPlugin<G extends string = 'renderer3d'>(
 	// Determine mode: pre-initialized if renderer was provided
 	const isManaged = !('renderer' in options && options.renderer !== undefined);
 
-	type PluginECS = ECSpresso<WorldConfigFrom<Renderer3DComponentTypes, Renderer3DEventTypes, Renderer3DResourceTypes>>;
+	type PluginECS = ECSpresso<Renderer3DWorldConfig>;
 
 	return definePlugin('renderer3d')
 		.withComponentTypes<Renderer3DComponentTypes>()

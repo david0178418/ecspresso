@@ -9,7 +9,7 @@
 
 import type { Application, ApplicationOptions, Container, Sprite, Graphics } from 'pixi.js';
 import { definePlugin, type Plugin } from 'ecspresso';
-import type { WorldConfigFrom, EmptyConfig } from '../../type-utils';
+import type { ComponentsConfig, EmptyConfig, EventsConfig, ResourcesConfig, WorldConfig } from '../../type-utils';
 import type ECSpresso from 'ecspresso';
 import {
 	createTransformPlugin,
@@ -445,25 +445,29 @@ export function reapplyViewportScale(pixiApp: Application): void {
  */
 type Renderer2DLabels = 'renderer2d-sync' | 'renderer2d-scene-graph' | 'renderer2d-camera-sync' | 'transform-propagation';
 type Renderer2DReactiveQueryNames = 'renderer2d-sprites' | 'renderer2d-graphics' | 'renderer2d-containers';
+type Renderer2DWorldConfig<R extends WorldConfig['resources'] = Renderer2DResourceTypes> =
+	ComponentsConfig<Renderer2DComponentTypes>
+	& EventsConfig<Renderer2DEventTypes>
+	& ResourcesConfig<R>;
 
 export function createRenderer2DPlugin<G extends string = 'renderer2d'>(
 	options: Renderer2DPluginOptions<G> & { screenScale: ScreenScaleOptions; camera: true }
-): Plugin<WorldConfigFrom<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes & ViewportScaleResourceTypes & CameraResourceTypes>, EmptyConfig, Renderer2DLabels, G, never, Renderer2DReactiveQueryNames>;
+): Plugin<Renderer2DWorldConfig<Renderer2DResourceTypes & ViewportScaleResourceTypes & CameraResourceTypes>, EmptyConfig, Renderer2DLabels, G, never, Renderer2DReactiveQueryNames>;
 export function createRenderer2DPlugin<G extends string = 'renderer2d'>(
 	options: Renderer2DPluginOptions<G> & { screenScale: ScreenScaleOptions }
-): Plugin<WorldConfigFrom<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes & ViewportScaleResourceTypes>, EmptyConfig, Renderer2DLabels, G, never, Renderer2DReactiveQueryNames>;
+): Plugin<Renderer2DWorldConfig<Renderer2DResourceTypes & ViewportScaleResourceTypes>, EmptyConfig, Renderer2DLabels, G, never, Renderer2DReactiveQueryNames>;
 export function createRenderer2DPlugin<G extends string = 'renderer2d'>(
 	options: Renderer2DPluginOptions<G> & { camera: true }
-): Plugin<WorldConfigFrom<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes & CameraResourceTypes>, EmptyConfig, Renderer2DLabels, G, never, Renderer2DReactiveQueryNames>;
+): Plugin<Renderer2DWorldConfig<Renderer2DResourceTypes & CameraResourceTypes>, EmptyConfig, Renderer2DLabels, G, never, Renderer2DReactiveQueryNames>;
 export function createRenderer2DPlugin<G extends string = 'renderer2d'>(
 	options: Renderer2DPluginOptions<G>
-): Plugin<WorldConfigFrom<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes>, EmptyConfig, Renderer2DLabels, G, never, Renderer2DReactiveQueryNames>;
+): Plugin<Renderer2DWorldConfig, EmptyConfig, Renderer2DLabels, G, never, Renderer2DReactiveQueryNames>;
 export function createRenderer2DPlugin<G extends string = 'renderer2d'>(
 	options: Renderer2DPluginOptions<G> & { camera?: boolean; screenScale?: ScreenScaleOptions }
-): Plugin<WorldConfigFrom<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes>, EmptyConfig, Renderer2DLabels, G, never, Renderer2DReactiveQueryNames>
-| Plugin<WorldConfigFrom<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes & CameraResourceTypes>, EmptyConfig, Renderer2DLabels, G, never, Renderer2DReactiveQueryNames>
-| Plugin<WorldConfigFrom<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes & ViewportScaleResourceTypes>, EmptyConfig, Renderer2DLabels, G, never, Renderer2DReactiveQueryNames>
-| Plugin<WorldConfigFrom<Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes & ViewportScaleResourceTypes & CameraResourceTypes>, EmptyConfig, Renderer2DLabels, G, never, Renderer2DReactiveQueryNames> {
+): Plugin<Renderer2DWorldConfig, EmptyConfig, Renderer2DLabels, G, never, Renderer2DReactiveQueryNames>
+| Plugin<Renderer2DWorldConfig<Renderer2DResourceTypes & CameraResourceTypes>, EmptyConfig, Renderer2DLabels, G, never, Renderer2DReactiveQueryNames>
+| Plugin<Renderer2DWorldConfig<Renderer2DResourceTypes & ViewportScaleResourceTypes>, EmptyConfig, Renderer2DLabels, G, never, Renderer2DReactiveQueryNames>
+| Plugin<Renderer2DWorldConfig<Renderer2DResourceTypes & ViewportScaleResourceTypes & CameraResourceTypes>, EmptyConfig, Renderer2DLabels, G, never, Renderer2DReactiveQueryNames> {
 	const {
 		rootContainer: customRootContainer,
 		systemGroup = 'renderer2d',
@@ -520,7 +524,7 @@ export function createRenderer2DPlugin<G extends string = 'renderer2d'>(
 	// sync positions objects using absolute worldTransform.  Nesting under a
 	// parent's display object would double-apply the parent's transform.
 	type PluginResourceTypes = Renderer2DResourceTypes & ViewportScaleResourceTypes;
-	type PluginECS = ECSpresso<WorldConfigFrom<Renderer2DComponentTypes, Renderer2DEventTypes, PluginResourceTypes>>;
+	type PluginECS = ECSpresso<Renderer2DWorldConfig<PluginResourceTypes>>;
 
 	function resolveTargetContainer(
 		entityId: number,

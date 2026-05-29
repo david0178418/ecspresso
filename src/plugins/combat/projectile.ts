@@ -9,7 +9,7 @@
  */
 
 import { definePlugin, type BasePluginOptions } from 'ecspresso';
-import type { EventsConfig, WorldConfigFrom } from 'ecspresso';
+import type { ComponentsConfig, EventsConfig } from 'ecspresso';
 import type { TransformWorldConfig } from '../spatial/transform';
 import type { CollisionEventTypes } from '../physics/collision';
 import type { DamageEvent } from './health';
@@ -74,7 +74,9 @@ export interface ProjectileEventTypes {
 /**
  * WorldConfig representing the projectile plugin's provided types.
  */
-export type ProjectileWorldConfig = WorldConfigFrom<ProjectileComponentTypes, ProjectileEventTypes>;
+export type ProjectileWorldConfig =
+	ComponentsConfig<ProjectileComponentTypes>
+	& EventsConfig<ProjectileEventTypes>;
 
 // ==================== Plugin Options ====================
 

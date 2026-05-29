@@ -45,6 +45,37 @@ world.addSystem('bounce')
 
 The inline query definition accepts the full query shape (`with`, `without`, `optional`, `changed`, `parentHas`). Phase / priority / group / lifecycle chains still compose around it.
 
+## Extracted System Callbacks
+
+Use `SystemProcessFn` and `SystemLifecycleFn` when system callbacks are extracted into named helpers:
+
+```typescript
+import type { ConfigOf, QueryDefinition, SystemLifecycleFn, SystemProcessFn } from 'ecspresso';
+
+type GameConfig = ConfigOf<typeof game>;
+type MovementQueries = {
+  moving: QueryDefinition<GameConfig['components'], 'position' | 'velocity'>;
+};
+
+const processMovement: SystemProcessFn<GameConfig, MovementQueries> = function processMovement({ queries, dt }) {
+  queries.moving.forEach(entity => {
+    entity.components.position.x += entity.components.velocity.x * dt;
+  });
+};
+
+const initializeMovement: SystemLifecycleFn<GameConfig> = function initializeMovement(ecs) {
+  ecs.updateResource('systemStatus', current => ({
+    ...current,
+    movementReady: true,
+  }));
+};
+
+game.addSystem('movement')
+  .addQuery('moving', { with: ['position', 'velocity'], mutates: ['position'] })
+  .setOnInitialize(initializeMovement)
+  .setProcess(processMovement);
+```
+
 ## System Phases
 
 Systems are organized into named execution phases that run in a fixed order:

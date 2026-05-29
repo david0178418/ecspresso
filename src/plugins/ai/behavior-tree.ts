@@ -16,7 +16,7 @@
  *   Leaves     — action (tick → NodeStatus, optional onAbort), condition (predicate)
  */
 
-import { definePlugin, type BasePluginOptions, type WorldConfigFrom, type BaseWorld } from 'ecspresso';
+import { definePlugin, type BasePluginOptions, type BaseWorld, type ComponentsConfig, type EventsConfig } from 'ecspresso';
 
 // ==================== NodeStatus ====================
 
@@ -395,7 +395,9 @@ export interface BehaviorTreeEventTypes {
 /**
  * WorldConfig representing the behavior tree plugin's provided types.
  */
-export type BehaviorTreeWorldConfig = WorldConfigFrom<BehaviorTreeComponentTypes, BehaviorTreeEventTypes>;
+export type BehaviorTreeWorldConfig =
+	ComponentsConfig<BehaviorTreeComponentTypes>
+	& EventsConfig<BehaviorTreeEventTypes>;
 
 // ==================== Helper Functions ====================
 

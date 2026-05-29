@@ -10,7 +10,7 @@
  */
 
 import { definePlugin, type BasePluginOptions } from 'ecspresso';
-import type { ComponentsConfig, ResourcesConfig, WorldConfigFrom } from 'ecspresso';
+import type { ComponentsConfig, EventsConfig, ResourcesConfig } from 'ecspresso';
 import type { TransformWorldConfig } from '../spatial/transform';
 import type { SpatialIndexResourceTypes } from '../spatial/spatial-index';
 import type { CollisionComponentTypes } from '../physics/collision';
@@ -87,7 +87,9 @@ export interface DetectionEventTypes {
 /**
  * WorldConfig representing the detection plugin's provided types.
  */
-export type DetectionWorldConfig = WorldConfigFrom<DetectionComponentTypes, DetectionEventTypes>;
+export type DetectionWorldConfig =
+	ComponentsConfig<DetectionComponentTypes>
+	& EventsConfig<DetectionEventTypes>;
 
 // ==================== Plugin Options ====================
 

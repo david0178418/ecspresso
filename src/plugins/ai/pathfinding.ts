@@ -11,7 +11,7 @@
  */
 
 import { definePlugin, type BasePluginOptions } from 'ecspresso';
-import type { WorldConfigFrom } from 'ecspresso';
+import type { ComponentsConfig, EventsConfig, ResourcesConfig } from 'ecspresso';
 import type { Vector2D } from '../../utils/math';
 import type { TransformWorldConfig } from '../spatial/transform';
 import type { SteeringWorldConfig } from '../physics/steering';
@@ -105,11 +105,10 @@ export interface PathfindingResourceTypes {
 // ==================== WorldConfig ====================
 
 /** WorldConfig representing the pathfinding plugin's provided types. */
-export type PathfindingWorldConfig = WorldConfigFrom<
-	PathfindingComponentTypes,
-	PathfindingEventTypes,
-	PathfindingResourceTypes
->;
+export type PathfindingWorldConfig =
+	ComponentsConfig<PathfindingComponentTypes>
+	& EventsConfig<PathfindingEventTypes>
+	& ResourcesConfig<PathfindingResourceTypes>;
 
 // ==================== Plugin Options ====================
 
