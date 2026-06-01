@@ -30,6 +30,7 @@ const game = ECSpresso.create()
     .add('gameplay', {
       initialState: () => ({ score: 0, isPaused: false }),
       onEnter: (config) => console.log(`Starting level ${config.level}`),
+      onResume: ({ state }) => console.log(`Resuming with ${state.score} points`),
       onExit: () => console.log('Gameplay ended'),
       requiredAssetGroups: ['level1'],
     })
@@ -76,13 +77,19 @@ const game = ECSpresso.create()
 
 ## Screen Hooks
 
-Subscribe to a specific screen entering or exiting without writing inline `screenEnter` / `screenExit` event guards. Multiple handlers can be registered for the same screen and fire in registration order. Each returns a disposer.
+Subscribe to a specific screen entering, resuming, or exiting without writing inline `screenEnter` / `screenResume` / `screenExit` event guards. Multiple handlers can be registered for the same screen and fire in registration order. Each returns a disposer.
 
 ```typescript
 const offEnter = game.onScreenEnter('gameplay', ({ config, ecs }) => {
   // Fires on setScreen('gameplay', ...) and pushScreen('gameplay', ...)
   console.log(`Starting level ${config.level}`);
   ecs.spawn({ player: true });
+});
+
+const offResume = game.onScreenResume('gameplay', ({ config, state, ecs }) => {
+  // Fires after popScreen() restores gameplay as the current screen
+  console.log(`Resuming level ${config.level} with score ${state.score}`);
+  ecs.updateScreenState('gameplay', { isPaused: false });
 });
 
 const offExit = game.onScreenExit('gameplay', ({ ecs }) => {
@@ -92,6 +99,7 @@ const offExit = game.onScreenExit('gameplay', ({ ecs }) => {
 
 // Later, if needed:
 offEnter();
+offResume();
 offExit();
 ```
 

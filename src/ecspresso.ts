@@ -1991,6 +1991,32 @@ export default class ECSpresso<
 	}
 
 	/**
+	 * Subscribe to the `screenResume` event for a specific screen. The handler
+	 * fires only when that named stacked screen becomes current again after an
+	 * overlay is popped.
+	 *
+	 * @returns A disposer function that unregisters the handler.
+	 */
+	onScreenResume<K extends keyof Cfg['screens'] & string>(
+		name: K,
+		handler: (ctx: {
+			config: Cfg['screens'][K] extends ScreenDefinition<infer C, any> ? C : never;
+			state: Cfg['screens'][K] extends ScreenDefinition<any, infer S> ? S : never;
+			ecs: ECSpresso<Cfg>;
+		}) => void,
+	): () => void {
+		const bus = this._eventBus as unknown as EventBus<ScreenEvents<keyof Cfg['screens'] & string>>;
+		return bus.subscribe('screenResume', (data) => {
+			if (data.screen !== name) return;
+			handler({
+				config: data.config as Cfg['screens'][K] extends ScreenDefinition<infer C, any> ? C : never,
+				state: data.state as Cfg['screens'][K] extends ScreenDefinition<any, infer S> ? S : never,
+				ecs: this,
+			});
+		});
+	}
+
+	/**
 	 * Subscribe to the `screenExit` event for a specific screen. The handler
 	 * fires only when that named screen exits (via `setScreen` away, or
 	 * `popScreen` if it was on the stack). Multiple handlers can be registered

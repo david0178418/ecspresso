@@ -343,6 +343,44 @@ describe('ScreenManager', () => {
 			expect(events.length).toBe(1);
 			expect(events[0]?.screen).toBe('pause');
 		});
+
+		test('should emit screenResume event for the restored screen after pop', async () => {
+			const events: Array<{ screen: string; config: unknown; state: unknown }> = [];
+			eventBus.subscribe('screenResume', (data) => events.push(data));
+
+			await manager.setScreen('loading', {});
+			manager.updateState({ progress: 50 });
+			await manager.pushScreen('pause', {});
+			await manager.popScreen();
+
+			expect(events).toEqual([{
+				screen: 'loading',
+				config: {},
+				state: { progress: 50 },
+			}]);
+		});
+
+		test('should call onResume for the restored screen after pop', async () => {
+			const resumes: Array<{ config: unknown; state: unknown; ecs: unknown }> = [];
+
+			manager.register('gameplay', {
+				initialState: (_config: { level: number }) => ({ score: 0 }),
+				onResume: (ctx) => {
+					resumes.push(ctx);
+				},
+			});
+
+			await manager.setScreen('gameplay', { level: 3 });
+			manager.updateState({ score: 100 });
+			await manager.pushScreen('pause', {});
+			await manager.popScreen();
+
+			expect(resumes).toEqual([{
+				config: { level: 3 },
+				state: { score: 100 },
+				ecs: {},
+			}]);
+		});
 	});
 
 	describe('active checks', () => {

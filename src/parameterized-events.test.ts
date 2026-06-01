@@ -49,11 +49,22 @@ describe('Parameterized ScreenEvents', () => {
 		void _bad;
 	});
 
+	test('narrows screenResume.screen to specific screen names', () => {
+		type Narrowed = ScreenEvents<'menu' | 'game'>;
+		const event: Narrowed['screenResume'] = { screen: 'game', config: {}, state: {} };
+		// @ts-expect-error - 'invalid' is not assignable to 'menu' | 'game'
+		const _bad: Narrowed['screenResume'] = { screen: 'invalid', config: {}, state: {} };
+		void event;
+		void _bad;
+	});
+
 	test('unparameterized ScreenEvents defaults to string', () => {
 		type Default = ScreenEvents;
 		const event: Default['screenEnter'] = { screen: 'anything', config: {} };
 		const exit: Default['screenExit'] = { screen: 'anyScreen' };
+		const resume: Default['screenResume'] = { screen: 'anyScreen', config: {}, state: {} };
 		void event;
 		void exit;
+		void resume;
 	});
 });

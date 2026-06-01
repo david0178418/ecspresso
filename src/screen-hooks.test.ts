@@ -99,13 +99,30 @@ describe('onScreenEnter / onScreenExit', () => {
 
 		world.onScreenEnter('playing', () => events.push('enter:playing'));
 		world.onScreenEnter('pause', () => events.push('enter:pause'));
+		world.onScreenResume('playing', () => events.push('resume:playing'));
 		world.onScreenExit('pause', () => events.push('exit:pause'));
 
 		await world.setScreen('playing', { level: 1 });
 		await world.pushScreen('pause', {});
 		await world.popScreen();
 
-		expect(events).toEqual(['enter:playing', 'enter:pause', 'exit:pause']);
+		expect(events).toEqual(['enter:playing', 'enter:pause', 'exit:pause', 'resume:playing']);
+	});
+
+	test('onScreenResume receives restored config, state, and ecs', async () => {
+		const world = await buildWorld();
+		const resumed: Array<{ level: number; score: number; hasEcs: boolean }> = [];
+
+		world.onScreenResume('playing', ({ config, state, ecs }) => {
+			resumed.push({ level: config.level, score: state.score, hasEcs: ecs === world });
+		});
+
+		await world.setScreen('playing', { level: 2 });
+		world.updateScreenState('playing', { score: 42 });
+		await world.pushScreen('pause', {});
+		await world.popScreen();
+
+		expect(resumed).toEqual([{ level: 2, score: 42, hasEcs: true }]);
 	});
 
 	test('onScreenExit does not fire for sibling screens', async () => {
@@ -125,5 +142,7 @@ describe('onScreenEnter / onScreenExit', () => {
 		world.onScreenEnter('nope', () => {});
 		// @ts-expect-error 'nope' is not a registered screen
 		world.onScreenExit('nope', () => {});
+		// @ts-expect-error 'nope' is not a registered screen
+		world.onScreenResume('nope', () => {});
 	});
 });

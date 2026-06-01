@@ -2,6 +2,14 @@
 
 All notable changes to ECSpresso are documented here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## 0.19.0
+
+### Added
+
+- **Screen resume lifecycle hooks** for overlay stacks:
+  - `ScreenDefinition.onResume({ config, state, ecs })` runs after `popScreen()` restores a stacked screen as current.
+  - `screenResume` events and `game.onScreenResume(screen, handler)` expose the same resume point to centralized screen wiring.
+
 ## 0.18.0
 
 ### Breaking

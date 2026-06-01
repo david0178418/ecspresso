@@ -25,6 +25,11 @@ export interface ScreenDefinition<
 	 */
 	readonly onExit?: (ecs: World) => void | Promise<void>;
 	/**
+	 * Lifecycle hook called when this stacked screen becomes current again
+	 * after an overlay is popped.
+	 */
+	readonly onResume?: (ctx: { config: Config; state: State; ecs: World }) => void | Promise<void>;
+	/**
 	 * Asset keys that must be loaded before entering this screen
 	 */
 	readonly requiredAssets?: ReadonlyArray<string>;
@@ -106,6 +111,7 @@ export interface ScreenEvents<S extends string = string> {
 	screenExit: { screen: S };
 	screenPush: { screen: S; config: unknown };
 	screenPop: { screen: S };
+	screenResume: { screen: S; config: unknown; state: unknown };
 }
 
 /**

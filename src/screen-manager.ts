@@ -164,7 +164,22 @@ export default class ScreenManager<Screens extends Record<string, ScreenDefiniti
 		}
 
 		// Restore previous screen from stack
-		this.currentScreen = this.screenStack.pop() ?? null;
+		const resumedScreen = this.screenStack.pop();
+		this.currentScreen = resumedScreen ?? null;
+
+		if (!resumedScreen) return;
+
+		const entry = this.screens.get(resumedScreen.name);
+		await entry?.definition.onResume?.({
+			config: resumedScreen.config,
+			state: resumedScreen.state,
+			ecs: this.requireEcs(),
+		});
+		this.eventBus?.publish('screenResume', {
+			screen: resumedScreen.name as keyof Screens & string,
+			config: resumedScreen.config,
+			state: resumedScreen.state,
+		});
 	}
 
 	/**

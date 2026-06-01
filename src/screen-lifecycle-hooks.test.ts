@@ -59,6 +59,29 @@ describe('screen lifecycle hook typing via withScreens()', () => {
 		expect(ecs).toBeDefined();
 	});
 
+	test('onResume hook receives typed config, state, and ecs', () => {
+		const ecs = ECSpresso.create()
+			.withComponentTypes<TC>()
+			.withEventTypes<TE>()
+			.withResource('score', { value: 0 } as TR['score'])
+			.withScreens(s => s
+				.add('gameplay', {
+					initialState: (config: { level: number }) => ({ score: config.level }),
+					onResume: ({ config, state, ecs }) => {
+						const _level: number = config.level;
+						const _score: number = state.score;
+						const _resource: { value: number } = ecs.getResource('score');
+						void _level;
+						void _score;
+						void _resource;
+					},
+				})
+			)
+			.build();
+
+		expect(ecs).toBeDefined();
+	});
+
 	test('onEnter hook ecs param allows typed event emission', () => {
 		const ecs = ECSpresso.create()
 			.withComponentTypes<TC>()
