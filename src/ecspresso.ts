@@ -128,7 +128,7 @@ export default class ECSpresso<
 	/** Screen manager for state/screen transitions */
 	private _screenManager: ScreenManager<Cfg['screens']> | null = null;
 	/** Reactive query manager for enter/exit callbacks */
-	private _reactiveQueryManager: ReactiveQueryManager<Cfg['components']>;
+	private _reactiveQueryManager: ReactiveQueryManager<Cfg, ReactiveQueryNames>;
 	/** Post-update hooks to be called after all systems in update() */
 	private _postUpdateHooks: Array<(ctx: { ecs: ECSpresso<Cfg>; dt: number }) => void> = [];
 	/** Global tick counter, incremented at the end of each update() */
@@ -183,7 +183,7 @@ export default class ECSpresso<
 		this._entityManager = new EntityManager<Cfg['components']>();
 		this._eventBus = new EventBus<Cfg['events']>();
 		this._resourceManager = new ResourceManager<Cfg['resources'], ECSpresso<Cfg>>();
-		this._reactiveQueryManager = new ReactiveQueryManager<Cfg['components']>(this._entityManager);
+		this._reactiveQueryManager = new ReactiveQueryManager<Cfg, ReactiveQueryNames>(this._entityManager, this);
 		this._commandBuffer = new CommandBuffer<Cfg>(this);
 
 		// Wire up lifecycle hooks for change detection, required components, and reactive queries
@@ -1690,7 +1690,7 @@ export default class ECSpresso<
 		OptionalComponents extends keyof Cfg['components'] = never,
 	>(
 		name: ReactiveQueryNames,
-		definition: ReactiveQueryDefinition<Cfg['components'], WithComponents, WithoutComponents, OptionalComponents>
+		definition: ReactiveQueryDefinition<Cfg, WithComponents, WithoutComponents, OptionalComponents>
 	): void {
 		this._reactiveQueryManager.addQuery(name, definition);
 	}

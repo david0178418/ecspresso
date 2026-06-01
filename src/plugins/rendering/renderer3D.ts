@@ -608,30 +608,30 @@ export function createRenderer3DPlugin<G extends string = 'renderer3d'>(
 
 					ecs.addReactiveQuery('renderer3d-meshes', {
 						with: ['mesh'],
-						onEnter: (entity) => {
+						onEnter: ({ entity }) => {
 							addToScene(entity.id, entity.components.mesh);
 						},
-						onExit: (entityId) => {
+						onExit: ({ entityId }) => {
 							entityToThreeObject.delete(entityId);
 						},
 					});
 
 					ecs.addReactiveQuery('renderer3d-groups', {
 						with: ['group'],
-						onEnter: (entity) => {
+						onEnter: ({ entity }) => {
 							addToScene(entity.id, entity.components.group);
 						},
-						onExit: (entityId) => {
+						onExit: ({ entityId }) => {
 							entityToThreeObject.delete(entityId);
 						},
 					});
 
 					ecs.addReactiveQuery('renderer3d-objects', {
 						with: ['object3d'],
-						onEnter: (entity) => {
+						onEnter: ({ entity }) => {
 							addToScene(entity.id, entity.components.object3d);
 						},
-						onExit: (entityId) => {
+						onExit: ({ entityId }) => {
 							entityToThreeObject.delete(entityId);
 						},
 					});

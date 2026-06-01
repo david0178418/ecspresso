@@ -4,6 +4,12 @@ All notable changes to ECSpresso are documented here. Format loosely follows [Ke
 
 ## 0.19.0
 
+### Breaking
+
+- `addReactiveQuery(...)` callbacks now receive context objects:
+  - `onEnter({ entity, ecs })` instead of `onEnter(entity)`.
+  - `onExit({ entityId, ecs })` instead of `onExit(entityId)`.
+
 ### Added
 
 - **Screen resume lifecycle hooks** for overlay stacks:

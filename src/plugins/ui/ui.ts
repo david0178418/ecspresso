@@ -553,7 +553,7 @@ export function createUIPlugin<G extends string = 'ui'>(
 					const rootContainer = ecs.tryGetResource<Container>('rootContainer');
 					ecs.addReactiveQuery('ui-panels', {
 						with: ['uiPanel', 'uiElement'],
-						onEnter: (entity) => {
+						onEnter: ({ entity }) => {
 							const g = new pixi.Graphics();
 							panelPool.set(entity.id, {
 								pixiGraphics: g,
@@ -565,7 +565,7 @@ export function createUIPlugin<G extends string = 'ui'>(
 							});
 							if (rootContainer) rootContainer.addChild(g);
 						},
-						onExit: (entityId) => {
+						onExit: ({ entityId }) => {
 							const runtime = panelPool.get(entityId);
 							if (runtime) {
 								runtime.pixiGraphics.removeFromParent();
@@ -596,7 +596,7 @@ export function createUIPlugin<G extends string = 'ui'>(
 					const rootContainer = ecs.tryGetResource<Container>('rootContainer');
 					ecs.addReactiveQuery('ui-progress-bars', {
 						with: ['uiProgressBar', 'uiElement'],
-						onEnter: (entity) => {
+						onEnter: ({ entity }) => {
 							const g = new pixi.Graphics();
 							progressPool.set(entity.id, {
 								pixiGraphics: g,
@@ -610,7 +610,7 @@ export function createUIPlugin<G extends string = 'ui'>(
 							});
 							if (rootContainer) rootContainer.addChild(g);
 						},
-						onExit: (entityId) => {
+						onExit: ({ entityId }) => {
 							const runtime = progressPool.get(entityId);
 							if (runtime) {
 								runtime.pixiGraphics.removeFromParent();
@@ -643,7 +643,7 @@ export function createUIPlugin<G extends string = 'ui'>(
 					const rootContainer = ecs.tryGetResource<Container>('rootContainer');
 					ecs.addReactiveQuery('ui-message-logs', {
 						with: ['uiMessageLog', 'uiElement'],
-						onEnter: (entity) => {
+						onEnter: ({ entity }) => {
 							const root = new pixi.Container();
 							messageLogPool.set(entity.id, {
 								rootContainer: root,
@@ -657,7 +657,7 @@ export function createUIPlugin<G extends string = 'ui'>(
 							});
 							if (rootContainer) rootContainer.addChild(root);
 						},
-						onExit: (entityId) => {
+						onExit: ({ entityId }) => {
 							const runtime = messageLogPool.get(entityId);
 							if (runtime) {
 								runtime.rootContainer.removeFromParent();
@@ -689,7 +689,7 @@ export function createUIPlugin<G extends string = 'ui'>(
 					const rootContainer = ecs.tryGetResource<Container>('rootContainer');
 					ecs.addReactiveQuery('ui-labels', {
 						with: ['uiLabel'],
-						onEnter: (entity) => {
+						onEnter: ({ entity }) => {
 							const label = entity.components.uiLabel;
 							const text = new pixi.Text({
 								text: label.text,
@@ -710,7 +710,7 @@ export function createUIPlugin<G extends string = 'ui'>(
 							});
 							if (rootContainer) rootContainer.addChild(text);
 						},
-						onExit: (entityId) => {
+						onExit: ({ entityId }) => {
 							const runtime = labelPool.get(entityId);
 							if (runtime) {
 								runtime.pixiText.removeFromParent();

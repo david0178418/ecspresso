@@ -39,14 +39,14 @@ Get callbacks when entities enter or exit a query match. Unlike regular queries 
 world.addReactiveQuery('enemies', {
   with: ['position', 'enemy'],
   without: ['dead'],
-  onEnter: (entity) => {
+  onEnter: ({ entity, ecs }) => {
     console.log(`Enemy ${entity.id} appeared at`, entity.components.position);
-    spawnHealthBar(entity.id);
+    spawnHealthBar(ecs, entity.id);
   },
-  onExit: (entityId) => {
+  onExit: ({ entityId, ecs }) => {
     // Receives ID since entity may already be removed
     console.log(`Enemy ${entityId} gone`);
-    removeHealthBar(entityId);
+    removeHealthBar(ecs, entityId);
   },
 });
 

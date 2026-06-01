@@ -698,7 +698,7 @@ export function createParticlePlugin<
 					// Reactive query for particleEmitter component
 					ecs.addReactiveQuery('particle-emitters', {
 						with: ['particleEmitter'],
-						onEnter: (entity) => {
+						onEnter: ({ entity }) => {
 							const emitter = entity.components.particleEmitter;
 							const config = emitter.config;
 
@@ -746,7 +746,7 @@ export function createParticlePlugin<
 								pixiParticles,
 							});
 						},
-						onExit: (entityId) => {
+						onExit: ({ entityId }) => {
 							const data = emitterData.get(entityId);
 							if (data) {
 								const container = data.pixiContainer as { removeFromParent?: () => void; destroy?: () => void } | null;

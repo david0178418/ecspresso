@@ -591,7 +591,7 @@ export function createAudioPlugin<Ch extends string, G extends string = 'audio'>
 					// Register reactive query for audioSource components
 					ecs.addReactiveQuery('audio-sources', {
 						with: ['audioSource'],
-						onEnter: (entity) => {
+						onEnter: ({ entity }) => {
 							const source = entity.components.audioSource;
 							if (!getAsset) return;
 							if (source._soundId !== -1) return; // Already started

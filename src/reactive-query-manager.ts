@@ -1,15 +1,40 @@
 import type { Entity, FilteredEntity } from "./types";
 import type EntityManager from "./entity-manager";
+import type ECSpresso from "./ecspresso";
+import type { WorldConfig } from "./type-utils";
 import { entityMatchesShape } from "./query-match";
+
+type ComponentKey<Cfg extends WorldConfig> = keyof Cfg['components'];
+type AnyFilteredEntity<Cfg extends WorldConfig> = FilteredEntity<
+	Cfg['components'],
+	ComponentKey<Cfg>,
+	ComponentKey<Cfg>,
+	ComponentKey<Cfg>
+>;
+
+export type ReactiveQueryEnterContext<
+	Cfg extends WorldConfig,
+	WithComponents extends ComponentKey<Cfg> = ComponentKey<Cfg>,
+	WithoutComponents extends ComponentKey<Cfg> = never,
+	OptionalComponents extends ComponentKey<Cfg> = never,
+> = {
+	entity: FilteredEntity<Cfg['components'], WithComponents, WithoutComponents, OptionalComponents>;
+	ecs: ECSpresso<Cfg>;
+};
+
+export type ReactiveQueryExitContext<Cfg extends WorldConfig> = {
+	entityId: number;
+	ecs: ECSpresso<Cfg>;
+};
 
 /**
  * Definition for a reactive query with enter/exit callbacks
  */
 export interface ReactiveQueryDefinition<
-	ComponentTypes extends Record<string, any>,
-	WithComponents extends keyof ComponentTypes = keyof ComponentTypes,
-	WithoutComponents extends keyof ComponentTypes = never,
-	OptionalComponents extends keyof ComponentTypes = never,
+	Cfg extends WorldConfig,
+	WithComponents extends ComponentKey<Cfg> = ComponentKey<Cfg>,
+	WithoutComponents extends ComponentKey<Cfg> = never,
+	OptionalComponents extends ComponentKey<Cfg> = never,
 > {
 	/** Components the entity must have */
 	with: ReadonlyArray<WithComponents>;
@@ -18,29 +43,40 @@ export interface ReactiveQueryDefinition<
 	/** Components to include in the entity type but not require for matching */
 	optional?: ReadonlyArray<OptionalComponents>;
 	/** Components the entity's direct parent must have */
-	parentHas?: ReadonlyArray<keyof ComponentTypes>;
+	parentHas?: ReadonlyArray<ComponentKey<Cfg>>;
 	/** Called when an entity starts matching the query */
-	onEnter?: (entity: FilteredEntity<ComponentTypes, WithComponents, WithoutComponents, OptionalComponents>) => void;
+	onEnter?: (ctx: ReactiveQueryEnterContext<Cfg, WithComponents, WithoutComponents, OptionalComponents>) => void;
 	/** Called when an entity stops matching the query (receives just the ID since entity may be gone) */
-	onExit?: (entityId: number) => void;
+	onExit?: (ctx: ReactiveQueryExitContext<Cfg>) => void;
 }
 
-interface StoredQuery<ComponentTypes extends Record<string, any>> {
-	definition: ReactiveQueryDefinition<ComponentTypes, any, any, any>;
+type StoredReactiveQueryDefinition<Cfg extends WorldConfig> = {
+	with: ReadonlyArray<ComponentKey<Cfg>>;
+	without?: ReadonlyArray<ComponentKey<Cfg>>;
+	optional?: ReadonlyArray<ComponentKey<Cfg>>;
+	parentHas?: ReadonlyArray<ComponentKey<Cfg>>;
+	onEnter?: (ctx: { entity: AnyFilteredEntity<Cfg>; ecs: ECSpresso<Cfg> }) => void;
+	onExit?: (ctx: ReactiveQueryExitContext<Cfg>) => void;
+};
+
+interface StoredQuery<Cfg extends WorldConfig> {
+	definition: StoredReactiveQueryDefinition<Cfg>;
 	matchingEntities: Set<number>;
 }
 
 /**
  * Manages reactive queries that trigger callbacks when entities enter/exit query matches
  */
-export default class ReactiveQueryManager<ComponentTypes extends Record<string, any>, QueryNames extends string = string> {
-	private queries: Map<string, StoredQuery<ComponentTypes>> = new Map();
-	private entityManager: EntityManager<ComponentTypes>;
+export default class ReactiveQueryManager<Cfg extends WorldConfig, QueryNames extends string = string> {
+	private queries: Map<string, StoredQuery<Cfg>> = new Map();
+	private entityManager: EntityManager<Cfg['components']>;
+	private ecs: ECSpresso<Cfg>;
 	/** Whether any registered query uses parentHas */
 	private _hasParentHasQueries: boolean = false;
 
-	constructor(entityManager: EntityManager<ComponentTypes>) {
+	constructor(entityManager: EntityManager<Cfg['components']>, ecs: ECSpresso<Cfg>) {
 		this.entityManager = entityManager;
+		this.ecs = ecs;
 	}
 
 	/**
@@ -56,15 +92,15 @@ export default class ReactiveQueryManager<ComponentTypes extends Record<string, 
 	 * @param definition Query definition with callbacks
 	 */
 	addQuery<
-		WithComponents extends keyof ComponentTypes,
-		WithoutComponents extends keyof ComponentTypes = never,
-		OptionalComponents extends keyof ComponentTypes = never,
+		WithComponents extends ComponentKey<Cfg>,
+		WithoutComponents extends ComponentKey<Cfg> = never,
+		OptionalComponents extends ComponentKey<Cfg> = never,
 	>(
 		name: QueryNames,
-		definition: ReactiveQueryDefinition<ComponentTypes, WithComponents, WithoutComponents, OptionalComponents>
+		definition: ReactiveQueryDefinition<Cfg, WithComponents, WithoutComponents, OptionalComponents>
 	): void {
-		const storedQuery: StoredQuery<ComponentTypes> = {
-			definition,
+		const storedQuery: StoredQuery<Cfg> = {
+			definition: definition as unknown as StoredReactiveQueryDefinition<Cfg>,
 			matchingEntities: new Set(),
 		};
 
@@ -77,14 +113,14 @@ export default class ReactiveQueryManager<ComponentTypes extends Record<string, 
 
 		// Check existing entities for initial matches
 		const existingMatches = this.entityManager.getEntitiesWithQuery(
-			definition.with as ReadonlyArray<keyof ComponentTypes>,
-			(definition.without ?? []) as ReadonlyArray<keyof ComponentTypes>
+			definition.with as ReadonlyArray<ComponentKey<Cfg>>,
+			(definition.without ?? []) as ReadonlyArray<ComponentKey<Cfg>>
 		);
 
 		for (const entity of existingMatches) {
 			if (this.entityMatchesQuery(entity, storedQuery.definition)) {
 				storedQuery.matchingEntities.add(entity.id);
-				storedQuery.definition.onEnter?.(entity as FilteredEntity<ComponentTypes, any, any, any>);
+				this._fireEnter(storedQuery.definition, entity);
 			}
 		}
 	}
@@ -106,32 +142,46 @@ export default class ReactiveQueryManager<ComponentTypes extends Record<string, 
 	}
 
 	private entityMatchesQuery(
-		entity: Entity<ComponentTypes>,
-		definition: ReactiveQueryDefinition<ComponentTypes, any, any, any>
+		entity: Entity<Cfg['components']>,
+		definition: StoredReactiveQueryDefinition<Cfg>
 	): boolean {
 		return entityMatchesShape(
 			entity,
-			definition.with as ReadonlyArray<keyof ComponentTypes>,
-			definition.without as ReadonlyArray<keyof ComponentTypes> | undefined,
+			definition.with,
+			definition.without,
 			definition.parentHas,
 			this.entityManager,
 		);
+	}
+
+	private _fireEnter(
+		definition: StoredReactiveQueryDefinition<Cfg>,
+		entity: Entity<Cfg['components']>,
+	): void {
+		definition.onEnter?.({
+			entity: entity as AnyFilteredEntity<Cfg>,
+			ecs: this.ecs,
+		});
+	}
+
+	private _fireExit(definition: StoredReactiveQueryDefinition<Cfg>, entityId: number): void {
+		definition.onExit?.({ entityId, ecs: this.ecs });
 	}
 
 	/**
 	 * Apply enter/exit transitions for a single query against an entity.
 	 * Fires onEnter when entity starts matching, onExit when it stops.
 	 */
-	private _applyQueryTransition(entity: Entity<ComponentTypes>, query: StoredQuery<ComponentTypes>): void {
+	private _applyQueryTransition(entity: Entity<Cfg['components']>, query: StoredQuery<Cfg>): void {
 		const wasMatching = query.matchingEntities.has(entity.id);
 		const nowMatches = this.entityMatchesQuery(entity, query.definition);
 
 		if (!wasMatching && nowMatches) {
 			query.matchingEntities.add(entity.id);
-			query.definition.onEnter?.(entity as FilteredEntity<ComponentTypes, any, any, any>);
+			this._fireEnter(query.definition, entity);
 		} else if (wasMatching && !nowMatches) {
 			query.matchingEntities.delete(entity.id);
-			query.definition.onExit?.(entity.id);
+			this._fireExit(query.definition, entity.id);
 		}
 	}
 
@@ -139,7 +189,7 @@ export default class ReactiveQueryManager<ComponentTypes extends Record<string, 
 	 * Called when a component is added to an entity
 	 * Checks all queries for potential enter/exit events
 	 */
-	onComponentAdded(entity: Entity<ComponentTypes>, _componentName: keyof ComponentTypes): void {
+	onComponentAdded(entity: Entity<Cfg['components']>, _componentName: keyof Cfg['components']): void {
 		for (const [, query] of this.queries) {
 			this._applyQueryTransition(entity, query);
 		}
@@ -153,7 +203,7 @@ export default class ReactiveQueryManager<ComponentTypes extends Record<string, 
 	 * Called when a component is removed from an entity
 	 * Checks all queries for potential enter/exit events
 	 */
-	onComponentRemoved(entity: Entity<ComponentTypes>, _componentName: keyof ComponentTypes): void {
+	onComponentRemoved(entity: Entity<Cfg['components']>, _componentName: keyof Cfg['components']): void {
 		for (const [, query] of this.queries) {
 			this._applyQueryTransition(entity, query);
 		}
@@ -171,7 +221,7 @@ export default class ReactiveQueryManager<ComponentTypes extends Record<string, 
 		for (const [_name, query] of this.queries) {
 			if (query.matchingEntities.has(entityId)) {
 				query.matchingEntities.delete(entityId);
-				query.definition.onExit?.(entityId);
+				this._fireExit(query.definition, entityId);
 			}
 		}
 	}
@@ -180,7 +230,7 @@ export default class ReactiveQueryManager<ComponentTypes extends Record<string, 
 	 * Recheck an entity against all queries (used after batch component additions)
 	 * Fires enter/exit callbacks as appropriate based on current state vs tracked state
 	 */
-	recheckEntity(entity: Entity<ComponentTypes>): void {
+	recheckEntity(entity: Entity<Cfg['components']>): void {
 		for (const [, query] of this.queries) {
 			this._applyQueryTransition(entity, query);
 		}
@@ -191,7 +241,7 @@ export default class ReactiveQueryManager<ComponentTypes extends Record<string, 
 	 * Used after component mutations to handle both the entity's own queries
 	 * and parentHas queries on its children.
 	 */
-	recheckEntityAndChildren(entity: Entity<ComponentTypes>): void {
+	recheckEntityAndChildren(entity: Entity<Cfg['components']>): void {
 		this.recheckEntity(entity);
 		if (this._hasParentHasQueries) {
 			this._recheckChildren(entity.id);

@@ -216,8 +216,8 @@ Push-based notifications when entities enter/exit a query match:
 ecs.addReactiveQuery('enemies', {
   with: ['position', 'enemy'],
   without: ['dead'],
-  onEnter: (entity) => { ... },
-  onExit: (entityId) => { ... },  // receives ID since entity may be removed
+  onEnter: ({ entity, ecs }) => { ... },
+  onExit: ({ entityId, ecs }) => { ... },  // receives ID since entity may be removed
 });
 
 ecs.removeReactiveQuery('enemies');

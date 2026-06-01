@@ -785,36 +785,36 @@ export function createRenderer2DPlugin<G extends string = 'renderer2d'>(
 
 					ecs.addReactiveQuery('renderer2d-sprites', {
 						with: ['sprite'],
-						onEnter: (entity) => {
+						onEnter: ({ entity }) => {
 							const pixiObject = entity.components.sprite;
 							entityToPixiObject.set(entity.id, pixiObject);
 							addToSceneGraph(entity.id, pixiObject, ecs);
 						},
-						onExit: (entityId) => {
+						onExit: ({ entityId }) => {
 							entityToPixiObject.delete(entityId);
 						},
 					});
 
 					ecs.addReactiveQuery('renderer2d-graphics', {
 						with: ['graphics'],
-						onEnter: (entity) => {
+						onEnter: ({ entity }) => {
 							const pixiObject = entity.components.graphics;
 							entityToPixiObject.set(entity.id, pixiObject);
 							addToSceneGraph(entity.id, pixiObject, ecs);
 						},
-						onExit: (entityId) => {
+						onExit: ({ entityId }) => {
 							entityToPixiObject.delete(entityId);
 						},
 					});
 
 					ecs.addReactiveQuery('renderer2d-containers', {
 						with: ['container'],
-						onEnter: (entity) => {
+						onEnter: ({ entity }) => {
 							const pixiObject = entity.components.container;
 							entityToPixiObject.set(entity.id, pixiObject);
 							addToSceneGraph(entity.id, pixiObject, ecs);
 						},
-						onExit: (entityId) => {
+						onExit: ({ entityId }) => {
 							entityToPixiObject.delete(entityId);
 						},
 					});

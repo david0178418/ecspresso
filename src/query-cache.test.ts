@@ -177,8 +177,8 @@ describe('QueryCache', () => {
 		ecs.addReactiveQuery('alive', {
 			with: ['position'],
 			without: ['dead'],
-			onEnter: (e) => enters.push(e.id),
-			onExit: (id) => exits.push(id),
+			onEnter: ({ entity }) => enters.push(entity.id),
+			onExit: ({ entityId }) => exits.push(entityId),
 		});
 
 		const a = ecs.spawn({ position: { x: 0, y: 0 } });

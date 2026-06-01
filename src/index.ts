@@ -6,7 +6,7 @@ export * from './types';
 export * from './asset-types';
 export * from './screen-types';
 export * from './utils/math';
-export type { ReactiveQueryDefinition } from './reactive-query-manager';
+export type { ReactiveQueryDefinition, ReactiveQueryEnterContext, ReactiveQueryExitContext } from './reactive-query-manager';
 export { default as AssetManager, createAssetConfigurator } from './asset-manager';
 export { default as ScreenManager, createScreenConfigurator } from './screen-manager';
 export { SystemBuilder, type ProcessContext, type SystemLifecycleFn, type SystemProcessFn };

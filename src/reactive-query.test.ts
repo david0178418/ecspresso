@@ -19,7 +19,7 @@ describe('Reactive Queries', () => {
 
 			world.addReactiveQuery('moving', {
 				with: ['position', 'velocity'],
-				onEnter: (entity) => {
+				onEnter: ({ entity }) => {
 					enteredEntities.push(entity.id);
 				},
 			});
@@ -38,7 +38,7 @@ describe('Reactive Queries', () => {
 
 			world.addReactiveQuery('moving', {
 				with: ['position', 'velocity'],
-				onEnter: (entity) => {
+				onEnter: ({ entity }) => {
 					enteredEntities.push(entity.id);
 				},
 			});
@@ -73,7 +73,7 @@ describe('Reactive Queries', () => {
 
 			world.addReactiveQuery('moving', {
 				with: ['position', 'velocity'],
-				onEnter: (entity) => {
+				onEnter: ({ entity }) => {
 					receivedEntity = entity;
 				},
 			});
@@ -87,6 +87,25 @@ describe('Reactive Queries', () => {
 			expect(receivedEntity?.components.position).toEqual({ x: 10, y: 20 });
 			expect(receivedEntity?.components.velocity).toEqual({ x: 1, y: 2 });
 		});
+
+		test('should receive ecs context', () => {
+			const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
+			let receivedWorld = false;
+
+			world.addReactiveQuery('moving', {
+				with: ['position', 'velocity'],
+				onEnter: ({ ecs }) => {
+					receivedWorld = ecs === world;
+				},
+			});
+
+			world.spawn({
+				position: { x: 0, y: 0 },
+				velocity: { x: 1, y: 1 },
+			});
+
+			expect(receivedWorld).toBe(true);
+		});
 	});
 
 	describe('onExit callback', () => {
@@ -96,7 +115,7 @@ describe('Reactive Queries', () => {
 
 			world.addReactiveQuery('moving', {
 				with: ['position', 'velocity'],
-				onExit: (entityId) => {
+				onExit: ({ entityId }) => {
 					exitedEntityIds.push(entityId);
 				},
 			});
@@ -117,7 +136,7 @@ describe('Reactive Queries', () => {
 
 			world.addReactiveQuery('moving', {
 				with: ['position', 'velocity'],
-				onExit: (entityId) => {
+				onExit: ({ entityId }) => {
 					exitedEntityIds.push(entityId);
 				},
 			});
@@ -138,7 +157,7 @@ describe('Reactive Queries', () => {
 
 			world.addReactiveQuery('positioned', {
 				with: ['position'],
-				onExit: (entityId) => {
+				onExit: ({ entityId }) => {
 					receivedId = entityId;
 				},
 			});
@@ -147,6 +166,23 @@ describe('Reactive Queries', () => {
 			world.removeEntity(entity.id);
 
 			expect(receivedId).toBe(entity.id);
+		});
+
+		test('should receive ecs context', () => {
+			const world = new ECSpresso<WorldConfigFrom<TestComponents>>();
+			let receivedWorld = false;
+
+			world.addReactiveQuery('positioned', {
+				with: ['position'],
+				onExit: ({ ecs }) => {
+					receivedWorld = ecs === world;
+				},
+			});
+
+			const entity = world.spawn({ position: { x: 0, y: 0 } });
+			world.removeEntity(entity.id);
+
+			expect(receivedWorld).toBe(true);
 		});
 	});
 
@@ -158,7 +194,7 @@ describe('Reactive Queries', () => {
 			world.addReactiveQuery('visible', {
 				with: ['sprite'],
 				without: ['hidden'],
-				onEnter: (entity) => {
+				onEnter: ({ entity }) => {
 					enteredEntities.push(entity.id);
 				},
 			});
@@ -184,7 +220,7 @@ describe('Reactive Queries', () => {
 			world.addReactiveQuery('visible', {
 				with: ['sprite'],
 				without: ['hidden'],
-				onExit: (entityId) => {
+				onExit: ({ entityId }) => {
 					exitedEntityIds.push(entityId);
 				},
 			});
@@ -245,12 +281,12 @@ describe('Reactive Queries', () => {
 
 			world.addReactiveQuery('query1', {
 				with: ['position'],
-				onEnter: (entity) => { entered1.push(entity.id); },
+				onEnter: ({ entity }) => { entered1.push(entity.id); },
 			});
 
 			world.addReactiveQuery('query2', {
 				with: ['velocity'],
-				onEnter: (entity) => { entered2.push(entity.id); },
+				onEnter: ({ entity }) => { entered2.push(entity.id); },
 			});
 
 			const entity1 = world.spawn({ position: { x: 0, y: 0 } });
@@ -277,7 +313,7 @@ describe('Reactive Queries', () => {
 			// Add query after entities exist
 			world.addReactiveQuery('positioned', {
 				with: ['position'],
-				onEnter: (entity) => {
+				onEnter: ({ entity }) => {
 					enteredEntities.push(entity.id);
 				},
 			});

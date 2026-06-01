@@ -360,7 +360,7 @@ describe('Required Components', () => {
 
 			ecs.addReactiveQuery('has-both', {
 				with: ['position', 'velocity'],
-				onEnter: (entity) => {
+				onEnter: ({ entity }) => {
 					enteredEntities.push(entity.id);
 				},
 			});

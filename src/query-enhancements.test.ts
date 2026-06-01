@@ -388,7 +388,7 @@ describe('parentHas Relationship Queries', () => {
 			world.addReactiveQuery('children', {
 				with: ['childMarker'],
 				parentHas: ['parentMarker'],
-				onEnter: (entity) => { entered.push(entity.id); },
+				onEnter: ({ entity }) => { entered.push(entity.id); },
 			});
 
 			const parent = world.spawn({ parentMarker: true as const });
@@ -404,7 +404,7 @@ describe('parentHas Relationship Queries', () => {
 			world.addReactiveQuery('children', {
 				with: ['childMarker'],
 				parentHas: ['parentMarker'],
-				onEnter: (entity) => { entered.push(entity.id); },
+				onEnter: ({ entity }) => { entered.push(entity.id); },
 			});
 
 			const parent = world.spawn({ parentMarker: true as const });
@@ -422,7 +422,7 @@ describe('parentHas Relationship Queries', () => {
 			world.addReactiveQuery('children', {
 				with: ['childMarker'],
 				parentHas: ['parentMarker'],
-				onExit: (entityId) => { exited.push(entityId); },
+				onExit: ({ entityId }) => { exited.push(entityId); },
 			});
 
 			const parent = world.spawn({ parentMarker: true as const });
@@ -439,7 +439,7 @@ describe('parentHas Relationship Queries', () => {
 			world.addReactiveQuery('children', {
 				with: ['childMarker'],
 				parentHas: ['parentMarker'],
-				onExit: (entityId) => { exited.push(entityId); },
+				onExit: ({ entityId }) => { exited.push(entityId); },
 			});
 
 			const parent = world.spawn({ parentMarker: true as const });
@@ -456,7 +456,7 @@ describe('parentHas Relationship Queries', () => {
 			world.addReactiveQuery('children', {
 				with: ['childMarker'],
 				parentHas: ['parentMarker'],
-				onEnter: (entity) => { entered.push(entity.id); },
+				onEnter: ({ entity }) => { entered.push(entity.id); },
 			});
 
 			const parent = world.spawn({ position: { x: 0, y: 0 } });
