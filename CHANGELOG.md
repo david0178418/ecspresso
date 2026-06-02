@@ -2,6 +2,13 @@
 
 All notable changes to ECSpresso are documented here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## 0.19.2
+
+### Added
+
+- **Orthographic zoom bounds on `camera3D`**:
+  - `createCamera3DPlugin({ projection: 'orthographic', minZoom?, maxZoom? })` clamps `camera3DState.setZoom`, initial zoom, camera sync at init, and built-in wheel zoom (defaults `0.1`–`10`, matching the 2D camera plugin wheel limits).
+
 ## 0.19.1
 
 ### Added
