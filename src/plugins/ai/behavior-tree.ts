@@ -10,6 +10,11 @@
  * plus a typed blackboard for per-entity AI memory. One system processes all
  * behavior-tree entities each tick.
  *
+ * Top-level node helpers such as `action(...)` and `condition(...)` type the
+ * callback ECS as the behavior-tree plugin world. If a leaf needs app-specific
+ * components, resources, or events, use `ecs.getHelpers(createBehaviorTreeHelpers)`
+ * after `.build()` and destructure helpers from that bound result.
+ *
  * Node types:
  *   Composites — sequence, selector, parallel
  *   Decorators — inverter, repeat, cooldown, guard
@@ -609,7 +614,8 @@ function tickNode(node: AnyNode, bt: BehaviorTreeComponent, ctx: MutableCtx): No
 /**
  * Typed helpers for the behavior tree plugin.
  * Creates helpers that validate callback parameters against the world type W.
- * Call after `.build()` using `typeof ecs`.
+ * Call after `.build()` so behavior-tree leaves can access app-specific
+ * components, resources, and events through the full built ECS type.
  */
 export interface BehaviorTreeHelpers<W extends BaseWorld<BehaviorTreeComponentTypes>> {
 	defineBehaviorTree: <BB extends object>(
@@ -638,9 +644,15 @@ export interface BehaviorTreeHelpers<W extends BaseWorld<BehaviorTreeComponentTy
  * ```typescript
  * const ecs = ECSpresso.create()
  *   .withPlugin(createBehaviorTreePlugin())
+ *   .withComponentTypes<{ enemy: { hp: number } }>()
  *   .build();
  *
  * const { defineBehaviorTree, action, condition, guard } = ecs.getHelpers(createBehaviorTreeHelpers);
+ *
+ * action('read enemy', ({ ecs, entityId }) => {
+ *   const enemy = ecs.getComponent(entityId, 'enemy');
+ *   return enemy ? NodeStatus.Success : NodeStatus.Failure;
+ * });
  * ```
  */
 export function createBehaviorTreeHelpers<

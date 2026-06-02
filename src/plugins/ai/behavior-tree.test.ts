@@ -739,6 +739,43 @@ describe('Behavior Tree Plugin', () => {
 			expect(typeof helpers.condition).toBe('function');
 			expect(typeof helpers.guard).toBe('function');
 		});
+
+		test('binds leaf callback ecs type to app world', () => {
+			const ecs = ECSpresso.create()
+				.withPlugin(createBehaviorTreePlugin())
+				.withComponentTypes<{ enemy: { hp: number } }>()
+				.withEventTypes<{ enemyChecked: { entityId: number } }>()
+				.withResource('morale', { value: 3 })
+				.build();
+			const { defineBehaviorTree, action: boundAction } = ecs.getHelpers(createBehaviorTreeHelpers);
+
+			const tree = defineBehaviorTree<TestBB>('typed-app-world', {
+				blackboard: defaultBB(),
+				root: boundAction<TestBB>('read app world', ({ ecs: world, entityId, blackboard: bb }) => {
+					const enemy = world.getComponent(entityId, 'enemy');
+					if (!enemy) throw new Error('expected enemy component');
+					const morale = world.getResource('morale');
+					world.eventBus.publish('enemyChecked', { entityId });
+					bb.counter = enemy.hp + morale.value;
+					// @ts-expect-error - bound helpers still reject components outside the app world
+					world.getComponent(entityId, 'missing');
+					return NodeStatus.Success;
+				}),
+			});
+
+			const blackboardOnly = action<TestBB>('top-level helper', ({ ecs: world, entityId }) => {
+				// @ts-expect-error - top-level helpers expose only the behavior-tree plugin world
+				world.getComponent(entityId, 'enemy');
+				return NodeStatus.Success;
+			});
+			expect(blackboardOnly.type).toBe('action');
+
+			const entity = ecs.spawn({ ...createBehaviorTree(tree), enemy: { hp: 2 } });
+			ecs.update(1 / 60);
+			const bt = ecs.getComponent(entity.id, 'behaviorTree');
+			if (!bt) throw new Error(`entity ${entity.id} has no behaviorTree`);
+			expect((bt.blackboard as TestBB).counter).toBe(5);
+		});
 	});
 
 	// --- Multiple entities ---

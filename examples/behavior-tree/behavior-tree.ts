@@ -128,7 +128,7 @@ const ecs = ECSpresso
 type ECS = typeof ecs;
 
 // Typed helpers — callbacks get full ECS type for ecs parameter
-const { action, condition, guard } = ecs.getHelpers(createBehaviorTreeHelpers);
+const { defineBehaviorTree, action, condition, guard } = ecs.getHelpers(createBehaviorTreeHelpers);
 
 // ==================== Helpers ====================
 
@@ -289,7 +289,7 @@ function walkToAction(
 
 // ==================== Behavior Tree Definition ====================
 
-const villagerTree = ecs.getHelpers(createBehaviorTreeHelpers).defineBehaviorTree<VillagerBB>('villager', {
+const villagerTree = defineBehaviorTree<VillagerBB>('villager', {
 	blackboard: {
 		hunger: 100,
 		carried: 0,

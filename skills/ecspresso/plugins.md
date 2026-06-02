@@ -190,7 +190,7 @@ All are created via factory functions (e.g., `createInputPlugin(options)`). Each
 | Audio | `ecspresso/plugins/audio` | `update` | Howler.js audio integration |
 | Detection | `ecspresso/plugins/ai/detection` | `update` | Proximity detection with spatial-index, sorted by distance |
 | Flocking | `ecspresso/plugins/ai/flocking` | `update` | Boid flocking — separation, alignment, cohesion via force-based steering |
-| Behavior Tree | `ecspresso/plugins/ai/behavior-tree` | `update` | Composable priority-driven AI via behavior trees with hybrid traversal |
+| Behavior Tree | `ecspresso/plugins/ai/behavior-tree` | `update` | Composable priority-driven AI via behavior trees with hybrid traversal. Top-level helpers are blackboard-only; use `ecs.getHelpers(createBehaviorTreeHelpers)` after `.build()` when leaves need app-specific ECS component/resource/event types |
 | Pathfinding | `ecspresso/plugins/ai/pathfinding` | `update` | A* on a weighted nav grid; produces waypoints consumed by steering |
 | Health | `ecspresso/plugins/combat/health` | (event-driven) | Health/damage/death lifecycle |
 | Projectile | `ecspresso/plugins/combat/projectile` | `update` | Homing + linear projectile movement, collision integration |

@@ -16,10 +16,37 @@
 | **Particles** | `ecspresso/plugins/particles` | `update + render` | Pooled particle system with PixiJS ParticleContainer rendering |
 | **Sprite Animation** | `ecspresso/plugins/rendering/sprite-animation` | `update` | Frame-based sprite animation with spritesheet helpers (`spritesheetLoader`, `clipFromSheet`, `animationSetFromSheet`, `clipFromGrid`) for PixiJS atlases |
 | **Audio** | `ecspresso/plugins/audio` | `update` | Howler.js audio integration |
+| **Behavior Tree** | `ecspresso/plugins/ai/behavior-tree` | `update` | Composable priority-driven AI via behavior trees with typed blackboards and bound helpers for app-world leaf callbacks |
 | **Diagnostics** | `ecspresso/plugins/diagnostics` | `render` | Performance monitoring and debug overlay |
 | **2D Renderer** | `ecspresso/plugins/renderers/renderer2D` | `render` | Automated PixiJS scene graph wiring |
 
 Each plugin accepts a `phase` option to override its default.
+
+## Behavior Tree Plugin
+
+The behavior-tree plugin drives entities with a shared immutable tree definition plus per-entity `behaviorTree` runtime state and blackboard data. Leaves receive a callback context with `{ ecs, entityId, dt, blackboard }`.
+
+Use the top-level helpers (`action`, `condition`, `guard`, `defineBehaviorTree`) when leaves only need the typed blackboard and behavior-tree plugin world. If leaves read app-specific components, resources, or events, get bound helpers from the built ECS instance:
+
+```typescript
+const ecs = ECSpresso.create()
+  .withPlugin(createBehaviorTreePlugin())
+  .withComponentTypes<{ enemy: { hp: number } }>()
+  .withResource('morale', { value: 3 })
+  .build();
+
+const { defineBehaviorTree, action, condition, guard } =
+  ecs.getHelpers(createBehaviorTreeHelpers);
+
+const tree = defineBehaviorTree('enemy-ai', {
+  blackboard: { targetId: null as number | null },
+  root: action('read app world', ({ ecs, entityId }) => {
+    const enemy = ecs.getComponent(entityId, 'enemy');
+    const morale = ecs.getResource('morale');
+    return enemy && morale.value > 0 ? NodeStatus.Success : NodeStatus.Failure;
+  }),
+});
+```
 
 ## Input Plugin
 
