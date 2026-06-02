@@ -2,6 +2,14 @@
 
 All notable changes to ECSpresso are documented here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## 0.19.1
+
+### Added
+
+- **Projection-aware `camera3D` wheel input**:
+  - Orthographic cameras now use wheel input to update `camera3DState.zoom` by default.
+  - `createCamera3DPlugin({ wheelMode })` supports `'auto'`, `'distance'`, `'zoom'`, and `'disabled'`.
+
 ## 0.19.0
 
 ### Breaking

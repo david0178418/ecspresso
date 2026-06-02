@@ -19,6 +19,22 @@ import type { Renderer3DResourceTypes } from '../rendering/renderer3D';
 
 // ==================== Mock Three.js Objects ====================
 
+interface MockCanvas extends HTMLCanvasElement {
+	dispatchEvent(event: Event): boolean;
+}
+
+function dispatchListener(
+	listener: EventListenerOrEventListenerObject,
+	event: Event,
+	target: EventTarget,
+): void {
+	if (typeof listener === 'function') {
+		listener.call(target, event);
+		return;
+	}
+	listener.handleEvent(event);
+}
+
 function createMockCamera() {
 	return {
 		isPerspectiveCamera: true as const,
@@ -60,10 +76,10 @@ function createMockRenderer() {
 	};
 }
 
-function createMockCanvas(): HTMLCanvasElement {
-	// Minimal mock — only needs addEventListener/removeEventListener
+function createMockCanvas(): MockCanvas {
+	// Minimal mock — only needs DOM listener behavior used by camera3D.
 	const listeners = new Map<string, Set<EventListenerOrEventListenerObject>>();
-	return {
+	const canvas = {
 		addEventListener(type: string, listener: EventListenerOrEventListenerObject, _options?: AddEventListenerOptions | boolean) {
 			const set = listeners.get(type) ?? new Set();
 			set.add(listener);
@@ -72,9 +88,22 @@ function createMockCanvas(): HTMLCanvasElement {
 		removeEventListener(type: string, listener: EventListenerOrEventListenerObject) {
 			listeners.get(type)?.delete(listener);
 		},
+		dispatchEvent(event: Event) {
+			listeners.get(event.type)?.forEach((listener) => {
+				dispatchListener(listener, event, canvas);
+			});
+			return !event.defaultPrevented;
+		},
 		setPointerCapture() {},
 		releasePointerCapture() {},
-	} as unknown as HTMLCanvasElement;
+	} as unknown as MockCanvas;
+	return canvas;
+}
+
+function dispatchWheel(ecs: TestEcs, deltaY: number): Event {
+	const event = Object.assign(new Event('wheel', { cancelable: true }), { deltaY });
+	ecs.getResource('threeRenderer').domElement.dispatchEvent(event);
+	return event;
 }
 
 // ==================== Test Type Setup ====================
@@ -83,6 +112,7 @@ interface TestComponents extends Transform3DComponentTypes {}
 interface TestResources extends Camera3DResourceTypes, Renderer3DResourceTypes {}
 
 type TestConfig = WorldConfigFrom<TestComponents, {}, TestResources>;
+type TestEcs = ReturnType<typeof buildEcsWith>;
 
 function buildEcsWith(
 	cameraFactory: () => object,
@@ -220,6 +250,91 @@ describe('Plugin options and defaults', () => {
 		expect(state.followOffsetX).toBe(1);
 		expect(state.followOffsetY).toBe(2);
 		expect(state.followOffsetZ).toBe(3);
+	});
+});
+
+// ==================== Wheel Input ====================
+
+describe('Wheel input', () => {
+	test('auto mode applies wheel input to perspective distance', async () => {
+		const ecs = buildEcs({ dollySensitivity: 2 });
+		await ecs.initialize();
+
+		const state = ecs.getResource('camera3DState');
+		assertPerspective(state);
+		const event = dispatchWheel(ecs, 100);
+
+		ecs.update(0.016);
+
+		expect(event.defaultPrevented).toBe(true);
+		expect(state.distance).toBe(20);
+		expect(state.fov).toBe(75);
+	});
+
+	test('auto mode applies wheel input to orthographic zoom', async () => {
+		const ecs = buildOrthoEcs({ projection: 'orthographic', dollySensitivity: 2 });
+		await ecs.initialize();
+
+		const state = ecs.getResource('camera3DState');
+		assertOrthographic(state);
+		const event = dispatchWheel(ecs, 100);
+
+		ecs.update(0.016);
+
+		expect(event.defaultPrevented).toBe(true);
+		expect(state.distance).toBe(10);
+		expect(state.zoom).toBe(0.5);
+	});
+
+	test('distance mode applies wheel input to orthographic distance', async () => {
+		const ecs = buildOrthoEcs({
+			projection: 'orthographic',
+			dollySensitivity: 2,
+			wheelMode: 'distance',
+		});
+		await ecs.initialize();
+
+		const state = ecs.getResource('camera3DState');
+		assertOrthographic(state);
+		dispatchWheel(ecs, 100);
+
+		ecs.update(0.016);
+
+		expect(state.distance).toBe(20);
+		expect(state.zoom).toBe(1);
+	});
+
+	test('zoom mode applies wheel input to perspective fov', async () => {
+		const ecs = buildEcs({ dollySensitivity: 2, wheelMode: 'zoom' });
+		await ecs.initialize();
+
+		const state = ecs.getResource('camera3DState');
+		assertPerspective(state);
+		dispatchWheel(ecs, 100);
+
+		ecs.update(0.016);
+
+		expect(state.distance).toBe(10);
+		expect(state.fov).toBe(150);
+	});
+
+	test('disabled mode does not attach wheel behavior', async () => {
+		const ecs = buildOrthoEcs({
+			projection: 'orthographic',
+			dollySensitivity: 2,
+			wheelMode: 'disabled',
+		});
+		await ecs.initialize();
+
+		const state = ecs.getResource('camera3DState');
+		assertOrthographic(state);
+		const event = dispatchWheel(ecs, 100);
+
+		ecs.update(0.016);
+
+		expect(event.defaultPrevented).toBe(false);
+		expect(state.distance).toBe(10);
+		expect(state.zoom).toBe(1);
 	});
 });
 

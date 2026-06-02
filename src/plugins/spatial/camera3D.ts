@@ -93,6 +93,8 @@ export interface Camera3DResourceTypes {
 }
 
 export type Camera3DWorldConfig = ResourcesConfig<Camera3DResourceTypes>;
+type Camera3DWheelMode = 'auto' | 'distance' | 'zoom' | 'disabled';
+type ResolvedCamera3DWheelMode = Exclude<Camera3DWheelMode, 'auto'>;
 
 // ==================== Plugin Options ====================
 
@@ -115,8 +117,9 @@ export interface Camera3DBasePluginOptions<G extends string = 'camera3d'> {
 	// Sensitivity
 	orbitSensitivity?: number;
 	dollySensitivity?: number;
+	wheelMode?: Camera3DWheelMode;
 
-	// Disable pointer-drag orbit (zoom/dolly via wheel is unaffected)
+	// Disable pointer-drag orbit. Wheel input is controlled separately by wheelMode.
 	enableOrbit?: boolean;
 
 	// Follow
@@ -161,6 +164,8 @@ const DEFAULT_SHAKE: Readonly<Required<Camera3DShakeOptions>> = {
 
 const HALF_PI = Math.PI / 2;
 const ELEVATION_EPSILON = 0.001;
+const MIN_FOV = 1;
+const MAX_FOV = 179;
 
 // ==================== Scratch Objects ====================
 
@@ -171,6 +176,28 @@ const _camPos = { x: 0, y: 0, z: 0 };
 function clamp(value: number, min: number, max: number): number {
 	return Math.max(min, Math.min(max, value));
 }
+
+function resolveWheelMode(mode: Camera3DWheelMode, projection: 'perspective' | 'orthographic'): ResolvedCamera3DWheelMode {
+	return mode === 'auto' ? (projection === 'orthographic' ? 'zoom' : 'distance') : mode;
+}
+
+function applyDistanceWheel(state: Camera3DState, wheelFactor: number): void {
+	state.setDistance(state.distance * wheelFactor);
+}
+
+function applyZoomWheel(state: Camera3DState, wheelFactor: number): void {
+	if (state.projection === 'orthographic') {
+		state.setZoom(state.zoom / wheelFactor);
+		return;
+	}
+	state.setFov(clamp(state.fov * wheelFactor, MIN_FOV, MAX_FOV));
+}
+
+const wheelHandlers = {
+	distance: applyDistanceWheel,
+	zoom: applyZoomWheel,
+	disabled: () => {},
+} satisfies Record<ResolvedCamera3DWheelMode, (state: Camera3DState, wheelFactor: number) => void>;
 
 function resolveShakeOptions(config: true | Partial<Camera3DShakeOptions>): Required<Camera3DShakeOptions> {
 	if (config === true) return { ...DEFAULT_SHAKE };
@@ -216,6 +243,7 @@ export function createCamera3DPlugin<G extends string = 'camera3d'>(
 		maxElevation = HALF_PI - ELEVATION_EPSILON,
 		orbitSensitivity = 0.003,
 		dollySensitivity = 1.1,
+		wheelMode = 'auto',
 		enableOrbit = true,
 		follow: followConfig,
 		shake: shakeConfig,
@@ -225,6 +253,7 @@ export function createCamera3DPlugin<G extends string = 'camera3d'>(
 	const projection: 'perspective' | 'orthographic' = options?.projection ?? 'perspective';
 	const initialFov = options?.projection !== 'orthographic' ? (options?.fov ?? 75) : 75;
 	const initialZoom = options?.projection === 'orthographic' ? (options.zoom ?? 1) : 1;
+	const resolvedWheelMode = resolveWheelMode(wheelMode, projection);
 
 	const resolvedShake = shakeConfig ? resolveShakeOptions(shakeConfig) : DEFAULT_SHAKE;
 	const shakeDecay = resolvedShake.traumaDecay;
@@ -293,7 +322,7 @@ export function createCamera3DPlugin<G extends string = 'camera3d'>(
 
 			// ==================== DOM State ====================
 
-			const drag = { active: false, prevX: 0, prevY: 0, pendingDolly: 0, el: null as HTMLElement | null };
+			const drag = { active: false, prevX: 0, prevY: 0, pendingWheel: 0, el: null as HTMLElement | null };
 
 			// ==================== Resource ====================
 
@@ -348,7 +377,7 @@ export function createCamera3DPlugin<G extends string = 'camera3d'>(
 
 			function onWheel(e: WheelEvent) {
 				e.preventDefault();
-				drag.pendingDolly += Math.sign(e.deltaY);
+				drag.pendingWheel += Math.sign(e.deltaY);
 			}
 
 			// ==================== Init System ====================
@@ -398,7 +427,9 @@ export function createCamera3DPlugin<G extends string = 'camera3d'>(
 						drag.el.addEventListener('pointermove', onPointerMove);
 						drag.el.addEventListener('pointerup', onPointerUp);
 					}
-					drag.el.addEventListener('wheel', onWheel as EventListener, { passive: false });
+					if (resolvedWheelMode !== 'disabled') {
+						drag.el.addEventListener('wheel', onWheel as EventListener, { passive: false });
+					}
 
 					// Initial camera position sync
 					sphericalToCartesian(state.azimuth, state.elevation, state.distance, _camPos);
@@ -416,7 +447,9 @@ export function createCamera3DPlugin<G extends string = 'camera3d'>(
 						drag.el.removeEventListener('pointermove', onPointerMove);
 						drag.el.removeEventListener('pointerup', onPointerUp);
 					}
-					drag.el.removeEventListener('wheel', onWheel as EventListener);
+					if (resolvedWheelMode !== 'disabled') {
+						drag.el.removeEventListener('wheel', onWheel as EventListener);
+					}
 					drag.el = null;
 					cachedCamera = null;
 					cachedPerspCamera = null;
@@ -484,14 +517,11 @@ export function createCamera3DPlugin<G extends string = 'camera3d'>(
 				.setProcess(() => {
 					if (!cachedCamera) return;
 
-					// Process pending dolly
-					if (drag.pendingDolly !== 0) {
-						state.distance = clamp(
-							state.distance * Math.pow(dollySensitivity, drag.pendingDolly),
-							minDistance,
-							maxDistance,
-						);
-						drag.pendingDolly = 0;
+					// Process pending wheel input
+					if (drag.pendingWheel !== 0) {
+						const wheelFactor = Math.pow(dollySensitivity, drag.pendingWheel);
+						wheelHandlers[resolvedWheelMode](state, wheelFactor);
+						drag.pendingWheel = 0;
 					}
 
 					// Compute camera position from spherical coords. Shake is applied as a
