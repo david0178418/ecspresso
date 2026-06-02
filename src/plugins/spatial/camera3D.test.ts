@@ -844,6 +844,59 @@ describe('Orthographic camera variant', () => {
 		expect(state.zoom).toBe(4);
 	});
 
+	test('setZoom clamps to default orthographic zoom bounds', async () => {
+		const ecs = buildOrthoEcs({ projection: 'orthographic' });
+		await ecs.initialize();
+
+		const state = ecs.getResource('camera3DState');
+		assertOrthographic(state);
+		state.setZoom(20);
+		expect(state.zoom).toBe(10);
+		state.setZoom(0.01);
+		expect(state.zoom).toBe(0.1);
+	});
+
+	test('custom minZoom and maxZoom apply to setZoom and wheel', async () => {
+		const ecs = buildOrthoEcs({
+			projection: 'orthographic',
+			minZoom: 0.5,
+			maxZoom: 2,
+			dollySensitivity: 2,
+		});
+		await ecs.initialize();
+
+		const state = ecs.getResource('camera3DState');
+		assertOrthographic(state);
+		state.setZoom(5);
+		expect(state.zoom).toBe(2);
+
+		dispatchWheel(ecs, -100);
+		ecs.update(0.016);
+		expect(state.zoom).toBe(2);
+
+		dispatchWheel(ecs, 100);
+		ecs.update(0.016);
+		expect(state.zoom).toBe(1);
+	});
+
+	test('init clamps zoom read from the Three.js camera', async () => {
+		const mockCamera = createMockOrthoCamera();
+		mockCamera.zoom = 25;
+		const ecs = ECSpresso
+			.create<TestConfig>()
+			.withResource('threeRenderer', createMockRenderer() as unknown as TestResources['threeRenderer'])
+			.withResource('scene', {} as TestResources['scene'])
+			.withResource('camera', mockCamera as unknown as TestResources['camera'])
+			.withPlugin(createTransform3DPlugin())
+			.withPlugin(createCamera3DPlugin({ projection: 'orthographic', maxZoom: 4 }))
+			.build();
+		await ecs.initialize();
+
+		const state = ecs.getResource('camera3DState');
+		assertOrthographic(state);
+		expect(state.zoom).toBe(4);
+	});
+
 	test('orthographic state has no setFov method', async () => {
 		const ecs = buildOrthoEcs({ projection: 'orthographic' });
 		await ecs.initialize();

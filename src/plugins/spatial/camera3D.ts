@@ -9,7 +9,8 @@
  *
  * The plugin's `projection` option must match the underlying camera's kind;
  * a mismatch throws at init. State is a discriminated union — perspective
- * cameras expose `fov` / `setFov`, orthographic cameras expose `zoom` / `setZoom`.
+ * cameras expose `fov` / `setFov`, orthographic cameras expose `zoom` / `setZoom`
+ * (clamped via `minZoom` / `maxZoom` plugin options, including wheel input).
  *
  * Import from 'ecspresso/plugins/spatial/camera3D'
  */
@@ -135,7 +136,7 @@ export interface Camera3DBasePluginOptions<G extends string = 'camera3d'> {
 export type Camera3DPluginOptions<G extends string = 'camera3d'> =
 	Camera3DBasePluginOptions<G> & (
 		| { projection?: 'perspective'; fov?: number }
-		| { projection: 'orthographic'; zoom?: number }
+		| { projection: 'orthographic'; zoom?: number; minZoom?: number; maxZoom?: number }
 	);
 
 // ==================== Labels ====================
@@ -166,6 +167,8 @@ const HALF_PI = Math.PI / 2;
 const ELEVATION_EPSILON = 0.001;
 const MIN_FOV = 1;
 const MAX_FOV = 179;
+const DEFAULT_MIN_ZOOM = 0.1;
+const DEFAULT_MAX_ZOOM = 10;
 
 // ==================== Scratch Objects ====================
 
@@ -252,7 +255,10 @@ export function createCamera3DPlugin<G extends string = 'camera3d'>(
 
 	const projection: 'perspective' | 'orthographic' = options?.projection ?? 'perspective';
 	const initialFov = options?.projection !== 'orthographic' ? (options?.fov ?? 75) : 75;
-	const initialZoom = options?.projection === 'orthographic' ? (options.zoom ?? 1) : 1;
+	const orthoOpts = options?.projection === 'orthographic' ? options : undefined;
+	const minZoom = orthoOpts?.minZoom ?? DEFAULT_MIN_ZOOM;
+	const maxZoom = orthoOpts?.maxZoom ?? DEFAULT_MAX_ZOOM;
+	const initialZoom = orthoOpts ? clamp(orthoOpts.zoom ?? 1, minZoom, maxZoom) : 1;
 	const resolvedWheelMode = resolveWheelMode(wheelMode, projection);
 
 	const resolvedShake = shakeConfig ? resolveShakeOptions(shakeConfig) : DEFAULT_SHAKE;
@@ -330,7 +336,7 @@ export function createCamera3DPlugin<G extends string = 'camera3d'>(
 				? {
 					projection: 'orthographic' as const,
 					zoom: initialZoom,
-					setZoom(this: OrthographicCamera3DState, z: number) { this.zoom = z; },
+					setZoom(this: OrthographicCamera3DState, z: number) { this.zoom = clamp(z, minZoom, maxZoom); },
 				}
 				: {
 					projection: 'perspective' as const,
@@ -417,7 +423,7 @@ export function createCamera3DPlugin<G extends string = 'camera3d'>(
 					if (state.projection === 'perspective' && cachedPerspCamera) {
 						state.fov = cachedPerspCamera.fov;
 					} else if (state.projection === 'orthographic' && cachedOrthoCamera) {
-						state.zoom = cachedOrthoCamera.zoom;
+						state.setZoom(cachedOrthoCamera.zoom);
 					}
 
 					// Attach DOM listeners
