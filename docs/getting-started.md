@@ -2,9 +2,26 @@
 
 ## Installation
 
+ECSpresso ships with zero runtime dependencies. Peer dependencies are optional — install only what your entry points need:
+
 ```sh
+# Core ECS only
 npm install ecspresso
+
+# 2D rendering — renderer2D, particles, sprite-animation, ui, selection
+npm install ecspresso pixi.js
+
+# 3D rendering — renderer3D, camera3D
+npm install ecspresso three
+
+# Audio plugin
+npm install ecspresso howler
+
+# React bindings — ecspresso/bindings/react
+npm install ecspresso react
 ```
+
+TypeScript 5.x or later is recommended. JavaScript projects work without it.
 
 ## Quick Start
 
