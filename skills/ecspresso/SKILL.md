@@ -130,6 +130,28 @@ ecs.addSystem('scoring')
   });
 ```
 
+Treat the callback's `ecs`, `queries`, and declared `resources` as the system's
+dependencies. Do not import the application's built world into a system module
+just to reach resources, components, commands, assets, or screen methods. Pass
+`ecs` into extracted helpers instead:
+
+```typescript
+type Game = typeof ecs;
+
+function completeLevel(world: Game): void {
+  world.setScreen('results', {});
+}
+
+ecs.addSystem('level-completion')
+  .setProcess(({ ecs: world }) => {
+    if (isLevelComplete(world)) completeLevel(world);
+  });
+```
+
+The built world may still be the composition root used to register systems.
+The problem is singleton reach-through from processing code, which hides
+dependencies and makes systems harder to reuse and test.
+
 ### Single-Query Shorthand: `setProcessEach`
 
 For single-query, per-entity iteration — the most common case — use `setProcessEach` to inline the query and the callback in one step. Callback context is `{ entity, dt, ecs }` plus `resources` when declared:
@@ -289,6 +311,48 @@ off();  // returned disposer unregisters the handler
 
 Prefer these over `eventBus.subscribe('screenEnter', ...)` + a manual `if (screen !== 'x') return` filter.
 
+Use ECSpresso screens as the authoritative navigation state. Menu steps,
+settings pages, pause overlays, and game-over views should be declared screens
+when they affect active systems, input routing, or back navigation. A renderer
+or DOM layer may keep view objects, but it should render from screen
+enter/resume hooks rather than maintain a second independent screen router.
+
+### Pause and Overlay Semantics
+
+Pushing an overlay changes the current screen, so systems gated with
+`.inScreens(['playing'])` stop automatically. It does **not** pause unrelated
+systems or globally installed plugin systems. Timers, tweens, coroutines,
+physics, and similar plugins continue unless their systems are also gated or
+their system groups are disabled.
+
+For a real pause screen:
+
+1. Put all application gameplay systems in a plugin with
+   `.setSystemDefaults({ inScreens: ['playing'] })`, or gate them individually.
+2. Identify shared clock/simulation plugin groups that must freeze.
+3. Disable those groups when pause or another inactive screen enters, then
+   enable them when playing enters or resumes.
+4. Leave input and pause-menu navigation running so the overlay remains usable.
+
+```typescript
+const GAMEPLAY_CLOCK_GROUPS = ['timers', 'tweens', 'coroutines'] as const;
+
+function pauseGameplay(ecs: typeof game): void {
+  GAMEPLAY_CLOCK_GROUPS.forEach(group => ecs.disableSystemGroup(group));
+}
+
+function resumeGameplay(ecs: typeof game): void {
+  GAMEPLAY_CLOCK_GROUPS.forEach(group => ecs.enableSystemGroup(group));
+}
+
+game.onScreenEnter('pause', ({ ecs }) => pauseGameplay(ecs));
+game.onScreenEnter('playing', ({ ecs }) => resumeGameplay(ecs));
+game.onScreenResume('playing', ({ ecs }) => resumeGameplay(ecs));
+```
+
+Screen stacks preserve underlying screen state; they do not imply a global
+simulation clock pause.
+
 ### Screen-Scoped Entities
 
 ```typescript
@@ -345,6 +409,18 @@ ecs.dispose();                   // uninstalls all plugins
 5. **Using `ecs.getResource` in resource-heavy systems instead of `.withResources()`.** Declare resource deps on the system builder — they're resolved once and cached.
 
 6. **Spawning entities before `initialize()`.** Call `await ecs.initialize()` first to set up plugin resources and run system `onInitialize` hooks.
+
+7. **Importing the built world inside system processing.** Use the callback's
+   `ecs`, declared `resources`, and registered queries. Pass `ecs` into helpers
+   instead of reaching through an application singleton.
+
+8. **Assuming a pause overlay freezes every system.** Screen gates only skip
+   systems configured for those screens. Explicitly suspend shared timer,
+   tween, coroutine, physics, or other simulation groups when pause semantics
+   require it.
+
+9. **Maintaining a second UI screen router.** Keep ECSpresso screens
+   authoritative and make DOM/canvas views respond to screen lifecycle hooks.
 
 ## Further Reference
 

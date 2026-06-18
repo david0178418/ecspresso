@@ -45,6 +45,30 @@ const game = ECSpresso.create()
   .build();
 ```
 
+## Plugin System Defaults
+
+When every system installed by a plugin shares a phase, priority, or screen
+gate, declare it once with `setSystemDefaults`:
+
+```typescript
+const gameplayPlugin = definePlugin('gameplay')
+  .setSystemDefaults({ inScreens: ['playing'], phase: 'update' })
+  .install((world) => {
+    world.addSystem('movement').setProcess(() => { /* ... */ });
+    world.addSystem('collision').setProcess(() => { /* ... */ });
+  });
+```
+
+Defaults apply only to `addSystem` calls made inside that plugin's `install`
+callback. They do not affect systems registered elsewhere or systems installed
+by other plugins. Per-system builder calls override a default.
+
+This distinction matters for pause screens. Gating an application gameplay
+plugin to `playing` does not pause separately installed timer, tween,
+coroutine, physics, or animation plugins. If those clocks must freeze, disable
+their system groups from screen lifecycle hooks and enable them again when
+gameplay enters or resumes. Keep input and overlay-navigation groups enabled.
+
 ## Plugin Cleanup
 
 The `install` function receives a second argument, `onCleanup`, for registering disposers that run when the plugin is uninstalled or the world is torn down. Use it to remove event listeners, cancel timers, or release any external resources the plugin acquired.

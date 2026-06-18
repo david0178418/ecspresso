@@ -52,6 +52,34 @@ const state = game.getScreenState();                  // { score: 0, isPaused: f
 game.updateScreenState({ score: 100 });
 ```
 
+## Keep Screens Authoritative
+
+Use the ECSpresso screen manager as the source of truth for navigation whenever
+a view affects system activity, input routing, lifecycle, or back behavior.
+This includes menu steps and settings pages, not only gameplay scenes.
+
+A DOM, canvas, or renderer integration may cache view elements, but it should
+show them from screen lifecycle hooks rather than track an independent current
+screen:
+
+```typescript
+game.onScreenEnter('menu', () => showView('menu'));
+game.onScreenEnter('modeSelect', () => showView('modeSelect'));
+game.onScreenEnter('settings', ({ config }) => showSettings(config.returnTo));
+game.onScreenResume('gameplay', () => showView('gameplay'));
+
+// Settings preserves the previous screen and returns through the same stack.
+const returnTo = game.getCurrentScreen();
+if (returnTo !== null) {
+  await game.pushScreen('settings', { returnTo });
+  await game.popScreen();
+}
+```
+
+Avoid a second UI-only router whose state can disagree with
+`getCurrentScreen()`. That split commonly leaves gameplay systems or menu input
+active behind the wrong view.
+
 ## Extracted Screen Configurators
 
 Use `ScreenConfiguratorFn` when a `.withScreens(...)` callback is extracted into a named helper:
@@ -130,6 +158,39 @@ game.addSystem('animations')
   .excludeScreens(['pause'])                   // Runs in all screens except 'pause'
   .setProcess(() => { /* ... */ });
 ```
+
+## Pause and Overlay Semantics
+
+`pushScreen('pause', ...)` makes `pause` current while preserving the previous
+screen on the stack. Systems gated with `.inScreens(['gameplay'])` stop because
+`gameplay` is no longer current. ECSpresso does not automatically stop every
+other system in the world.
+
+In particular, independently installed timer, tween, coroutine, physics, and
+animation plugins keep running unless their systems have compatible screen
+gates or their system groups are disabled. A complete pause implementation
+must account for both application systems and shared simulation plugins:
+
+```typescript
+const CLOCK_GROUPS = ['timers', 'tweens', 'coroutines'] as const;
+
+function pauseSimulation(ecs: typeof game): void {
+  CLOCK_GROUPS.forEach(group => ecs.disableSystemGroup(group));
+}
+
+function resumeSimulation(ecs: typeof game): void {
+  CLOCK_GROUPS.forEach(group => ecs.enableSystemGroup(group));
+}
+
+game.onScreenEnter('pause', ({ ecs }) => pauseSimulation(ecs));
+game.onScreenEnter('gameplay', ({ ecs }) => resumeSimulation(ecs));
+game.onScreenResume('gameplay', ({ ecs }) => resumeSimulation(ecs));
+```
+
+Keep input and pause-menu navigation enabled. Disable only groups whose clocks
+or simulation state should freeze. Also handle non-gameplay destinations such
+as menus or game-over screens when long-lived entities carry timers or
+animations that must not continue there.
 
 ## Screen Resource
 

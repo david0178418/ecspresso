@@ -70,6 +70,37 @@ const combat = definePlugin('combat')
 
 To *opt out* of a default screen gate on a single system, pass an empty array: `.inScreens([])` runs the system regardless of active screen.
 
+#### Screen gates do not pause other plugin groups
+
+`setSystemDefaults({ inScreens: ['playing'] })` applies only to systems added
+inside that plugin's `install` callback. It does not suspend systems installed
+by other plugins. A pause overlay will stop the gated combat systems below, but
+a separately installed timer, tween, coroutine, physics, or animation plugin
+continues to advance unless its group is disabled.
+
+Use screen lifecycle hooks to suspend only the shared simulation groups that
+belong to gameplay. Keep input and overlay-navigation groups enabled:
+
+```typescript
+const PAUSED_GROUPS = ['timers', 'tweens', 'coroutines'] as const;
+
+game.onScreenEnter('pause', ({ ecs }) => {
+  PAUSED_GROUPS.forEach(group => ecs.disableSystemGroup(group));
+});
+
+game.onScreenEnter('playing', ({ ecs }) => {
+  PAUSED_GROUPS.forEach(group => ecs.enableSystemGroup(group));
+});
+
+game.onScreenResume('playing', ({ ecs }) => {
+  PAUSED_GROUPS.forEach(group => ecs.enableSystemGroup(group));
+});
+```
+
+Audit every registered system and installed plugin when defining pause
+semantics. Being visually hidden or underneath a screen stack does not stop a
+system by itself.
+
 #### Spawns inside gated systems are auto-scoped
 
 When a system has `inScreens([X])` set (either directly or via `setSystemDefaults`), any `spawn` / `spawnChild` / `commands.spawn` / `commands.spawnChild` call issued *inside that system's `process` tick* without an explicit `scope` is automatically tagged with the active screen. The entity is removed when that screen exits.

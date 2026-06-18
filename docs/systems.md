@@ -76,6 +76,35 @@ game.addSystem('movement')
   .setProcess(processMovement);
 ```
 
+### Keep Processing Dependencies Explicit
+
+Use the `ecs`, `queries`, and `resources` supplied to a system callback. Avoid
+importing the application's built world into processing modules to access
+components, commands, assets, resources, or screens. Singleton reach-through
+hides dependencies and ties otherwise reusable logic to one world instance.
+
+Pass the callback's `ecs` into extracted helpers:
+
+```typescript
+type Game = typeof game;
+
+function removeExpiredProjectile(ecs: Game, entityId: number): void {
+  ecs.commands.removeEntity(entityId);
+}
+
+game.addSystem('projectile-expiry')
+  .addQuery('projectiles', { with: ['projectile'] })
+  .setProcess(({ ecs, queries }) => {
+    queries.projectiles
+      .filter(entity => entity.components.projectile.expired)
+      .forEach(entity => removeExpiredProjectile(ecs, entity.id));
+  });
+```
+
+Use `.withResources()` for stable resource dependencies and named queries for
+entity dependencies. Direct instance methods remain appropriate in composition
+and bootstrap code where the built world itself is intentionally the subject.
+
 ## System Phases
 
 Systems are organized into named execution phases that run in a fixed order:
@@ -170,6 +199,12 @@ world.getSystemsInGroup('rendering');               // ['renderSprites', 'render
 
 // If a system belongs to multiple groups, disabling ANY group skips the system
 ```
+
+Screen gating and group disabling solve different problems. `.inScreens()`
+controls a system according to the current screen. Groups coordinate systems
+that may come from several plugins or phases, such as gameplay clocks that must
+all freeze during pause. Pushing an overlay does not disable groups
+automatically; wire that policy through screen enter/resume hooks.
 
 ## System Lifecycle
 
