@@ -2,6 +2,18 @@
 
 All notable changes to ECSpresso are documented here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## 0.20.0
+
+### Changed
+
+- **Live `withResources()` dependencies**: Declared resource values are refreshed before every system process call, so `setResource()` and `updateResource()` replacements are visible regardless of `onResourceChange()` subscribers. Systems that intentionally relied on first-call snapshots now receive the currently registered value; the injected `resources` object is still reused.
+- **Optional dependency metadata**: TypeScript is now a development dependency rather than a peer dependency, and the unused `react-dom` peer requirement has been removed. Runtime integrations continue to declare only their optional package peers.
+
+### Added
+
+- **Installation guidance**: The getting-started guide now documents the optional packages required by the 2D, 3D, audio, and React entry points, along with the recommended TypeScript version.
+- **System and screen ownership guidance**: The systems, plugins, screens, and mirrored AI skill documentation now cover explicit callback dependencies, plugin-wide system defaults, authoritative screen navigation, and pause/overlay group behavior.
+
 ## 0.19.2
 
 ### Added

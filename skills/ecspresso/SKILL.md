@@ -126,7 +126,7 @@ Context fields: `{ queries, dt, ecs }`. When `.withResources()` is used, `resour
 ecs.addSystem('scoring')
   .withResources(['score', 'config'])
   .setProcess(({ resources: { score, config } }) => {
-    // resources are resolved once on first call, then cached
+    // values are refreshed before each call; the resources object is reused
   });
 ```
 
@@ -406,7 +406,7 @@ ecs.dispose();                   // uninstalls all plugins
 
 4. **Adding explicit type parameters when the builder infers them.** The builder chain accumulates types automatically. Derive the world type with `type ECS = typeof ecs`.
 
-5. **Using `ecs.getResource` in resource-heavy systems instead of `.withResources()`.** Declare resource deps on the system builder — they're resolved once and cached.
+5. **Using `ecs.getResource` in resource-heavy systems instead of `.withResources()`.** Declare resource deps on the system builder so values stay current and dependencies remain explicit.
 
 6. **Spawning entities before `initialize()`.** Call `await ecs.initialize()` first to set up plugin resources and run system `onInitialize` hooks.
 
