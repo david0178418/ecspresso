@@ -101,9 +101,11 @@ game.addSystem('projectile-expiry')
   });
 ```
 
-Use `.withResources()` for stable resource dependencies and named queries for
-entity dependencies. Direct instance methods remain appropriate in composition
-and bootstrap code where the built world itself is intentionally the subject.
+Use `.withResources()` for declared resource dependencies and named queries for
+entity dependencies. Injected resource values are refreshed before each process
+call, while the containing `resources` object is reused. Direct instance methods
+remain appropriate in composition and bootstrap code where the built world
+itself is intentionally the subject.
 
 ## System Phases
 

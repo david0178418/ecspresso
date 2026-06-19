@@ -1063,7 +1063,6 @@ export default class ECSpresso<
 
 	/**
 		* Whether a resource has active change subscribers.
-		* Used by the system builder to skip caching for observed resources.
 	*/
 	isResourceObserved<K extends keyof Cfg['resources']>(key: K): boolean {
 		return this._resourceManager.isObserved(key);

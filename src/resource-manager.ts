@@ -398,13 +398,11 @@ class ResourceManager<
 	/**
 	 * Subscribe to changes for a specific resource key.
 	 *
-	 * Subscribing marks the resource as "observed." Observed resources:
-	 * - Are re-resolved each frame by `withResources` (no stale cache)
-	 * - Are shallow-diffed at the end of each frame via `flushObserved()`,
-	 *   so in-place mutations are detected and subscribers notified
+	 * Subscribing marks the resource as "observed." Observed resources are
+	 * shallow-diffed at the end of each frame via `flushObserved()`, so in-place
+	 * mutations are detected and subscribers notified.
 	 *
-	 * When the last subscriber unsubscribes, the resource reverts to
-	 * normal (cached, no per-frame diff).
+	 * When the last subscriber unsubscribes, per-frame diffing stops.
 	 *
 	 * @param key The resource key to watch
 	 * @param callback Function called with (newValue, oldValue) when the resource changes
@@ -461,8 +459,6 @@ class ResourceManager<
 
 	/**
 	 * Whether a resource has active change subscribers.
-	 * Observed resources should not be cached by systems — they need
-	 * to be re-resolved each frame so external mutations are visible.
 	 */
 	isObserved<K extends keyof ResourceTypes>(key: K): boolean {
 		return this._observedSnapshots.has(key);

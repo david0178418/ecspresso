@@ -223,8 +223,9 @@ describe('SystemBuilder', () => {
 		expect(received[0]!.score.value).toBe(100);
 	});
 
-	test('withResources resolves once and reuses the same object', () => {
+	test('withResources refreshes unobserved values and reuses the same object', () => {
 		const resourceObjects: Record<string, unknown>[] = [];
+		const speeds: number[] = [];
 
 		const world = ECSpresso.create()
 			.withComponentTypes<TestComponents>()
@@ -237,12 +238,16 @@ describe('SystemBuilder', () => {
 			.runWhenEmpty()
 			.setProcess(({ resources }) => {
 				resourceObjects.push(resources);
+				speeds.push(resources.config.speed);
 			});
 
 		world.update(1 / 60);
+		world.setResource('config', { speed: 20 });
 		world.update(1 / 60);
+		world.updateResource('config', config => ({ speed: config.speed + 10 }));
 		world.update(1 / 60);
 
+		expect(speeds).toEqual([10, 20, 30]);
 		expect(resourceObjects).toHaveLength(3);
 		// Same reference every frame — zero allocation
 		expect(resourceObjects[0]).toBe(resourceObjects[1]);
@@ -501,26 +506,34 @@ describe('setProcessEach', () => {
 		expect(calls).toEqual([99]);
 	});
 
-	test('withResources resolves once and reuses the same object', () => {
+	test('withResources refreshes observed values and reuses the same object', () => {
 		const observed: Record<string, unknown>[] = [];
+		const speeds: number[] = [];
 		const world = ECSpresso.create()
 			.withComponentTypes<TestComponents>()
 			.withResourceTypes<{ config: { speed: number } }>()
 			.withResource('config', { speed: 10 })
 			.build();
+		world.onResourceChange('config', () => undefined);
 
 		world.addSystem('cacheTest')
 			.withResources(['config'])
 			.setProcessEach(
 				{ with: ['position'] },
-				({ resources }) => { observed.push(resources); },
+				({ resources }) => {
+					observed.push(resources);
+					speeds.push(resources.config.speed);
+				},
 			);
 
 		world.spawn({ position: { x: 0, y: 0 } });
 		world.update(1 / 60);
+		world.setResource('config', { speed: 20 });
 		world.update(1 / 60);
+		world.updateResource('config', config => ({ speed: config.speed + 10 }));
 		world.update(1 / 60);
 
+		expect(speeds).toEqual([10, 20, 30]);
 		expect(observed).toHaveLength(3);
 		expect(observed[0]).toBe(observed[1]);
 		expect(observed[1]).toBe(observed[2]);

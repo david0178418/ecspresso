@@ -38,7 +38,7 @@ export class SystemBuilder<
 	private _requiredAssets?: ReadonlyArray<keyof Cfg['assets'] & string>;
 	private _runWhenEmpty = false;
 	private _entityEnterHandlers: Record<string, (ctx: { entity: any; ecs: any }) => void> = {};
-	private _resourceKeys?: string[];
+	private _resourceKeys?: ReadonlyArray<keyof Cfg['resources'] & string>;
 
 	constructor(private _label: string, defaults?: SystemDefaults<Cfg>) {
 		if (defaults) {
@@ -195,8 +195,8 @@ export class SystemBuilder<
 	}
 
 	/**
-	 * Declare resource dependencies for this system. Resources are resolved
-	 * once (on first process call) and the same object is reused every frame.
+	 * Declare resource dependencies for this system. Resource values are resolved
+	 * before each process call, while the containing object is reused every frame.
 	 * The resolved resources are available as ctx.resources in setProcess.
 	 * @param keys Array of resource keys to resolve
 	 * @returns This SystemBuilder instance for method chaining
@@ -204,8 +204,8 @@ export class SystemBuilder<
 	withResources<RK extends keyof Cfg['resources'] & string>(
 		keys: readonly RK[]
 	): SystemBuilder<Cfg, Queries, Label, SysGroups, RK, Singletons> {
-		(this as any)._resourceKeys = [...keys];
-		return this as any;
+		this._resourceKeys = [...keys];
+		return this as unknown as SystemBuilder<Cfg, Queries, Label, SysGroups, RK, Singletons>;
 	}
 
 	/**
@@ -308,14 +308,10 @@ export class SystemBuilder<
 		}
 		const keys = this._resourceKeys;
 		const resolved: Record<string, unknown> = {};
-		let initialized = false;
 		return ((ctx) => {
 			for (const key of keys) {
-				if (!initialized || ctx.ecs.isResourceObserved(key as keyof Cfg['resources'] & string)) {
-					resolved[key] = ctx.ecs.getResource(key as keyof Cfg['resources'] & string);
-				}
+				resolved[key] = ctx.ecs.getResource(key);
 			}
-			initialized = true;
 			(ctx as Record<string, unknown>)['resources'] = resolved;
 			process(ctx);
 		}) as InternalProcessFunction<Cfg, Queries, Singletons>;
@@ -551,7 +547,7 @@ type QueryResults<
  * Context object passed to system process functions.
  * Pre-allocated per system and reused every frame (zero per-frame allocation).
  * When resources are declared via withResources(), the context includes a
- * `resources` field with the resolved values (cached once on first call).
+ * `resources` field whose values are refreshed before each process call.
  */
 export type ProcessContext<
 	Cfg extends WorldConfig,
