@@ -172,18 +172,18 @@
 	],
 	"devDependencies": {
 		"@types/bun": "latest",
-		"@types/howler": "^2.2.12",
-		"@types/react": "^19.2.14",
+		"@types/howler": "^2.2.13",
+		"@types/react": "^19.2.17",
 		"@types/react-dom": "^19.2.3",
-		"@types/three": "^0.184.0",
+		"@types/three": "^0.185.1",
 		"howler": "^2.2.4",
-		"phaser": "^4.1.0",
-		"pixi.js": "^8.18.1",
-		"react": "^19.2.5",
-		"react-dom": "^19.2.5",
-		"three": "^0.184.0",
-		"typedoc": "^0.28.19",
-		"typescript": "^6.0.3"
+		"phaser": "^4.2.0",
+		"pixi.js": "^8.19.0",
+		"react": "^19.2.7",
+		"react-dom": "^19.2.7",
+		"three": "^0.185.1",
+		"typedoc": "^0.28.20",
+		"typescript": "^7.0.2"
 	},
 	"peerDependencies": {
 		"pixi.js": "^8.0.0",
