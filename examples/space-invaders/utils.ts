@@ -1,15 +1,15 @@
-import { Graphics, Sprite } from "pixi.js";
-import { createLocalTransform } from "../../src/plugins/rendering/renderer2D";
-import { createRigidBody } from "../../src/plugins/physics/physics2D";
-import { createAABBCollider } from "../../src/plugins/physics/collision";
-import { createClampToBounds } from "../../src/plugins/spatial/bounds";
-import collisionLayers from "./collision-layers";
-import type { World } from "./types";
+import { Graphics, Sprite } from 'pixi.js';
+import { createLocalTransform } from '../../src/plugins/rendering/renderer2D';
+import { createRigidBody } from '../../src/plugins/physics/physics2D';
+import { createAABBCollider } from '../../src/plugins/physics/collision';
+import { createClampToBounds } from '../../src/plugins/spatial/bounds';
+import collisionLayers from './collision-layers';
+import type { Game } from './game';
 
 /**
  * Spawns an enemy formation based on the current level
  */
-export function spawnEnemyFormation(ecs: World): void {
+export function spawnEnemyFormation(ecs: Game): void {
 	const config = ecs.getResource('config');
 	const gameState = ecs.getResource('gameState');
 	const bounds = ecs.getResource('bounds');
@@ -20,7 +20,10 @@ export function spawnEnemyFormation(ecs: World): void {
 	const startX = (bounds.width - (enemiesPerRow - 1) * spacing) / 2;
 	const startY = 80;
 
-	const enemyConfigs: Record<'boss' | 'elite' | 'grunt', { points: number; health: number; color: number }> = {
+	const enemyConfigs: Record<
+		'boss' | 'elite' | 'grunt',
+		{ points: number; health: number; color: number }
+	> = {
 		boss: { points: 100 * gameState.level, health: 3, color: 0xFF0000 },
 		elite: { points: 50 * gameState.level, health: 2, color: 0xFF00FF },
 		grunt: { points: 20 * gameState.level, health: 1, color: 0xFFAA00 },
@@ -28,8 +31,7 @@ export function spawnEnemyFormation(ecs: World): void {
 
 	for (let row = 0; row < rows; row++) {
 		for (let col = 0; col < enemiesPerRow; col++) {
-			const enemyType: 'boss' | 'elite' | 'grunt' =
-				row === 0 ? 'boss' : row < 2 ? 'elite' : 'grunt';
+			const enemyType: 'boss' | 'elite' | 'grunt' = row === 0 ? 'boss' : row < 2 ? 'elite' : 'grunt';
 			const { points, health, color } = enemyConfigs[enemyType];
 
 			const enemySprite = createEnemySprite(ecs, enemyType, color);
@@ -50,7 +52,10 @@ export function spawnEnemyFormation(ecs: World): void {
 
 type EnemyType = 'grunt' | 'elite' | 'boss';
 
-const enemyDrawers: Record<EnemyType, (graphics: Graphics, color: number) => void> = {
+const enemyDrawers: Record<
+	EnemyType,
+	(graphics: Graphics, color: number) => void
+> = {
 	boss: (graphics, color) => {
 		graphics
 			.rect(-20, -20, 40, 40)
@@ -73,7 +78,11 @@ const enemyDrawers: Record<EnemyType, (graphics: Graphics, color: number) => voi
 	},
 };
 
-export function createEnemySprite(ecs: World, type: EnemyType, color: number): Sprite {
+export function createEnemySprite(
+	ecs: Game,
+	type: EnemyType,
+	color: number,
+): Sprite {
 	const pixi = ecs.getResource('pixiApp');
 	const graphics = new Graphics();
 	enemyDrawers[type](graphics, color);
@@ -84,7 +93,7 @@ export function createEnemySprite(ecs: World, type: EnemyType, color: number): S
 	return sprite;
 }
 
-export function createPlayerSprite(ecs: World): Sprite {
+export function createPlayerSprite(ecs: Game): Sprite {
 	const pixi = ecs.getResource('pixiApp');
 	const graphics = new Graphics()
 		.rect(-20, -10, 40, 20)
@@ -100,7 +109,10 @@ export function createPlayerSprite(ecs: World): Sprite {
 	return sprite;
 }
 
-export function createProjectileSprite(ecs: World, owner: 'player' | 'enemy'): Sprite {
+export function createProjectileSprite(
+	ecs: Game,
+	owner: 'player' | 'enemy',
+): Sprite {
 	const pixi = ecs.getResource('pixiApp');
 	const graphics = new Graphics()
 		.rect(-2, -8, 4, 16)
@@ -112,7 +124,7 @@ export function createProjectileSprite(ecs: World, owner: 'player' | 'enemy'): S
 	return sprite;
 }
 
-export function spawnPlayer(ecs: World): number {
+export function spawnPlayer(ecs: Game): number {
 	const bounds = ecs.getResource('bounds');
 	const playerSprite = createPlayerSprite(ecs);
 

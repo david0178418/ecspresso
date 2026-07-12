@@ -2,68 +2,79 @@ import { createLocalTransform } from '../../../src/plugins/rendering/renderer2D'
 import { createRigidBody } from '../../../src/plugins/physics/physics2D';
 import { createAABBCollider } from '../../../src/plugins/physics/collision';
 import { createDestroyOutOfBounds } from '../../../src/plugins/spatial/bounds';
-import { definePlugin } from '../types';
-import { spawnPlayer, createProjectileSprite } from '../utils';
+import type { Game } from '../game';
+import { createProjectileSprite, spawnPlayer } from '../utils';
 import collisionLayers from '../collision-layers';
+
+type ProjectileOwner = 'player' | 'enemy';
+
+const PROJECTILE_CONFIG = {
+	player: {
+		yOffset: -20,
+		yVelocity: -400,
+		layer: collisionLayers.playerProjectile,
+	},
+	enemy: {
+		yOffset: 20,
+		yVelocity: 400,
+		layer: collisionLayers.enemyProjectile,
+	},
+} as const;
+
+function spawnProjectile(ecs: Game, owner: ProjectileOwner, x: number, y: number): void {
+	const projectileConfig = PROJECTILE_CONFIG[owner];
+	const projectileSprite = createProjectileSprite(ecs, owner);
+
+	ecs.spawn({
+		sprite: projectileSprite,
+		...createLocalTransform(x, y + projectileConfig.yOffset),
+		...createRigidBody('kinematic'),
+		velocity: { x: 0, y: projectileConfig.yVelocity },
+		projectile: { owner, damage: 1 },
+		...createAABBCollider(
+			projectileSprite.width,
+			projectileSprite.height,
+		),
+		...projectileConfig.layer(),
+		...createDestroyOutOfBounds(20),
+		renderLayer: 'game',
+	});
+}
 
 /**
  * Handles entity spawning in response to game events.
  */
-export default function createSpawnerPlugin() {
-	return definePlugin({
-		id: 'spawner-plugin',
-		install(world) {
-			world.addSystem('entity-spawner')
-				.setEventHandlers({
-					gameInit({ ecs }) {
-						spawnPlayer(ecs);
-					},
+export default function registerSpawner(world: Game): void {
+	world.addSystem('entity-spawner')
+		.setEventHandlers({
+			gameInit({ ecs }) {
+				spawnPlayer(ecs);
+			},
 
-					playerShoot({ ecs }) {
-						const [player] = ecs.getEntitiesWithQuery(['player', 'worldTransform']);
-						if (!player) return;
+			playerShoot({ ecs }) {
+				const [player] = ecs.getEntitiesWithQuery(['player', 'worldTransform']);
+				if (!player) return;
 
-						const projectileSprite = createProjectileSprite(ecs, 'player');
+				spawnProjectile(
+					ecs,
+					'player',
+					player.components.worldTransform.x,
+					player.components.worldTransform.y,
+				);
+			},
 
-						ecs.spawn({
-							sprite: projectileSprite,
-							...createLocalTransform(player.components.worldTransform.x, player.components.worldTransform.y - 20),
-							...createRigidBody('kinematic'),
-							velocity: { x: 0, y: -400 },
-							projectile: { owner: 'player', damage: 1 },
-							...createAABBCollider(projectileSprite.width, projectileSprite.height),
-							...collisionLayers.playerProjectile(),
-							...createDestroyOutOfBounds(20),
-							renderLayer: 'game',
-						});
-					},
+			enemyShoot({ data, ecs }) {
+				const worldTransform = ecs.getComponent(data.enemyId, 'worldTransform');
+				if (!worldTransform) return;
 
-					enemyShoot({ data, ecs }) {
-						const worldTransform = ecs.getComponent(data.enemyId, 'worldTransform');
-						if (!worldTransform) return;
+				spawnProjectile(ecs, 'enemy', worldTransform.x, worldTransform.y);
+			},
 
-						const projectileSprite = createProjectileSprite(ecs, 'enemy');
-
-						ecs.spawn({
-							sprite: projectileSprite,
-							...createLocalTransform(worldTransform.x, worldTransform.y + 20),
-							...createRigidBody('kinematic'),
-							velocity: { x: 0, y: 400 },
-							projectile: { owner: 'enemy', damage: 1 },
-							...createAABBCollider(projectileSprite.width, projectileSprite.height),
-							...collisionLayers.enemyProjectile(),
-							...createDestroyOutOfBounds(20),
-							renderLayer: 'game',
-						});
-					},
-
-					playerRespawn({ ecs }) {
-						const gameState = ecs.getResource('gameState');
-						if (gameState.status === 'playing') {
-							spawnPlayer(ecs);
-						}
-					}
-				});
-		},
-	});
+			playerRespawn({ ecs }) {
+				const gameState = ecs.getResource('gameState');
+				if (gameState.status === 'playing') {
+					spawnPlayer(ecs);
+				}
+			},
+		});
 }
