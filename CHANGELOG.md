@@ -2,6 +2,13 @@
 
 All notable changes to ECSpresso are documented here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## Unreleased
+
+### Fixed
+
+- Replaced the obsolete GitHub Packages release job with an npmjs workflow
+  that creates the version commit and tag before publishing.
+
 ## 0.21.0
 
 ### Breaking

@@ -154,11 +154,12 @@
 		}
 	},
 	"publishConfig": {
-		"registry": "https://npm.pkg.github.com/"
+		"access": "public",
+		"registry": "https://registry.npmjs.org/"
 	},
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/DeeGeeGames/ecspresso"
+		"url": "git+https://github.com/DeeGeeGames/ecspresso.git"
 	},
 	"keywords": [
 		"game",
@@ -223,7 +224,7 @@
 		"bench:ecs": "bun bench/ecs-physics.bench.ts",
 		"docs": "typedoc && bun scripts/build-examples.ts && bun scripts/build-changelog.ts && bun scripts/build-docs-index.ts",
 		"docs:serve": "bun run docs && bunx serve docs",
-		"postversion": "bun scripts/sync-plugin-version.ts && git add .claude-plugin/plugin.json .codex-plugin/plugin.json plugins/ecspresso/.codex-plugin/plugin.json",
+		"version": "bun scripts/prepare-release.ts && bun scripts/sync-plugin-version.ts && git add CHANGELOG.md .claude-plugin/plugin.json .codex-plugin/plugin.json plugins/ecspresso/.codex-plugin/plugin.json",
 		"prepublishOnly": "bun run check && bun run build"
 	},
 	"type": "module"

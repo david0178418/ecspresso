@@ -1,38 +1,100 @@
-name: Create GitHub Release
+name: Release
 
 on:
-  push:
-    tags:
-      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Exact semver version, without the v prefix
+        required: true
+        type: string
 
 permissions:
+  actions: write
   contents: write
+  id-token: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
   release:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: master
 
-      - name: Extract changelog section
-        id: extract
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          registry-url: https://registry.npmjs.org/
+          package-manager-cache: false
+
+      - name: Install npm with Trusted Publishing support
+        run: npm install --global npm@latest
+
+      - name: Verify release source
         run: |
-          TAG="${GITHUB_REF#refs/tags/v}"
-          awk -v ver="$TAG" '
+          git fetch origin master
+          test "$(git rev-parse HEAD)" = "$(git rev-parse origin/master)"
+          test -z "$(git status --porcelain)"
+
+      - run: bun install --frozen-lockfile
+      - run: bun run check
+
+      - name: Create version commit and tag
+        env:
+          VERSION_INPUT: ${{ inputs.version }}
+        run: |
+          CURRENT_VERSION="$(node -p "require('./package.json').version")"
+          if [ "$CURRENT_VERSION" = "$VERSION_INPUT" ]; then
+            test "$(git rev-list -n 1 "v$CURRENT_VERSION")" = "$(git rev-parse HEAD)"
+            exit 0
+          fi
+
+          grep -q '^## Unreleased$' CHANGELOG.md
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          npm version "$VERSION_INPUT" -m "Release v%s"
+          git push origin master --follow-tags
+
+      - name: Publish to npm
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          if npm view "ecspresso@$VERSION" version >/dev/null 2>&1; then
+            echo "ecspresso@$VERSION is already published"
+            exit 0
+          fi
+          npm publish
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          if gh release view "v$VERSION" >/dev/null 2>&1; then
+            echo "GitHub release v$VERSION already exists"
+            exit 0
+          fi
+
+          awk -v ver="$VERSION" '
             $0 ~ "^## " ver "( |$)" { found = 1; next }
             found && /^## / { exit }
             found { print }
           ' CHANGELOG.md > release-notes.md
-          if [ ! -s release-notes.md ]; then
-            echo "No changelog entry found for $TAG" >&2
-            echo "See [CHANGELOG.md](./CHANGELOG.md)." > release-notes.md
-          fi
-          cat release-notes.md
+          gh release create "v$VERSION" \
+            --title "v$VERSION" \
+            --notes-file release-notes.md
 
-      - name: Create release
+      - name: Deploy versioned documentation
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create "$GITHUB_REF_NAME" \
-            --title "$GITHUB_REF_NAME" \
-            --notes-file release-notes.md
+          VERSION="$(node -p "require('./package.json').version")"
+          gh workflow run docs.yml --ref "v$VERSION"
