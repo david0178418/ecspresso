@@ -34,7 +34,7 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun examples/stress-test/bevy/build.ts
       - run: bun run docs
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v4
         with:
           path: docs
 
