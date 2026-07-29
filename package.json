@@ -177,13 +177,13 @@
 		"@types/react-dom": "^19.2.3",
 		"@types/three": "^0.185.1",
 		"howler": "^2.2.4",
-		"phaser": "^4.2.0",
+		"phaser": "^4.2.1",
 		"pixi.js": "^8.19.0",
-		"react": "^19.2.7",
-		"react-dom": "^19.2.7",
+		"react": "^19.2.8",
+		"react-dom": "^19.2.8",
 		"three": "^0.185.1",
 		"typedoc": "^0.28.20",
-		"typescript": "^6.0.3"
+		"typescript": "6"
 	},
 	"peerDependencies": {
 		"pixi.js": "^8.0.0",
