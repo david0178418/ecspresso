@@ -15,7 +15,6 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
-          registry-url: "https://npm.pkg.github.com/"
       - run: bun install --frozen-lockfile
       - run: bun test
 
@@ -30,8 +29,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
-          registry-url: "https://npm.pkg.github.com/"
-      - run: bun install
-      - run: bun publish
+      - run: bun install --frozen-lockfile
+      - run: bun publish --registry https://npm.pkg.github.com/
         env:
-          BUN_AUTH_TOKEN: ${{secrets.GITHUB_TOKEN}}
+          NPM_CONFIG_TOKEN: ${{ secrets.GITHUB_TOKEN }}
