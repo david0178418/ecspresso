@@ -33,7 +33,6 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: '24'
-          registry-url: https://registry.npmjs.org/
           package-manager-cache: false
 
       - name: Install npm with Trusted Publishing support
@@ -54,7 +53,8 @@ jobs:
         run: |
           CURRENT_VERSION="$(node -p "require('./package.json').version")"
           if [ "$CURRENT_VERSION" = "$VERSION_INPUT" ]; then
-            test "$(git rev-list -n 1 "v$CURRENT_VERSION")" = "$(git rev-parse HEAD)"
+            git checkout --detach "v$CURRENT_VERSION"
+            test "$(node -p "require('./package.json').version")" = "$VERSION_INPUT"
             exit 0
           fi
 
