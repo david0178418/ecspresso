@@ -51,11 +51,11 @@ When every system installed by a plugin shares a phase, priority, or screen
 gate, declare it once with `setSystemDefaults`:
 
 ```typescript
-const gameplayPlugin = definePlugin('gameplay')
-  .setSystemDefaults({ inScreens: ['playing'], phase: 'update' })
+const visualEffectsPlugin = definePlugin('visual-effects')
+  .setSystemDefaults({ phase: 'render', priority: -100 })
   .install((world) => {
-    world.addSystem('movement').setProcess(() => { /* ... */ });
-    world.addSystem('collision').setProcess(() => { /* ... */ });
+    world.addSystem('update-particles').setProcess(() => { /* ... */ });
+    world.addSystem('update-trails').setProcess(() => { /* ... */ });
   });
 ```
 
@@ -63,8 +63,13 @@ Defaults apply only to `addSystem` calls made inside that plugin's `install`
 callback. They do not affect systems registered elsewhere or systems installed
 by other plugins. Per-system builder calls override a default.
 
-This distinction matters for pause screens. Gating an application gameplay
-plugin to `playing` does not pause separately installed timer, tween,
+For application-owned modules that only group system registration, use
+[`SystemRegistrarOf<W>` and `world.systemScope(defaults)`](./systems.md#application-registration-modules)
+instead of creating a plugin. Plugins are for reusable features that contribute
+or require types, need installation identity, or own cleanup.
+
+This distinction matters for pause screens. Gating application systems through
+a `playing` registrar does not pause separately installed timer, tween,
 coroutine, physics, or animation plugins. If those clocks must freeze, disable
 their system groups from screen lifecycle hooks and enable them again when
 gameplay enters or resumes. Keep input and overlay-navigation groups enabled.
@@ -94,32 +99,18 @@ world.uninstallPlugin('input');  // runs cleanup disposers, returns true if foun
 world.dispose();                 // uninstalls all plugins, then cleans up world state
 ```
 
-## Plugin Factory
+## Choosing Plugins or Application Registration
 
-When multiple plugins share the same types (common in application code), use `pluginFactory()` on the builder or built world to capture types automatically:
+| Need | API |
+|---|---|
+| Reusable feature contributing or requiring types | `definePlugin()` |
+| Application system with no shared defaults | Function receiving `SystemRegistrarOf<W>`; pass the world |
+| Application systems sharing defaults | `world.systemScope(defaults)` |
+| Non-system world initialization | Explicit full-world dependency |
 
-```typescript
-// types.ts — builder accumulates all types
-export const builder = ECSpresso.create()
-  .withPlugin(createPhysicsPlugin())
-  .withComponentTypes<{ player: boolean; enemy: EnemyData }>()
-  .withResourceTypes<{ score: number }>();
-
-// Types flow from the builder — no manual imports or extends chains
-export const definePlugin = builder.pluginFactory();
-
-// movement-plugin.ts — no type params needed
-import { definePlugin } from './types';
-
-export const movementPlugin = definePlugin({
-  id: 'movement',
-  install(world) {
-    world.addSystem('movement')
-      .addQuery('moving', { with: ['position', 'velocity'] })
-      .setProcess(({ queries, dt }) => { /* ... */ });
-  },
-});
-```
+Canonical plugins are the only plugin category. Application registration
+functions operate against the final built-world schema without taking on
+plugin identity, duplicate-install protection, or cleanup semantics.
 
 ## Plugin Requirements
 

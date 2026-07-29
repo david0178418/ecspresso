@@ -249,6 +249,46 @@ ecs.tryGetSingleton(['player']);                   // undefined on 0, throws on 
 
 Both accept an optional `withoutComponents` array as the second argument. Use these when you need strict enforcement; use `addSingleton` when the zero-match case is expected (e.g., flagship destroyed mid-game).
 
+## Application System Registration
+
+Use `SystemRegistrarOf<W>` when an application module only needs to add systems
+against the final built-world schema:
+
+```typescript
+import type { SystemRegistrarOf } from 'ecspresso';
+
+type GameSystems = SystemRegistrarOf<typeof game>;
+
+function registerMovement(systems: GameSystems): void {
+  systems.addSystem('movement')
+    .setProcessEach(
+      { with: ['position', 'velocity'], mutates: ['position'] },
+      ({ entity, dt }) => {
+        entity.components.position.x += entity.components.velocity.x * dt;
+      },
+    );
+}
+
+registerMovement(game); // the full world satisfies the narrow capability
+
+const gameplaySystems = game.systemScope({
+  inScreens: ['playing'],
+  phase: 'update',
+  priority: 100,
+});
+registerMovement(gameplaySystems);
+```
+
+`systemScope()` snapshots its `phase`, `priority`, `inScreens`, and
+`excludeScreens` defaults, including copies of screen arrays. Per-system
+builder calls override captured defaults. Direct registration and other
+registrars are unaffected.
+
+The public types are `SystemDefaults<Cfg>`, `SystemRegistrar<Cfg>`, and
+`SystemRegistrarOf<W>`. A registrar exposes only `addSystem()`; pass the full
+world separately for reactive queries, resources, entities, navigation,
+plugin lifecycle, or other initialization.
+
 ## System Groups
 
 ```typescript

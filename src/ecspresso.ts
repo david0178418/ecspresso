@@ -6,7 +6,11 @@ import ScreenManager from "./screen-manager";
 import ReactiveQueryManager, { type ReactiveQueryDefinition } from "./reactive-query-manager";
 import CommandBuffer from "./command-buffer";
 import type { System, SystemPhase, FilteredEntity, Entity, QueryDefinition, RemoveEntityOptions, HierarchyEntry, HierarchyIteratorOptions } from "./types";
-import { definePlugin, type Plugin, type SystemDefaults } from "./plugin";
+import type { Plugin } from "./plugin";
+import {
+	type SystemDefaults,
+	type SystemRegistrar,
+} from "./system-registrar";
 import { SystemBuilder, PROCESS_EACH_QUERY } from "./system-builder";
 import { checkRequiredCycle } from "./utils/check-required-cycle";
 import { version } from "../package.json";
@@ -35,6 +39,20 @@ export default interface ECSpresso<
 const PHASE_ORDER: readonly SystemPhase[] = [
 	'preUpdate', 'fixedUpdate', 'update', 'postUpdate', 'render',
 ];
+
+function copySystemDefaults<Cfg extends WorldConfig>(
+	defaults: SystemDefaults<Cfg>,
+): SystemDefaults<Cfg> {
+	return {
+		...defaults,
+		inScreens: defaults.inScreens === undefined
+			? undefined
+			: [...defaults.inScreens],
+		excludeScreens: defaults.excludeScreens === undefined
+			? undefined
+			: [...defaults.excludeScreens],
+	};
+}
 
 /**
  * Branded sentinel used as the expected-parameter type when `installPlugin`
@@ -285,7 +303,26 @@ export default class ECSpresso<
 		* @returns A SystemBuilder instance for method chaining
 	*/
 	addSystem(label: string): SystemBuilder<Cfg> {
-		const builder = new SystemBuilder<Cfg>(label, this._currentSystemDefaults);
+		return this._createSystemBuilder(label, this._currentSystemDefaults);
+	}
+
+	/**
+	 * Create a narrow capability for registering systems with snapshotted
+	 * shared defaults.
+	 */
+	systemScope(defaults: SystemDefaults<Cfg>): SystemRegistrar<Cfg> {
+		const capturedDefaults = copySystemDefaults(defaults);
+		return {
+			addSystem: (label) =>
+				this._createSystemBuilder(label, capturedDefaults),
+		};
+	}
+
+	private _createSystemBuilder(
+		label: string,
+		defaults?: SystemDefaults<Cfg>,
+	): SystemBuilder<Cfg> {
+		const builder = new SystemBuilder<Cfg>(label, defaults);
 		this._pendingFinalizers.push(() => {
 			this._registerSystem(builder._createSystemObject());
 		});
@@ -2192,26 +2229,6 @@ export default class ECSpresso<
 			const id = ids[i];
 			if (id !== undefined) this.uninstallPlugin(id);
 		}
-	}
-
-	/**
-	 * Create a plugin factory from the built world's types.
-	 * Returns a definePlugin equivalent with no manual type parameters.
-	 */
-	pluginFactory(): <
-		PL extends string = never,
-		PG extends string = never,
-		PAG extends string = never,
-		PRQ extends string = never,
-	>(config: {
-		id: string;
-		install: (world: ECSpresso<Cfg>) => void;
-	}) => Plugin<Cfg, EmptyConfig, PL, PG, PAG, PRQ> {
-		return ((config: { id: string; install: (world: ECSpresso<any>) => void }) =>
-			definePlugin(config.id).install(config.install)
-		) as unknown as ReturnType<
-			ECSpresso<Cfg>['pluginFactory']
-		>;
 	}
 
 	/**

@@ -9,7 +9,7 @@ See [CHANGELOG.md](./CHANGELOG.md) for recent changes, including breaking change
 ## Features
 
 - **Type-Safe**: Full TypeScript support with component, event, and resource type inference
-- **Modular**: Plugin-based architecture for organizing features
+- **Modular**: Reusable plugins plus narrow, type-safe application system registration
 - **Developer-Friendly**: Clean, fluent API with method chaining
 - **Event-Driven**: Integrated event system for decoupled communication
 - **Resource Management**: Global state management with lazy loading
@@ -73,7 +73,7 @@ world.update(1/60);
 - [Entity Hierarchy](./docs/hierarchy.md) — parent-child, traversal, cascade deletion
 - [Change Detection](./docs/change-detection.md) — marking, sequence timing
 - [Command Buffer](./docs/command-buffer.md) — deferred structural changes
-- [Plugins](./docs/plugins.md) — definePlugin, pluginFactory, required components
+- [Plugins](./docs/plugins.md) — reusable features, requirements, cleanup
 - [Asset Management](./docs/assets.md) — loading, groups, progress
 - [Screen Management](./docs/screens.md) — transitions, scoped systems, overlays
 - [Built-in Plugins](./docs/built-in-plugins.md) — input, timers, physics, rendering

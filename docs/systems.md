@@ -18,6 +18,53 @@ world.addSystem('rendering')
   });
 ```
 
+## Application Registration Modules
+
+Use `SystemRegistrarOf<W>` when a module only needs to register systems against
+an application's final built world:
+
+```typescript
+import type { SystemRegistrarOf } from 'ecspresso';
+
+type GameSystems = SystemRegistrarOf<typeof game>;
+
+export function registerMovement(systems: GameSystems): void {
+  systems.addSystem('movement')
+    .addQuery('moving', { with: ['position', 'velocity'] })
+    .setProcess(({ queries, dt }) => {
+      queries.moving.forEach(entity => {
+        entity.components.position.x += entity.components.velocity.x * dt;
+      });
+    });
+}
+
+registerMovement(game);
+```
+
+The full world structurally satisfies this narrow type. When several
+application systems share defaults, create a registrar with snapshotted
+defaults:
+
+```typescript
+const gameplaySystems = game.systemScope({
+  inScreens: ['playing'],
+  phase: 'update',
+});
+
+registerMovement(gameplaySystems);
+registerCombat(gameplaySystems);
+```
+
+`systemScope()` snapshots its defaults, including copies of screen arrays.
+Direct `game.addSystem()` calls and separate registrars are unaffected.
+Per-system fluent calls override captured defaults; `.inScreens([])` clears an
+inherited screen gate.
+
+The registrar exposes only `addSystem()`. Pass the full world separately for
+reactive queries, resources, entities, navigation, or other initialization.
+This keeps application organization distinct from reusable plugin identity and
+lifecycle.
+
 ## Single-Query Shorthand: `setProcessEach`
 
 For the common case of one query iterated entity-by-entity, `setProcessEach` collapses the query definition, callback wiring, and outer `for…of` into a single chain step:

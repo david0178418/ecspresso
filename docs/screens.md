@@ -159,6 +159,11 @@ game.addSystem('animations')
   .setProcess(() => { /* ... */ });
 ```
 
+When several application-owned systems share the same screen gate, capture it
+once with `game.systemScope({ inScreens: ['gameplay'] })` and pass that registrar
+to their registration functions. See
+[Application Registration Modules](./systems.md#application-registration-modules).
+
 ## Pause and Overlay Semantics
 
 `pushScreen('pause', ...)` makes `pause` current while preserving the previous

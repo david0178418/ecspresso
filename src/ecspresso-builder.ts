@@ -2,7 +2,7 @@ import ECSpresso, { type InstallPluginParam, type PluginError } from "./ecspress
 import AssetManager, { AssetConfiguratorImpl, createAssetConfigurator } from "./asset-manager";
 import ScreenManager, { ScreenConfiguratorImpl, createScreenConfigurator } from "./screen-manager";
 import type { ResourceFactoryWithDeps, ResourceDirectValue } from "./resource-manager";
-import { definePlugin, type Plugin } from "./plugin";
+import type { Plugin } from "./plugin";
 import type { WorldConfig, EmptyConfig, MergeConfigs, TypesAreCompatible, WithComponents, WithEvents, WithResources } from "./type-utils";
 import type { AssetConfiguratorFn, AssetsResource } from "./asset-types";
 import type { ScreenDefinition, ScreenConfigurator, ScreenResource } from "./screen-types";
@@ -312,24 +312,6 @@ export class ECSpressoBuilder<
 	 */
 	withReactiveQueryNames<N extends string>(): ECSpressoBuilder<Cfg, Labels, Groups, AssetGroupNames, ReactiveQueryNames | N> {
 		return this as unknown as ECSpressoBuilder<Cfg, Labels, Groups, AssetGroupNames, ReactiveQueryNames | N>;
-	}
-
-	/**
-	 * Create a plugin factory from the builder's accumulated types.
-	 * Returns a definePlugin equivalent with no manual type parameters.
-	 */
-	pluginFactory(): <
-		PL extends string = never,
-		PG extends string = never,
-		PAG extends string = never,
-		PRQ extends string = never,
-	>(config: {
-		id: string;
-		install: (world: ECSpresso<Cfg>) => void;
-	}) => Plugin<Cfg, EmptyConfig, PL, PG, PAG, PRQ> {
-		return ((config: { id: string; install: (world: ECSpresso<any>) => void }) =>
-			definePlugin(config.id).install(config.install)
-		) as unknown as ReturnType<ECSpressoBuilder<Cfg>['pluginFactory']>;
 	}
 
 	/**

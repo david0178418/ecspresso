@@ -1,7 +1,7 @@
 import { expect, describe, test } from 'bun:test';
 import ECSpresso from './ecspresso';
 import { createTimerPlugin } from './plugins/scripting/timers';
-import { createTransformPlugin, createLocalTransform, type TransformComponentTypes } from './plugins/spatial/transform';
+import { createTransformPlugin, type TransformComponentTypes } from './plugins/spatial/transform';
 import type { ComponentsOf, EventsOf, ResourcesOf } from './types';
 import type { AssetsResource } from './asset-types';
 import type { ScreenConfiguratorFn, ScreenDefinition } from './screen-types';
@@ -794,52 +794,5 @@ describe('withResourceTypes', () => {
 		await ecs.initialize();
 		expect(ecs.getResource('score')).toBe(100);
 		expect(ecs.getResource('config').debug).toBe(true);
-	});
-});
-
-describe('pluginFactory()', () => {
-	test('produces type-safe definePlugin from builder state', () => {
-		const base = ECSpresso.create()
-			.withPlugin(createTransformPlugin())
-			.withPlugin(createTimerPlugin())
-			.withComponentTypes<{ player: true }>()
-			.withEventTypes<{ gameStart: true }>();
-
-		const define = base.pluginFactory();
-
-		const testPlugin = define({
-			id: 'test',
-			install(world) {
-				world.spawn({ ...createLocalTransform(0, 0), player: true as const });
-				world.eventBus.publish('gameStart', true);
-			},
-		});
-
-		const ecs = base.withPlugin(testPlugin).build();
-		expect(ecs).toBeDefined();
-	});
-
-	test('rejects invalid component/event usage at compile time', () => {
-		const base = ECSpresso.create()
-			.withComponentTypes<{ position: { x: number; y: number } }>()
-			.withEventTypes<{ hit: { damage: number } }>();
-
-		const define = base.pluginFactory();
-
-		define({
-			id: 'valid',
-			install(world) {
-				world.spawn({ position: { x: 0, y: 0 } });
-				world.eventBus.publish('hit', { damage: 10 });
-			},
-		});
-
-		define({
-			id: 'invalid',
-			install(world) {
-				// @ts-expect-error - 'velocity' not in accumulated types
-				world.spawn({ velocity: { x: 1, y: 1 } });
-			},
-		});
 	});
 });

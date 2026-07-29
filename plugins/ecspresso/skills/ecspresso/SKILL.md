@@ -78,7 +78,11 @@ type ECS = typeof ecs;
 
 ### Scaling the type registry
 
-The single inline `withComponentTypes<{...}>()` block above is fine for small projects and examples. For a real game where features keep introducing new components, decide *now* whether feature plugins will contribute their own types — that choice has cascading consequences and is hard to reverse later. See [plugins.md — Choosing between the two](plugins.md#choosing-between-the-two) before committing.
+The single inline `withComponentTypes<{...}>()` block above is fine for small
+projects and examples. For a real game, let canonical `definePlugin()` features
+contribute their own types. Application-only registration modules should
+consume the final built-world type through `SystemRegistrarOf<W>` instead of
+becoming plugins. See [plugins.md](plugins.md).
 
 When keeping a central registry (i.e., not using canonical `definePlugin` per feature), prefer per-feature interface files aggregated at the builder, rather than declaring everything inline:
 
@@ -104,6 +108,35 @@ This keeps `types.ts` a thin aggregator and lets features own their interfaces.
 ## Systems
 
 Systems use a fluent builder API. They are automatically registered — no explicit termination call needed.
+
+### Application registration scopes
+
+Use a narrow registrar for modules that only add systems:
+
+```typescript
+import type { SystemRegistrarOf } from 'ecspresso';
+
+type GameSystems = SystemRegistrarOf<typeof ecs>;
+
+function registerMovement(systems: GameSystems): void {
+  systems.addSystem('movement')
+    .addQuery('moving', { with: ['position', 'velocity'] })
+    .setProcess(({ queries, dt }) => { /* ... */ });
+}
+
+registerMovement(ecs);
+
+const gameplaySystems = ecs.systemScope({
+  inScreens: ['playing'],
+});
+registerMovement(gameplaySystems);
+```
+
+The full world and a scoped registrar both satisfy `SystemRegistrarOf<W>`.
+`systemScope()` captures copied defaults for later `addSystem()` calls;
+per-system fluent calls override them. The registrar exposes only
+`addSystem()`. Keep reactive queries and other non-system setup as explicit
+full-world dependencies.
 
 ### Process Callback Signature
 
@@ -327,8 +360,8 @@ their system groups are disabled.
 
 For a real pause screen:
 
-1. Put all application gameplay systems in a plugin with
-   `.setSystemDefaults({ inScreens: ['playing'] })`, or gate them individually.
+1. Register application gameplay systems through
+   `game.systemScope({ inScreens: ['playing'] })`, or gate them individually.
 2. Identify shared clock/simulation plugin groups that must freeze.
 3. Disable those groups when pause or another inactive screen enters, then
    enable them when playing enters or resumes.
@@ -428,7 +461,7 @@ ecs.dispose();                   // uninstalls all plugins
 - `docs/core-concepts.md` — Entities, components, systems, resources
 - `docs/systems.md` — Phases, priorities, groups, lifecycle hooks
 - `docs/queries.md` — Query type utilities, reactive queries
-- `docs/plugins.md` — Plugin definition, factory pattern, required components
+- `docs/plugins.md` — Plugin definition, defaults, requirements, and cleanup
 - `docs/built-in-plugins.md` — Input, timers, physics, collision, rendering, etc.
 - `docs/events.md` — Event system and built-in events
 - `docs/command-buffer.md` — Deferred structural changes

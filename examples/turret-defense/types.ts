@@ -1,17 +1,15 @@
-import ECSpresso from '../../src';
-import type { TimerComponentTypes } from '../../src/plugins/scripting/timers';
-import type { TransformComponentTypes } from '../../src/plugins/spatial/transform';
-import type { BoundsComponentTypes, BoundsEventTypes, BoundsResourceTypes } from '../../src/plugins/spatial/bounds';
-import type { CollisionComponentTypes, CollisionEventTypes, LayersOf } from '../../src/plugins/physics/collision';
-import type { Renderer2DComponentTypes, Renderer2DEventTypes, Renderer2DResourceTypes, ViewportScaleResourceTypes } from '../../src/plugins/rendering/renderer2D';
-import type { SpatialIndexResourceTypes } from '../../src/plugins/spatial/spatial-index';
-import type { SteeringComponentTypes, SteeringEventTypes } from '../../src/plugins/physics/steering';
-import type { DetectionComponentTypes, DetectionEventTypes } from '../../src/plugins/ai/detection';
-import type { HealthComponentTypes, HealthEventTypes } from '../../src/plugins/combat/health';
-import type { ProjectileComponentTypes, ProjectileEventTypes } from '../../src/plugins/combat/projectile';
-import type collisionLayers from './collision-layers';
-
-type Layer = LayersOf<typeof collisionLayers>;
+import ECSpresso, { type SystemRegistrarOf } from '../../src';
+import { createDetectionPlugin } from '../../src/plugins/ai/detection';
+import { createHealthPlugin } from '../../src/plugins/combat/health';
+import { createProjectilePlugin } from '../../src/plugins/combat/projectile';
+import { createCollisionPlugin } from '../../src/plugins/physics/collision';
+import { createSteeringPlugin } from '../../src/plugins/physics/steering';
+import { createRenderer2DPlugin } from '../../src/plugins/rendering/renderer2D';
+import { createTimerPlugin } from '../../src/plugins/scripting/timers';
+import { createBoundsPlugin } from '../../src/plugins/spatial/bounds';
+import { createSpatialIndexPlugin } from '../../src/plugins/spatial/spatial-index';
+import { createTransformPlugin } from '../../src/plugins/spatial/transform';
+import collisionLayers from './collision-layers';
 
 export const SCREEN_WIDTH = 800;
 export const SCREEN_HEIGHT = 800;
@@ -20,54 +18,45 @@ export const CENTER_Y = SCREEN_HEIGHT / 2;
 
 export type TimerSlot = 'spawn' | 'fire';
 
-export const builder = ECSpresso.create()
-	.withComponentTypes<
-		TimerComponentTypes<TimerSlot> &
-		TransformComponentTypes &
-		CollisionComponentTypes<Layer> &
-		Renderer2DComponentTypes &
-		BoundsComponentTypes &
-		SteeringComponentTypes &
-		DetectionComponentTypes &
-		HealthComponentTypes &
-		ProjectileComponentTypes &
-		{
-			turret: true;
-			enemy: { type: 'fast' | 'tank' | 'swarm'; speed: number; scoreValue: number };
-			base: true;
-		}
-	>()
-	.withEventTypes<
-		CollisionEventTypes<Layer> &
-		Renderer2DEventTypes &
-		BoundsEventTypes &
-		SteeringEventTypes &
-		DetectionEventTypes &
-		HealthEventTypes &
-		ProjectileEventTypes &
-		{
-			gameInit: true;
-			waveStart: { wave: number };
-			waveComplete: { wave: number };
-			gameOver: { score: number };
-		}
-	>()
-	.withResourceTypes<
-		Renderer2DResourceTypes &
-		ViewportScaleResourceTypes &
-		BoundsResourceTypes &
-		SpatialIndexResourceTypes &
-		{
-			gameState: {
-				status: 'ready' | 'playing' | 'gameOver';
-				wave: number;
-				score: number;
-				enemiesRemaining: number;
-				baseEntityId: number;
-			};
-		}
-	>();
+export const game = ECSpresso.create()
+	.withPlugin(createTimerPlugin<TimerSlot>())
+	.withPlugin(createRenderer2DPlugin({
+		background: '#111122',
+		container: '#game-container',
+		renderLayers: ['background', 'enemies', 'projectiles', 'turret', 'ui'],
+		screenScale: { width: SCREEN_WIDTH, height: SCREEN_HEIGHT },
+	}))
+	.withPlugin(createTransformPlugin())
+	.withPlugin(createBoundsPlugin())
+	.withPlugin(createCollisionPlugin({ layers: collisionLayers, priority: 50 }))
+	.withPlugin(createSpatialIndexPlugin())
+	.withPlugin(createSteeringPlugin())
+	.withPlugin(createDetectionPlugin())
+	.withPlugin(createHealthPlugin())
+	.withPlugin(createProjectilePlugin())
+	.withComponentTypes<{
+		turret: true;
+		enemy: {
+			type: 'fast' | 'tank' | 'swarm';
+			speed: number;
+			scoreValue: number;
+		};
+		base: true;
+	}>()
+	.withEventTypes<{
+		gameInit: true;
+		waveStart: { wave: number };
+		waveComplete: { wave: number };
+		gameOver: { score: number };
+	}>()
+	.withResource('gameState', {
+		status: 'ready' as 'ready' | 'playing' | 'gameOver',
+		wave: 0,
+		score: 0,
+		enemiesRemaining: 0,
+		baseEntityId: -1,
+	})
+	.build();
 
-export const definePlugin = builder.pluginFactory();
-
-export type World = ReturnType<typeof builder.build>;
+export type World = typeof game;
+export type GameSystemRegistrar = SystemRegistrarOf<World>;

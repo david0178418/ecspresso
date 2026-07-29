@@ -1,5 +1,5 @@
 import type ECSpresso from "./ecspresso";
-import type { SystemDefaults } from "./plugin";
+import type { SystemDefaults } from "./system-registrar";
 import type { FilteredEntity, QueryDefinition, System, SystemPhase } from "./types";
 import type { WorldConfig, EmptyConfig } from "./type-utils";
 
@@ -44,8 +44,8 @@ export class SystemBuilder<
 		if (defaults) {
 			if (defaults.phase !== undefined) this._phase = defaults.phase;
 			if (defaults.priority !== undefined) this._priority = defaults.priority;
-			if (defaults.inScreens !== undefined) this._inScreens = defaults.inScreens;
-			if (defaults.excludeScreens !== undefined) this._excludeScreens = defaults.excludeScreens;
+			if (defaults.inScreens !== undefined) this._inScreens = [...defaults.inScreens];
+			if (defaults.excludeScreens !== undefined) this._excludeScreens = [...defaults.excludeScreens];
 		}
 	}
 

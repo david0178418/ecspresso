@@ -11,5 +11,6 @@ export { default as AssetManager, createAssetConfigurator } from './asset-manage
 export { default as ScreenManager, createScreenConfigurator } from './screen-manager';
 export { SystemBuilder, type ProcessContext, type SystemLifecycleFn, type SystemProcessFn };
 export { type Plugin, type BasePluginOptions, type PluginCleanupRegistrar, definePlugin };
+export type { SystemDefaults, SystemRegistrar, SystemRegistrarOf } from './system-registrar';
 export { directValue, type ResourceDirectValue } from './resource-manager';
 export default ECSpresso;

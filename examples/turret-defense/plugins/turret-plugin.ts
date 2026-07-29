@@ -1,4 +1,4 @@
-import { definePlugin, type World } from '../types';
+import type { GameSystemRegistrar, World } from '../types';
 import { spawnProjectileAt } from '../utils';
 
 function findNearestLiveTarget(
@@ -17,47 +17,44 @@ function findNearestLiveTarget(
 	return undefined;
 }
 
-export default function createTurretPlugin() {
-	return definePlugin({
-		id: 'turret-plugin',
-		install(world) {
-			// Aim turret toward nearest detected enemy
-			world
-				.addSystem('turret-aim')
-				.inGroup('gameplay')
-				.setPriority(600)
-				.setProcessEach({ with: ['turret', 'localTransform', 'detectedEntities'] }, ({ entity, ecs }) => {
-					const { localTransform, detectedEntities } = entity.components;
-					const target = findNearestLiveTarget(detectedEntities, ecs as World);
-					if (!target) return;
+export default function registerTurretSystems(
+	systems: GameSystemRegistrar,
+): void {
+	// Aim turret toward nearest detected enemy
+	systems
+		.addSystem('turret-aim')
+		.inGroup('gameplay')
+		.setPriority(600)
+		.setProcessEach({ with: ['turret', 'localTransform', 'detectedEntities'] }, ({ entity, ecs }) => {
+			const { localTransform, detectedEntities } = entity.components;
+			const target = findNearestLiveTarget(detectedEntities, ecs);
+			if (!target) return;
 
-					const dx = target.x - localTransform.x;
-					const dy = target.y - localTransform.y;
-					// Offset by PI/2 so barrel (drawn pointing up) faces the target
-					localTransform.rotation = Math.atan2(dy, dx) + Math.PI / 2;
-					ecs.markChanged(entity.id, 'localTransform');
-				});
+			const dx = target.x - localTransform.x;
+			const dy = target.y - localTransform.y;
+			// Offset by PI/2 so barrel (drawn pointing up) faces the target
+			localTransform.rotation = Math.atan2(dy, dx) + Math.PI / 2;
+			ecs.markChanged(entity.id, 'localTransform');
+		});
 
-			// Fire projectiles on timer tick when targets are available
-			world
-				.addSystem('turret-fire')
-				.inGroup('gameplay')
-				.setPriority(700)
-				.setProcessEach({ with: ['turret', 'localTransform', 'detectedEntities', 'timers'] }, ({ entity, ecs }) => {
-					const { timers, localTransform, detectedEntities } = entity.components;
-					if (!timers['fire']?.justFinished) return;
+	// Fire projectiles on timer tick when targets are available
+	systems
+		.addSystem('turret-fire')
+		.inGroup('gameplay')
+		.setPriority(700)
+		.setProcessEach({ with: ['turret', 'localTransform', 'detectedEntities', 'timers'] }, ({ entity, ecs }) => {
+			const { timers, localTransform, detectedEntities } = entity.components;
+			if (!timers['fire']?.justFinished) return;
 
-					const target = findNearestLiveTarget(detectedEntities, ecs as World);
-					if (!target) return;
+			const target = findNearestLiveTarget(detectedEntities, ecs);
+			if (!target) return;
 
-					spawnProjectileAt(
-						ecs as World,
-						localTransform.x,
-						localTransform.y,
-						target.entityId,
-						entity.id,
-					);
-				});
-		},
-	});
+			spawnProjectileAt(
+				ecs,
+				localTransform.x,
+				localTransform.y,
+				target.entityId,
+				entity.id,
+			);
+		});
 }

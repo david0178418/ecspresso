@@ -2,6 +2,27 @@
 
 All notable changes to ECSpresso are documented here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## Unreleased
+
+### Breaking
+
+- Removed `ECSpressoBuilder.pluginFactory()` and `ECSpresso.pluginFactory()`.
+  Reusable features must use canonical `definePlugin()`. Application-owned
+  system modules should accept `SystemRegistrarOf<W>` and receive either the
+  full built world or a scoped registrar.
+
+### Added
+
+- Added `world.systemScope(defaults)`, which returns a narrow, system-only
+  registration capability with snapshotted phase, priority, and screen defaults.
+- Added the public `SystemDefaults`, `SystemRegistrar`, and
+  `SystemRegistrarOf` types.
+
+### Internal
+
+- Aligned the development TypeScript version with TypeDoc's supported 6.x
+  range so the generated documentation pipeline remains reproducible.
+
 ## 0.20.0
 
 ### Changed

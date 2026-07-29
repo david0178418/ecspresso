@@ -1,5 +1,6 @@
 import type ECSpresso from './ecspresso';
 import type { SystemPhase } from './types';
+import type { SystemDefaults } from './system-registrar';
 import type {
 	WorldConfig,
 	EmptyConfig,
@@ -17,18 +18,6 @@ import type {
  * uninstalled via `world.uninstallPlugin(id)` or when `world.dispose()` is called.
  */
 export type PluginCleanupRegistrar = (fn: () => void) => void;
-
-/**
- * Defaults applied to every system created via `world.addSystem(...)` inside
- * a plugin's install function. Per-system builder calls (`.inPhase(...)`,
- * `.inScreens([...])`, `.setPriority(...)`) always override the default.
- */
-export interface SystemDefaults<Cfg extends WorldConfig = EmptyConfig> {
-	inScreens?: ReadonlyArray<keyof Cfg['screens'] & string>;
-	excludeScreens?: ReadonlyArray<keyof Cfg['screens'] & string>;
-	phase?: SystemPhase;
-	priority?: number;
-}
 
 /**
  * Plugin interface for ECSpresso. A plugin is a plain object with an `install`

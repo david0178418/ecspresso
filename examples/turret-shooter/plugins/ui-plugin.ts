@@ -1,106 +1,103 @@
-import { definePlugin } from '../types';
+import type { GameSystemRegistrar } from '../types';
 
-export default function createUIPlugin() {
-	return definePlugin({
-		id: 'ui-plugin',
-		install(world) {
-			// Radar system
-			world.addSystem('radar-system')
-				.withResources(['gameState'])
-				.setProcess(({ ecs, resources: { gameState } }) => {
-					const radarContainer = document.getElementById('radar-overlay');
+export default function registerUISystems(
+	systems: GameSystemRegistrar,
+): void {
+	// Radar system
+	systems.addSystem('radar-system')
+		.withResources(['gameState'])
+		.setProcess(({ ecs, resources: { gameState } }) => {
+			const radarContainer = document.getElementById('radar-overlay');
 
-					// Handle radar animation based on game state
-					if (radarContainer) {
-						const radarSweep = document.getElementById('radar-sweep') as HTMLDivElement;
-						if (radarSweep) {
-							// Pause animation when game is not playing
-							if (gameState.status !== 'playing') {
-								radarSweep.style.animationPlayState = 'paused';
-							} else {
-								radarSweep.style.animationPlayState = 'running';
-							}
-						}
+			// Handle radar animation based on game state
+			if (radarContainer) {
+				const radarSweep = document.getElementById('radar-sweep') as HTMLDivElement;
+				if (radarSweep) {
+					// Pause animation when game is not playing
+					if (gameState.status !== 'playing') {
+						radarSweep.style.animationPlayState = 'paused';
+					} else {
+						radarSweep.style.animationPlayState = 'running';
 					}
+				}
+			}
 
-					// Skip other radar updates if game is paused
-					if (gameState.status !== 'playing') return;
+			// Skip other radar updates if game is paused
+			if (gameState.status !== 'playing') return;
 
-					// Get radar container element
-					if (!radarContainer) return;
+			// Get radar container element
+			if (!radarContainer) return;
 
-					// Get player entity and rotation
-					const playerEntities = ecs.entityManager.getEntitiesWithQuery(['player', 'localTransform3D']);
-					if (playerEntities.length === 0) return;
+			// Get player entity and rotation
+			const playerEntities = ecs.entityManager.getEntitiesWithQuery(['player', 'localTransform3D']);
+			if (playerEntities.length === 0) return;
 
-					const player = playerEntities[0];
-					if (!player) return;
+			const player = playerEntities[0];
+			if (!player) return;
 
-					const playerFacing = player.components.localTransform3D.ry;
+			const playerFacing = player.components.localTransform3D.ry;
 
-					// Get all enemies
-					const enemyEntities = ecs.entityManager.getEntitiesWithQuery(['enemy', 'localTransform3D']);
+			// Get all enemies
+			const enemyEntities = ecs.entityManager.getEntitiesWithQuery(['enemy', 'localTransform3D']);
 
-					// Update or create blips for each enemy
-					for (const enemy of enemyEntities) {
-						if (enemy.components.enemy.isDestroying) continue;
+			// Update or create blips for each enemy
+			for (const enemy of enemyEntities) {
+				if (enemy.components.enemy.isDestroying) continue;
 
-						const enemyTransform = enemy.components.localTransform3D;
-						const enemyType = enemy.components.enemy.type;
+				const enemyTransform = enemy.components.localTransform3D;
+				const enemyType = enemy.components.enemy.type;
 
-						// Calculate distance from player (center)
-						const distanceFromCenter = Math.sqrt(enemyTransform.x * enemyTransform.x + enemyTransform.z * enemyTransform.z);
-						const maxDistance = 200; // Maximum radar range
-						const normalizedDistance = Math.min(distanceFromCenter, maxDistance) / maxDistance;
+				// Calculate distance from player (center)
+				const distanceFromCenter = Math.sqrt(enemyTransform.x * enemyTransform.x + enemyTransform.z * enemyTransform.z);
+				const maxDistance = 200; // Maximum radar range
+				const normalizedDistance = Math.min(distanceFromCenter, maxDistance) / maxDistance;
 
-						// Calculate absolute angle from center to enemy
-						const absoluteAngle = Math.atan2(enemyTransform.x, enemyTransform.z);
+				// Calculate absolute angle from center to enemy
+				const absoluteAngle = Math.atan2(enemyTransform.x, enemyTransform.z);
 
-						// Calculate relative angle (subtract player's facing direction)
-						// This makes straight ahead (player facing) always point up on the radar
-						let relativeAngle = absoluteAngle - playerFacing;
+				// Calculate relative angle (subtract player's facing direction)
+				// This makes straight ahead (player facing) always point up on the radar
+				let relativeAngle = absoluteAngle - playerFacing;
 
-						// Normalize angle to be between -PI and PI
-						while (relativeAngle > Math.PI) relativeAngle -= Math.PI * 2;
-						while (relativeAngle < -Math.PI) relativeAngle += Math.PI * 2;
+				// Normalize angle to be between -PI and PI
+				while (relativeAngle > Math.PI) relativeAngle -= Math.PI * 2;
+				while (relativeAngle < -Math.PI) relativeAngle += Math.PI * 2;
 
-						// Calculate radar position based on relative angle
-						// X is sin, Z is cos (for a top-down view where up is player facing direction)
-						const radarRadius = 75; // Half of radar diameter
-						const blipX = Math.sin(relativeAngle) * normalizedDistance * radarRadius;
-						const blipZ = Math.cos(relativeAngle) * normalizedDistance * radarRadius; // Positive cos to make forward be up (not negative)
+				// Calculate radar position based on relative angle
+				// X is sin, Z is cos (for a top-down view where up is player facing direction)
+				const radarRadius = 75; // Half of radar diameter
+				const blipX = Math.sin(relativeAngle) * normalizedDistance * radarRadius;
+				const blipZ = Math.cos(relativeAngle) * normalizedDistance * radarRadius; // Positive cos to make forward be up (not negative)
 
-						// Find existing blip or create new one
-						let blip = radarContainer.querySelector(`.radar-blip[data-entity-id="${enemy.id}"]`) as HTMLDivElement;
+				// Find existing blip or create new one
+				let blip = radarContainer.querySelector(`.radar-blip[data-entity-id="${enemy.id}"]`) as HTMLDivElement;
 
-						if (!blip) {
-							// Create new blip
-							blip = document.createElement('div');
-							blip.classList.add('radar-blip');
-							blip.setAttribute('data-entity-id', enemy.id.toString());
-							blip.setAttribute('data-enemy-type', enemyType);
+				if (!blip) {
+					// Create new blip
+					blip = document.createElement('div');
+					blip.classList.add('radar-blip');
+					blip.setAttribute('data-entity-id', enemy.id.toString());
+					blip.setAttribute('data-enemy-type', enemyType);
 
-							// Style the blip
-							blip.style.position = 'absolute';
-							blip.style.width = '12px'; // Larger blips
-							blip.style.height = '12px';
-							blip.style.borderRadius = '50%';
-							blip.style.backgroundColor = enemyType === 'ground' ? '#ff3333' : '#3333ff';
-							blip.style.boxShadow = enemyType === 'ground'
-								? '0 0 8px #ff0000'
-								: '0 0 8px #0000ff';
-							blip.style.zIndex = '150';
+					// Style the blip
+					blip.style.position = 'absolute';
+					blip.style.width = '12px'; // Larger blips
+					blip.style.height = '12px';
+					blip.style.borderRadius = '50%';
+					blip.style.backgroundColor = enemyType === 'ground' ? '#ff3333' : '#3333ff';
+					blip.style.boxShadow = enemyType === 'ground'
+						? '0 0 8px #ff0000'
+						: '0 0 8px #0000ff';
+					blip.style.zIndex = '150';
 
-							// Add to radar
-							radarContainer.appendChild(blip);
-						}
+					// Add to radar
+					radarContainer.appendChild(blip);
+				}
 
-						// Update blip position
-						blip.style.left = `${50 + blipX}%`;
-						blip.style.top = `${50 + blipZ}%`;
-						blip.style.transform = 'translate(-50%, -50%)';
-					}
-				});
-		},
-	});
+				// Update blip position
+				blip.style.left = `${50 + blipX}%`;
+				blip.style.top = `${50 + blipZ}%`;
+				blip.style.transform = 'translate(-50%, -50%)';
+			}
+		});
 }

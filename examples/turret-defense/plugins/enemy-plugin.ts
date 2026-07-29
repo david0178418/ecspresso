@@ -1,5 +1,5 @@
 import { createRepeatingTimer } from '../../../src/plugins/scripting/timers';
-import { definePlugin, type World } from '../types';
+import type { GameSystemRegistrar, World } from '../types';
 import type { EnemyType } from '../utils';
 import { spawnEnemy } from '../utils';
 
@@ -58,101 +58,98 @@ function decrementAndCheckWave(
 	}
 }
 
-export default function createEnemyPlugin() {
+export default function registerEnemySystems(
+	systems: GameSystemRegistrar,
+): void {
 	const spawnQueue: EnemyType[] = [];
 
-	return definePlugin({
-		id: 'enemy-plugin',
-		install(world) {
-			world
-				.addSystem('wave-manager')
-				.inGroup('gameplay')
-				.setEventHandlers({
-					gameInit({ ecs }) {
-						ecs.eventBus.publish('waveStart', { wave: 1 });
-					},
+	systems
+		.addSystem('wave-manager')
+		.inGroup('gameplay')
+		.setEventHandlers({
+			gameInit({ ecs }) {
+				ecs.eventBus.publish('waveStart', { wave: 1 });
+			},
 
-					waveComplete({ ecs }) {
-						const gameState = ecs.getResource('gameState');
-						const nextWave = gameState.wave + 1;
-						ecs.eventBus.publish('waveStart', { wave: nextWave });
-					},
+			waveComplete({ ecs }) {
+				const gameState = ecs.getResource('gameState');
+				const nextWave = gameState.wave + 1;
+				ecs.eventBus.publish('waveStart', { wave: nextWave });
+			},
 
-					waveStart({ data, ecs }) {
-						const gameState = ecs.getResource('gameState');
-						gameState.wave = data.wave;
-						gameState.status = 'playing';
+			waveStart({ data, ecs }) {
+				const gameState = ecs.getResource('gameState');
+				gameState.wave = data.wave;
+				gameState.status = 'playing';
 
-						const waveDef = getWaveDefinition(data.wave);
+				const waveDef = getWaveDefinition(data.wave);
 
-						spawnQueue.length = 0;
-						for (const group of waveDef.enemies) {
-							for (let i = 0; i < group.count; i++) {
-								spawnQueue.push(group.type);
-							}
-						}
-						// Fisher-Yates shuffle
-						for (let i = spawnQueue.length - 1; i > 0; i--) {
-							const j = Math.floor(Math.random() * (i + 1));
-							const temp = spawnQueue[i] as EnemyType;
-							spawnQueue[i] = spawnQueue[j] as EnemyType;
-							spawnQueue[j] = temp;
-						}
+				spawnQueue.length = 0;
+				for (const group of waveDef.enemies) {
+					for (let i = 0; i < group.count; i++) {
+						spawnQueue.push(group.type);
+					}
+				}
+				// Fisher-Yates shuffle
+				for (let i = spawnQueue.length - 1; i > 0; i--) {
+					const j = Math.floor(Math.random() * (i + 1));
+					const temp = spawnQueue[i] as EnemyType;
+					spawnQueue[i] = spawnQueue[j] as EnemyType;
+					spawnQueue[j] = temp;
+				}
 
-						gameState.enemiesRemaining = spawnQueue.length;
+				gameState.enemiesRemaining = spawnQueue.length;
 
-						ecs.spawn({
-							timers: { spawn: createRepeatingTimer(waveDef.spawnInterval) },
-						});
-					},
+				ecs.spawn({
+					timers: { spawn: createRepeatingTimer(waveDef.spawnInterval) },
+				});
+			},
+		});
+
+	systems
+		.addSystem('enemy-spawner')
+		.inGroup('gameplay')
+		.inPhase('preUpdate')
+		.setProcessEach(
+			{ with: ['timers'], without: ['turret', 'enemy', 'projectile', 'base'] },
+			({ entity, ecs }) => {
+				if (!entity.components.timers['spawn']?.justFinished) return;
+
+				if (spawnQueue.length > 0) {
+					const type = spawnQueue.pop() as EnemyType;
+					spawnEnemy(ecs, type);
+				} else {
+					ecs.commands.removeEntity(entity.id);
+				}
+			},
+		);
+
+	// All enemiesRemaining tracking consolidated here
+	systems
+		.addSystem('enemy-lifecycle')
+		.inGroup('gameplay')
+		.setEventHandlers({
+			arriveAtTarget({ data, ecs }) {
+				const enemy = ecs.getComponent(data.entityId, 'enemy');
+				if (!enemy) return;
+
+				const gameState = ecs.getResource('gameState');
+				ecs.eventBus.publish('damage', {
+					entityId: gameState.baseEntityId,
+					amount: 10,
+					sourceId: data.entityId,
 				});
 
-			world
-				.addSystem('enemy-spawner')
-				.inGroup('gameplay')
-				.inPhase('preUpdate')
-				.setProcessEach(
-					{ with: ['timers'], without: ['turret', 'enemy', 'projectile', 'base'] },
-					({ entity, ecs }) => {
-						if (!entity.components.timers['spawn']?.justFinished) return;
+				ecs.commands.removeEntity(data.entityId);
+				decrementAndCheckWave(spawnQueue, gameState, ecs);
+			},
 
-						if (spawnQueue.length > 0) {
-							const type = spawnQueue.pop() as EnemyType;
-							spawnEnemy(ecs, type);
-						} else {
-							ecs.commands.removeEntity(entity.id);
-						}
-					},
-				);
+			entityDied({ data, ecs }) {
+				const enemy = ecs.getComponent(data.entityId, 'enemy');
+				if (!enemy) return;
 
-			// All enemiesRemaining tracking consolidated here
-			world
-				.addSystem('enemy-lifecycle')
-				.inGroup('gameplay')
-				.setEventHandlers({
-					arriveAtTarget({ data, ecs }) {
-						const enemy = ecs.getComponent(data.entityId, 'enemy');
-						if (!enemy) return;
-
-						const gameState = ecs.getResource('gameState');
-						ecs.eventBus.publish('damage', {
-							entityId: gameState.baseEntityId,
-							amount: 10,
-							sourceId: data.entityId,
-						});
-
-						ecs.commands.removeEntity(data.entityId);
-						decrementAndCheckWave(spawnQueue, gameState, ecs as World);
-					},
-
-					entityDied({ data, ecs }) {
-						const enemy = ecs.getComponent(data.entityId, 'enemy');
-						if (!enemy) return;
-
-						const gameState = ecs.getResource('gameState');
-						decrementAndCheckWave(spawnQueue, gameState, ecs as World);
-					},
-				});
-		},
-	});
+				const gameState = ecs.getResource('gameState');
+				decrementAndCheckWave(spawnQueue, gameState, ecs);
+			},
+		});
 }

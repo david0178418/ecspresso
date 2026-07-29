@@ -93,6 +93,10 @@ requestAnimationFrame(loop(performance.now()));
 
 > **`mutates` in one line:** declares which components a system writes — auto-marks them as changed each tick and narrows the rest of `with` to `Readonly<T>`. Less boilerplate, more compile-time safety.
 
+For larger applications, pass the narrow `SystemRegistrarOf<typeof world>` type
+to system registration modules. The [Systems guide](./systems.md#application-registration-modules)
+shows how to pass either the full world or a registrar with shared defaults.
+
 ## Next Steps
 
 - [Core Concepts](./core-concepts.md) — entities, components, systems, resources

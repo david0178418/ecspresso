@@ -2,9 +2,12 @@
 
 ## Defining Plugins
 
-Plugins group related systems, resources, and component types. Two approaches: **canonical `definePlugin`** (the default — each plugin declares the types it contributes) and **`pluginFactory()`** (a lighter-weight variant for plugins that only *consume* existing world state). The choice is per-plugin and largely irreversible — read [Choosing between the two](#choosing-between-the-two) before picking.
+Plugins group reusable systems, resources, and component types. Canonical
+`definePlugin()` is the only plugin definition API. Application modules that
+only organize system registration should use `SystemRegistrarOf<W>` and
+`world.systemScope(defaults)` instead.
 
-### 1. Canonical `definePlugin` (the default)
+### Canonical `definePlugin`
 
 ```typescript
 import { definePlugin } from 'ecspresso';
@@ -118,51 +121,42 @@ When a system has `inScreens([X])` set (either directly or via `setSystemDefault
 
 For plugins that ship gated systems (waves, summon, projectile, vfx, pickup, etc.): drop manual `{ scope: ... }` tags from internal spawns. Keep them only for entities that should outlive the screen, in which case use `{ scope: null }` to opt out explicitly. Auto-scoping does **not** apply to spawns from `onInitialize` / `onDetach`, plugin `install` bodies, or systems that use only `excludeScreens` — those still need explicit scopes.
 
-### 2. `pluginFactory()` (lighter-weight, type-frozen)
+## Application System Registration
 
-`builder.pluginFactory()` returns a `definePlugin` that closes over the builder's accumulated world types, so plugins authored with it skip the per-plugin `.withComponentTypes<>()` ceremony and `world` is already typed inside `install`. **The cost: plugins authored this way cannot contribute new component / event / resource types** — every new type must land back in the central builder.
+Use `SystemRegistrarOf<W>` for application modules that only register systems
+against the final built world:
 
 ```typescript
-// types.ts
-export const builder = ECSpresso.create()
-  .withPlugin(createPhysicsPlugin())
-  .withComponentTypes<{ player: boolean; enemy: EnemyData }>()
-  .withResourceTypes<{ score: number }>();
+import type { SystemRegistrarOf } from 'ecspresso';
 
-export const definePlugin = builder.pluginFactory();
+type GameSystems = SystemRegistrarOf<typeof game>;
 
-// movement-plugin.ts
-import { definePlugin } from './types';
+function registerMovement(systems: GameSystems): void {
+  systems.addSystem('movement')
+    .addQuery('moving', { with: ['position', 'velocity'] })
+    .setProcess(({ queries, dt }) => { /* ... */ });
+}
 
-export const movementPlugin = definePlugin({
-  id: 'movement',
-  install(world) {
-    world.addSystem('movement')
-      .addQuery('moving', { with: ['position', 'velocity'] })
-      .setProcess(({ queries, dt }) => { /* ... */ });
-  },
+registerMovement(game);
+
+const gameplaySystems = game.systemScope({
+  inScreens: ['playing'],
 });
+registerMovement(gameplaySystems);
 ```
 
-### Choosing between the two
+The full world structurally satisfies the registrar type. A scoped registrar
+captures copied phase, priority, `inScreens`, and `excludeScreens` defaults.
+Per-system fluent calls override them. It exposes only `addSystem()`; reactive
+queries and other non-system initialization require an explicit full-world
+dependency.
 
-**Heuristic:**
-
-- **Use canonical `definePlugin`** if the plugin's existence implies new state — turrets, shields, hangars, physics, anything where adopting the plugin means new components / events / resources exist in the world. This is the right default for real games and apps where features keep landing.
-- **Use `pluginFactory()`** only for plugins that purely *consume* existing world state — UI overlays, debug huds, glue code, demo scaffolding. Or for small projects / examples where the full type set is known up front and won't grow.
-
-The two patterns are mutually exclusive **per plugin** — there is no variant of `pluginFactory` that both closes over the world type *and* lets the plugin contribute new types. A project can mix both styles across different plugins, but a single plugin commits to one.
-
-| | Canonical `definePlugin('id').withComponentTypes<>()…` | `builder.pluginFactory()` |
-|---|---|---|
-| Plugin can add new components / events / resources | Yes — types merge into the world via `withPlugin` | **No** — world config is frozen at factory creation |
-| `world` is pre-typed inside `install` | Only with the types the plugin declared (+ `requires<>()`) | Yes, full world type already available |
-| Where new component/event types must land | Inside the plugin file | Back in the central `types.ts` builder chain |
-| Best for | Feature plugins that introduce state | Consumer plugins (UI/debug/glue), demos, fixed-scope apps |
-
-**The trap (irreversible-ish):** adopting `pluginFactory()` for ergonomics and *then* trying to add a new component from inside a plugin will silently force you back into the central types file. As the project grows, `types.ts` becomes the contention point for every new feature. Migrating later means rewriting every feature plugin's signature. If you're unsure, default to canonical `definePlugin` — the per-plugin `.withComponentTypes<>()` ceremony is a small cost, and you can mix in `pluginFactory()` later for genuine consumer plugins.
-
-If you've already committed to `pluginFactory()` and `types.ts` is bloating, the cheapest mitigation is to split component / event / resource interfaces into per-feature files and aggregate them at the central builder via `&` — see [SKILL.md — Scaling the type registry](SKILL.md#scaling-the-type-registry).
+| Need | API |
+|---|---|
+| Reusable feature contributing or requiring types | `definePlugin()` |
+| Application system with no shared defaults | Registration function receiving `SystemRegistrarOf<W>`; pass `world` |
+| Application systems sharing defaults | `world.systemScope(defaults)` |
+| Non-system world initialization | Explicit full-world dependency |
 
 ## Using Plugins
 
