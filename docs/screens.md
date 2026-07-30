@@ -80,6 +80,45 @@ Avoid a second UI-only router whose state can disagree with
 `getCurrentScreen()`. That split commonly leaves gameplay systems or menu input
 active behind the wrong view.
 
+### Renderer Adapter Boundary
+
+For a nontrivial UI, keep the renderer integration as a view adapter driven by
+screen lifecycle hooks. The adapter may own presentation-only state such as
+cached DOM or canvas objects, focus targets, prompt variants, animation state,
+and retained views used to draw an overlay. It may also remember which view it
+last presented when that value is needed only for presentation behavior such
+as focus restoration or transition animation.
+
+Navigation state stays in ECSpresso. The adapter should not maintain its own
+screen stack, decide which application screen is active, or perform transitions
+that bypass `setScreen`, `pushScreen`, and `popScreen`.
+
+As the adapter grows, split screen-specific templates or view specifications by
+feature and compose them in a small renderer runtime:
+
+```typescript
+const views = {
+  menu: createMenuView(),
+  settings: createSettingsView(),
+  gameplay: createGameplayView(),
+} as const;
+
+function presentView(name: keyof typeof views): void {
+  views[name].show();
+  views[name].focusDefault();
+}
+
+game.onScreenEnter('menu', () => presentView('menu'));
+game.onScreenEnter('settings', () => presentView('settings'));
+game.onScreenEnter('gameplay', () => presentView('gameplay'));
+game.onScreenResume('menu', () => presentView('menu'));
+game.onScreenResume('settings', () => presentView('settings'));
+game.onScreenResume('gameplay', () => presentView('gameplay'));
+```
+
+This separation is organizational: ECSpresso owns application navigation and
+lifecycle, while the adapter owns how the current screen is presented.
+
 ## Extracted Screen Configurators
 
 Use `ScreenConfiguratorFn` when a `.withScreens(...)` callback is extracted into a named helper:

@@ -350,6 +350,15 @@ when they affect active systems, input routing, or back navigation. A renderer
 or DOM layer may keep view objects, but it should render from screen
 enter/resume hooks rather than maintain a second independent screen router.
 
+For a larger UI, use a renderer adapter. It may cache DOM/canvas objects and own
+presentation-only state such as focus targets, prompt variants, animations,
+and retained overlay views. It may remember the last presented view when that
+value is used only for presentation behavior. It must not own an independent
+navigation stack, decide which application screen is active, or bypass
+`setScreen`, `pushScreen`, and `popScreen`. Split screen-specific templates or
+view specifications by feature and compose them in a small adapter/runtime.
+See `docs/screens.md`.
+
 ### Pause and Overlay Semantics
 
 Pushing an overlay changes the current screen, so systems gated with
